@@ -6,13 +6,6 @@ import ApplicationServices
 enum Hotkey: String, CaseIterable {
     case fn, rightCommand, rightOption, rightControl, rightShift
 
-    static let defaultsKey = "hotkey"
-
-    static var saved: Hotkey {
-        get { Hotkey(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .fn }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: defaultsKey) }
-    }
-
     var title: String {
         switch self {
         case .fn: return "Fn (🌐)"
@@ -55,25 +48,62 @@ enum Hotkey: String, CaseIterable {
     }
 }
 
-/// Hold the hotkey to dictate: key-down starts, key-up stops and pastes.
-/// Pressing any other key while holding it (e.g. Right ⌘+C) is treated as a
-/// shortcut, not dictation, and cancels.
+/// An extra mouse button that toggles dictation (press to start, press again to stop).
+enum MouseButton: String, CaseIterable {
+    case off, middle, button4, button5
+
+    var title: String {
+        switch self {
+        case .off: return "None"
+        case .middle: return "Middle button"
+        case .button4: return "Button 4 (Back)"
+        case .button5: return "Button 5 (Forward)"
+        }
+    }
+
+    /// CGEvent button number: 0 left, 1 right, 2 middle, 3 = button 4, 4 = button 5.
+    fileprivate var buttonNumber: Int64? {
+        switch self {
+        case .off: return nil
+        case .middle: return 2
+        case .button4: return 3
+        case .button5: return 4
+        }
+    }
+}
+
+/// Watches the hotkey.
+/// - Hold mode: key-down → onPress, key-up → onRelease.
+/// - Toggle mode: a tap (press and release) → onTap.
+/// Pressing any other key while the hotkey is down (e.g. Right ⌘+C) is treated as a
+/// shortcut, not dictation: hold mode calls onCancel, toggle mode ignores the tap.
 class HotkeyManager {
     var hotkey: Hotkey {
         didSet { held = false }
     }
+    var mode: ActivationMode {
+        didSet { held = false }
+    }
+    var mouseButton: MouseButton
     private let onPress: () -> Void
     private let onRelease: () -> Void
     private let onCancel: () -> Void
+    private let onTap: () -> Void
+    private var mouseTap: CFMachPort?
     private var monitors: [Any] = []
     private var held = false
     private var cancelled = false
 
-    init(hotkey: Hotkey, onPress: @escaping () -> Void, onRelease: @escaping () -> Void, onCancel: @escaping () -> Void) {
+    init(hotkey: Hotkey, mode: ActivationMode, mouseButton: MouseButton,
+         onPress: @escaping () -> Void, onRelease: @escaping () -> Void,
+         onCancel: @escaping () -> Void, onTap: @escaping () -> Void) {
         self.hotkey = hotkey
+        self.mode = mode
+        self.mouseButton = mouseButton
         self.onPress = onPress
         self.onRelease = onRelease
         self.onCancel = onCancel
+        self.onTap = onTap
     }
 
     func start() {
@@ -103,6 +133,44 @@ class HotkeyManager {
         if let m = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: { [weak self] _ in
             self?.otherKeyPressed()
         }) { monitors.append(m) }
+        installMouseTap()
+    }
+
+    // MARK: Mouse button
+
+    /// An event tap (not a passive monitor) so the assigned button's own action,
+    /// like Back in a browser, can be swallowed.
+    private func installMouseTap() {
+        let mask = (1 << CGEventType.otherMouseDown.rawValue) | (1 << CGEventType.otherMouseUp.rawValue)
+        let callback: CGEventTapCallBack = { _, type, event, refcon in
+            guard let refcon = refcon else { return Unmanaged.passUnretained(event) }
+            let manager = Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue()
+            return manager.handleMouse(type: type, event: event)
+        }
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
+            eventsOfInterest: CGEventMask(mask), callback: callback,
+            userInfo: Unmanaged.passUnretained(self).toOpaque()
+        ) else { return }
+        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        mouseTap = tap
+    }
+
+    private func handleMouse(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let tap = mouseTap { CGEvent.tapEnable(tap: tap, enable: true) }
+            return Unmanaged.passUnretained(event)
+        }
+        guard let number = mouseButton.buttonNumber,
+              event.getIntegerValueField(.mouseEventButtonNumber) == number else {
+            return Unmanaged.passUnretained(event)
+        }
+        if type == .otherMouseDown {
+            DispatchQueue.main.async { [weak self] in self?.onTap() }
+        }
+        return nil  // swallow both down and up
     }
 
     private func flagsChanged(_ event: NSEvent) {
@@ -111,16 +179,17 @@ class HotkeyManager {
         if down && !held {
             held = true
             cancelled = false
-            onPress()
+            if mode == .hold { onPress() }
         } else if !down && held {
             held = false
-            if !cancelled { onRelease() }
+            guard !cancelled else { return }
+            if mode == .hold { onRelease() } else { onTap() }
         }
     }
 
     private func otherKeyPressed() {
         guard held, !cancelled else { return }
         cancelled = true
-        onCancel()
+        if mode == .hold { onCancel() }
     }
 }

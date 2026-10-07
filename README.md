@@ -23,8 +23,15 @@ Relaunch the app after enabling Accessibility.
 ## Use
 
 - **Hold Fn**, speak, **release** → the transcript pastes at your cursor.
-- Menu bar 🎙 → **Hotkey** picks the key to hold: Fn, Right ⌘, Right ⌥, Right ⌃ or Right ⇧.
-  Pressing another key while holding it (e.g. Right ⌘+C) counts as a shortcut and cancels dictation.
+- Menu bar 🎙 → **Settings…** (⌘,):
+  - **Hotkey**: Fn, Right ⌘, Right ⌥, Right ⌃ or Right ⇧.
+  - **Activation**: hold to talk, or tap once to start and tap again to paste.
+    Pressing another key while the hotkey is down (e.g. Right ⌘+C) counts as a shortcut, not dictation.
+  - **Mouse trigger**: middle, button 4 or button 5 — press to start, press again to paste.
+    The button's normal action (e.g. Back) is blocked while it's assigned.
+- Menu bar 🎙 → **Insights…**: words dictated, time saved (vs. typing at 40 WPM), average WPM, total dictation time.
+- Menu bar 🎙 → **History…** (⌘Y): past dictations by day, searchable; hover a row to copy it.
+  Kept on this Mac only (`~/Library/Application Support/DictationApp/history.json`); choose how long to keep it.
 - Click ✕ to throw the dictation away, ✓ to stop and paste.
 - Menu bar 🎙 → **AI polish (on-device)** toggles LLM cleanup (default: off).
   When on, Apple's on-device model removes fillers and fixes self-corrections —

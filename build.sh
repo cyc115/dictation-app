@@ -41,7 +41,12 @@ swiftc -swift-version 5 -O -o /tmp/DictationApp-bin \
   Sources/TextInjector.swift \
   Sources/OverlayWindow.swift \
   Sources/PolishService.swift \
+  Sources/Settings.swift \
+  Sources/Insights.swift \
+  Sources/History.swift \
+  Sources/MainWindow.swift \
   -framework AppKit \
+  -framework SwiftUI \
   -framework AVFoundation \
   -framework Speech \
   -framework ApplicationServices \
