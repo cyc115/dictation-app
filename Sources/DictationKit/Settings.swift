@@ -294,7 +294,7 @@ struct SettingsView: View {
             Section {
                 SettingRow("AI polish", settings.effectiveStreaming
                            ? "Not used while “Type as you speak” is on — polish needs the whole dictation."
-                           : "Remove filler words and fix self-corrections with Apple's on-device model.") {
+                           : "Removes filler words and fixes self-corrections. Adds ~1 s per dictation.") {
                     Toggle("AI polish", isOn: $settings.polishEnabled)
                 }
             } header: {
