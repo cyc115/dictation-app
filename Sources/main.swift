@@ -21,6 +21,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let injector = TextInjector()
     private let polisher = PolishService()
     private var dictating = false
+    private var autoStop: DispatchWorkItem?
 
     private var polishEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: "aiPolishEnabled") }
@@ -88,23 +89,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         overlay.show(message: "Listening… release Fn to paste")
         speech.start(
             onPartial: { [weak self] text in
-                DispatchQueue.main.async { self?.overlay.show(message: text) }
+                DispatchQueue.main.async {
+                    guard self?.dictating == true else { return }
+                    self?.overlay.show(message: text)
+                }
             },
             onError: { [weak self] message in
-                DispatchQueue.main.async { self?.overlay.show(message: "Error: \(message)") }
+                DispatchQueue.main.async {
+                    guard self?.dictating == true else { return }
+                    self?.overlay.show(message: "Error: \(message)")
+                }
             }
         )
         // Safety: auto-stop after 90 seconds in case the key-up is missed.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 90) { [weak self] in
-            if self?.dictating == true { self?.stopDictation() }
-        }
+        let work = DispatchWorkItem { [weak self] in self?.stopDictation() }
+        autoStop = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 90, execute: work)
     }
 
     func stopDictation() {
         guard dictating else { return }
         setDictating(false)
+        autoStop?.cancel()
+        autoStop = nil
         overlay.hide()
-        let raw = speech.stop().trimmingCharacters(in: .whitespacesAndNewlines)
+        speech.stop { [weak self] text in
+            self?.deliver(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+    }
+
+    private func deliver(_ raw: String) {
         guard !raw.isEmpty else { return }
         if polishEnabled {
             overlay.show(message: "Polishing…")

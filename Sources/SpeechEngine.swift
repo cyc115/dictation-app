@@ -9,8 +9,17 @@ class SpeechEngine {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var lastText = ""
+    /// Bumped whenever a dictation starts or completes; callbacks from older sessions are ignored.
+    private var session = 0
+    /// Set while stop() waits for the final transcript.
+    private var finishHandler: ((String) -> Void)?
+    /// How long stop() waits for the recognizer's final result before using what it has.
+    private let finalResultTimeout: TimeInterval = 2.0
 
     func start(onPartial: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
+        complete()  // deliver any previous dictation still waiting for its final result
+        session += 1
+        let id = session
         lastText = ""
         guard let recognizer = recognizer else {
             onError("speech recognizer unavailable")
@@ -38,31 +47,54 @@ class SpeechEngine {
         do {
             try audioEngine.start()
         } catch {
+            input.removeTap(onBus: 0)
+            self.request = nil
             onError("could not open microphone: \(error.localizedDescription)")
             return
         }
 
+        // Results arrive on the recognizer's queue (main by default).
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-            guard let self = self else { return }
+            guard let self = self, id == self.session else { return }
+            let stopping = self.finishHandler != nil
             if let result = result {
                 self.lastText = result.bestTranscription.formattedString
-                onPartial(self.lastText)
+                if !stopping { onPartial(self.lastText) }
+                if result.isFinal { self.complete() }
             }
             if let error = error {
-                onError(error.localizedDescription)
+                if stopping { self.complete() } else { onError(error.localizedDescription) }
             }
         }
     }
 
-    /// Stops capture and returns the transcript collected so far.
-    @discardableResult
-    func stop() -> String {
+    /// Stops capture, waits for the recognizer to finish the last words, then calls
+    /// `completion` on the main queue with the full transcript.
+    func stop(completion: @escaping (String) -> Void) {
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
+        guard task != nil else {  // start failed — nothing more is coming
+            request = nil
+            completion(lastText)
+            return
+        }
+        finishHandler = completion
         request?.endAudio()
-        task?.finish()
+        let id = session
+        DispatchQueue.main.asyncAfter(deadline: .now() + finalResultTimeout) { [weak self] in
+            guard let self = self, id == self.session else { return }
+            self.complete()
+        }
+    }
+
+    /// Ends the current session and hands the transcript to the pending stop() caller.
+    private func complete() {
+        guard let handler = finishHandler else { return }
+        finishHandler = nil
+        session += 1  // silence any late callbacks from this task
+        task?.cancel()
         task = nil
         request = nil
-        return lastText
+        handler(lastText)
     }
 }
