@@ -8,36 +8,24 @@ class SpeechEngine {
     private var audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
-    private var lastText = ""
+    private var transcript = TranscriptAccumulator()
     /// Bumped whenever a dictation starts or completes; callbacks from older sessions are ignored.
     private var session = 0
     /// Set while stop() waits for the final transcript.
     private var finishHandler: ((String) -> Void)?
     /// How long stop() waits for the recognizer's final result before using what it has.
     private let finalResultTimeout: TimeInterval = 2.0
+    /// Debug hook: every raw recognizer result (used by Diagnostics).
+    var onResult: ((SFSpeechRecognitionResult) -> Void)?
 
-    /// `onLevel` gets the mic level (0…1) for each audio buffer, on the main queue.
-    /// `inputUID` picks a microphone by CoreAudio UID; empty or missing uses the system default.
-    func start(inputUID: String = "", onLevel: @escaping (Float) -> Void, onError: @escaping (String) -> Void) {
-        complete()  // deliver any previous dictation still waiting for its final result
-        session += 1
-        let id = session
-        lastText = ""
-        guard let recognizer = recognizer else {
-            onError("speech recognizer unavailable")
-            return
-        }
-        guard recognizer.supportsOnDeviceRecognition else {
-            onError("on-device recognition unavailable — check Dictation languages in System Settings → Keyboard")
-            return
-        }
-
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        request.shouldReportPartialResults = true   // text streams while you speak
-        request.requiresOnDeviceRecognition = true  // nothing leaves the Mac
-        request.taskHint = .dictation
-        if #available(macOS 13.0, *) { request.addsPunctuation = true }
-        self.request = request
+    /// Starts listening on the microphone.
+    /// - `inputUID` picks a microphone by CoreAudio UID; empty or missing uses the system default.
+    /// - `onLevel` gets the mic level (0…1) for each audio buffer, on the main queue.
+    /// - `onUtterance` gets each finished utterance (with its leading separator) as soon as you
+    ///   pause, on the main queue — for streaming text out while still dictating.
+    func start(inputUID: String = "", onLevel: @escaping (Float) -> Void,
+               onUtterance: ((String) -> Void)? = nil, onError: @escaping (String) -> Void) {
+        guard let (recognizer, request, id) = prepare(onError: onError) else { return }
 
         // Fresh engine per dictation so a newly chosen or reconnected mic is picked up.
         audioEngine = AVAudioEngine()
@@ -59,13 +47,63 @@ class SpeechEngine {
             onError("could not open microphone: \(error.localizedDescription)")
             return
         }
+        recognize(recognizer, request, id: id, onUtterance: onUtterance, onError: onError)
+    }
 
+    /// Same pipeline as `start`, fed from an audio file at real-time pace instead of the mic
+    /// (for end-to-end tests). Calls `onEnd` on the main queue when the file is used up.
+    func startFile(_ url: URL, onUtterance: ((String) -> Void)? = nil,
+                   onError: @escaping (String) -> Void, onEnd: @escaping () -> Void) {
+        guard let file = try? AVAudioFile(forReading: url) else { return onError("could not read \(url.path)") }
+        guard let (recognizer, request, id) = prepare(onError: onError) else { return }
+        recognize(recognizer, request, id: id, onUtterance: onUtterance, onError: onError)
+        let format = file.processingFormat
+        DispatchQueue.global(qos: .userInitiated).async {
+            let chunk: AVAudioFrameCount = 1024
+            while file.framePosition < file.length {
+                guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk),
+                      (try? file.read(into: buffer, frameCount: chunk)) != nil, buffer.frameLength > 0 else { break }
+                request.append(buffer)
+                Thread.sleep(forTimeInterval: Double(buffer.frameLength) / format.sampleRate)
+            }
+            DispatchQueue.main.async(execute: onEnd)
+        }
+    }
+
+    private func prepare(onError: (String) -> Void) -> (SFSpeechRecognizer, SFSpeechAudioBufferRecognitionRequest, Int)? {
+        complete()  // deliver any previous dictation still waiting for its final result
+        session += 1
+        transcript = TranscriptAccumulator()
+        guard let recognizer = recognizer else {
+            onError("speech recognizer unavailable")
+            return nil
+        }
+        guard recognizer.supportsOnDeviceRecognition else {
+            onError("on-device recognition unavailable — check Dictation languages in System Settings → Keyboard")
+            return nil
+        }
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true   // text streams while you speak
+        request.requiresOnDeviceRecognition = true  // nothing leaves the Mac
+        request.taskHint = .dictation
+        request.addsPunctuation = true
+        self.request = request
+        return (recognizer, request, session)
+    }
+
+    private func recognize(_ recognizer: SFSpeechRecognizer, _ request: SFSpeechAudioBufferRecognitionRequest, id: Int,
+                           onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
         // Results arrive on the recognizer's queue (main by default).
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self = self, id == self.session else { return }
             let stopping = self.finishHandler != nil
             if let result = result {
-                self.lastText = result.bestTranscription.formattedString
+                self.onResult?(result)
+                // Metadata marks the last result of an utterance (the recognizer restarts after it).
+                let ended = result.speechRecognitionMetadata != nil || result.isFinal
+                if let chunk = self.transcript.update(result.bestTranscription.formattedString, utteranceEnded: ended) {
+                    onUtterance?(chunk)
+                }
                 if result.isFinal { self.complete() }
             }
             if let error = error {
@@ -81,7 +119,7 @@ class SpeechEngine {
         audioEngine.inputNode.removeTap(onBus: 0)
         guard task != nil else {  // start failed — nothing more is coming
             request = nil
-            completion(lastText)
+            completion(transcript.text)
             return
         }
         finishHandler = completion
@@ -102,7 +140,7 @@ class SpeechEngine {
         task?.cancel()
         task = nil
         request = nil
-        lastText = ""
+        transcript = TranscriptAccumulator()
     }
 
     /// Ends the current session and hands the transcript to the pending stop() caller.
@@ -113,7 +151,7 @@ class SpeechEngine {
         task?.cancel()
         task = nil
         request = nil
-        handler(lastText)
+        handler(transcript.text)
     }
 
     /// RMS of the first channel mapped from -50…-10 dBFS onto 0…1.
