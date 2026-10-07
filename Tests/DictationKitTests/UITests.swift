@@ -180,10 +180,11 @@ final class OverlayUITests: XCTestCase {
         overlay.showListening()
         XCTAssertEqual(overlay.waveform.levels.max(), 0)
         overlay.setLevel(0.9)
-        XCTAssertEqual(overlay.waveform.levels.last ?? 0, 0.9, accuracy: 0.001)
+        let afterSpeech = overlay.waveform.levels
+        XCTAssertGreaterThan(afterSpeech.last ?? 0, 0.5)
         overlay.showMessage("Error")
         overlay.setLevel(0.5)
-        XCTAssertEqual(overlay.waveform.levels.last ?? 0, 0.9, accuracy: 0.001, "ignored outside listening")
+        XCTAssertEqual(overlay.waveform.levels, afterSpeech, "ignored outside listening")
     }
 
     func testMessageModeWidensAndHidesButtons() throws {
@@ -261,6 +262,15 @@ final class SnapshotTests: XCTestCase {
         }
         let view = try XCTUnwrap(overlay.panel?.contentView)
         assertSnapshot(of: view, named: "overlay-listening")
+    }
+
+    /// Typical laptop/desk-mic speech (≈ −40 dBFS). This used to render as a nearly flat row.
+    func testOverlayListeningQuietSpeech() throws {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        overlay.showListening(micName: "External Microphone")
+        for i in 0..<40 { overlay.setLevel(0.25 * [1.0, 0.6, 1.2, 0.3, 0.9, 1.1, 0.2, 0.8][i % 8]) }
+        assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-listening-quiet")
     }
 
     func testOverlayListeningLongMicName() throws {
