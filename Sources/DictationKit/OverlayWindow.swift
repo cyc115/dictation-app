@@ -10,6 +10,8 @@ class OverlayWindow {
 
     static let height: CGFloat = 40
     static let listeningWidth: CGFloat = 164
+    /// The pill widens to fit a long mic name, up to this width (then truncates).
+    static let maxListeningWidth: CGFloat = 340
     private static let bottomMargin: CGFloat = 28
 
     private(set) var panel: NSPanel?
@@ -29,23 +31,12 @@ class OverlayWindow {
 
     // MARK: - Public
 
-    /// `micName` is shown under the waveform (shortened); nil hides the caption.
+    /// `micName` is shown in full under the waveform; nil hides the caption.
     func showListening(micName: String? = nil) {
         waveform.reset()
         waveform.processing = false
         setMicName(micName)
         present(.listening)
-    }
-
-    /// "MacBook Pro Microphone" → "MacBook Pro". Keeps the suffix when it's needed to make
-    /// sense of a one-word name ("External Microphone").
-    static func shortMicName(_ name: String) -> String {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        for suffix in [" Microphone", " Mic"] where trimmed.lowercased().hasSuffix(suffix.lowercased()) {
-            let base = String(trimmed.dropLast(suffix.count)).trimmingCharacters(in: .whitespaces)
-            if base.split(separator: " ").count >= 2 { return base }
-        }
-        return trimmed
     }
 
     private func setMicName(_ name: String?) {
@@ -65,7 +56,7 @@ class OverlayWindow {
             text.append(NSAttributedString(attachment: attachment))
             text.append(NSAttributedString(string: " "))
         }
-        text.append(NSAttributedString(string: Self.shortMicName(name)))
+        text.append(NSAttributedString(string: name))
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
         paragraph.lineBreakMode = .byTruncatingTail
@@ -122,6 +113,7 @@ class OverlayWindow {
         mode = newMode
 
         let h = Self.height
+        let button: CGFloat = 28, pad = (h - button) / 2
         let width: CGFloat
         switch newMode {
         case .message:
@@ -130,7 +122,10 @@ class OverlayWindow {
         case .processing:
             width = 84
         default:
-            width = Self.listeningWidth
+            // Wide enough for the whole mic name between the two buttons.
+            let sideInset = pad + button + 5
+            let caption = micLabel.attributedStringValue.length > 0 ? ceil(micLabel.attributedStringValue.size().width) + 6 : 0
+            width = min(max(Self.listeningWidth, caption + 2 * sideInset), Self.maxListeningWidth)
         }
 
         let showControls = newMode == .listening
@@ -141,7 +136,6 @@ class OverlayWindow {
         let showMic = showControls && micLabel.attributedStringValue.length > 0
         micLabel.isHidden = !showMic
 
-        let button: CGFloat = 28, pad = (h - button) / 2
         cancelButton.frame = NSRect(x: pad, y: pad, width: button, height: button)
         confirmButton.frame = NSRect(x: width - pad - button, y: pad, width: button, height: button)
         let inset = showControls ? pad + button + 5 : 14

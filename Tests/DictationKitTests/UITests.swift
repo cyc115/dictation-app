@@ -172,7 +172,7 @@ final class OverlayUITests: XCTestCase {
         addTeardownBlock { overlay.hide() }
         overlay.showListening(micName: "MacBook Pro Microphone")
         XCTAssertFalse(overlay.micLabel.isHidden)
-        XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("MacBook Pro"), overlay.micLabel.stringValue)
+        XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("MacBook Pro Microphone"), overlay.micLabel.stringValue)
         XCTAssertLessThan(overlay.micLabel.frame.maxY, overlay.waveform.frame.minY + 1, "caption sits below the bars")
         XCTAssertEqual(overlay.panel?.frame.height, OverlayWindow.height, "caption doesn't grow the pill")
 
@@ -183,12 +183,22 @@ final class OverlayUITests: XCTestCase {
         XCTAssertTrue(overlay.micLabel.isHidden, "only shown while listening")
     }
 
-    func testShortMicNames() {
-        XCTAssertEqual(OverlayWindow.shortMicName("MacBook Pro Microphone"), "MacBook Pro")
-        XCTAssertEqual(OverlayWindow.shortMicName("iPhone (53) Microphone"), "iPhone (53)")
-        XCTAssertEqual(OverlayWindow.shortMicName("External Microphone"), "External Microphone")
-        XCTAssertEqual(OverlayWindow.shortMicName("HD Pro Webcam C920"), "HD Pro Webcam C920")
-        XCTAssertEqual(OverlayWindow.shortMicName("Shure MV7 mic"), "Shure MV7")
+    func testFullMicNameFitsWithoutTruncation() throws {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        for name in ["MacBook Pro Microphone", "iPhone (53) Microphone", "HD Pro Webcam C920", "Steam Streaming Microphone"] {
+            overlay.showListening(micName: name)
+            let needed = overlay.micLabel.attributedStringValue.size().width
+            XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix(name), "full name shown: \(overlay.micLabel.stringValue)")
+            XCTAssertGreaterThanOrEqual(overlay.micLabel.frame.width, needed, "\(name) is truncated")
+            let panel = try XCTUnwrap(overlay.panel)
+            XCTAssertEqual(panel.frame.width, overlay.micLabel.frame.maxX + overlay.micLabel.frame.minX, accuracy: 1,
+                           "caption is centered in the pill")
+        }
+        overlay.showListening(micName: "Mic")
+        XCTAssertEqual(overlay.panel?.frame.width, OverlayWindow.listeningWidth, "short names keep the compact pill")
+        overlay.showListening(micName: String(repeating: "Very Long Device Name ", count: 6))
+        XCTAssertEqual(overlay.panel?.frame.width, OverlayWindow.maxListeningWidth, "absurd names are capped")
     }
 
     func testHideFadesOut() throws {
@@ -220,6 +230,14 @@ final class SnapshotTests: XCTestCase {
         }
         let view = try XCTUnwrap(overlay.panel?.contentView)
         assertSnapshot(of: view, named: "overlay-listening")
+    }
+
+    func testOverlayListeningLongMicName() throws {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        overlay.showListening(micName: "Steam Streaming Microphone")
+        for level in [0.2, 0.5, 0.8, 0.6, 0.9, 0.4, 0.7, 0.3] as [Float] { overlay.setLevel(level) }
+        assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-listening-long-mic")
     }
 
     func testOverlayMessage() throws {
