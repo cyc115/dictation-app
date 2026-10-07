@@ -89,6 +89,9 @@ class HotkeyManager {
     private let onRelease: () -> Void
     private let onCancel: () -> Void
     private let onTap: () -> Void
+    /// Called when Esc is pressed while `isRecording()` is true; the Esc is swallowed.
+    var onEscape: () -> Void = {}
+    var isRecording: () -> Bool = { false }
     private var mouseTap: CFMachPort?
     private var monitors: [Any] = []
     private var held = false
@@ -136,12 +139,15 @@ class HotkeyManager {
         installMouseTap()
     }
 
-    // MARK: Mouse button
+    static let escapeKeyCode: Int64 = 53
+
+    // MARK: Mouse button / Esc
 
     /// An event tap (not a passive monitor) so the assigned button's own action,
     /// like Back in a browser, can be swallowed.
     private func installMouseTap() {
         let mask = (1 << CGEventType.otherMouseDown.rawValue) | (1 << CGEventType.otherMouseUp.rawValue)
+            | (1 << CGEventType.keyDown.rawValue)
         let callback: CGEventTapCallBack = { _, type, event, refcon in
             guard let refcon = refcon else { return Unmanaged.passUnretained(event) }
             let manager = Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue()
@@ -162,6 +168,16 @@ class HotkeyManager {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap = mouseTap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
+        }
+        if type == .keyDown {
+            // Esc cancels a recording; swallowed so it doesn't also close a dialog in the
+            // app being typed into. Outside a recording, Esc passes through untouched.
+            guard event.getIntegerValueField(.keyboardEventKeycode) == Self.escapeKeyCode, isRecording() else {
+                return Unmanaged.passUnretained(event)
+            }
+            if held { cancelled = true }  // the hotkey's release must not paste afterwards
+            DispatchQueue.main.async { [weak self] in self?.onEscape() }
+            return nil
         }
         guard let number = mouseButton.buttonNumber,
               event.getIntegerValueField(.mouseEventButtonNumber) == number else {

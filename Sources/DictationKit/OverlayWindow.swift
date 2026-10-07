@@ -1,6 +1,6 @@
 import AppKit
 
-/// Small pill at the bottom of the screen: ✕ cancel · live waveform · ✓ paste.
+/// Small pill at the bottom of the screen: ✕ cancel · live waveform (+ mic name) · ✓ paste.
 /// Also shows short status text ("Polishing…", errors) in the same pill.
 class OverlayWindow {
     var onCancel: (() -> Void)?
@@ -8,14 +8,16 @@ class OverlayWindow {
 
     enum Mode { case hidden, listening, processing, message }
 
-    private static let height: CGFloat = 34
-    private static let listeningWidth: CGFloat = 132
+    static let height: CGFloat = 40
+    static let listeningWidth: CGFloat = 164
     private static let bottomMargin: CGFloat = 28
 
     private(set) var panel: NSPanel?
     private let background = NSView()
     let waveform = WaveformView()
     let label = NSTextField(labelWithString: "")
+    /// Small caption under the waveform naming the microphone in use.
+    let micLabel = NSTextField(labelWithString: "")
     private lazy var cancelButton = CircleButton(symbol: "xmark", label: "Cancel dictation", fill: NSColor(white: 1, alpha: 0.18), tint: .white) { [weak self] in
         self?.onCancel?()
     }
@@ -27,10 +29,50 @@ class OverlayWindow {
 
     // MARK: - Public
 
-    func showListening() {
+    /// `micName` is shown under the waveform (shortened); nil hides the caption.
+    func showListening(micName: String? = nil) {
         waveform.reset()
         waveform.processing = false
+        setMicName(micName)
         present(.listening)
+    }
+
+    /// "MacBook Pro Microphone" → "MacBook Pro". Keeps the suffix when it's needed to make
+    /// sense of a one-word name ("External Microphone").
+    static func shortMicName(_ name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        for suffix in [" Microphone", " Mic"] where trimmed.lowercased().hasSuffix(suffix.lowercased()) {
+            let base = String(trimmed.dropLast(suffix.count)).trimmingCharacters(in: .whitespaces)
+            if base.split(separator: " ").count >= 2 { return base }
+        }
+        return trimmed
+    }
+
+    private func setMicName(_ name: String?) {
+        guard let name = name, !name.isEmpty else {
+            micLabel.attributedStringValue = NSAttributedString()
+            return
+        }
+        let dim = NSColor(white: 1, alpha: 0.5)
+        let font = NSFont.systemFont(ofSize: 9, weight: .medium)
+        let text = NSMutableAttributedString()
+        if let icon = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 7, weight: .semibold)
+                .applying(NSImage.SymbolConfiguration(paletteColors: [dim]))) {
+            let attachment = NSTextAttachment()
+            attachment.image = icon
+            attachment.bounds = NSRect(x: 0, y: -0.5, width: icon.size.width, height: icon.size.height)
+            text.append(NSAttributedString(attachment: attachment))
+            text.append(NSAttributedString(string: " "))
+        }
+        text.append(NSAttributedString(string: Self.shortMicName(name)))
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        paragraph.lineBreakMode = .byTruncatingTail
+        text.addAttributes([.font: font, .foregroundColor: dim, .paragraphStyle: paragraph],
+                           range: NSRange(location: 0, length: text.length))
+        micLabel.attributedStringValue = text
+        micLabel.setAccessibilityLabel("Microphone: \(name)")
     }
 
     func setLevel(_ level: Float) {
@@ -96,12 +138,20 @@ class OverlayWindow {
         confirmButton.isHidden = !showControls
         waveform.isHidden = newMode == .message
         label.isHidden = newMode != .message
+        let showMic = showControls && micLabel.attributedStringValue.length > 0
+        micLabel.isHidden = !showMic
 
-        let pad: CGFloat = 4, button = h - 2 * pad
+        let button: CGFloat = 28, pad = (h - button) / 2
         cancelButton.frame = NSRect(x: pad, y: pad, width: button, height: button)
         confirmButton.frame = NSRect(x: width - pad - button, y: pad, width: button, height: button)
-        let inset = showControls ? pad + button + 6 : 14
-        waveform.frame = NSRect(x: inset, y: 7, width: width - 2 * inset, height: h - 14)
+        let inset = showControls ? pad + button + 5 : 14
+        if showMic {
+            // Waveform on top, mic caption tucked underneath.
+            waveform.frame = NSRect(x: inset, y: 16, width: width - 2 * inset, height: 18)
+            micLabel.frame = NSRect(x: inset - 2, y: 4, width: width - 2 * inset + 4, height: 12)
+        } else {
+            waveform.frame = NSRect(x: inset, y: 9, width: width - 2 * inset, height: h - 18)
+        }
         let labelHeight = label.frame.height
         label.frame = NSRect(x: 18, y: (h - labelHeight) / 2, width: width - 36, height: labelHeight)
         background.frame = NSRect(x: 0, y: 0, width: width, height: h)
@@ -153,7 +203,11 @@ class OverlayWindow {
         label.lineBreakMode = .byTruncatingTail
         label.alignment = .center
 
-        for view in [waveform, label, cancelButton, confirmButton] as [NSView] {
+        micLabel.lineBreakMode = .byTruncatingTail
+        micLabel.cell?.truncatesLastVisibleLine = true
+        micLabel.setAccessibilityIdentifier("overlay.mic")
+
+        for view in [waveform, label, micLabel, cancelButton, confirmButton] as [NSView] {
             background.addSubview(view)
         }
         self.panel = panel

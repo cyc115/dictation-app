@@ -32,7 +32,8 @@ Relaunch the app after enabling Accessibility.
 - Menu bar 🎙 → **Insights…**: words dictated, time saved (vs. typing at 40 WPM), average WPM, total dictation time.
 - Menu bar 🎙 → **History…** (⌘Y): past dictations by day, searchable; hover a row to copy it.
   Kept on this Mac only (`~/Library/Application Support/DictationApp/history.json`); choose how long to keep it.
-- Click ✕ to throw the dictation away, ✓ to stop and paste.
+- Click ✕ (or press **Esc**) to throw the dictation away, ✓ to stop and paste.
+- The bar shows which microphone is recording, under the waveform.
 - Menu bar 🎙 → **AI polish (on-device)** toggles LLM cleanup (default: off).
   When on, Apple's on-device model removes fillers and fixes self-corrections —
   it never rewrites your meaning, and nothing leaves your Mac.

@@ -127,8 +127,8 @@ final class OverlayUITests: XCTestCase {
         let panel = try XCTUnwrap(overlay.panel)
         XCTAssertTrue(panel.isVisible)
         XCTAssertEqual(overlay.mode, .listening)
-        XCTAssertEqual(panel.frame.height, 34)
-        XCTAssertEqual(panel.frame.width, 132)
+        XCTAssertEqual(panel.frame.height, OverlayWindow.height)
+        XCTAssertEqual(panel.frame.width, OverlayWindow.listeningWidth)
         let screen = try XCTUnwrap(panel.screen ?? NSScreen.main)
         XCTAssertEqual(panel.frame.midX, screen.visibleFrame.midX, accuracy: 1, "centered")
         XCTAssertLessThan(panel.frame.minY - screen.visibleFrame.minY, 60, "near the bottom")
@@ -161,10 +161,34 @@ final class OverlayUITests: XCTestCase {
         overlay.showMessage("On-device recognition unavailable — check Dictation languages", hideAfter: 10)
         let panel = try XCTUnwrap(overlay.panel)
         XCTAssertEqual(overlay.mode, .message)
-        XCTAssertGreaterThan(panel.frame.width, 132)
+        XCTAssertGreaterThan(panel.frame.width, OverlayWindow.listeningWidth)
         XCTAssertLessThanOrEqual(panel.frame.width, 460)
         overlay.hideUnlessMessage()
         XCTAssertEqual(overlay.mode, .message, "messages survive hideUnlessMessage")
+    }
+
+    func testMicNameShownUnderWaveform() throws {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        overlay.showListening(micName: "MacBook Pro Microphone")
+        XCTAssertFalse(overlay.micLabel.isHidden)
+        XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("MacBook Pro"), overlay.micLabel.stringValue)
+        XCTAssertLessThan(overlay.micLabel.frame.maxY, overlay.waveform.frame.minY + 1, "caption sits below the bars")
+        XCTAssertEqual(overlay.panel?.frame.height, OverlayWindow.height, "caption doesn't grow the pill")
+
+        overlay.showListening(micName: nil)
+        XCTAssertTrue(overlay.micLabel.isHidden)
+        overlay.showListening(micName: "Studio Display Microphone")
+        overlay.showMessage("Error", hideAfter: 10)
+        XCTAssertTrue(overlay.micLabel.isHidden, "only shown while listening")
+    }
+
+    func testShortMicNames() {
+        XCTAssertEqual(OverlayWindow.shortMicName("MacBook Pro Microphone"), "MacBook Pro")
+        XCTAssertEqual(OverlayWindow.shortMicName("iPhone (53) Microphone"), "iPhone (53)")
+        XCTAssertEqual(OverlayWindow.shortMicName("External Microphone"), "External Microphone")
+        XCTAssertEqual(OverlayWindow.shortMicName("HD Pro Webcam C920"), "HD Pro Webcam C920")
+        XCTAssertEqual(OverlayWindow.shortMicName("Shure MV7 mic"), "Shure MV7")
     }
 
     func testHideFadesOut() throws {
@@ -190,7 +214,7 @@ final class SnapshotTests: XCTestCase {
     func testOverlayListening() throws {
         let overlay = OverlayWindow()
         addTeardownBlock { overlay.hide() }
-        overlay.showListening()
+        overlay.showListening(micName: "MacBook Pro Microphone")
         for level in [0.1, 0.3, 0.7, 0.9, 0.6, 0.4, 0.8, 0.5, 0.2, 0.6, 0.9, 0.3, 0.1] as [Float] {
             overlay.setLevel(level)
         }

@@ -57,6 +57,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 onCancel: { [weak self] in self?.cancelDictation() },
                 onTap: { [weak self] in self?.toggleDictation() }
             )
+            self.hotkey?.isRecording = { [weak self] in self?.dictating == true }
+            self.hotkey?.onEscape = { [weak self] in self?.cancelDictation() }
             self.hotkey?.start()
             if !granted {
                 DispatchQueue.main.async { Permissions.showInstructions() }
@@ -188,7 +190,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard !dictating else { return }
         setDictating(true)
         dictationStart = Date()
-        overlay.showListening()
+        overlay.showListening(micName: AudioDevices.activeInputName(preferredUID: settings.microphoneUID))
         if settings.interactionSounds { InteractionSound.start.play() }
         if settings.muteWhileDictating {
             // Let the start sound finish before silencing output.

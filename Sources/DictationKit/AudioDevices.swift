@@ -59,6 +59,23 @@ enum AudioDevices {
 
     static func uid(of id: AudioDeviceID) -> String? { stringProperty(id, kAudioDevicePropertyDeviceUID) }
 
+    static func defaultInputDevice() -> AudioDeviceID? {
+        var address = globalAddress(kAudioHardwarePropertyDefaultInputDevice)
+        var id = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &id)
+        return status == noErr && id != 0 ? id : nil
+    }
+
+    /// Name of the mic a dictation will actually use: the preferred one if it's connected,
+    /// otherwise the system default input.
+    static func activeInputName(preferredUID: String) -> String? {
+        if !preferredUID.isEmpty, let device = inputDevices().first(where: { $0.uid == preferredUID }) {
+            return device.name
+        }
+        return defaultInputDevice().flatMap { stringProperty($0, kAudioObjectPropertyName) }
+    }
+
     static func isMuted(_ id: AudioDeviceID) -> Bool? {
         var address = outputAddress(kAudioDevicePropertyMute)
         guard AudioObjectHasProperty(id, &address) else { return nil }

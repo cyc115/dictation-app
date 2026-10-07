@@ -119,6 +119,49 @@ final class HotkeyTests: XCTestCase {
         XCTAssertEqual(events, [])
     }
 
+    // MARK: Esc
+
+    private func escapePasses(_ m: HotkeyManager) -> Bool {
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: 53, keyDown: true)!
+        return withExtendedLifetime(event) { m.handleMouse(type: .keyDown, event: event) != nil }
+    }
+
+    func testEscapeCancelsAndIsSwallowedWhileRecording() {
+        let m = makeManager(.rightShift, .toggle)
+        m.isRecording = { true }
+        m.onEscape = { [unowned self] in events.append("escape") }
+        XCTAssertFalse(escapePasses(m))
+        spinRunLoop()
+        XCTAssertEqual(events, ["escape"])
+    }
+
+    func testEscapePassesThroughWhenNotRecording() {
+        let m = makeManager()
+        m.isRecording = { false }
+        m.onEscape = { [unowned self] in events.append("escape") }
+        XCTAssertTrue(escapePasses(m))
+        spinRunLoop()
+        XCTAssertEqual(events, [])
+    }
+
+    func testOtherKeysPassThroughWhileRecording() {
+        let m = makeManager()
+        m.isRecording = { true }
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: 0x00, keyDown: true)!  // "a"
+        XCTAssertTrue(withExtendedLifetime(event) { m.handleMouse(type: .keyDown, event: event) != nil })
+    }
+
+    func testEscapeWhileHoldingHotkeyDoesNotPasteOnRelease() {
+        let m = makeManager(.fn, .hold)
+        m.isRecording = { true }
+        m.onEscape = { [unowned self] in events.append("escape") }
+        down(m, .fn)
+        _ = escapePasses(m)
+        up(m, .fn)
+        spinRunLoop()
+        XCTAssertEqual(events, ["press", "escape"])
+    }
+
     func testMouseButtonNumbers() {
         XCTAssertNil(MouseButton.off.buttonNumber)
         XCTAssertEqual(MouseButton.middle.buttonNumber, 2)
