@@ -17,7 +17,7 @@ swiftc -swift-version 5 -O -o /tmp/DictationApp-bin \
   -framework AVFoundation \
   -framework Speech \
   -framework ApplicationServices \
-  -weak_framework FoundationModels
+  -Xlinker -weak_framework -Xlinker FoundationModels
 
 echo "==> Bundling into $APP …"
 rm -rf "$APP"
