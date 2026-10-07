@@ -40,7 +40,10 @@ private final class Probe {
     }
 
     func run() {
-        log("auth=\(SFSpeechRecognizer.authorizationStatus().rawValue)")
+        engine.localeIdentifier = ProcessInfo.processInfo.environment["DICTATIONAPP_PROBE_LOCALE"] ?? "en-US"
+        engine.vocabulary = (ProcessInfo.processInfo.environment["DICTATIONAPP_PROBE_VOCAB"] ?? "")
+            .split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        log("auth=\(SFSpeechRecognizer.authorizationStatus().rawValue) locale=\(engine.localeIdentifier)")
         engine.onResult = { [weak self] result in
             self?.log("result final=\(result.isFinal) endOfUtterance=\(result.speechRecognitionMetadata != nil) text=\"\(result.bestTranscription.formattedString)\"")
         }
