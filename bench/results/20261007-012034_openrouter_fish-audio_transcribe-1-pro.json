@@ -1,0 +1,1346 @@
+{
+  "model": "openrouter:fish-audio/transcribe-1-pro",
+  "run_at": "2026-10-07T01:20:34",
+  "commit": "8f4c245",
+  "repeat": 3,
+  "summary": {
+    "all": {
+      "cases": 44,
+      "errors": 0,
+      "accuracy": 0.8756,
+      "en_recall": 0.8647,
+      "traditional": 0,
+      "latency_min": 0.286,
+      "latency_p50": 0.589,
+      "latency_max": 1.538,
+      "cost": 0.0846,
+      "cost_per_audio_hour": 0.3858
+    },
+    "mixed": {
+      "cases": 20,
+      "errors": 0,
+      "accuracy": 0.8318,
+      "en_recall": 0.8647,
+      "traditional": 0,
+      "latency_min": 0.286,
+      "latency_p50": 0.605,
+      "latency_max": 1.175,
+      "cost": 0.042,
+      "cost_per_audio_hour": 0.3816
+    },
+    "mixed@L1": {
+      "cases": 10,
+      "errors": 0,
+      "accuracy": 0.9232,
+      "en_recall": 0.85,
+      "traditional": 0,
+      "latency_min": 0.286,
+      "latency_p50": 0.56,
+      "latency_max": 1.175,
+      "cost": 0.0153,
+      "cost_per_audio_hour": 0.3764
+    },
+    "L1": {
+      "cases": 20,
+      "errors": 0,
+      "accuracy": 0.9616,
+      "en_recall": 0.85,
+      "traditional": 0,
+      "latency_min": 0.286,
+      "latency_p50": 0.533,
+      "latency_max": 1.175,
+      "cost": 0.0279,
+      "cost_per_audio_hour": 0.389
+    },
+    "chinese": {
+      "cases": 14,
+      "errors": 0,
+      "accuracy": 0.9189,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.346,
+      "latency_p50": 0.577,
+      "latency_max": 1.164,
+      "cost": 0.0255,
+      "cost_per_audio_hour": 0.3871
+    },
+    "chinese@L1": {
+      "cases": 6,
+      "errors": 0,
+      "accuracy": 1.0,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.346,
+      "latency_p50": 0.51,
+      "latency_max": 1.164,
+      "cost": 0.0078,
+      "cost_per_audio_hour": 0.3944
+    },
+    "english": {
+      "cases": 10,
+      "errors": 0,
+      "accuracy": 0.9025,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.364,
+      "latency_p50": 0.577,
+      "latency_max": 1.538,
+      "cost": 0.0171,
+      "cost_per_audio_hour": 0.3941
+    },
+    "english@L1": {
+      "cases": 4,
+      "errors": 0,
+      "accuracy": 1.0,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.364,
+      "latency_p50": 0.512,
+      "latency_max": 0.633,
+      "cost": 0.0048,
+      "cost_per_audio_hour": 0.4251
+    },
+    "mixed@L2": {
+      "cases": 5,
+      "errors": 0,
+      "accuracy": 0.9228,
+      "en_recall": 0.927,
+      "traditional": 0,
+      "latency_min": 0.557,
+      "latency_p50": 0.664,
+      "latency_max": 0.82,
+      "cost": 0.0147,
+      "cost_per_audio_hour": 0.381
+    },
+    "L2": {
+      "cases": 12,
+      "errors": 0,
+      "accuracy": 0.9632,
+      "en_recall": 0.927,
+      "traditional": 0,
+      "latency_min": 0.531,
+      "latency_p50": 0.617,
+      "latency_max": 0.82,
+      "cost": 0.0312,
+      "cost_per_audio_hour": 0.3799
+    },
+    "chinese@L2": {
+      "cases": 4,
+      "errors": 0,
+      "accuracy": 1.0,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.545,
+      "latency_p50": 0.595,
+      "latency_max": 0.738,
+      "cost": 0.0099,
+      "cost_per_audio_hour": 0.3857
+    },
+    "english@L2": {
+      "cases": 3,
+      "errors": 0,
+      "accuracy": 0.9815,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.531,
+      "latency_p50": 0.613,
+      "latency_max": 0.695,
+      "cost": 0.0066,
+      "cost_per_audio_hour": 0.3692
+    },
+    "mixed@L3": {
+      "cases": 5,
+      "errors": 0,
+      "accuracy": 0.5579,
+      "en_recall": 0.8317,
+      "traditional": 0,
+      "latency_min": 0.551,
+      "latency_p50": 0.623,
+      "latency_max": 0.754,
+      "cost": 0.012,
+      "cost_per_audio_hour": 0.3894
+    },
+    "L3": {
+      "cases": 12,
+      "errors": 0,
+      "accuracy": 0.6446,
+      "en_recall": 0.8317,
+      "traditional": 0,
+      "latency_min": 0.534,
+      "latency_p50": 0.615,
+      "latency_max": 1.538,
+      "cost": 0.0255,
+      "cost_per_audio_hour": 0.3895
+    },
+    "chinese@L3": {
+      "cases": 4,
+      "errors": 0,
+      "accuracy": 0.7163,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.534,
+      "latency_p50": 0.596,
+      "latency_max": 0.659,
+      "cost": 0.0078,
+      "cost_per_audio_hour": 0.3819
+    },
+    "english@L3": {
+      "cases": 3,
+      "errors": 0,
+      "accuracy": 0.6935,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.571,
+      "latency_p50": 0.679,
+      "latency_max": 1.538,
+      "cost": 0.0057,
+      "cost_per_audio_hour": 0.4007
+    }
+  },
+  "cases": [
+    {
+      "id": "mixed-01",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "帮我 build 一个然后 push 到 repository 里。",
+      "hypothesis": "<|speaker:0|>帮我build一个然后push到repository里。",
+      "hypotheses": [
+        "<|speaker:0|>帮我build一个然后push到repository里。",
+        "<|speaker:0|>帮我build一个然后push到repository里。",
+        "<|speaker:0|>帮我build一个然后push到repository里。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.378,
+      "latencies": [
+        0.734,
+        0.286,
+        0.378
+      ],
+      "cost": 0.0012,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.67
+    },
+    {
+      "id": "mixed-02",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+      "hypothesis": "<|speaker:0|>[机械音]我觉得这个feature的UI太ugly了，你帮我redesign一下。",
+      "hypotheses": [
+        "<|speaker:0|>[机械音]我觉得这个feature的UI太ugly了，你帮我redesign一下。",
+        "<|speaker:0|>[机械音]我觉得这个feature的UI太ugly了，你帮我redesign一下。",
+        "<|speaker:0|>我觉得这个feature的UI太ugly了，你帮我redesign一下。"
+      ],
+      "error_rate": 0.1176,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.515,
+      "latencies": [
+        0.543,
+        0.515,
+        0.381
+      ],
+      "cost": 0.0018,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.74
+    },
+    {
+      "id": "mixed-03",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "明天的 meeting 我们讨论一下 performance 和 latency 的问题。",
+      "hypothesis": "<|speaker:0|>明天的meeting我们讨论一下performance和latency的问题。",
+      "hypotheses": [
+        "<|speaker:0|>明天的meeting我们讨论一下performance和latency的问题。",
+        "<|speaker:0|>明天的meeting我们讨论一下performance和latency的问题。",
+        "<|speaker:0|>明天的meeting我们讨论一下performance和latency的问题。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.51,
+      "latencies": [
+        0.429,
+        0.51,
+        0.569
+      ],
+      "cost": 0.0015,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.94
+    },
+    {
+      "id": "mixed-04",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "这个 bug 在 production 环境里才会出现，你先看一下 log。",
+      "hypothesis": "<|speaker:0|>这个bug在production环境里才会出现，你先看一下log。",
+      "hypotheses": [
+        "<|speaker:0|>这个bug在production环境里才会出现，你先看一下log。",
+        "<|speaker:0|>这个bug在production环境里才会出现，你先看一下log。",
+        "<|speaker:0|>这个bug在production环境里才会出现，你先看一下log。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.697,
+      "latencies": [
+        0.697,
+        0.537,
+        1.175
+      ],
+      "cost": 0.0018,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.28
+    },
+    {
+      "id": "mixed-05",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "我们下周要 launch 新的 version，记得更新 README。",
+      "hypothesis": "<|speaker:0|>我们下周要launch新的version，记得更新react。",
+      "hypotheses": [
+        "<|speaker:0|>我们下周要launch新的version，记得更新react。",
+        "<|speaker:0|>我们下周要launch新的version，记得更新react。",
+        "<|speaker:0|>我们下周要launch新的version，记得更新react。"
+      ],
+      "error_rate": 0.0714,
+      "en_recall": 0.6667,
+      "traditional": false,
+      "latency": 0.55,
+      "latencies": [
+        0.5,
+        0.575,
+        0.55
+      ],
+      "cost": 0.0012,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.11
+    },
+    {
+      "id": "mixed-06",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "你可以帮我 review 一下这个 pull request 吗？",
+      "hypothesis": "<|speaker:0|>你可以帮我review一下这个[音效声，“咔咔咔”]吗？",
+      "hypotheses": [
+        "<|speaker:0|>你可以帮我review一下这个[音效声，“咔咔咔”]吗？",
+        "<|speaker:0|>你可以帮我review一下这个[音效声，“咔咔咔”]吗？",
+        "<|speaker:0|>你可以帮我review一下这个[音效声，“咔咔咔”]吗？"
+      ],
+      "error_rate": 0.4615,
+      "en_recall": 0.3333,
+      "traditional": false,
+      "latency": 0.466,
+      "latencies": [
+        0.675,
+        0.466,
+        0.365
+      ],
+      "cost": 0.0012,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.74
+    },
+    {
+      "id": "mixed-07",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+      "hypothesis": "<|speaker:0|>这个，API的response time太慢了，我们需要加一个cache。",
+      "hypotheses": [
+        "<|speaker:0|>这个，API的response time太慢了，我们需要加一个cache。",
+        "<|speaker:0|>这个，API的response time太慢了，我们需要加一个cache。",
+        "<|speaker:0|>这个，API的response time太慢了，我们需要加一个cache。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.532,
+      "latencies": [
+        0.426,
+        0.557,
+        0.532
+      ],
+      "cost": 0.0021,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.16
+    },
+    {
+      "id": "mixed-08",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "我刚刚 deploy 到 staging，你帮我 test 一下 login 的 flow。",
+      "hypothesis": "<|speaker:0|>我刚刚deploy到staging，你帮我test一下login的flow。",
+      "hypotheses": [
+        "<|speaker:0|>我刚刚deploy到staging，你帮我test一下login的flow。",
+        "<|speaker:0|>我刚刚deploy到staging，你帮我test一下login的flow。",
+        "<|speaker:0|>我刚刚deploy到staging，你帮我test一下login的flow。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.629,
+      "latencies": [
+        0.639,
+        0.583,
+        0.629
+      ],
+      "cost": 0.0015,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.11
+    },
+    {
+      "id": "mixed-09",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "把这个 function refactor 一下，然后写几个 unit test。",
+      "hypothesis": "<|speaker:0|>把这个function refactor一下，然后写几个unit test。",
+      "hypotheses": [
+        "<|speaker:0|>把这个function refactor一下，然后写几个unit test。",
+        "<|speaker:0|>把这个function refactor一下，然后写几个unit test。",
+        "<|speaker:0|>把这个function refactor一下，然后写几个unit test。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.573,
+      "latencies": [
+        0.573,
+        0.619,
+        0.562
+      ],
+      "cost": 0.0015,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.08
+    },
+    {
+      "id": "mixed-10",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "今天的 standup 我会晚一点，先帮我跟 team 说一声。",
+      "hypothesis": "<|speaker:0|>今天的stand up我会晚一点，先帮我跟team说一声。",
+      "hypotheses": [
+        "<|speaker:0|>今天的stand up我会晚一点，先帮我跟team说一声。",
+        "<|speaker:0|>今天的stand up我会晚一点，先帮我跟team说一声。",
+        "<|speaker:0|>今天的stand up我会晚一点，先帮我跟team说一声。"
+      ],
+      "error_rate": 0.1176,
+      "en_recall": 0.5,
+      "traditional": false,
+      "latency": 0.598,
+      "latencies": [
+        0.595,
+        0.598,
+        0.632
+      ],
+      "cost": 0.0015,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.95
+    },
+    {
+      "id": "chinese-01",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "今天天气很好，我们下午去公园散步吧。",
+      "hypothesis": "<|speaker:0|>今天天气很好，我们下午去公园散步吧。",
+      "hypotheses": [
+        "<|speaker:0|>今天天气很好，我们下午去公园散步吧。",
+        "<|speaker:0|>今天天气很好，我们下午去公园散步吧。",
+        "<|speaker:0|>今天天气很好，我们下午去公园散步吧。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.575,
+      "latencies": [
+        0.575,
+        0.577,
+        0.351
+      ],
+      "cost": 0.0015,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.33
+    },
+    {
+      "id": "chinese-02",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "请帮我把这份文件发给张经理，谢谢。",
+      "hypothesis": "<|speaker:0|>请帮我把这份文件发给张经理，谢谢。",
+      "hypotheses": [
+        "<|speaker:0|>请帮我把这份文件发给张经理，谢谢。",
+        "<|speaker:0|>请帮我把这份文件发给张经理，谢谢。",
+        "<|speaker:0|>请帮我把这份文件发给张经理，谢谢。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.536,
+      "latencies": [
+        0.498,
+        0.536,
+        1.164
+      ],
+      "cost": 0.0012,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.11
+    },
+    {
+      "id": "chinese-03",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "我觉得这个方案还需要再讨论一下。",
+      "hypothesis": "<|speaker:0|>我觉得这个方案还需要再讨论一下。",
+      "hypotheses": [
+        "<|speaker:0|>我觉得这个方案还需要再讨论一下。",
+        "<|speaker:0|>我觉得这个方案还需要再讨论一下。",
+        "<|speaker:0|>我觉得这个方案还需要再讨论一下。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.397,
+      "latencies": [
+        0.534,
+        0.396,
+        0.397
+      ],
+      "cost": 0.0012,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.43
+    },
+    {
+      "id": "chinese-04",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "明天早上九点开会，别忘了带电脑。",
+      "hypothesis": "<|speaker:0|>明天早上九点开会，别忘了带电脑。",
+      "hypotheses": [
+        "<|speaker:0|>明天早上九点开会，别忘了带电脑。",
+        "<|speaker:0|>明天早上九点开会，别忘了带电脑。",
+        "<|speaker:0|>明天早上九点开会，别忘了带电脑。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.435,
+      "latencies": [
+        0.481,
+        0.346,
+        0.435
+      ],
+      "cost": 0.0012,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.94
+    },
+    {
+      "id": "chinese-05",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "这家餐厅的菜很好吃，但是价格有点贵。",
+      "hypothesis": "<|speaker:0|>这家餐厅的菜很好吃，但是价格有点贵。",
+      "hypotheses": [
+        "<|speaker:0|>这家餐厅的菜很好吃，但是价格有点贵。",
+        "<|speaker:0|>这家餐厅的菜很好吃，但是价格有点贵。",
+        "<|speaker:0|>这家餐厅的菜很好吃，但是价格有点贵。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.527,
+      "latencies": [
+        0.449,
+        0.527,
+        0.531
+      ],
+      "cost": 0.0015,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.36
+    },
+    {
+      "id": "chinese-06",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "你周末有空吗？我们一起去看电影。",
+      "hypothesis": "<|speaker:0|>你周末有空吗？我们一起去看电影。",
+      "hypotheses": [
+        "<|speaker:0|>你周末有空吗？我们一起去看电影。",
+        "<|speaker:0|>你周末有空吗？我们一起去看电影。",
+        "<|speaker:0|>你周末有空吗？我们一起去看电影。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.521,
+      "latencies": [
+        0.386,
+        1.024,
+        0.521
+      ],
+      "cost": 0.0012,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.56
+    },
+    {
+      "id": "english-01",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "Can you send me the notes from today's meeting?",
+      "hypothesis": "<|speaker:0|> Can you send me the notes from today's meeting?",
+      "hypotheses": [
+        "<|speaker:0|> Can you send me the notes from today's meeting?",
+        "<|speaker:0|> Can you send me the notes from today's meeting?",
+        "<|speaker:0|> Can you send me the notes from today's meeting?"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.473,
+      "latencies": [
+        0.365,
+        0.473,
+        0.493
+      ],
+      "cost": 0.0009,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 2.52
+    },
+    {
+      "id": "english-02",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "Let's push the release to Thursday so we have time to fix the login bug.",
+      "hypothesis": "<|speaker:0|> Let's push the release to Thursday so we have time to fix the login bug.",
+      "hypotheses": [
+        "<|speaker:0|> Let's push the release to Thursday so we have time to fix the login bug.",
+        "<|speaker:0|> Let's push the release to Thursday so we have time to fix the login bug.",
+        "<|speaker:0|> Let's push the release to Thursday so we have time to fix the login bug."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.511,
+      "latencies": [
+        0.514,
+        0.364,
+        0.511
+      ],
+      "cost": 0.0015,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.14
+    },
+    {
+      "id": "english-03",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "I think the new settings page looks much cleaner than the old one.",
+      "hypothesis": "<|speaker:0|> I think the new settings page looks much cleaner than the old one.",
+      "hypotheses": [
+        "<|speaker:0|> I think the new settings page looks much cleaner than the old one.",
+        "<|speaker:0|> I think the new settings page looks much cleaner than the old one.",
+        "<|speaker:0|> I think the new settings page looks much cleaner than the old one."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.562,
+      "latencies": [
+        0.486,
+        0.565,
+        0.562
+      ],
+      "cost": 0.0012,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.73
+    },
+    {
+      "id": "english-04",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "Please remind me to call the dentist tomorrow morning.",
+      "hypothesis": "<|speaker:0|> Please remind me to call the dentist tomorrow morning.",
+      "hypotheses": [
+        "<|speaker:0|> Please remind me to call the dentist tomorrow morning.",
+        "<|speaker:0|> Please remind me to call the dentist tomorrow morning.",
+        "<|speaker:0|> Please remind me to call the dentist tomorrow morning."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.607,
+      "latencies": [
+        0.633,
+        0.557,
+        0.607
+      ],
+      "cost": 0.0012,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.16
+    },
+    {
+      "id": "mixed-hard-01",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+      "hypothesis": "<|speaker:0|>我们把Kubernetes的cluster升级之后，PostgreSQL的connection pool一直timeout，latency也涨了很多。",
+      "hypotheses": [
+        "<|speaker:0|>我们把Kubernetes的cluster升级之后，PostgreSQL的connection pool一直timeout，latency也涨了很多。",
+        "<|speaker:0|>我们把Kubernetes的cluster升级之后，PostgreSQL的connection pool一直timeout，latency也涨了很多。",
+        "<|speaker:0|>我们把Kubernetes的cluster升级之后，PostgreSQL的connection pool一直timeout，latency也涨了很多。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.681,
+      "latencies": [
+        0.681,
+        0.664,
+        0.772
+      ],
+      "cost": 0.0033,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 10.13
+    },
+    {
+      "id": "mixed-hard-02",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。",
+      "hypothesis": "<|speaker:0|>这个，P，R，改了Oauth的callback url，还有TypeScript的type definition，你merge之前先跑一下词。",
+      "hypotheses": [
+        "<|speaker:0|>这个，P，R，改了Oauth的callback url，还有TypeScript的type definition，你merge之前先跑一下词。",
+        "<|speaker:0|>这个，P，R，改了Oauth的callback URL，还有TypeScript的type definition，你merge之前先跑一下词。",
+        "<|speaker:0|>这个，P，R，改了Oauth的callback URL，还有TypeScript的type definition，你merge之前先跑一下词。"
+      ],
+      "error_rate": 0.125,
+      "en_recall": 0.7778,
+      "traditional": false,
+      "latency": 0.697,
+      "latencies": [
+        0.82,
+        0.677,
+        0.697
+      ],
+      "cost": 0.003,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 9.29
+    },
+    {
+      "id": "mixed-hard-03",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "hypothesis": "<|speaker:0|>[机械音]我刚跟Sarah开了个one on one，她说下个季度的，O，K，R，要focus在retention上。",
+      "hypotheses": [
+        "<|speaker:0|>[机械音]我刚跟Sarah开了个one on one，她说下个季度的，O，K，R，要focus在retention上。",
+        "<|speaker:0|>[机械音]我刚跟Sarah开了个one on one，她说下个季度的，O，K，R，要focus在retention上。",
+        "<|speaker:0|>[机械音]我刚跟Sarah开了个one on one，她说下个季度的，O，K，R，要focus在retention上。"
+      ],
+      "error_rate": 0.2609,
+      "en_recall": 0.8571,
+      "traditional": false,
+      "latency": 0.777,
+      "latencies": [
+        0.595,
+        0.777,
+        0.787
+      ],
+      "cost": 0.0024,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.97
+    },
+    {
+      "id": "mixed-hard-04",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。",
+      "hypothesis": "<|speaker:0|>用Redis做rate limiting的话，sliding window比fixed window更准，但是memory开销会大一点。",
+      "hypotheses": [
+        "<|speaker:0|>用Redis做rate limiting的话，sliding window比fixed window更准，但是memory开销会大一点。",
+        "<|speaker:0|>用Redis做rate limiting的话，sliding window比fixed window更准，但是memory开销会大一点。",
+        "<|speaker:0|>用Redis做rate limiting的话，sliding window比fixed window更准，但是memory开销会大一点。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.618,
+      "latencies": [
+        0.608,
+        0.623,
+        0.618
+      ],
+      "cost": 0.0027,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.36
+    },
+    {
+      "id": "mixed-hard-05",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。",
+      "hypothesis": "<|speaker:0|>帮我写一个python script，读S3 bucket里的JSON文件，然后upsert到DynamoDB。",
+      "hypotheses": [
+        "<|speaker:0|>帮我写一个python script，读S3 bucket里的JSON文件，然后upsert到DynamoDB。",
+        "<|speaker:0|>帮我写一个python script，读S3 bucket里的JSON文件，然后upsert到DynamoDB。",
+        "<|speaker:0|>帮我写一个python script，读S3 bucket里的JSON文件，然后upsert到DynamoDB。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.572,
+      "latencies": [
+        0.572,
+        0.557,
+        0.66
+      ],
+      "cost": 0.0033,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 10.55
+    },
+    {
+      "id": "chinese-hard-01",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+      "hypothesis": "<|speaker:0|>这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+      "hypotheses": [
+        "<|speaker:0|>这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+        "<|speaker:0|>这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+        "<|speaker:0|>这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.566,
+      "latencies": [
+        0.55,
+        0.602,
+        0.566
+      ],
+      "cost": 0.0024,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.21
+    },
+    {
+      "id": "chinese-hard-02",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "hypothesis": "<|speaker:0|>王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "hypotheses": [
+        "<|speaker:0|>王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+        "<|speaker:0|>王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+        "<|speaker:0|>王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.654,
+      "latencies": [
+        0.738,
+        0.654,
+        0.592
+      ],
+      "cost": 0.0027,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.44
+    },
+    {
+      "id": "chinese-hard-03",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+      "hypothesis": "<|speaker:0|>他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+      "hypotheses": [
+        "<|speaker:0|>他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+        "<|speaker:0|>他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+        "<|speaker:0|>他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.588,
+      "latencies": [
+        0.591,
+        0.545,
+        0.588
+      ],
+      "cost": 0.0024,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.51
+    },
+    {
+      "id": "chinese-hard-04",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+      "hypothesis": "<|speaker:0|>我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+      "hypotheses": [
+        "<|speaker:0|>我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+        "<|speaker:0|>我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+        "<|speaker:0|>我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.629,
+      "latencies": [
+        0.629,
+        0.599,
+        0.671
+      ],
+      "cost": 0.0024,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.64
+    },
+    {
+      "id": "english-hard-01",
+      "category": "english",
+      "level": 2,
+      "source": "tts",
+      "reference": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "hypothesis": "<|speaker:0|> Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgresSQL upgrade or the OAuth changes?",
+      "hypotheses": [
+        "<|speaker:0|> Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgresSQL upgrade or the OAuth changes?",
+        "<|speaker:0|> Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgresSQL upgrade or the OAuth changes?",
+        "<|speaker:0|> Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgresSQL upgrade or the OAuth changes?"
+      ],
+      "error_rate": 0.0556,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.613,
+      "latencies": [
+        0.625,
+        0.601,
+        0.613
+      ],
+      "cost": 0.0021,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.65
+    },
+    {
+      "id": "english-hard-02",
+      "category": "english",
+      "level": 2,
+      "source": "tts",
+      "reference": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypothesis": "<|speaker:0|> Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypotheses": [
+        "<|speaker:0|> Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+        "<|speaker:0|> Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+        "<|speaker:0|> Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.617,
+      "latencies": [
+        0.617,
+        0.695,
+        0.54
+      ],
+      "cost": 0.0021,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.86
+    },
+    {
+      "id": "english-hard-03",
+      "category": "english",
+      "level": 2,
+      "source": "tts",
+      "reference": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypothesis": "<|speaker:0|> I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypotheses": [
+        "<|speaker:0|> I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "<|speaker:0|> I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "<|speaker:0|> I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.561,
+      "latencies": [
+        0.65,
+        0.531,
+        0.561
+      ],
+      "cost": 0.0024,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.94
+    },
+    {
+      "id": "mixed-noisy-01",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+      "hypothesis": "<|speaker:0|>[背景有其他说话人的声音]我们把Huebner的cluster升级之后，PostgreSQL的connection pool一直timeout，latency也涨了很多。",
+      "hypotheses": [
+        "<|speaker:0|>[背景有其他说话人的声音]我们把Huebner的cluster升级之后，PostgreSQL的connection pool一直timeout，latency也涨了很多。",
+        "<|speaker:0|>[背景嘈杂声]我们把Huebner的cluster升级之后，PostgreSQL的connection pool一直timeout，latency也涨了很多。",
+        "<|speaker:0|>[背景嘈杂声]我们把Huebner的cluster升级之后，PostgreSQL的connection pool一直timeout，latency也涨了很多。"
+      ],
+      "error_rate": 0.3478,
+      "en_recall": 0.8571,
+      "traditional": false,
+      "latency": 0.623,
+      "latencies": [
+        0.623,
+        0.606,
+        0.674
+      ],
+      "cost": 0.0027,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.1
+    },
+    {
+      "id": "mixed-noisy-02",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。",
+      "hypothesis": "<|speaker:0|>[背景有人声嘈杂音]这个，[英文说话]TER, catalog of the pelvet URL,还有TypeScript, the type definition,emerge之前先跑一下词。",
+      "hypotheses": [
+        "<|speaker:0|>[背景有人声嘈杂音]这个，[英文说话]TER, catalog of the pelvet URL,还有TypeScript, the type definition,emerge之前先跑一下词。",
+        "<|speaker:0|>[背景有人声嘈杂音]这个，[英文说话]TER, catalog of the pelvet URL,还有TypeScript, the type definition,emerge,之前先跑一下词。",
+        "<|speaker:0|>[背景有人声嘈杂音]这个，[英文说话]TER, catalog of the pelvet URL,还有TypeScript, the type definition,emerge之前先跑一下词。"
+      ],
+      "error_rate": 0.875,
+      "en_recall": 0.4444,
+      "traditional": false,
+      "latency": 0.704,
+      "latencies": [
+        0.695,
+        0.704,
+        0.754
+      ],
+      "cost": 0.0024,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.41
+    },
+    {
+      "id": "mixed-noisy-03",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "hypothesis": "<|speaker:0|>[背景有嘈杂人声]我刚跟Sarah开了个one on one，她说下个季度的OKR要focus在retention上。",
+      "hypotheses": [
+        "<|speaker:0|>[背景有嘈杂人声]我刚跟Sarah开了个one on one，她说下个季度的OKR要focus在retention上。",
+        "<|speaker:0|>[背景有嘈杂人声]我刚跟Sarah开了个one on one，她说下个季度的OKR要focus在retention上。",
+        "<|speaker:0|>[背景有嘈杂人声]我刚跟Sarah开了个one on one，她说下个季度的OKR要focus在retention上。"
+      ],
+      "error_rate": 0.3043,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.559,
+      "latencies": [
+        0.642,
+        0.559,
+        0.558
+      ],
+      "cost": 0.0021,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.35
+    },
+    {
+      "id": "mixed-noisy-04",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。",
+      "hypothesis": "<|speaker:0|>[背景有其他说话人的声音]用Redis做rate limiting的话，sliding window比fixed window更准，但是memory开销会大一点。",
+      "hypotheses": [
+        "<|speaker:0|>[背景有其他说话人的声音]用Redis做rate limiting的话，sliding window比fixed window更准，但是memory开销会大一点。",
+        "<|speaker:0|>[背景有嘈杂声]用Redis做rate limiting的话，sliding window比fixed window更准，但是memory开销会大一点。",
+        "<|speaker:0|>[背景有嘈杂声]用Redis做rate limiting的话，sliding window比fixed window更准，但是memory开销会大一点。"
+      ],
+      "error_rate": 0.3333,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.592,
+      "latencies": [
+        0.666,
+        0.592,
+        0.551
+      ],
+      "cost": 0.0021,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.67
+    },
+    {
+      "id": "mixed-noisy-05",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。",
+      "hypothesis": "<|speaker:0|>[背景有嘈杂声]帮我写一个Dynamo Script，读S3 bucket里的JSON文件，然后upsert到DynamoDB。",
+      "hypotheses": [
+        "<|speaker:0|>[背景有嘈杂声]帮我写一个Dynamo Script，读S3 bucket里的JSON文件，然后upsert到DynamoDB。",
+        "<|speaker:0|>[背景有嘈杂声]帮我写一个Dynamo Script，读S3 bucket里的JSON文件，然后upsert到DynamoDB。",
+        "<|speaker:0|>[背景有嘈杂声]帮我写一个Dynamo Script，读S3 bucket里的JSON文件，然后upsert到DynamoDB。"
+      ],
+      "error_rate": 0.35,
+      "en_recall": 0.8571,
+      "traditional": false,
+      "latency": 0.606,
+      "latencies": [
+        0.604,
+        0.648,
+        0.606
+      ],
+      "cost": 0.0027,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.45
+    },
+    {
+      "id": "chinese-noisy-01",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+      "hypothesis": "<|speaker:0|>[背景有人声嘈杂音]这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+      "hypotheses": [
+        "<|speaker:0|>[背景有人声嘈杂音]这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+        "<|speaker:0|>[背景有人声嘈杂音]这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+        "<|speaker:0|>[背景有人声嘈杂音]这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。"
+      ],
+      "error_rate": 0.2857,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.605,
+      "latencies": [
+        0.583,
+        0.605,
+        0.639
+      ],
+      "cost": 0.0018,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.73
+    },
+    {
+      "id": "chinese-noisy-02",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "hypothesis": "<|speaker:0|>[背景有人声嘈杂音]王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "hypotheses": [
+        "<|speaker:0|>[背景有人声嘈杂音]王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+        "<|speaker:0|>[背景有人声嘈杂音]王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+        "<|speaker:0|>[背景有人声嘈杂音]王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。"
+      ],
+      "error_rate": 0.25,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.583,
+      "latencies": [
+        0.626,
+        0.578,
+        0.583
+      ],
+      "cost": 0.0021,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.73
+    },
+    {
+      "id": "chinese-noisy-03",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+      "hypothesis": "<|speaker:0|>[背景有其他说话人的声音]他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+      "hypotheses": [
+        "<|speaker:0|>[背景有其他说话人的声音]他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+        "<|speaker:0|>[背景有其他说话人的声音]他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+        "<|speaker:0|>他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。"
+      ],
+      "error_rate": 0.2444,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.598,
+      "latencies": [
+        0.659,
+        0.598,
+        0.541
+      ],
+      "cost": 0.0018,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.97
+    },
+    {
+      "id": "chinese-noisy-04",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+      "hypothesis": "<|speaker:0|>[背景有其他说话人的声音]我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+      "hypotheses": [
+        "<|speaker:0|>[背景有其他说话人的声音]我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+        "<|speaker:0|>[背景有其他说话人的声音]我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+        "<|speaker:0|>[背景有其他说话人的声音]我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。"
+      ],
+      "error_rate": 0.3548,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.594,
+      "latencies": [
+        0.627,
+        0.534,
+        0.594
+      ],
+      "cost": 0.0021,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.08
+    },
+    {
+      "id": "english-noisy-01",
+      "category": "english",
+      "level": 3,
+      "source": "tts",
+      "reference": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "hypothesis": "<|speaker:0|> [background people talking noise] Can you ask Priyanka whether the Kubernetes migration is blocked on the Postgres SQL upgrade or the OAuth changes?",
+      "hypotheses": [
+        "<|speaker:0|> [background people talking noise] Can you ask Priyanka whether the Kubernetes migration is blocked on the Postgres SQL upgrade or the OAuth changes?",
+        "<|speaker:0|> [a woman is saying something simultaneously] Can you ask Priyanka whether the Kubernetes migration is blocked on the Postgres SQL upgrade or the OAuth changes?",
+        "<|speaker:0|> [background people talking noise] Can you ask Priyanka whether the Kubernetes migration is blocked on the Postgres SQL upgrade or the OAuth changes?"
+      ],
+      "error_rate": 0.3704,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.58,
+      "latencies": [
+        0.58,
+        0.571,
+        0.683
+      ],
+      "cost": 0.0018,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.29
+    },
+    {
+      "id": "english-noisy-02",
+      "category": "english",
+      "level": 3,
+      "source": "tts",
+      "reference": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypothesis": "[background talking noise] <|speaker:0|> Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypotheses": [
+        "[background talking noise] <|speaker:0|> Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+        "[background talking noise] <|speaker:0|> Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+        "[background talking noise] <|speaker:0|> Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+      ],
+      "error_rate": 0.1765,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.679,
+      "latencies": [
+        0.657,
+        0.679,
+        1.538
+      ],
+      "cost": 0.0018,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.45
+    },
+    {
+      "id": "english-noisy-03",
+      "category": "english",
+      "level": 3,
+      "source": "tts",
+      "reference": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypothesis": "[多人同时说话，嘈杂声]<|speaker:0|> I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypotheses": [
+        "[多人同时说话，嘈杂声]<|speaker:0|> I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "[多人同时说话]I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "[background people talking noise] <|speaker:0|> I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+      ],
+      "error_rate": 0.3725,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.757,
+      "latencies": [
+        0.575,
+        0.757,
+        1.31
+      ],
+      "cost": 0.0021,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.33
+    }
+  ]
+}

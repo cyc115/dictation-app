@@ -1,0 +1,1333 @@
+{
+  "model": "openrouter:google/gemini-3.5-transcribe",
+  "run_at": "2026-10-07T01:22:06",
+  "commit": "8f4c245",
+  "repeat": 3,
+  "summary": {
+    "all": {
+      "cases": 44,
+      "errors": 13,
+      "accuracy": 0.8553,
+      "en_recall": 0.7157,
+      "traditional": 2,
+      "latency_min": 1.051,
+      "latency_p50": 1.346,
+      "latency_max": 3.323,
+      "cost": 0.035312,
+      "cost_per_audio_hour": 0.161
+    },
+    "mixed": {
+      "cases": 20,
+      "errors": 6,
+      "accuracy": 0.8142,
+      "en_recall": 0.7157,
+      "traditional": 2,
+      "latency_min": 1.051,
+      "latency_p50": 1.379,
+      "latency_max": 1.834,
+      "cost": 0.017708,
+      "cost_per_audio_hour": 0.1609
+    },
+    "mixed@L1": {
+      "cases": 10,
+      "errors": 3,
+      "accuracy": 0.867,
+      "en_recall": 0.7333,
+      "traditional": 0,
+      "latency_min": 1.051,
+      "latency_p50": 1.359,
+      "latency_max": 1.834,
+      "cost": 0.006432,
+      "cost_per_audio_hour": 0.1582
+    },
+    "L1": {
+      "cases": 20,
+      "errors": 5,
+      "accuracy": 0.9002,
+      "en_recall": 0.7333,
+      "traditional": 0,
+      "latency_min": 1.051,
+      "latency_p50": 1.324,
+      "latency_max": 1.834,
+      "cost": 0.011494,
+      "cost_per_audio_hour": 0.1603
+    },
+    "chinese": {
+      "cases": 14,
+      "errors": 4,
+      "accuracy": 0.9048,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 1.143,
+      "latency_p50": 1.312,
+      "latency_max": 3.323,
+      "cost": 0.010754,
+      "cost_per_audio_hour": 0.1633
+    },
+    "chinese@L1": {
+      "cases": 6,
+      "errors": 2,
+      "accuracy": 0.8889,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 1.143,
+      "latency_p50": 1.309,
+      "latency_max": 1.486,
+      "cost": 0.00307,
+      "cost_per_audio_hour": 0.1552
+    },
+    "english": {
+      "cases": 10,
+      "errors": 3,
+      "accuracy": 0.8681,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 1.082,
+      "latency_p50": 1.325,
+      "latency_max": 1.566,
+      "cost": 0.00685,
+      "cost_per_audio_hour": 0.1579
+    },
+    "english@L1": {
+      "cases": 4,
+      "errors": 0,
+      "accuracy": 1.0,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 1.082,
+      "latency_p50": 1.206,
+      "latency_max": 1.566,
+      "cost": 0.001992,
+      "cost_per_audio_hour": 0.1764
+    },
+    "mixed@L2": {
+      "cases": 5,
+      "errors": 2,
+      "accuracy": 0.8072,
+      "en_recall": 0.7889,
+      "traditional": 1,
+      "latency_min": 1.318,
+      "latency_p50": 1.388,
+      "latency_max": 1.702,
+      "cost": 0.00602,
+      "cost_per_audio_hour": 0.156
+    },
+    "L2": {
+      "cases": 12,
+      "errors": 3,
+      "accuracy": 0.8857,
+      "en_recall": 0.7889,
+      "traditional": 1,
+      "latency_min": 1.171,
+      "latency_p50": 1.349,
+      "latency_max": 1.702,
+      "cost": 0.01346,
+      "cost_per_audio_hour": 0.1639
+    },
+    "chinese@L2": {
+      "cases": 4,
+      "errors": 0,
+      "accuracy": 1.0,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 1.174,
+      "latency_p50": 1.316,
+      "latency_max": 1.628,
+      "cost": 0.004578,
+      "cost_per_audio_hour": 0.1784
+    },
+    "english@L2": {
+      "cases": 3,
+      "errors": 1,
+      "accuracy": 0.8642,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 1.171,
+      "latency_p50": 1.336,
+      "latency_max": 1.543,
+      "cost": 0.002862,
+      "cost_per_audio_hour": 0.1601
+    },
+    "mixed@L3": {
+      "cases": 5,
+      "errors": 1,
+      "accuracy": 0.7157,
+      "en_recall": 0.6071,
+      "traditional": 1,
+      "latency_min": 1.175,
+      "latency_p50": 1.398,
+      "latency_max": 1.614,
+      "cost": 0.005256,
+      "cost_per_audio_hour": 0.1706
+    },
+    "L3": {
+      "cases": 12,
+      "errors": 5,
+      "accuracy": 0.75,
+      "en_recall": 0.6071,
+      "traditional": 1,
+      "latency_min": 1.099,
+      "latency_p50": 1.397,
+      "latency_max": 3.323,
+      "cost": 0.010358,
+      "cost_per_audio_hour": 0.1582
+    },
+    "chinese@L3": {
+      "cases": 4,
+      "errors": 2,
+      "accuracy": 0.8334,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 1.188,
+      "latency_p50": 1.357,
+      "latency_max": 3.323,
+      "cost": 0.003106,
+      "cost_per_audio_hour": 0.1521
+    },
+    "english@L3": {
+      "cases": 3,
+      "errors": 2,
+      "accuracy": 0.6961,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 1.099,
+      "latency_p50": 1.346,
+      "latency_max": 1.494,
+      "cost": 0.001996,
+      "cost_per_audio_hour": 0.1403
+    }
+  },
+  "cases": [
+    {
+      "id": "mixed-01",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "帮我 build 一个然后 push 到 repository 里。",
+      "hypothesis": "帮我 build 一个然后 push 到 repository 里。",
+      "hypotheses": [
+        "帮我 build 一个然后 push 到 repository 里。",
+        "帮我 build 一个然后 push 到 repository 里。",
+        "帮我 build 一个然后 push 到 repository 里。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 1.185,
+      "latencies": [
+        1.345,
+        1.185,
+        1.146
+      ],
+      "cost": 0.00054,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.67
+    },
+    {
+      "id": "mixed-02",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+      "hypothesis": "",
+      "hypotheses": [
+        "",
+        "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+        "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。"
+      ],
+      "error_rate": 0.3333,
+      "en_recall": 0.6667,
+      "traditional": false,
+      "latency": 1.384,
+      "latencies": [
+        1.467,
+        1.3
+      ],
+      "cost": 0.000568,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 5.74
+    },
+    {
+      "id": "mixed-03",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "明天的 meeting 我们讨论一下 performance 和 latency 的问题。",
+      "hypothesis": "明天的 meeting 我们讨论一下 performance 和 latency 的问题。",
+      "hypotheses": [
+        "明天的 meeting 我们讨论一下 performance 和 latency 的问题。",
+        "明天的 meeting 我们讨论一下 performance 和 latency 的问题。",
+        ""
+      ],
+      "error_rate": 0.3333,
+      "en_recall": 0.6667,
+      "traditional": false,
+      "latency": 1.19,
+      "latencies": [
+        1.146,
+        1.234
+      ],
+      "cost": 0.000488,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 4.94
+    },
+    {
+      "id": "mixed-04",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "这个 bug 在 production 环境里才会出现，你先看一下 log。",
+      "hypothesis": "这个 bug 在 production 环境里才会出现，你先看一下 log。",
+      "hypotheses": [
+        "这个 bug 在 production 环境里才会出现，你先看一下 log。",
+        "这个 bug 在 production 环境里才会出现，你先看一下 log。",
+        "这个 bug 在 production 环境里才会出现，你先看一下 log。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 1.333,
+      "latencies": [
+        1.387,
+        1.2,
+        1.333
+      ],
+      "cost": 0.00078,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.28
+    },
+    {
+      "id": "mixed-05",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "我们下周要 launch 新的 version，记得更新 README。",
+      "hypothesis": "我们下周要 launch 新的 version，记得更新 README。",
+      "hypotheses": [
+        "我们下周要 launch 新的 version，记得更新 README。",
+        "我们下周要 launch 新的 version，记得更新 README。",
+        "我们下周要 launch 新的 version，记得更新 README。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 1.463,
+      "latencies": [
+        1.711,
+        1.271,
+        1.463
+      ],
+      "cost": 0.000606,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.11
+    },
+    {
+      "id": "mixed-06",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "你可以帮我 review 一下这个 pull request 吗？",
+      "hypothesis": "你可以帮我 review 一下这个 program 吗？",
+      "hypotheses": [
+        "你可以帮我 review 一下这个 program 吗？",
+        "你可以帮我 review 一下这个 program 吗？",
+        "你可以帮我 review 一下这个 program 吗？"
+      ],
+      "error_rate": 0.1538,
+      "en_recall": 0.3333,
+      "traditional": false,
+      "latency": 1.168,
+      "latencies": [
+        1.168,
+        1.506,
+        1.051
+      ],
+      "cost": 0.000552,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.74
+    },
+    {
+      "id": "mixed-07",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+      "hypothesis": "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+      "hypotheses": [
+        "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+        "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+        "这个 API 的 response time 太慢了，我们需要加一个 cache。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 1.472,
+      "latencies": [
+        1.472,
+        1.415,
+        1.834
+      ],
+      "cost": 0.000912,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.16
+    },
+    {
+      "id": "mixed-08",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "我刚刚 deploy 到 staging，你帮我 test 一下 login 的 flow。",
+      "hypothesis": "我刚刚 deploy 到 staging，你帮我 test 一下 login 的 flow。",
+      "hypotheses": [
+        "我刚刚 deploy 到 staging，你帮我 test 一下 login 的 flow。",
+        "我刚刚 deploy 到 staging，你帮我 test 一下 login 的 flow。",
+        ""
+      ],
+      "error_rate": 0.3333,
+      "en_recall": 0.6667,
+      "traditional": false,
+      "latency": 1.352,
+      "latencies": [
+        1.38,
+        1.324
+      ],
+      "cost": 0.000504,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 5.11
+    },
+    {
+      "id": "mixed-09",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "把这个 function refactor 一下，然后写几个 unit test。",
+      "hypothesis": "把这个 function refactor 一下，然后写几个 unit test。",
+      "hypotheses": [
+        "把这个 function refactor 一下，然后写几个 unit test。",
+        "把这个 function refactor 一下，然后写几个 unit test。",
+        "把这个 function refactor 一下，然后写几个 unit test。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 1.359,
+      "latencies": [
+        1.359,
+        1.298,
+        1.378
+      ],
+      "cost": 0.00075,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.08
+    },
+    {
+      "id": "mixed-10",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "今天的 standup 我会晚一点，先帮我跟 team 说一声。",
+      "hypothesis": "今天的stand up我会晚一点，先帮我跟Tim说一声。",
+      "hypotheses": [
+        "今天的stand up我会晚一点，先帮我跟Tim说一声。",
+        "今天的stand up我会晚一点，先帮我跟Tim说一声。",
+        "今天的stand up我会晚一点，先帮我跟Tim说一声。"
+      ],
+      "error_rate": 0.1765,
+      "en_recall": 0.0,
+      "traditional": false,
+      "latency": 1.379,
+      "latencies": [
+        1.378,
+        1.379,
+        1.426
+      ],
+      "cost": 0.000732,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.95
+    },
+    {
+      "id": "chinese-01",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "今天天气很好，我们下午去公园散步吧。",
+      "hypothesis": "",
+      "hypotheses": [
+        "",
+        "今天天气很好，我们下午去公园散步吧。",
+        "今天天气很好，我们下午去公园散步吧。"
+      ],
+      "error_rate": 0.3333,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.357,
+      "latencies": [
+        1.251,
+        1.464
+      ],
+      "cost": 0.000428,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 4.33
+    },
+    {
+      "id": "chinese-02",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "请帮我把这份文件发给张经理，谢谢。",
+      "hypothesis": "请帮我把这份文件发给张经理，谢谢。",
+      "hypotheses": [
+        "请帮我把这份文件发给张经理，谢谢。",
+        "请帮我把这份文件发给张经理，谢谢。",
+        "请帮我把这份文件发给张经理，谢谢。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.285,
+      "latencies": [
+        1.486,
+        1.228,
+        1.285
+      ],
+      "cost": 0.000606,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.11
+    },
+    {
+      "id": "chinese-03",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "我觉得这个方案还需要再讨论一下。",
+      "hypothesis": "我觉得这个方案还需要再讨论一下。",
+      "hypotheses": [
+        "我觉得这个方案还需要再讨论一下。",
+        "我觉得这个方案还需要再讨论一下。",
+        "我觉得这个方案还需要再讨论一下。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.318,
+      "latencies": [
+        1.318,
+        1.424,
+        1.173
+      ],
+      "cost": 0.000504,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.43
+    },
+    {
+      "id": "chinese-04",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "明天早上九点开会，别忘了带电脑。",
+      "hypothesis": "明天早上九点开会，别忘了带电脑。",
+      "hypotheses": [
+        "明天早上九点开会，别忘了带电脑。",
+        "明天早上九点开会，别忘了带电脑。",
+        "明天早上九点开会，别忘了带电脑。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.364,
+      "latencies": [
+        1.143,
+        1.364,
+        1.372
+      ],
+      "cost": 0.000582,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.94
+    },
+    {
+      "id": "chinese-05",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "这家餐厅的菜很好吃，但是价格有点贵。",
+      "hypothesis": "",
+      "hypotheses": [
+        "",
+        "这家餐厅的菜很好吃，但是价格有点贵。",
+        "这家餐厅的菜很好吃，但是价格有点贵。"
+      ],
+      "error_rate": 0.3333,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.298,
+      "latencies": [
+        1.219,
+        1.376
+      ],
+      "cost": 0.000428,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 4.36
+    },
+    {
+      "id": "chinese-06",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "你周末有空吗？我们一起去看电影。",
+      "hypothesis": "你周末有空吗？我们一起去看电影。",
+      "hypotheses": [
+        "你周末有空吗？我们一起去看电影。",
+        "你周末有空吗？我们一起去看电影。",
+        "你周末有空吗？我们一起去看电影。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.301,
+      "latencies": [
+        1.301,
+        1.264,
+        1.403
+      ],
+      "cost": 0.000522,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.56
+    },
+    {
+      "id": "english-01",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "Can you send me the notes from today's meeting?",
+      "hypothesis": "Can you send me the notes from today's meeting?",
+      "hypotheses": [
+        "Can you send me the notes from today's meeting?",
+        "Can you send me the notes from today's meeting?",
+        "Can you send me the notes from today's meeting?"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.186,
+      "latencies": [
+        1.382,
+        1.13,
+        1.186
+      ],
+      "cost": 0.000366,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 2.52
+    },
+    {
+      "id": "english-02",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "Let's push the release to Thursday so we have time to fix the login bug.",
+      "hypothesis": "Let's push the release to Thursday so we have time to fix the login bug.",
+      "hypotheses": [
+        "Let's push the release to Thursday so we have time to fix the login bug.",
+        "Let's push the release to Thursday so we have time to fix the login bug.",
+        "Let's push the release to Thursday so we have time to fix the login bug."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.531,
+      "latencies": [
+        1.566,
+        1.253,
+        1.531
+      ],
+      "cost": 0.000612,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.14
+    },
+    {
+      "id": "english-03",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "I think the new settings page looks much cleaner than the old one.",
+      "hypothesis": "I think the new settings page looks much cleaner than the old one.",
+      "hypotheses": [
+        "I think the new settings page looks much cleaner than the old one.",
+        "I think the new settings page looks much cleaner than the old one.",
+        "I think the new settings page looks much cleaner than the old one."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.226,
+      "latencies": [
+        1.557,
+        1.175,
+        1.226
+      ],
+      "cost": 0.000552,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.73
+    },
+    {
+      "id": "english-04",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "Please remind me to call the dentist tomorrow morning.",
+      "hypothesis": "Please remind me to call the dentist tomorrow morning.",
+      "hypotheses": [
+        "Please remind me to call the dentist tomorrow morning.",
+        "Please remind me to call the dentist tomorrow morning.",
+        "Please remind me to call the dentist tomorrow morning."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.135,
+      "latencies": [
+        1.082,
+        1.163,
+        1.135
+      ],
+      "cost": 0.000462,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.16
+    },
+    {
+      "id": "mixed-hard-01",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+      "hypothesis": "我们把 Kubernetes cluster 升级之后，postgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+      "hypotheses": [
+        "我们把 Kubernetes cluster 升级之后，postgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+        "我们把 Kubernetes cluster 升级之后，postgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+        "我们把 Kubernetes cluster 升级之后，postgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。"
+      ],
+      "error_rate": 0.0435,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 1.399,
+      "latencies": [
+        1.399,
+        1.445,
+        1.349
+      ],
+      "cost": 0.001512,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 10.13
+    },
+    {
+      "id": "mixed-hard-02",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。",
+      "hypothesis": "这个 peer 的 callback URL 还有 TypeScript 的 type definition，你 merge 之前先跑一下测试。",
+      "hypotheses": [
+        "这个 peer 的 callback URL 还有 TypeScript 的 type definition，你 merge 之前先跑一下测试。",
+        "这个 peer 的 callback URL 还有 TypeScript 的 type definition，你 merge 之前先跑一下测试。",
+        ""
+      ],
+      "error_rate": 0.5,
+      "en_recall": 0.4444,
+      "traditional": false,
+      "latency": 1.519,
+      "latencies": [
+        1.567,
+        1.47
+      ],
+      "cost": 0.00092,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 9.29
+    },
+    {
+      "id": "mixed-hard-03",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "hypothesis": "我刚跟 Sarah 开了个 one on one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "hypotheses": [
+        "我刚跟 Sarah 开了个 one on one，她说下个季度的 OKR 要 focus 在 retention 上。",
+        "我刚跟 Sarah 开了个 one on one，她说下个季度的 OKR 要 focus 在 retention 上。",
+        "我刚跟 Sarah 开了个 one on one，她说下个季度的 OKR 要 focus 在 retention 上。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 1.36,
+      "latencies": [
+        1.337,
+        1.36,
+        1.388
+      ],
+      "cost": 0.001188,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.97
+    },
+    {
+      "id": "mixed-hard-04",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。",
+      "hypothesis": "用 greedy strategy limiting 的話 sliding window 比 fixed window 更準，但是 memory 開銷會大一點。",
+      "hypotheses": [
+        "用 greedy strategy limiting 的話 sliding window 比 fixed window 更準，但是 memory 開銷會大一點。",
+        "用 greedy strategy limiting 的話 sliding window 比 fixed window 更準，但是 memory 開銷會大一點。",
+        ""
+      ],
+      "error_rate": 0.4203,
+      "en_recall": 0.5,
+      "traditional": true,
+      "latency": 1.35,
+      "latencies": [
+        1.381,
+        1.318
+      ],
+      "cost": 0.000828,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 8.36
+    },
+    {
+      "id": "mixed-hard-05",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。",
+      "hypothesis": "帮我写一个 Python script 读 s3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。",
+      "hypotheses": [
+        "帮我写一个 Python script 读 s3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。",
+        "帮我写一个 Python script 读 s3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。",
+        "帮我写一个 Python script 读 s3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 1.391,
+      "latencies": [
+        1.391,
+        1.335,
+        1.702
+      ],
+      "cost": 0.001572,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 10.55
+    },
+    {
+      "id": "chinese-hard-01",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+      "hypothesis": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+      "hypotheses": [
+        "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+        "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+        "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.211,
+      "latencies": [
+        1.174,
+        1.363,
+        1.211
+      ],
+      "cost": 0.001074,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.21
+    },
+    {
+      "id": "chinese-hard-02",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "hypothesis": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "hypotheses": [
+        "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+        "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+        "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.329,
+      "latencies": [
+        1.329,
+        1.333,
+        1.27
+      ],
+      "cost": 0.001254,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.44
+    },
+    {
+      "id": "chinese-hard-03",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+      "hypothesis": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+      "hypotheses": [
+        "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+        "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+        "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.303,
+      "latencies": [
+        1.403,
+        1.303,
+        1.219
+      ],
+      "cost": 0.001116,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.51
+    },
+    {
+      "id": "chinese-hard-04",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+      "hypothesis": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+      "hypotheses": [
+        "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+        "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+        "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.495,
+      "latencies": [
+        1.288,
+        1.628,
+        1.495
+      ],
+      "cost": 0.001134,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.64
+    },
+    {
+      "id": "english-hard-01",
+      "category": "english",
+      "level": 2,
+      "source": "tts",
+      "reference": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "hypothesis": "Can you ask Priyanka whether the kube-needs-migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "hypotheses": [
+        "Can you ask Priyanka whether the kube-needs-migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+        "",
+        "Can you ask Priyanka whether the kube-needs-migration is blocked on the PostgreSQL upgrade or the OAuth changes?"
+      ],
+      "error_rate": 0.4074,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.208,
+      "latencies": [
+        1.245,
+        1.171
+      ],
+      "cost": 0.00066,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 6.65
+    },
+    {
+      "id": "english-hard-02",
+      "category": "english",
+      "level": 2,
+      "source": "tts",
+      "reference": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypothesis": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypotheses": [
+        "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+        "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+        "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.335,
+      "latencies": [
+        1.385,
+        1.335,
+        1.202
+      ],
+      "cost": 0.00102,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.86
+    },
+    {
+      "id": "english-hard-03",
+      "category": "english",
+      "level": 2,
+      "source": "tts",
+      "reference": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypothesis": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypotheses": [
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.518,
+      "latencies": [
+        1.518,
+        1.337,
+        1.543
+      ],
+      "cost": 0.001182,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.94
+    },
+    {
+      "id": "mixed-noisy-01",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+      "hypothesis": "我们把 Kubernetes cluster 升级之后，kubectl 的 connection 就一直 timeout，latency 也涨了很多。",
+      "hypotheses": [
+        "我们把 Kubernetes cluster 升级之后，kubectl 的 connection 就一直 timeout，latency 也涨了很多。",
+        "我们把 Kubernetes cluster 升级之后，kubectl 的 connection 就一直 timeout，latency 也涨了很多。",
+        "我们把 Kubernetes cluster 升级之后，kubectl 的 connection 就一直 timeout，latency 也涨了很多。"
+      ],
+      "error_rate": 0.1304,
+      "en_recall": 0.7143,
+      "traditional": false,
+      "latency": 1.461,
+      "latencies": [
+        1.502,
+        1.221,
+        1.461
+      ],
+      "cost": 0.001224,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.1
+    },
+    {
+      "id": "mixed-noisy-02",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。",
+      "hypothesis": "这个 tsc 的 type definition merge 之前先跑一下测试。",
+      "hypotheses": [
+        "这个 tsc 的 type definition merge 之前先跑一下测试。",
+        "这个 tsc 的 type definition merge 之前先跑一下测试。",
+        "这个 tsc 的 type definition merge 之前先跑一下测试。"
+      ],
+      "error_rate": 0.5417,
+      "en_recall": 0.3333,
+      "traditional": false,
+      "latency": 1.397,
+      "latencies": [
+        1.614,
+        1.264,
+        1.397
+      ],
+      "cost": 0.001122,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.41
+    },
+    {
+      "id": "mixed-noisy-03",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "hypothesis": "我剛跟 Sarah 開了個 one on one，她說下個季度的 OKR 要 focus 在 retention 上。",
+      "hypotheses": [
+        "我剛跟 Sarah 開了個 one on one，她說下個季度的 OKR 要 focus 在 retention 上。",
+        "我剛跟 Sarah 開了個 one on one，她說下個季度的 OKR 要 focus 在 retention 上。",
+        "我剛跟 Sarah 開了個 one on one，她說下個季度的 OKR 要 focus 在 retention 上。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": 1.0,
+      "traditional": true,
+      "latency": 1.386,
+      "latencies": [
+        1.404,
+        1.221,
+        1.386
+      ],
+      "cost": 0.00096,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.35
+    },
+    {
+      "id": "mixed-noisy-04",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。",
+      "hypothesis": "用memory story limit的话，sliding window比fixed window更准，但是memory开销会大一点。",
+      "hypotheses": [
+        "用memory story limit的话，sliding window比fixed window更准，但是memory开销会大一点。",
+        "用memory story limit的话，sliding window比fixed window更准，但是memory开销会大一点。",
+        ""
+      ],
+      "error_rate": 0.4493,
+      "en_recall": 0.4167,
+      "traditional": false,
+      "latency": 1.287,
+      "latencies": [
+        1.175,
+        1.399
+      ],
+      "cost": 0.000672,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 6.67
+    },
+    {
+      "id": "mixed-noisy-05",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。",
+      "hypothesis": "帮我写一个 Python 脚本读入 .json 文件，然后 upsert 到 DynamoDB。",
+      "hypotheses": [
+        "帮我写一个 Python 脚本读入 .json 文件，然后 upsert 到 DynamoDB。",
+        "帮我写一个 Python 脚本读入 .json 文件，然后 upsert 到 DynamoDB。",
+        "帮我写一个 Python 脚本读入 .json 文件，然后 upsert 到 DynamoDB。"
+      ],
+      "error_rate": 0.3,
+      "en_recall": 0.5714,
+      "traditional": false,
+      "latency": 1.419,
+      "latencies": [
+        1.324,
+        1.443,
+        1.419
+      ],
+      "cost": 0.001278,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.45
+    },
+    {
+      "id": "chinese-noisy-01",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+      "hypothesis": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+      "hypotheses": [
+        "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+        "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+        "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.407,
+      "latencies": [
+        1.244,
+        1.407,
+        1.439
+      ],
+      "cost": 0.00087,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.73
+    },
+    {
+      "id": "chinese-noisy-02",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "hypothesis": "王经理，昨天在会上说下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "hypotheses": [
+        "王经理，昨天在会上说下个季度的预算要压缩，所有的出差申请都要提前审批。",
+        "王经理，昨天在会上说下个季度的预算要压缩，所有的出差申请都要提前审批。",
+        "王经理，昨天在会上说下个季度的预算要压缩，所有的出差申请都要提前审批。"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.426,
+      "latencies": [
+        1.426,
+        3.323,
+        1.268
+      ],
+      "cost": 0.00102,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.73
+    },
+    {
+      "id": "chinese-noisy-03",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+      "hypothesis": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+      "hypotheses": [
+        "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+        "",
+        "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。"
+      ],
+      "error_rate": 0.3333,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.421,
+      "latencies": [
+        1.539,
+        1.303
+      ],
+      "cost": 0.000604,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 5.97
+    },
+    {
+      "id": "chinese-noisy-04",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+      "hypothesis": "",
+      "hypotheses": [
+        "",
+        "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+        "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。"
+      ],
+      "error_rate": 0.3333,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.247,
+      "latencies": [
+        1.188,
+        1.306
+      ],
+      "cost": 0.000612,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 6.08
+    },
+    {
+      "id": "english-noisy-01",
+      "category": "english",
+      "level": 3,
+      "source": "tts",
+      "reference": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "hypothesis": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post-PostgreSQL upgrade or the OAuth changes?",
+      "hypotheses": [
+        "Can you ask Priyanka whether the Cuba needs migration is blocked on the post-PostgreSQL upgrade or the OAuth changes?",
+        "Can you ask Priyanka whether the Cuba needs migration is blocked on the post-PostgreSQL upgrade or the OAuth changes?",
+        "Can you ask Priyanka whether the Cuba needs migration is blocked on the post-PostgreSQL upgrade or the OAuth changes?"
+      ],
+      "error_rate": 0.1667,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.346,
+      "latencies": [
+        1.25,
+        1.346,
+        1.494
+      ],
+      "cost": 0.000804,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.29
+    },
+    {
+      "id": "english-noisy-02",
+      "category": "english",
+      "level": 3,
+      "source": "tts",
+      "reference": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypothesis": "Let's circle back on the quarterly roadmap after we reconcile the analytics discrepancies in the retention dashboard.",
+      "hypotheses": [
+        "Let's circle back on the quarterly roadmap after we reconcile the analytics discrepancies in the retention dashboard.",
+        "Let's circle back on the quarterly roadmap after we reconcile the analytics discrepancies in the retention dashboard.",
+        ""
+      ],
+      "error_rate": 0.4118,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.453,
+      "latencies": [
+        1.442,
+        1.464
+      ],
+      "cost": 0.000552,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 5.45
+    },
+    {
+      "id": "english-noisy-03",
+      "category": "english",
+      "level": 3,
+      "source": "tts",
+      "reference": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypothesis": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypotheses": [
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "",
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+      ],
+      "error_rate": 0.3333,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 1.212,
+      "latencies": [
+        1.325,
+        1.099
+      ],
+      "cost": 0.00064,
+      "runs": 3,
+      "error": "HTTP 400: {\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}",
+      "audio_seconds": 6.33
+    }
+  ]
+}

@@ -1,0 +1,323 @@
+<title>Dictation Model Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@500&display=swap">
+<style>
+/* Layout: lab-notebook dashboard — picks strip, one dense comparison grid, then per-model evidence. */
+:root {
+  --bg: #f4f6f6; --surface: #ffffff; --ink: #14201f; --muted: #5d6b69; --line: #dbe2e1;
+  --accent: #0f766e; --accent-soft: #d5ece9;
+  --good: #1f9d55; --ok: #c58a12; --bad: #c2412d;
+  --heat-0: #f6d4cd; --heat-1: #f8e3bd; --heat-2: #e6efc4; --heat-3: #c9ead3; --heat-4: #a6dfbd;
+  --range: #9fb4b1; --range-dot: #0f766e;
+  --display: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --body: "Manrope", ui-sans-serif, system-ui, "Noto Sans SC", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --zh: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1514; --surface: #151e1d; --ink: #e4ecea; --muted: #93a3a0; --line: #26332f;
+  --accent: #4fd1c0; --accent-soft: #143430;
+  --good: #4ad08a; --ok: #e3b14a; --bad: #f07a63;
+  --heat-0: #4a2620; --heat-1: #4a3a18; --heat-2: #33401c; --heat-3: #1d4430; --heat-4: #155238;
+  --range: #4e6460; --range-dot: #4fd1c0; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e1514; --surface: #151e1d; --ink: #e4ecea; --muted: #93a3a0; --line: #26332f;
+  --accent: #4fd1c0; --accent-soft: #143430;
+  --good: #4ad08a; --ok: #e3b14a; --bad: #f07a63;
+  --heat-0: #4a2620; --heat-1: #4a3a18; --heat-2: #33401c; --heat-3: #1d4430; --heat-4: #155238;
+  --range: #4e6460; --range-dot: #4fd1c0; color-scheme: dark; }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; display: grid; gap: 28px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: 30px; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 700; font-size: 18px; margin: 0; }
+.eyebrow { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.lede { color: var(--muted); max-width: 72ch; margin: 6px 0 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+.meta b { color: var(--ink); font-weight: 600; font-family: var(--mono); }
+
+.picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.pick { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; min-width: 0; }
+.pick .k { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.pick .v { font-family: var(--display); font-weight: 800; font-size: 17px; overflow-wrap: anywhere; }
+.pick .why { color: var(--muted); font-size: 12.5px; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12px; color: var(--muted); }
+.swatches { display: inline-flex; gap: 2px; vertical-align: middle; }
+.swatches i { width: 18px; height: 10px; border-radius: 2px; display: inline-block; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 8px; text-align: center; white-space: nowrap; }
+thead th { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; position: sticky; top: 0; background: var(--surface); }
+thead tr.groups th { font-size: 11.5px; color: var(--ink); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--line); }
+thead tr.cols th { border-bottom: 1px solid var(--line); cursor: pointer; user-select: none; }
+thead tr.cols th:hover, thead tr.cols th:focus-visible { color: var(--accent); outline: none; }
+thead tr.cols th[aria-sort] { color: var(--accent); }
+tbody tr { border-bottom: 1px solid var(--line); }
+tbody tr:hover { background: var(--accent-soft); }
+td.model { text-align: left; min-width: 230px; white-space: normal; }
+.model .name { font-weight: 700; }
+.model .id { font-family: var(--mono); font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.chip { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.chip.warn { color: var(--ok); border-color: currentColor; }
+.chip.bad { color: var(--bad); border-color: currentColor; }
+.chip.local { color: var(--accent); border-color: currentColor; }
+.chip.ref { color: var(--ink); border-color: var(--ink); }
+td.heat { font-family: var(--mono); font-size: 12.5px; font-weight: 600; min-width: 44px; }
+td.sep, th.sep { border-left: 1px solid var(--line); }
+td.overall { font-family: var(--display); font-weight: 800; font-size: 15px; }
+.range { display: grid; gap: 3px; min-width: 150px; }
+.range svg { width: 100%; height: 14px; display: block; }
+.range .nums { font-family: var(--mono); font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+.range .nums b { color: var(--ink); }
+td.cost { font-family: var(--mono); font-weight: 600; }
+td.cost small { display: block; color: var(--muted); font-weight: 400; font-size: 10.5px; }
+.na { color: var(--muted); font-weight: 400; }
+
+.evidence { padding: 14px 16px; display: grid; gap: 12px; }
+.ev-controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+select, .seg button { font: inherit; font-size: 13px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; }
+select:focus-visible, .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.seg button { cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.cases { display: grid; gap: 8px; }
+.case { display: grid; grid-template-columns: 110px minmax(0, 1fr) 64px; gap: 4px 12px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; align-items: start; }
+.case .cid { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.case .ref, .case .hyp { overflow-wrap: anywhere; }
+.case .ref { color: var(--muted); font-size: 12.5px; }
+.case .hyp { font-weight: 600; }
+.case .score { font-family: var(--mono); font-weight: 600; text-align: right; }
+.zh { font-family: var(--zh), var(--body); }
+.foot { color: var(--muted); font-size: 12.5px; display: grid; gap: 6px; max-width: 90ch; }
+.foot code { font-family: var(--mono); font-size: 12px; }
+@media (max-width: 640px) {
+  h1 { font-size: 24px; }
+  .case { grid-template-columns: minmax(0, 1fr) 56px; }
+  .case .cid { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">DictationApp · speech-to-text benchmark</div>
+    <h1>Which model should dictate for you?</h1>
+    <p class="lede">Every model heard the same clips: Chinese with English mixed in, Chinese only, and English only, at three difficulty levels. Accuracy is 1 − token error rate, where each Chinese character and each English word is one token. Wait is the time from the end of a dictation to text coming back.</p>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <section class="picks" id="picks" aria-label="Top picks"></section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Comparison</h2>
+      <div class="legend">
+        <span>Accuracy <span class="swatches"><i style="background:var(--heat-0)"></i><i style="background:var(--heat-1)"></i><i style="background:var(--heat-2)"></i><i style="background:var(--heat-3)"></i><i style="background:var(--heat-4)"></i></span> &lt;60% → 100%</span>
+        <span>L1 easy · L2 hard · L3 hard + fast + noisy</span>
+        <span>Click a column to sort</span>
+      </div>
+    </div>
+    <div class="scroll">
+      <table id="grid">
+        <thead>
+          <tr class="groups">
+            <th></th><th class="sep">Overall</th>
+            <th class="sep" colspan="3">中英混合 Mixed</th>
+            <th class="sep" colspan="3">中文 Chinese</th>
+            <th class="sep" colspan="3">English</th>
+            <th class="sep">EN words</th>
+            <th class="sep">Wait per dictation</th>
+            <th class="sep">Cost</th>
+          </tr>
+          <tr class="cols" id="cols"></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>What each model actually wrote</h2>
+      <div class="legend"><span>Grey: what was said · Bold: what came back (first run) · right: accuracy</span></div>
+    </div>
+    <div class="evidence">
+      <div class="ev-controls">
+        <label for="ev-model">Model</label>
+        <select id="ev-model"></select>
+        <div class="seg" id="ev-filter" role="group" aria-label="Which clips">
+          <button type="button" data-f="worst" aria-pressed="true">Worst 8</button>
+          <button type="button" data-f="mixed" aria-pressed="false">Mixed</button>
+          <button type="button" data-f="chinese" aria-pressed="false">Chinese</button>
+          <button type="button" data-f="english" aria-pressed="false">English</button>
+        </div>
+      </div>
+      <div class="cases" id="cases"></div>
+    </div>
+  </section>
+
+  <footer class="foot" id="foot"></footer>
+</div>
+
+<script>
+const DATA = /*DATA*/null;
+
+const NAMES = {
+  "openrouter:meta/muse-voice-transcribe-1.0": "Meta Muse Voice Transcribe 1.0",
+  "openrouter:qwen/qwen3-asr-flash-2026-02-10": "Qwen3 ASR Flash",
+  "openrouter:qwen/qwen3-asr-0.6b": "Qwen3 ASR 0.6B",
+  "openrouter:qwen/qwen3-asr-1.7b": "Qwen3 ASR 1.7B",
+  "openrouter:fish-audio/transcribe-1-pro": "Fish Audio Transcribe 1 Pro",
+  "openrouter:deepgram/nova-3": "Deepgram Nova-3",
+  "openrouter:deepgram/nova-3?language=zh": "Deepgram Nova-3 (language=zh)",
+  "openrouter:google/gemini-3.5-transcribe": "Google Gemini 3.5 Transcribe",
+  "openrouter:nvidia/parakeet-tdt-0.6b-v3": "NVIDIA Parakeet TDT 0.6B v3",
+  "openrouter:x-ai/grok-stt-1.0": "SpaceXAI Grok STT 1.0",
+  "openrouter:mistralai/voxtral-mini-transcribe": "Mistral Voxtral Mini Transcribe",
+  "apple:en-US": "Apple on-device (English)",
+  "apple:zh-CN": "Apple on-device (中文)",
+};
+const CATS = ["mixed", "chinese", "english"];
+const name = m => NAMES[m.model] || m.model.replace(/^openrouter:/, "");
+const pct = x => x == null ? "—" : Math.round(x * 100) + "%";
+const acc = (m, key) => m.summary[key]?.accuracy ?? null;
+const overall = m => { const v = CATS.map(c => acc(m, c)).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b) / v.length : null; };
+const heat = x => x == null ? "" : x >= .97 ? "var(--heat-4)" : x >= .9 ? "var(--heat-3)" : x >= .8 ? "var(--heat-2)" : x >= .6 ? "var(--heat-1)" : "var(--heat-0)";
+const lat = m => m.summary.all;
+const isLocal = m => m.model.startsWith("apple:");
+const costX = m => isLocal(m) ? 0 : m.cost_vs_reference;
+const fmtX = x => x == null ? "—" : x === 0 ? "free" : x >= 10 ? x.toFixed(0) + "×" : x >= 1 ? x.toFixed(1) + "×" : x.toFixed(2) + "×";
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function chips(m) {
+  const out = [];
+  if (m.model === DATA.reference) out.push('<span class="chip ref">cost reference (1×)</span>');
+  if (isLocal(m)) out.push('<span class="chip local">on-device</span>');
+  const trad = m.summary.all.traditional;
+  if (trad) out.push(`<span class="chip warn">writes Traditional 繁 (${trad} clips)</span>`);
+  const errs = m.summary.all.errors;
+  if (errs) out.push(`<span class="chip bad">${errs} failed request${errs > 1 ? "s" : ""}</span>`);
+  if (m.model.includes("?language=")) out.push('<span class="chip warn">language fixed in advance</span>');
+  if ((acc(m, "chinese") ?? 1) < .3) out.push('<span class="chip bad">no Chinese</span>');
+  return out.join("");
+}
+
+const COLS = [
+  { key: "model", label: "Model", get: m => name(m).toLowerCase(), left: true },
+  { key: "overall", label: "avg", get: overall, sep: true },
+  ...CATS.flatMap(c => [1, 2, 3].map((l, i) => ({ key: `${c}@L${l}`, label: "L" + l, get: m => acc(m, `${c}@L${l}`), sep: i === 0, heat: true }))),
+  { key: "recall", label: "mixed", get: m => m.summary.mixed?.en_recall ?? null, sep: true, heat: true },
+  { key: "latency", label: "min · median · max", get: m => lat(m).latency_p50, sep: true, asc: true },
+  { key: "cost", label: "× Muse", get: costX, sep: true, asc: true },
+];
+let sort = { key: "overall", dir: -1 };
+
+function maxLatency() { return Math.max(...DATA.models.map(m => lat(m).latency_max || 0), 1); }
+
+function rangeCell(m, scale) {
+  const s = lat(m);
+  if (s.latency_min == null) return '<span class="na">—</span>';
+  const x = v => (Math.sqrt(v / scale) * 100).toFixed(2);  // sqrt scale: short waits stay readable
+  return `<div class="range" title="min ${s.latency_min}s · median ${s.latency_p50}s · max ${s.latency_max}s">
+    <svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true">
+      <rect x="0" y="6" width="100" height="2" fill="var(--line)"/>
+      <rect x="${x(s.latency_min)}" y="4" width="${Math.max(x(s.latency_max) - x(s.latency_min), .8)}" height="6" rx="3" fill="var(--range)"/>
+      <rect x="${x(s.latency_p50) - 1}" y="1" width="2.4" height="12" rx="1" fill="var(--range-dot)"/>
+    </svg>
+    <div class="nums"><span>${s.latency_min.toFixed(2)}</span><b>${s.latency_p50.toFixed(2)}s</b><span>${s.latency_max.toFixed(1)}</span></div>
+  </div>`;
+}
+
+function render() {
+  const cols = document.getElementById("cols");
+  cols.innerHTML = COLS.map(c => `<th tabindex="0" class="${c.sep ? "sep" : ""}" data-k="${c.key}" ${sort.key === c.key ? `aria-sort="${sort.dir < 0 ? "descending" : "ascending"}"` : ""}>${c.label}${sort.key === c.key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
+  cols.querySelectorAll("th").forEach(th => {
+    const go = () => { const c = COLS.find(c => c.key === th.dataset.k); sort = sort.key === c.key ? { key: c.key, dir: -sort.dir } : { key: c.key, dir: c.asc || c.left ? 1 : -1 }; render(); };
+    th.addEventListener("click", go);
+    th.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  });
+  const col = COLS.find(c => c.key === sort.key);
+  const rows = [...DATA.models].sort((a, b) => {
+    const va = col.get(a), vb = col.get(b);
+    if (va == null) return 1; if (vb == null) return -1;
+    return (va > vb ? 1 : va < vb ? -1 : 0) * sort.dir;
+  });
+  const scale = maxLatency();
+  document.getElementById("rows").innerHTML = rows.map(m => {
+    const cells = COLS.slice(2, 12).map(c => { const v = c.get(m); return `<td class="heat ${c.sep ? "sep" : ""}" style="background:${heat(v)}">${pct(v)}</td>`; }).join("");
+    const cpm = m.cost_per_audio_hour;
+    return `<tr>
+      <td class="model"><div class="name">${esc(name(m))}</div><div class="id">${esc(m.model)}</div><div class="chips">${chips(m)}</div></td>
+      <td class="overall sep" style="background:${heat(overall(m))}">${pct(overall(m))}</td>
+      ${cells}
+      <td class="sep">${rangeCell(m, scale)}</td>
+      <td class="cost sep">${fmtX(costX(m))}<small>${isLocal(m) ? "on-device" : cpm != null ? "$" + cpm.toFixed(3) + "/audio hr" : ""}</small></td>
+    </tr>`;
+  }).join("");
+}
+
+function picks() {
+  const cloudOrAll = DATA.models;
+  const by = (f, dir = -1, pool = cloudOrAll) => [...pool].filter(m => f(m) != null).sort((a, b) => (f(a) - f(b)) * dir)[0];
+  const strong = DATA.models.filter(m => (acc(m, "mixed") ?? 0) >= .85 && !lat(m).errors);
+  const best = by(m => acc(m, "mixed"));
+  const fast = by(m => lat(m).latency_p50, 1, strong.length ? strong : DATA.models);
+  const cheap = by(costX, 1, strong.filter(m => !isLocal(m)));
+  const overallBest = by(overall);
+  const card = (k, m, why) => m ? `<div class="pick"><div class="k">${k}</div><div class="v">${esc(name(m))}</div><div class="why">${why}</div></div>` : "";
+  document.getElementById("picks").innerHTML = [
+    card("Best for 中英混合", best, `${pct(acc(best, "mixed"))} on mixed · ${pct(best?.summary.mixed?.en_recall)} of English words · median wait ${lat(best).latency_p50?.toFixed(2)}s`),
+    card("Best all-round", overallBest, `${pct(overall(overallBest))} average · Chinese ${pct(acc(overallBest, "chinese"))} · English ${pct(acc(overallBest, "english"))}`),
+    card("Fastest strong model", fast, `median ${lat(fast).latency_p50?.toFixed(2)}s, worst ${lat(fast).latency_max?.toFixed(1)}s · mixed ${pct(acc(fast, "mixed"))}`),
+    card("Cheapest strong cloud model", cheap, cheap ? `${fmtX(costX(cheap))} the cost of Muse · mixed ${pct(acc(cheap, "mixed"))}` : ""),
+  ].join("");
+}
+
+function evidence() {
+  const sel = document.getElementById("ev-model");
+  const ordered = [...DATA.models].sort((a, b) => (overall(b) ?? 0) - (overall(a) ?? 0));
+  sel.innerHTML = ordered.map(m => `<option value="${esc(m.model)}">${esc(name(m))}</option>`).join("");
+  let filter = "worst";
+  const draw = () => {
+    const m = DATA.models.find(x => x.model === sel.value);
+    let list = [...m.cases];
+    list = filter === "worst" ? list.sort((a, b) => b.error_rate - a.error_rate).slice(0, 8) : list.filter(c => c.category === filter);
+    document.getElementById("cases").innerHTML = list.map(c => `
+      <div class="case">
+        <div class="cid">${esc(c.id)} · L${c.level}</div>
+        <div><div class="ref zh">${esc(c.reference)}</div><div class="hyp zh">${c.error ? `<span class="na">${esc(c.error)}</span>` : esc(c.hypothesis) || '<span class="na">(empty)</span>'}</div></div>
+        <div class="score" style="color:${(1 - c.error_rate) >= .9 ? "var(--good)" : (1 - c.error_rate) >= .7 ? "var(--ok)" : "var(--bad)"}">${pct(Math.max(0, 1 - c.error_rate))}</div>
+      </div>`).join("");
+  };
+  sel.addEventListener("change", draw);
+  document.querySelectorAll("#ev-filter button").forEach(b => b.addEventListener("click", () => {
+    filter = b.dataset.f;
+    document.querySelectorAll("#ev-filter button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    draw();
+  }));
+  draw();
+}
+
+function meta() {
+  const m0 = DATA.models[0] || {};
+  const runAt = DATA.models.map(m => m.run_at).sort().slice(-1)[0];
+  document.getElementById("meta").innerHTML = [
+    `<span><b>${DATA.models.length}</b> models</span>`,
+    `<span><b>${DATA.case_count}</b> clips × <b>${m0.repeat || 1}</b> runs each</span>`,
+    `<span>cost unit: <b>× Meta Muse</b> ($${(DATA.models.find(m => m.model === DATA.reference)?.cost_per_audio_hour ?? 0.18).toFixed(2)}/audio hr)</span>`,
+    `<span>run <b>${esc(runAt?.replace("T", " ") || "")}</b></span>`,
+  ].join("");
+  document.getElementById("foot").innerHTML = `
+    <div><b>Levels.</b> ${Object.entries(DATA.levels).map(([k, v]) => `L${k}: ${esc(v)}`).join(" · ")}.</div>
+    <div><b>Scoring.</b> Speaker tags are removed and Traditional characters converted to Simplified before scoring, so "writes Traditional" is flagged instead of counted as errors. EN words = share of the English words in mixed sentences that came back right. Failed requests score 0%.</div>
+    <div><b>Caveats.</b> Clips are synthesized with macOS voices (TTS), so real voices and accents will score differently; add your own recordings with <code>bench/bench.py add</code>. Wait times are from Chicago over a home connection and include upload. Cost uses the amount OpenRouter actually charged per audio second; some models bill a minimum per request.</div>
+    <div><b>Reproduce.</b> <code>bench/bench.py run -r 3 -m openrouter:&lt;model&gt;</code>, then <code>bench/bench.py html</code>.</div>`;
+}
+
+if (DATA) { meta(); picks(); render(); evidence(); }
+</script>
