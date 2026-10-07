@@ -34,27 +34,8 @@ ensure_signing_identity() {
 }
 
 echo "==> Compiling…"
-swiftc -swift-version 5 -O -o /tmp/DictationApp-bin \
-  Sources/main.swift \
-  Sources/HotkeyManager.swift \
-  Sources/SpeechEngine.swift \
-  Sources/TextInjector.swift \
-  Sources/OverlayWindow.swift \
-  Sources/PolishService.swift \
-  Sources/Settings.swift \
-  Sources/Insights.swift \
-  Sources/History.swift \
-  Sources/MainWindow.swift \
-  Sources/AudioDevices.swift \
-  -framework AppKit \
-  -framework SwiftUI \
-  -framework AVFoundation \
-  -framework Speech \
-  -framework ApplicationServices \
-  -framework CoreAudio \
-  -framework AudioToolbox \
-  -framework ServiceManagement \
-  -Xlinker -weak_framework -Xlinker FoundationModels
+swift build -c release --product DictationApp
+BIN="$(swift build -c release --show-bin-path)/DictationApp"
 
 echo "==> Quitting running DictationApp (if any)…"
 pkill -x DictationApp || true
@@ -64,7 +45,7 @@ pkill -9 -x DictationApp || true
 echo "==> Bundling into $APP …"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
-cp /tmp/DictationApp-bin "$APP/Contents/MacOS/DictationApp"
+cp "$BIN" "$APP/Contents/MacOS/DictationApp"
 cp Info.plist "$APP/Contents/Info.plist"
 chmod +x "$APP/Contents/MacOS/DictationApp"
 

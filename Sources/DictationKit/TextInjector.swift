@@ -4,9 +4,15 @@ import ApplicationServices
 /// Pastes text into the frontmost app:
 /// save clipboard (all types) → write text → synthetic Cmd+V → restore clipboard.
 class TextInjector {
+    /// Overridable so tests can use a private pasteboard and a fake paste.
+    var pasteboard: NSPasteboard = .general
+    var restoreDelay: TimeInterval = 0.8
+    var canPaste: () -> Bool = { AXIsProcessTrusted() }
+    var paste: () -> Void = TextInjector.postCommandV
+
     func inject(_ text: String) {
-        guard AXIsProcessTrusted() else { return }
-        let pasteboard = NSPasteboard.general
+        guard canPaste() else { return }
+        let pasteboard = self.pasteboard
 
         // 1. Save everything currently on the clipboard (all types, not just text).
         var saved: [[NSPasteboard.PasteboardType: Data]] = []
@@ -25,6 +31,21 @@ class TextInjector {
         pasteboard.setString(text, forType: .string)
 
         // 3. Synthetic Cmd+V.
+        paste()
+
+        // 4. Restore the user's original clipboard after the target app has pasted.
+        DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
+            pasteboard.clearContents()
+            let items: [NSPasteboardItem] = saved.map { dict in
+                let item = NSPasteboardItem()
+                for (type, data) in dict { item.setData(data, forType: type) }
+                return item
+            }
+            if !items.isEmpty { pasteboard.writeObjects(items) }
+        }
+    }
+
+    static func postCommandV() {
         if let source = CGEventSource(stateID: .hidSystemState) {
             let vDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) // 0x09 = V
             vDown?.flags = .maskCommand
@@ -33,17 +54,6 @@ class TextInjector {
             vDown?.post(tap: .cghidEventTap)
             Thread.sleep(forTimeInterval: 0.03)
             vUp?.post(tap: .cghidEventTap)
-        }
-
-        // 4. Restore the user's original clipboard after the target app has pasted.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            pasteboard.clearContents()
-            let items: [NSPasteboardItem] = saved.map { dict in
-                let item = NSPasteboardItem()
-                for (type, data) in dict { item.setData(data, forType: type) }
-                return item
-            }
-            if !items.isEmpty { pasteboard.writeObjects(items) }
         }
     }
 }

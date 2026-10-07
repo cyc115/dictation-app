@@ -4,10 +4,18 @@ import Speech
 import ApplicationServices
 
 // MARK: - Entry point
-let appDelegate = AppDelegate()
-let app = NSApplication.shared
-app.delegate = appDelegate
-app.run()
+public enum DictationAppMain {
+    /// NSApplication holds its delegate weakly, so keep it alive here.
+    private static var delegate: AppDelegate?
+
+    public static func run() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        self.delegate = delegate
+        app.delegate = delegate
+        app.run()
+    }
+}
 
 // MARK: - App delegate: menu bar + orchestration
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -30,6 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         muter.restore()  // undo a mute left behind if the app quit mid-dictation
+        defer { signalReady() }
         applyAppearanceAndDock()
         buildMenu()
         installEditMenu()
@@ -102,6 +111,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hotkey?.mouseButton = settings.mouseButton
         applyAppearanceAndDock()
         updateMenu()
+    }
+
+    /// For scripts/perf.sh: write a timestamp once launch finishes, if asked to.
+    private func signalReady() {
+        guard let path = ProcessInfo.processInfo.environment["DICTATIONAPP_READY_FILE"] else { return }
+        try? String(Date().timeIntervalSince1970).write(toFile: path, atomically: true, encoding: .utf8)
     }
 
     private func applyAppearanceAndDock() {

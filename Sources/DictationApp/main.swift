@@ -1,0 +1,3 @@
+import DictationKit
+
+DictationAppMain.run()

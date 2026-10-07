@@ -38,6 +38,21 @@ Relaunch the app after enabling Accessibility.
   it never rewrites your meaning, and nothing leaves your Mac.
 - Menu bar also has Start/Stop dictation if you prefer clicking.
 
+## Development
+
+```sh
+./test.sh          # unit, UI, snapshot and performance-budget tests
+./test.sh --perf   # + launch time / idle CPU / memory of the installed app
+./build.sh         # build, install to /Applications, relaunch
+```
+
+- **UI tests** host the real SwiftUI views in an offscreen window and drive them through the
+  accessibility tree with real mouse clicks (`Tests/DictationKitTests/UITests.swift`).
+- **Snapshot tests** compare rendered views to `Tests/DictationKitTests/__Snapshots__/*.png`.
+  After an intentional UI change: `RECORD_SNAPSHOTS=1 ./test.sh --filter SnapshotTests`.
+- **Performance tests** fail if hot paths (mic level per buffer, waveform redraw, overlay show,
+  history load/save) exceed their budgets; `scripts/perf.sh` checks the running app.
+
 ## Privacy design
 
 - The mic opens **only** while you hold Fn (or while menu-bar dictation is active) — never in the background.

@@ -1,0 +1,3 @@
+.build/
+.serena/
+Tests/DictationKitTests/__Snapshots__/failures/

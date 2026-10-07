@@ -117,7 +117,7 @@ class SpeechEngine {
     }
 
     /// RMS of the first channel mapped from -50…-10 dBFS onto 0…1.
-    private static func level(of buffer: AVAudioPCMBuffer) -> Float {
+    static func level(of buffer: AVAudioPCMBuffer) -> Float {
         guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
         let n = Int(buffer.frameLength)
         var sum: Float = 0

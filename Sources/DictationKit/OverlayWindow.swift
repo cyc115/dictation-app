@@ -6,23 +6,23 @@ class OverlayWindow {
     var onCancel: (() -> Void)?
     var onConfirm: (() -> Void)?
 
-    private enum Mode { case hidden, listening, processing, message }
+    enum Mode { case hidden, listening, processing, message }
 
     private static let height: CGFloat = 34
     private static let listeningWidth: CGFloat = 132
     private static let bottomMargin: CGFloat = 28
 
-    private var panel: NSPanel?
+    private(set) var panel: NSPanel?
     private let background = NSView()
-    private let waveform = WaveformView()
-    private let label = NSTextField(labelWithString: "")
-    private lazy var cancelButton = CircleButton(symbol: "xmark", fill: NSColor(white: 1, alpha: 0.18), tint: .white) { [weak self] in
+    let waveform = WaveformView()
+    let label = NSTextField(labelWithString: "")
+    private lazy var cancelButton = CircleButton(symbol: "xmark", label: "Cancel dictation", fill: NSColor(white: 1, alpha: 0.18), tint: .white) { [weak self] in
         self?.onCancel?()
     }
-    private lazy var confirmButton = CircleButton(symbol: "checkmark", fill: .white, tint: .black) { [weak self] in
+    private lazy var confirmButton = CircleButton(symbol: "checkmark", label: "Stop and paste", fill: .white, tint: .black) { [weak self] in
         self?.onConfirm?()
     }
-    private var mode = Mode.hidden
+    private(set) var mode = Mode.hidden
     private var autoHide: DispatchWorkItem?
 
     // MARK: - Public
@@ -167,7 +167,7 @@ final class WaveformView: NSView {
     private let barCount = 13
     private let barWidth: CGFloat = 2.5
     private let gap: CGFloat = 2.5
-    private var levels: [CGFloat]
+    private(set) var levels: [CGFloat]
     private var smoothed: CGFloat = 0
     private var timer: Timer?
     private var phase: CGFloat = 0
@@ -242,12 +242,21 @@ final class CircleButton: NSView {
     private let action: () -> Void
     private var pressed = false
 
-    init(symbol: String, fill: NSColor, tint: NSColor, action: @escaping () -> Void) {
+    init(symbol: String, label: String, fill: NSColor, tint: NSColor, action: @escaping () -> Void) {
         self.symbol = symbol
         self.fill = fill
         self.tint = tint
         self.action = action
         super.init(frame: .zero)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(label)
+        setAccessibilityIdentifier("overlay." + symbol)
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        action()
+        return true
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }

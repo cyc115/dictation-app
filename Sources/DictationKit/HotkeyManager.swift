@@ -26,7 +26,7 @@ enum Hotkey: String, CaseIterable {
         }
     }
 
-    fileprivate var keyCode: UInt16 {
+    var keyCode: UInt16 {
         switch self {
         case .fn: return 63
         case .rightCommand: return 54
@@ -37,7 +37,7 @@ enum Hotkey: String, CaseIterable {
     }
 
     /// Bit in NSEvent.modifierFlags.rawValue that is set while this key is down.
-    fileprivate var flagMask: UInt {
+    var flagMask: UInt {
         switch self {
         case .fn: return NSEvent.ModifierFlags.function.rawValue
         case .rightCommand: return 0x10    // NX_DEVICERCMDKEYMASK
@@ -62,7 +62,7 @@ enum MouseButton: String, CaseIterable {
     }
 
     /// CGEvent button number: 0 left, 1 right, 2 middle, 3 = button 4, 4 = button 5.
-    fileprivate var buttonNumber: Int64? {
+    var buttonNumber: Int64? {
         switch self {
         case .off: return nil
         case .middle: return 2
@@ -158,7 +158,7 @@ class HotkeyManager {
         mouseTap = tap
     }
 
-    private func handleMouse(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+    func handleMouse(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap = mouseTap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
@@ -174,8 +174,13 @@ class HotkeyManager {
     }
 
     private func flagsChanged(_ event: NSEvent) {
-        guard event.keyCode == hotkey.keyCode else { return }
-        let down = event.modifierFlags.rawValue & hotkey.flagMask != 0
+        handleFlags(keyCode: event.keyCode, rawFlags: event.modifierFlags.rawValue)
+    }
+
+    /// Hotkey state machine, fed from flagsChanged events (separate so tests can drive it).
+    func handleFlags(keyCode: UInt16, rawFlags: UInt) {
+        guard keyCode == hotkey.keyCode else { return }
+        let down = rawFlags & hotkey.flagMask != 0
         if down && !held {
             held = true
             cancelled = false
@@ -187,7 +192,7 @@ class HotkeyManager {
         }
     }
 
-    private func otherKeyPressed() {
+    func otherKeyPressed() {
         guard held, !cancelled else { return }
         cancelled = true
         if mode == .hold { onCancel() }

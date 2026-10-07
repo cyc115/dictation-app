@@ -55,39 +55,41 @@ final class AppSettings: ObservableObject {
     var onChange: (() -> Void)?
 
     @Published var hotkey: Hotkey {
-        didSet { UserDefaults.standard.set(hotkey.rawValue, forKey: Key.hotkey); onChange?() }
+        didSet { defaults.set(hotkey.rawValue, forKey: Key.hotkey); onChange?() }
     }
     @Published var mode: ActivationMode {
-        didSet { UserDefaults.standard.set(mode.rawValue, forKey: Key.mode); onChange?() }
+        didSet { defaults.set(mode.rawValue, forKey: Key.mode); onChange?() }
     }
     @Published var mouseButton: MouseButton {
-        didSet { UserDefaults.standard.set(mouseButton.rawValue, forKey: Key.mouse); onChange?() }
+        didSet { defaults.set(mouseButton.rawValue, forKey: Key.mouse); onChange?() }
     }
     @Published var polishEnabled: Bool {
-        didSet { UserDefaults.standard.set(polishEnabled, forKey: Key.polish); onChange?() }
+        didSet { defaults.set(polishEnabled, forKey: Key.polish); onChange?() }
     }
     /// CoreAudio device UID; empty means the system default input.
     @Published var microphoneUID: String {
-        didSet { UserDefaults.standard.set(microphoneUID, forKey: Key.microphone); onChange?() }
+        didSet { defaults.set(microphoneUID, forKey: Key.microphone); onChange?() }
     }
     @Published var interactionSounds: Bool {
-        didSet { UserDefaults.standard.set(interactionSounds, forKey: Key.sounds); onChange?() }
+        didSet { defaults.set(interactionSounds, forKey: Key.sounds); onChange?() }
     }
     @Published var muteWhileDictating: Bool {
-        didSet { UserDefaults.standard.set(muteWhileDictating, forKey: Key.mute); onChange?() }
+        didSet { defaults.set(muteWhileDictating, forKey: Key.mute); onChange?() }
     }
     @Published var appearance: AppearanceMode {
-        didSet { UserDefaults.standard.set(appearance.rawValue, forKey: Key.appearance); onChange?() }
+        didSet { defaults.set(appearance.rawValue, forKey: Key.appearance); onChange?() }
     }
     @Published var showInDock: Bool {
-        didSet { UserDefaults.standard.set(showInDock, forKey: Key.dock); onChange?() }
+        didSet { defaults.set(showInDock, forKey: Key.dock); onChange?() }
     }
     /// Mirrors macOS's login-item state; change it with setLaunchAtLogin(_:).
     @Published private(set) var launchAtLogin: Bool
     @Published private(set) var loginItemNeedsApproval = false
 
-    private init() {
-        let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         hotkey = Hotkey(rawValue: defaults.string(forKey: Key.hotkey) ?? "") ?? .fn
         mode = ActivationMode(rawValue: defaults.string(forKey: Key.mode) ?? "") ?? .hold
         polishEnabled = defaults.bool(forKey: Key.polish)
@@ -238,6 +240,7 @@ private struct SettingRow<Control: View>: View {
             }
             Spacer(minLength: 12)
             control
+                .accessibilityIdentifier("setting." + title)
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .fixedSize()

@@ -39,20 +39,25 @@ final class HistoryStore: ObservableObject {
     @Published private(set) var entries: [HistoryEntry] = []
     @Published var retention: HistoryRetention {
         didSet {
-            UserDefaults.standard.set(retention.rawValue, forKey: "historyRetention")
+            defaults.set(retention.rawValue, forKey: "historyRetention")
             prune()
         }
     }
 
-    private let fileURL: URL = {
+    private let fileURL: URL
+    private let defaults: UserDefaults
+
+    static let defaultFileURL: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("DictationApp", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("history.json")
     }()
 
-    private init() {
-        retention = HistoryRetention(rawValue: UserDefaults.standard.string(forKey: "historyRetention") ?? "") ?? .forever
+    init(fileURL: URL = HistoryStore.defaultFileURL, defaults: UserDefaults = .standard) {
+        self.fileURL = fileURL
+        self.defaults = defaults
+        retention = HistoryRetention(rawValue: defaults.string(forKey: "historyRetention") ?? "") ?? .forever
         if let data = try? Data(contentsOf: fileURL) {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
@@ -178,7 +183,10 @@ struct HistoryView: View {
     }
 }
 
-private struct HistoryRow: View {
+struct HistoryRow: View {
+    /// Where "Copy" writes; tests swap in a private pasteboard.
+    static var pasteboard: NSPasteboard = .general
+
     let entry: HistoryEntry
     let onDelete: () -> Void
     @State private var hovering = false
@@ -199,10 +207,16 @@ private struct HistoryRow: View {
             }
             .buttonStyle(.borderless)
             .help("Copy transcript")
-            .opacity(hovering || copied ? 1 : 0)
+            .accessibilityLabel("Copy transcript")
+            .accessibilityIdentifier("history.copy")
+            // Faint until hover rather than invisible: fully transparent views drop out of
+            // accessibility, which would hide the button from VoiceOver.
+            .opacity(hovering || copied ? 1 : 0.3)
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("history.row")
         .onHover { hovering = $0 }
         .contextMenu {
             Button("Copy") { copy() }
@@ -211,8 +225,8 @@ private struct HistoryRow: View {
     }
 
     private func copy() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(entry.text, forType: .string)
+        Self.pasteboard.clearContents()
+        Self.pasteboard.setString(entry.text, forType: .string)
         copied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
     }

@@ -16,9 +16,12 @@ final class Insights: ObservableObject {
     @Published private(set) var words: Int
     @Published private(set) var seconds: Double
 
-    private init() {
-        words = UserDefaults.standard.integer(forKey: Key.words)
-        seconds = UserDefaults.standard.double(forKey: Key.seconds)
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        words = defaults.integer(forKey: Key.words)
+        seconds = defaults.double(forKey: Key.seconds)
     }
 
     /// Records one pasted dictation. `duration` is how long the mic was open.
@@ -27,8 +30,8 @@ final class Insights: ObservableObject {
         guard count > 0 else { return }
         words += count
         seconds += max(duration, 0)
-        UserDefaults.standard.set(words, forKey: Key.words)
-        UserDefaults.standard.set(seconds, forKey: Key.seconds)
+        defaults.set(words, forKey: Key.words)
+        defaults.set(seconds, forKey: Key.seconds)
     }
 
     var wordsPerMinute: Int {
@@ -100,5 +103,7 @@ struct InsightsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("insights." + caption)
     }
 }
