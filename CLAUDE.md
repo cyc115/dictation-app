@@ -7,6 +7,7 @@ macOS menu-bar dictation app. Swift package: `Sources/DictationKit` (all app cod
   - logic → unit tests with injected `UserDefaults` / file URLs / pasteboards (see `TestSupport.swift`), never the user's real ones;
   - UI → `HostedView` + accessibility identifiers (`.accessibilityIdentifier`), driven with `click(_:)`; add a snapshot for new visual surfaces;
   - hot paths (audio thread, overlay, history I/O) → an `assertFaster` budget in `PerformanceTests.swift`.
+- Cloud transcription changes: also run `./test.sh --live` (real API, both cloud models). Live and integration tests must exercise the app's real code path (e.g. `CloudEngine.stop()`), not a test-only helper — a helper hid the unfinished-WAV bug that only the real path had.
 - Intentional UI change: `RECORD_SNAPSHOTS=1 ./test.sh --filter SnapshotTests`, then look at the new PNGs in `Tests/DictationKitTests/__Snapshots__/` before committing.
 - App-level perf (launch time, idle CPU, memory): `scripts/perf.sh` (also `./test.sh --perf`). Run it after changes to launch, audio or anything that runs in the background.
 - After every major feature change: run `./build.sh`. It compiles, quits the running copy, installs to `/Applications/DictationApp.app`, and launches the new build, so the user can try it right away. Do it once the change compiles; don't ask first.

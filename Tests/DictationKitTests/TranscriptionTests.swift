@@ -118,32 +118,130 @@ final class WAVRecorderTests: XCTestCase {
         XCTAssertEqual(file.fileFormat.sampleRate, 16_000)
         XCTAssertEqual(file.fileFormat.channelCount, 1)
     }
+
+    /// Regression: the app uploaded the WAV while it was still open, so its header declared
+    /// 0 bytes of audio. Meta tolerated that; Qwen rejected it as "malformed audio".
+    func testFinishWritesCompleteHeaderWhileRecorderIsStillAlive() throws {
+        let url = makeTempURL(self, "rec.wav")
+        let recorder = try WAVRecorder(url: url)
+        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
+        for _ in 0..<30 {
+            let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1024)!
+            buffer.frameLength = 1024
+            recorder.append(buffer)
+        }
+        recorder.finish()
+        let data = try Data(contentsOf: url)  // read while `recorder` is still referenced, like the upload
+        func u32(_ at: Int) -> Int { Int(data[at]) | Int(data[at + 1]) << 8 | Int(data[at + 2]) << 16 | Int(data[at + 3]) << 24 }
+        XCTAssertEqual(u32(4), data.count - 8, "RIFF size must match the file")
+        let dataChunk = try XCTUnwrap(data.range(of: Data("data".utf8))).lowerBound
+        XCTAssertEqual(u32(dataChunk + 4), Int(recorder.framesWritten) * 2, "data size must match the samples")
+        recorder.append(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1024)!)  // ignored after finish
+        XCTAssertEqual(try Data(contentsOf: url).count, data.count)
+    }
 }
 
-/// Hits the real API. Opt-in: LIVE_OPENROUTER=1 OPENROUTER_KEY=… swift test --filter LiveOpenRouterTests
-final class LiveOpenRouterTests: XCTestCase {
-    func testMuseTranscribesMixedClip() throws { try transcribesMixedClip(.metaMuse) }
-    func testQwenTranscribesMixedClip() throws { try transcribesMixedClip(.qwenASR) }
+/// Runs the real CloudEngine stop → upload path with a fake client that inspects the WAV at
+/// the moment of upload. Regression for "Provider could not process the audio input": the
+/// file was uploaded unfinished (header declaring 0 bytes), which Qwen rejects.
+final class CloudEngineTests: XCTestCase {
+    final class FakeClient: TranscriptionClient {
+        var uploaded: Data?
+        var model: String?
+        var result: Result<TranscriptionResult, Error> = .success(TranscriptionResult(text: "ok", audioSeconds: nil, cost: nil))
+        func transcribe(wav: URL, model: String, apiKey: String,
+                        completion: @escaping (Result<TranscriptionResult, Error>) -> Void) -> URLSessionTask? {
+            uploaded = try? Data(contentsOf: wav)  // read exactly when a real upload would
+            self.model = model
+            DispatchQueue.main.async { completion(self.result) }
+            return nil
+        }
+    }
 
-    private func transcribesMixedClip(_ model: TranscriptionModel) throws {
+    private func feedSpeech(_ engine: CloudEngine, seconds: Double) {
+        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
+        for _ in 0..<Int(seconds * 48_000 / 1024) {
+            engine.record(AudioLevelTests.buffer(amplitude: 0.2))  // 48 kHz mono, 1024 frames
+            _ = format
+        }
+    }
+
+    private func u32(_ d: Data, _ at: Int) -> Int {
+        Int(d[at]) | Int(d[at + 1]) << 8 | Int(d[at + 2]) << 16 | Int(d[at + 3]) << 24
+    }
+
+    func testUploadedWAVIsCompleteAndWellFormed() throws {
+        let engine = CloudEngine()
+        let fake = FakeClient()
+        engine.client = fake
+        engine.modelID = "qwen/qwen3-asr-1.7b"
+        XCTAssertTrue(engine.beginRecording())
+        feedSpeech(engine, seconds: 1)
+        let done = expectation(description: "stopped")
+        var text: String?
+        engine.stop(completion: { text = $0; done.fulfill() }, failure: { XCTFail($0); done.fulfill() })
+        wait(for: [done], timeout: 2)
+
+        XCTAssertEqual(text, "ok")
+        XCTAssertEqual(fake.model, "qwen/qwen3-asr-1.7b")
+        let wav = try XCTUnwrap(fake.uploaded)
+        XCTAssertEqual(String(decoding: wav.prefix(4), as: UTF8.self), "RIFF")
+        XCTAssertEqual(String(decoding: wav[8..<12], as: UTF8.self), "WAVE")
+        XCTAssertEqual(u32(wav, 4), wav.count - 8, "RIFF size must match the uploaded file")
+        let dataChunk = try XCTUnwrap(wav.range(of: Data("data".utf8))).lowerBound
+        let declared = u32(wav, dataChunk + 4)
+        XCTAssertGreaterThan(declared, 0, "header must not declare an empty recording")
+        XCTAssertEqual(declared, wav.count - dataChunk - 8, "data size must cover all the audio")
+        XCTAssertEqual(Double(declared) / 2 / 16_000, 1.0, accuracy: 0.05, "16 kHz 16-bit mono")
+    }
+
+    func testTooShortRecordingSkipsUpload() {
+        let engine = CloudEngine()
+        let fake = FakeClient()
+        engine.client = fake
+        XCTAssertTrue(engine.beginRecording())
+        feedSpeech(engine, seconds: 0.1)
+        let done = expectation(description: "stopped")
+        engine.stop(completion: { XCTAssertEqual($0, ""); done.fulfill() }, failure: { _ in done.fulfill() })
+        wait(for: [done], timeout: 2)
+        XCTAssertNil(fake.uploaded, "a tap of the key shouldn't cost an API call")
+    }
+
+    func testUploadErrorReachesFailure() {
+        let engine = CloudEngine()
+        let fake = FakeClient()
+        fake.result = .failure(TranscriptionError.message("Provider could not process the audio input"))
+        engine.client = fake
+        XCTAssertTrue(engine.beginRecording())
+        feedSpeech(engine, seconds: 1)
+        let done = expectation(description: "stopped")
+        engine.stop(completion: { _ in XCTFail("should fail"); done.fulfill() },
+                    failure: { XCTAssertTrue($0.contains("Provider")); done.fulfill() })
+        wait(for: [done], timeout: 2)
+    }
+
+    /// Same path against the real API. Opt-in: LIVE_OPENROUTER=1 OPENROUTER_KEY=…
+    func testLiveUploadThroughCloudEngine() throws {
         let env = ProcessInfo.processInfo.environment
         guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_KEY"] else {
             throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_KEY to run")
         }
-        let wav = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../../bench/audio/mixed-01.wav").standardized
-        let done = expectation(description: "transcribed")
-        var text = ""
-        _ = OpenRouterClient().transcribe(wav: wav, model: model.openRouterID!, apiKey: key) { result in
-            switch result {
-            case .success(let r): text = r.text
-            case .failure(let e): XCTFail(e.localizedDescription)
-            }
-            done.fulfill()
-        }
-        wait(for: [done], timeout: 60)
-        for word in ["build", "push", "repository"] {
-            XCTAssertTrue(text.lowercased().contains(word), "missing \(word) in \(text)")
+        let src = try AVAudioFile(forReading: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../bench/audio/mixed-01.wav").standardized)
+        let input = AVAudioPCMBuffer(pcmFormat: src.processingFormat, frameCapacity: AVAudioFrameCount(src.length))!
+        try src.read(into: input)
+        for model in TranscriptionModel.allCases where model.isCloud {
+            let engine = CloudEngine()
+            engine.modelID = model.openRouterID!
+            engine.apiKey = key
+            XCTAssertTrue(engine.beginRecording())
+            engine.record(input)  // 16 kHz clip; WAVRecorder converts whatever the mic format is
+            let done = expectation(description: "\(model)")
+            var text = ""
+            engine.stop(completion: { text = $0; done.fulfill() },
+                        failure: { XCTFail("\(model): \($0)"); done.fulfill() })
+            wait(for: [done], timeout: 60)
+            XCTAssertTrue(text.lowercased().contains("repository"), "\(model): \(text)")
         }
     }
 }

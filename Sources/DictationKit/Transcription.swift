@@ -134,6 +134,7 @@ final class WAVRecorder {
                                              channels: 1, interleaved: false)!
     private var converter: AVAudioConverter?
     private(set) var framesWritten: AVAudioFramePosition = 0
+    private var finished = false
 
     init(url: URL) throws {
         self.url = url
@@ -145,7 +146,16 @@ final class WAVRecorder {
 
     var duration: TimeInterval { Double(framesWritten) / Self.sampleRate }
 
+    /// Closes the file so its header declares the real length. Must happen before the file is
+    /// read: until then the header says 0 bytes of audio, which strict providers (Qwen) reject.
+    func finish() {
+        guard !finished else { return }
+        finished = true
+        file.close()
+    }
+
     func append(_ buffer: AVAudioPCMBuffer) {
+        guard !finished else { return }
         if converter == nil || converter?.inputFormat != buffer.format {
             converter = AVAudioConverter(from: buffer.format, to: outputFormat)
         }
@@ -174,13 +184,21 @@ struct TranscriptionResult: Equatable {
     let cost: Double?
 }
 
+/// Uploads a finished WAV for transcription (OpenRouterClient; a fake in tests).
+protocol TranscriptionClient {
+    @discardableResult
+    func transcribe(wav: URL, model: String, apiKey: String,
+                    completion: @escaping (Result<TranscriptionResult, Error>) -> Void) -> URLSessionTask?
+}
+
 /// Minimal client for OpenRouter's speech-to-text endpoint (multipart WAV upload).
-final class OpenRouterClient {
+final class OpenRouterClient: TranscriptionClient {
     static let endpoint = URL(string: "https://openrouter.ai/api/v1/audio/transcriptions")!
     private let session: URLSession
 
     init(session: URLSession = .shared) { self.session = session }
 
+    @discardableResult
     func transcribe(wav: URL, model: String, apiKey: String,
                     completion: @escaping (Result<TranscriptionResult, Error>) -> Void) -> URLSessionTask? {
         guard let audio = try? Data(contentsOf: wav) else {
@@ -253,25 +271,37 @@ final class CloudEngine: DictationEngine {
     var isBatch: Bool { true }
     var modelID = TranscriptionModel.metaMuse.openRouterID!
     var apiKey = ""
-    var client = OpenRouterClient()
+    var client: TranscriptionClient = OpenRouterClient()
 
     private var audioEngine = AVAudioEngine()
     private var recorder: WAVRecorder?
     private var upload: URLSessionTask?
     private let lock = NSLock()
 
+    /// Starts a new recording file. Called by `start`; tests call it directly with `record(_:)`
+    /// to run the real stop/upload path without a microphone.
+    func beginRecording() -> Bool {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-\(UUID().uuidString).wav")
+        guard let recorder = try? WAVRecorder(url: url) else { return false }
+        lock.lock(); self.recorder = recorder; lock.unlock()
+        return true
+    }
+
+    /// Appends audio to the current recording (from the mic tap's thread, or a test).
+    func record(_ buffer: AVAudioPCMBuffer) {
+        lock.lock(); recorder?.append(buffer); lock.unlock()
+    }
+
     func start(inputUID: String, onLevel: @escaping (Float) -> Void,
                onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-\(UUID().uuidString).wav")
-        guard let recorder = try? WAVRecorder(url: url) else { return onError("Couldn't create a recording file.") }
-        self.recorder = recorder
+        guard beginRecording() else { return onError("Couldn't create a recording file.") }
         audioEngine = AVAudioEngine()
         if !inputUID.isEmpty { AudioDevices.route(audioEngine, toInputUID: inputUID) }
         let input = audioEngine.inputNode
         input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { [weak self] buffer, _ in
             guard let self = self else { return }
-            self.lock.lock(); self.recorder?.append(buffer); self.lock.unlock()
+            self.record(buffer)
             let level = SpeechEngine.level(of: buffer)
             DispatchQueue.main.async { onLevel(level) }
         }
@@ -292,6 +322,7 @@ final class CloudEngine: DictationEngine {
             if let url = recorder?.url { try? FileManager.default.removeItem(at: url) }
             return completion("")  // too short to be speech
         }
+        recorder.finish()
         let url = recorder.url
         upload = client.transcribe(wav: url, model: modelID, apiKey: apiKey) { result in
             try? FileManager.default.removeItem(at: url)
