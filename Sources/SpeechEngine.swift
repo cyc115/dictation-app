@@ -5,7 +5,7 @@ import Speech
 /// The microphone is opened only for the duration of one dictation — never in the background.
 class SpeechEngine {
     private let recognizer: SFSpeechRecognizer? = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
-    private let audioEngine = AVAudioEngine()
+    private var audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var lastText = ""
@@ -17,7 +17,8 @@ class SpeechEngine {
     private let finalResultTimeout: TimeInterval = 2.0
 
     /// `onLevel` gets the mic level (0…1) for each audio buffer, on the main queue.
-    func start(onLevel: @escaping (Float) -> Void, onError: @escaping (String) -> Void) {
+    /// `inputUID` picks a microphone by CoreAudio UID; empty or missing uses the system default.
+    func start(inputUID: String = "", onLevel: @escaping (Float) -> Void, onError: @escaping (String) -> Void) {
         complete()  // deliver any previous dictation still waiting for its final result
         session += 1
         let id = session
@@ -38,6 +39,9 @@ class SpeechEngine {
         if #available(macOS 13.0, *) { request.addsPunctuation = true }
         self.request = request
 
+        // Fresh engine per dictation so a newly chosen or reconnected mic is picked up.
+        audioEngine = AVAudioEngine()
+        if !inputUID.isEmpty { AudioDevices.route(audioEngine, toInputUID: inputUID) }
         let input = audioEngine.inputNode
         let format = input.outputFormat(forBus: 0)
         input.removeTap(onBus: 0)

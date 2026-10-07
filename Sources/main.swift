@@ -26,8 +26,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var dictationStart = Date()
     private let settings = AppSettings.shared
     private let mainWindow = MainWindowController()
+    private let muter = OutputMuter()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        muter.restore()  // undo a mute left behind if the app quit mid-dictation
+        applyAppearanceAndDock()
         buildMenu()
         installEditMenu()
         overlay.onCancel = { [weak self] in self?.cancelDictation() }
@@ -97,7 +100,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             hotkey.mode = settings.mode
         }
         hotkey?.mouseButton = settings.mouseButton
+        applyAppearanceAndDock()
         updateMenu()
+    }
+
+    private func applyAppearanceAndDock() {
+        NSApp.appearance = settings.appearance.nsAppearance
+        let policy: NSApplication.ActivationPolicy = settings.showInDock ? .regular : .accessory
+        if NSApp.activationPolicy() != policy {
+            NSApp.setActivationPolicy(policy)
+            if policy == .accessory { NSApp.activate(ignoringOtherApps: true) }  // keep an open window in front
+        }
+    }
+
+    /// Clicking the Dock icon opens the window.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { mainWindow.show(.home) }
+        return true
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        muter.restore()
     }
 
     /// Menu-bar apps have no main menu, so ⌘C / ⌘A / ⌘F wouldn't work in the window without this.
@@ -141,7 +164,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setDictating(true)
         dictationStart = Date()
         overlay.showListening()
+        if settings.interactionSounds { InteractionSound.start.play() }
+        if settings.muteWhileDictating {
+            // Let the start sound finish before silencing output.
+            let delay: TimeInterval = settings.interactionSounds ? 0.25 : 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                if self?.dictating == true { self?.muter.mute() }
+            }
+        }
         speech.start(
+            inputUID: settings.microphoneUID,
             onLevel: { [weak self] level in
                 guard self?.dictating == true else { return }
                 self?.overlay.setLevel(level)
@@ -171,6 +203,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         autoStop?.cancel()
         autoStop = nil
         overlay.hideUnlessMessage()
+        muter.restore()
+        if settings.interactionSounds { InteractionSound.stop.play() }
         let duration = Date().timeIntervalSince(dictationStart)
         speech.stop { [weak self] text in
             let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -186,6 +220,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         autoStop = nil
         speech.cancel()
         overlay.hide()
+        muter.restore()
+        if settings.interactionSounds { InteractionSound.cancel.play() }
     }
 
     private func deliver(_ raw: String, duration: TimeInterval) {

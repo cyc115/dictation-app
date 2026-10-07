@@ -45,11 +45,15 @@ swiftc -swift-version 5 -O -o /tmp/DictationApp-bin \
   Sources/Insights.swift \
   Sources/History.swift \
   Sources/MainWindow.swift \
+  Sources/AudioDevices.swift \
   -framework AppKit \
   -framework SwiftUI \
   -framework AVFoundation \
   -framework Speech \
   -framework ApplicationServices \
+  -framework CoreAudio \
+  -framework AudioToolbox \
+  -framework ServiceManagement \
   -Xlinker -weak_framework -Xlinker FoundationModels
 
 echo "==> Quitting running DictationApp (if any)…"
