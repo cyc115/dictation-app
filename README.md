@@ -40,7 +40,7 @@ Relaunch the app after enabling Accessibility.
 ## Troubleshooting
 
 - **Nothing happens on the hotkey**: Accessibility isn't enabled yet → enable it, relaunch.
-  Rebuilds are ad-hoc signed, so you may need to re-enable it after each `./build.sh`.
+  `build.sh` signs with a stable local cert, so the permission survives rebuilds.
 - **Fn also opens the emoji picker / Apple Dictation**: System Settings → Keyboard →
   "Press 🌐 key to" → Do Nothing, or pick a different hotkey.
 - **"On-device recognition unavailable"**: System Settings → Keyboard → Dictation → make sure English dictation is enabled (downloads the on-device model).

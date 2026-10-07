@@ -79,7 +79,24 @@ class HotkeyManager {
     func start() {
         // Prompts the user in System Settings if Accessibility isn't granted yet.
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        guard AXIsProcessTrustedWithOptions(options) else { return }
+        guard AXIsProcessTrustedWithOptions(options) else {
+            waitForAccessibility()
+            return
+        }
+        installMonitors()
+    }
+
+    /// Keeps checking until Accessibility is granted, then starts listening — no relaunch needed.
+    private func waitForAccessibility() {
+        Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] timer in
+            guard AXIsProcessTrusted() else { return }
+            timer.invalidate()
+            self?.installMonitors()
+        }
+    }
+
+    private func installMonitors() {
+        guard monitors.isEmpty else { return }
         if let m = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged, handler: { [weak self] event in
             self?.flagsChanged(event)
         }) { monitors.append(m) }
