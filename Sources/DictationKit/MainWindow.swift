@@ -60,6 +60,20 @@ private struct MainView: View {
                 Label(tab.title, systemImage: tab.icon).tag(tab)
             }
             .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 240)
+            .safeAreaInset(edge: .bottom) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Version \(AppVersion.current.version)").font(.caption.weight(.medium))
+                    Text(AppVersion.current.commit + (AppVersion.current.built.map {
+                        " · " + $0.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+                    } ?? ""))
+                    .font(.caption2)
+                }
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .textSelection(.enabled)
+                .accessibilityIdentifier("sidebar.version")
+            }
         } detail: {
             switch selection.tab {
             case .home: HomeView()

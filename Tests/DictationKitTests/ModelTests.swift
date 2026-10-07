@@ -235,3 +235,20 @@ final class AudioLevelTests: XCTestCase {
         XCTAssertEqual(Set(levels).count, levels.count)
     }
 }
+
+final class AppVersionTests: XCTestCase {
+    func testReadsStampedInfo() {
+        let v = AppVersion(info: ["CFBundleShortVersionString": "1.0.25", "CFBundleVersion": "525e456",
+                                  "DictationBuildDate": "2026-10-07T06:05:00Z"])
+        XCTAssertEqual(v.version, "1.0.25")
+        XCTAssertEqual(v.short, "Version 1.0.25 (525e456)")
+        XCTAssertNotNil(v.built)
+        XCTAssertTrue(v.long.hasPrefix("Version 1.0.25 (525e456) · built "), v.long)
+    }
+
+    func testUnstampedBuildSaysDev() {
+        let v = AppVersion(info: [:])
+        XCTAssertEqual(v.short, "Version dev (-)")
+        XCTAssertEqual(v.long, v.short)
+    }
+}

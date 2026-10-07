@@ -47,6 +47,16 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 cp "$BIN" "$APP/Contents/MacOS/DictationApp"
 cp Info.plist "$APP/Contents/Info.plist"
+# Version: 1.0.<commit count>, "-dev" if the tree has uncommitted changes; build = commit.
+COUNT=$(git rev-list --count HEAD 2>/dev/null || echo 0)
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+VERSION="1.0.$COUNT"
+[[ -n "$(git status --porcelain --untracked-files=no 2>/dev/null)" ]] && VERSION="$VERSION-dev"
+PLIST="$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $COMMIT" "$PLIST"
+/usr/libexec/PlistBuddy -c "Add :DictationBuildDate string $(date -u +%Y-%m-%dT%H:%M:%SZ)" "$PLIST"
+echo "    version $VERSION ($COMMIT)"
 mkdir -p "$APP/Contents/Resources"
 cp Assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"   # regenerate: swift scripts/make-icon.swift
 chmod +x "$APP/Contents/MacOS/DictationApp"
