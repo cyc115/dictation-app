@@ -51,6 +51,8 @@ final class AppSettings: ObservableObject {
         static let appearance = "appearance"
         static let dock = "showInDock"
         static let streaming = "streamWhileSpeaking"
+        static let model = "transcriptionModel"
+        static let language = "localLanguage"
     }
 
     var onChange: (() -> Void)?
@@ -84,6 +86,30 @@ final class AppSettings: ObservableObject {
     @Published var streamWhileSpeaking: Bool {
         didSet { defaults.set(streamWhileSpeaking, forKey: Key.streaming); onChange?() }
     }
+    @Published var transcriptionModel: TranscriptionModel {
+        didSet { defaults.set(transcriptionModel.rawValue, forKey: Key.model); onChange?() }
+    }
+    /// Language for the local model (kept while a cloud model is selected).
+    @Published var localLanguage: LocalLanguage {
+        didSet { defaults.set(localLanguage.rawValue, forKey: Key.language); onChange?() }
+    }
+    @Published private(set) var hasOpenRouterKey = false
+    private let secrets: SecretStore
+    static let openRouterAccount = "openrouter-api-key"
+
+    var openRouterKey: String? { secrets.get(Self.openRouterAccount) }
+
+    func setOpenRouterKey(_ key: String?) {
+        let trimmed = key?.trimmingCharacters(in: .whitespacesAndNewlines)
+        secrets.set(trimmed, for: Self.openRouterAccount)
+        hasOpenRouterKey = !(openRouterKey ?? "").isEmpty
+        onChange?()
+    }
+
+    /// "Type as you speak" only when the setting is on and the model streams; the saved
+    /// preference is kept either way.
+    var effectiveStreaming: Bool { streamWhileSpeaking && transcriptionModel.supportsStreaming }
+
     @Published var showInDock: Bool {
         didSet { defaults.set(showInDock, forKey: Key.dock); onChange?() }
     }
@@ -93,8 +119,9 @@ final class AppSettings: ObservableObject {
 
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, secrets: SecretStore = KeychainStore()) {
         self.defaults = defaults
+        self.secrets = secrets
         hotkey = Hotkey(rawValue: defaults.string(forKey: Key.hotkey) ?? "") ?? .fn
         mode = ActivationMode(rawValue: defaults.string(forKey: Key.mode) ?? "") ?? .hold
         polishEnabled = defaults.bool(forKey: Key.polish)
@@ -105,6 +132,9 @@ final class AppSettings: ObservableObject {
         appearance = AppearanceMode(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
         showInDock = defaults.bool(forKey: Key.dock)
         streamWhileSpeaking = defaults.bool(forKey: Key.streaming)
+        transcriptionModel = TranscriptionModel(rawValue: defaults.string(forKey: Key.model) ?? "") ?? .local
+        localLanguage = LocalLanguage(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .english
+        hasOpenRouterKey = !(secrets.get(Self.openRouterAccount) ?? "").isEmpty
         launchAtLogin = false
         refreshLoginItem()
     }
@@ -138,9 +168,45 @@ final class AppSettings: ObservableObject {
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @State private var microphones: [AudioInputDevice] = []
+    @State private var askForKey = false
+    @State private var keyDraft = ""
+
+    private var cloud: Bool { settings.transcriptionModel.isCloud }
 
     var body: some View {
         Form {
+            Section {
+                SettingRow("Model", cloud
+                           ? "Audio is sent to Meta via OpenRouter when you stop (~$0.18 per hour of audio). Handles English mixed into Chinese."
+                           : "Runs on this Mac; nothing leaves it.") {
+                    Picker("Model", selection: Binding(
+                        get: { settings.transcriptionModel },
+                        set: { model in
+                            settings.transcriptionModel = model
+                            if model.isCloud && !settings.hasOpenRouterKey { keyDraft = ""; askForKey = true }
+                        })) {
+                        ForEach(TranscriptionModel.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                }
+                SettingRow("Language", settings.transcriptionModel.supportsLanguageChoice
+                           ? "Language the local model listens for."
+                           : "Not needed — this model detects English and Chinese automatically.") {
+                    Picker("Language", selection: $settings.localLanguage) {
+                        ForEach(LocalLanguage.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                }
+                .disabled(!settings.transcriptionModel.supportsLanguageChoice)
+                if cloud {
+                    SettingRow("OpenRouter API key", settings.hasOpenRouterKey
+                               ? "Saved in your Keychain."
+                               : "Required for this model.") {
+                        Button(settings.hasOpenRouterKey ? "Change…" : "Add Key…") { keyDraft = ""; askForKey = true }
+                    }
+                }
+            } header: {
+                Label("Speech model", systemImage: "waveform.badge.mic")
+            }
+
             Section {
                 SettingRow("Appearance", "Choose between light and dark modes.") {
                     Picker("Appearance", selection: $settings.appearance) {
@@ -208,15 +274,18 @@ struct SettingsView: View {
             }
 
             Section {
-                SettingRow("Type as you speak", "Insert each phrase into the focused app as soon as you pause, instead of pasting everything when you stop. Cancelling keeps what's already typed. With a held ⌘/⌥/⌃/⇧ hotkey, text is typed when you release it.") {
+                SettingRow("Type as you speak", settings.transcriptionModel.supportsStreaming
+                           ? "Insert each phrase into the focused app as soon as you pause, instead of pasting everything when you stop. Cancelling keeps what's already typed. With a held ⌘/⌥/⌃/⇧ hotkey, text is typed when you release it."
+                           : "Not available with \(settings.transcriptionModel.title) — it transcribes after you stop.") {
                     Toggle("Type as you speak", isOn: $settings.streamWhileSpeaking)
                 }
+                .disabled(!settings.transcriptionModel.supportsStreaming)
             } header: {
                 Label("Output", systemImage: "text.cursor")
             }
 
             Section {
-                SettingRow("AI polish", settings.streamWhileSpeaking
+                SettingRow("AI polish", settings.effectiveStreaming
                            ? "Not used while “Type as you speak” is on — polish needs the whole dictation."
                            : "Remove filler words and fix self-corrections with Apple's on-device model.") {
                     Toggle("AI polish", isOn: $settings.polishEnabled)
@@ -226,10 +295,49 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $askForKey) {
+            APIKeySheet(key: $keyDraft,
+                        onSave: { settings.setOpenRouterKey(keyDraft); askForKey = false },
+                        onCancel: {
+                            askForKey = false
+                            // No key, no cloud model: fall back so dictation keeps working.
+                            if !settings.hasOpenRouterKey { settings.transcriptionModel = .local }
+                        })
+        }
         .onAppear {
             microphones = AudioDevices.inputDevices()
             settings.refreshLoginItem()
         }
+    }
+}
+
+/// Asks for the OpenRouter API key when a cloud model is chosen.
+private struct APIKeySheet: View {
+    @Binding var key: String
+    let onSave: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("OpenRouter API key").font(.headline)
+            Text("Meta Muse runs through OpenRouter. Paste an API key from openrouter.ai/keys — it's stored in your Keychain. The account must have credits and the 18+ confirmation in OpenRouter's preferences.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            SecureField("sk-or-v1-…", text: $key)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("apikey.field")
+                .onSubmit { if !key.isEmpty { onSave() } }
+            HStack {
+                Spacer()
+                Button("Cancel", action: onCancel).keyboardShortcut(.cancelAction)
+                Button("Save", action: onSave)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(key.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
     }
 }
 

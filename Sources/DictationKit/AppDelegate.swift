@@ -26,6 +26,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var hintItem: NSMenuItem!
     private var hotkey: HotkeyManager?
     private let speech = SpeechEngine()
+    private let cloud = CloudEngine()
+    /// Engine for the dictation in progress (chosen from Settings when it starts).
+    private var engine: DictationEngine?
     private let overlay = OverlayWindow()
     private let injector = TextInjector()
     private let polisher = PolishService()
@@ -194,6 +197,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func startDictation() {
         guard !dictating else { return }
+        let model = settings.transcriptionModel
+        let engine: DictationEngine
+        if let modelID = model.openRouterID {
+            guard let key = settings.openRouterKey, !key.isEmpty else {
+                overlay.showMessage("Add your OpenRouter API key in Settings to use \(model.title)", hideAfter: 4)
+                mainWindow.show(.settings)
+                return
+            }
+            cloud.modelID = modelID
+            cloud.apiKey = key
+            engine = cloud
+        } else {
+            speech.localeIdentifier = settings.localLanguage.rawValue
+            engine = speech
+        }
+        self.engine = engine
         setDictating(true)
         dictationStart = Date()
         overlay.showListening(micName: AudioDevices.activeInputName(preferredUID: settings.microphoneUID))
@@ -205,7 +224,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if self?.dictating == true { self?.muter.mute() }
             }
         }
-        if settings.streamWhileSpeaking {
+        if settings.effectiveStreaming {
             streaming = StreamingOutput(
                 // A held ⌘/⌥/⌃/⇧ would turn typed letters into shortcuts/capitals; Fn is harmless.
                 canTypeNow: { [weak self] in
@@ -217,7 +236,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             streaming = nil
         }
         let output = streaming
-        speech.start(
+        engine.start(
             inputUID: settings.microphoneUID,
             onLevel: { [weak self] level in
                 guard self?.dictating == true else { return }
@@ -251,13 +270,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setDictating(false)
         autoStop?.cancel()
         autoStop = nil
-        overlay.hideUnlessMessage()
         muter.restore()
         if settings.interactionSounds { InteractionSound.stop.play() }
         let duration = Date().timeIntervalSince(dictationStart)
         let output = streaming
         streaming = nil
-        speech.stop { [weak self] text in
+        guard let engine = engine else { return overlay.hideUnlessMessage() }
+        // Cloud models transcribe after you stop: keep the pill up ("working") until text arrives.
+        let batch = engine.isBatch
+        if batch { overlay.showProcessing() } else { overlay.hideUnlessMessage() }
+        engine.stop(completion: { [weak self] text in
+            if batch { self?.overlay.hideUnlessMessage() }
             let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
             Insights.shared.record(text: raw, duration: duration)
             if let output = output {
@@ -267,7 +290,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 self?.deliver(raw, duration: duration)
             }
-        }
+        }, failure: { [weak self] message in
+            self?.overlay.showMessage(message, hideAfter: 5)
+        })
     }
 
     func cancelDictation() {
@@ -275,7 +300,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setDictating(false)
         autoStop?.cancel()
         autoStop = nil
-        speech.cancel()
+        engine?.cancel()
         streaming = nil  // what's already typed stays; nothing more is added
         overlay.hide()
         muter.restore()

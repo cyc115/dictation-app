@@ -7,23 +7,23 @@ import XCTest
 /// (and a user) would, and checks the app state they change.
 final class SettingsUITests: XCTestCase {
     private func host(_ settings: AppSettings) -> HostedView<SettingsView> {
-        let hosted = HostedView(SettingsView(settings: settings), size: NSSize(width: 640, height: 1100))
+        let hosted = HostedView(SettingsView(settings: settings), size: NSSize(width: 640, height: 1400))
         addTeardownBlock { hosted.close() }
         return hosted
     }
 
     func testEverySettingIsReachable() {
-        let hosted = host(AppSettings(defaults: makeDefaults(self)))
+        let hosted = host(AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore()))
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
-                      "Mouse button", "Type as you speak", "AI polish"] {
+                      "Mouse button", "Type as you speak", "AI polish", "Model", "Language"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }
 
     func testTogglesChangeAndPersistSettings() {
         let defaults = makeDefaults(self)
-        let settings = AppSettings(defaults: defaults)
+        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
         let hosted = host(settings)
         for (title, read) in [("Interaction sounds", { settings.interactionSounds }),
                               ("Mute when dictating", { settings.muteWhileDictating }),
@@ -35,7 +35,7 @@ final class SettingsUITests: XCTestCase {
             XCTAssertTrue(hosted.click(toggle), "\(title) not clickable")
             XCTAssertEqual(read(), !before, "\(title) did not flip")
         }
-        let reloaded = AppSettings(defaults: defaults)
+        let reloaded = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
         XCTAssertFalse(reloaded.interactionSounds)
         XCTAssertTrue(reloaded.muteWhileDictating)
         XCTAssertTrue(reloaded.showInDock)
@@ -43,8 +43,31 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(reloaded.polishEnabled)
     }
 
+    func testCloudModelDisablesUnsupportedSettingsButKeepsThem() {
+        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        settings.streamWhileSpeaking = true
+        settings.localLanguage = .mandarin
+        let hosted = host(settings)
+        func enabled(_ title: String) -> Bool? {
+            guard let node = hosted.element(id: "setting." + title) else { return nil }
+            return node.object.value(forKey: "accessibilityEnabled") as? Bool
+        }
+        XCTAssertEqual(enabled("Type as you speak"), true)
+        XCTAssertEqual(enabled("Language"), true)
+        XCTAssertNil(hosted.element(id: "setting.OpenRouter API key"), "key row only for cloud models")
+
+        settings.setOpenRouterKey("sk-or-v1-test")
+        settings.transcriptionModel = .metaMuse
+        hosted.settle()
+        XCTAssertEqual(enabled("Type as you speak"), false)
+        XCTAssertEqual(enabled("Language"), false)
+        XCTAssertNotNil(hosted.element(id: "setting.OpenRouter API key"))
+        XCTAssertTrue(settings.streamWhileSpeaking, "state is remembered while disabled")
+        XCTAssertEqual(settings.localLanguage, .mandarin)
+    }
+
     func testFnTipOnlyShownForFn() {
-        let settings = AppSettings(defaults: makeDefaults(self))
+        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
         let hosted = host(settings)
         func tipShown() -> Bool { hosted.allText.contains("Press 🌐 key to") }
         XCTAssertTrue(tipShown())

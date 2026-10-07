@@ -33,6 +33,10 @@ Relaunch the app after enabling Accessibility.
 - Menu bar 🎙 → **History…** (⌘Y): past dictations by day, searchable; hover a row to copy it.
   Kept on this Mac only (`~/Library/Application Support/DictationApp/history.json`); choose how long to keep it.
 - Click ✕ (or press **Esc**) to throw the dictation away, ✓ to stop and paste.
+- **Speech model** (Settings → Speech model): *Local (Apple)* — on-device, English or 中文 — or
+  *Meta Muse (cloud, via OpenRouter)* — handles English mixed into Chinese; asks for an OpenRouter
+  API key (stored in the Keychain) and sends audio to Meta when you stop (~$0.18 per audio hour).
+  Settings a model can't support (e.g. Type as you speak with a cloud model) are disabled but remembered.
 - **Type as you speak** (Settings → Output, off by default): each phrase is typed into the focused app as soon as you pause, instead of one paste at the end.
 - The bar shows which microphone is recording, under the waveform.
 - Menu bar 🎙 → **AI polish (on-device)** toggles LLM cleanup (default: off).

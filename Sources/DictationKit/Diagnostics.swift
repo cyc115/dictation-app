@@ -10,14 +10,26 @@ import Speech
 /// Runs the file through the real SpeechEngine (same code path as the mic, real-time pace),
 /// logs every recognizer result and each finished utterance, writes the final transcript as
 /// the last line ("FINAL: …"), then quits. Used by scripts/e2e-speech.sh.
+///
+/// Batch mode for benchmarks (bench/bench.py): DICTATIONAPP_PROBE_LIST=<file with one audio
+/// path per line>, DICTATIONAPP_PROBE_LOCALE=en-US|zh-CN, DICTATIONAPP_PROBE_OUT=<jsonl path>.
+/// Each clip is fed as fast as possible; one JSON line per clip: file, text, latency (seconds
+/// from end of audio to final transcript).
 enum Diagnostics {
-    private static var probe: Probe?  // kept alive until the app exits
+    private static var probe: AnyObject?  // kept alive until the app exits
 
     static func runIfRequested() -> Bool {
         let env = ProcessInfo.processInfo.environment
+        if let list = env["DICTATIONAPP_PROBE_LIST"], let out = env["DICTATIONAPP_PROBE_OUT"] {
+            let batch = BatchProbe(listPath: list, outPath: out, locale: env["DICTATIONAPP_PROBE_LOCALE"] ?? "en-US")
+            probe = batch
+            batch.run()
+            return true
+        }
         guard let file = env["DICTATIONAPP_PROBE_FILE"], let logPath = env["DICTATIONAPP_PROBE_LOG"] else { return false }
-        probe = Probe(file: URL(fileURLWithPath: file), logPath: logPath)
-        probe?.run()
+        let single = Probe(file: URL(fileURLWithPath: file), logPath: logPath)
+        probe = single
+        single.run()
         return true
     }
 }
@@ -53,6 +65,50 @@ private final class Probe {
                              self.engine.stop { text in
                                  self.log("FINAL: \(text)")
                                  DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { exit(0) }
+                             }
+                         })
+    }
+}
+
+private final class BatchProbe {
+    let files: [String]
+    let outPath: String
+    let engine = SpeechEngine()
+    var index = 0
+    var output = ""
+
+    init(listPath: String, outPath: String, locale: String) {
+        files = ((try? String(contentsOfFile: listPath, encoding: .utf8)) ?? "")
+            .split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+        self.outPath = outPath
+        engine.localeIdentifier = locale
+    }
+
+    func run() { next() }
+
+    private func next() {
+        guard index < files.count else {
+            try? output.write(toFile: outPath, atomically: true, encoding: .utf8)
+            exit(0)
+        }
+        let path = files[index]
+        index += 1
+        var error: String?
+        engine.startFile(URL(fileURLWithPath: path), realTime: false,
+                         onError: { error = $0 },
+                         onEnd: { [weak self] in
+                             guard let self = self else { return }
+                             let ended = Date()
+                             self.engine.stop { text in
+                                 let line: [String: Any] = ["file": path, "text": text,
+                                                            "latency": Date().timeIntervalSince(ended),
+                                                            "error": error ?? NSNull()]
+                                 if let data = try? JSONSerialization.data(withJSONObject: line),
+                                    let json = String(data: data, encoding: .utf8) {
+                                     self.output += json + "\n"
+                                     try? self.output.write(toFile: self.outPath, atomically: true, encoding: .utf8)
+                                 }
+                                 DispatchQueue.main.async { self.next() }
                              }
                          })
     }

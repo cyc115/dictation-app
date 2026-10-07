@@ -4,7 +4,9 @@ import Speech
 /// On-device streaming speech recognition.
 /// The microphone is opened only for the duration of one dictation — never in the background.
 class SpeechEngine {
-    private let recognizer: SFSpeechRecognizer? = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    /// Recognition language, e.g. "en-US" or "zh-CN" (Apple's models are one language each).
+    var localeIdentifier = LocalLanguage.english.rawValue
+    private var recognizer: SFSpeechRecognizer? { SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier)) }
     private var audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
@@ -50,12 +52,17 @@ class SpeechEngine {
         recognize(recognizer, request, id: id, onUtterance: onUtterance, onError: onError)
     }
 
-    /// Same pipeline as `start`, fed from an audio file at real-time pace instead of the mic
-    /// (for end-to-end tests). Calls `onEnd` on the main queue when the file is used up.
-    func startFile(_ url: URL, onUtterance: ((String) -> Void)? = nil,
+    /// Same pipeline as `start`, fed from an audio file instead of the mic (for end-to-end tests
+    /// and benchmarks). Real-time pace by default, like a mic; `realTime: false` feeds it as fast
+    /// as possible. Calls `onEnd` on the main queue when the file is used up.
+    func startFile(_ url: URL, realTime: Bool = true, onUtterance: ((String) -> Void)? = nil,
                    onError: @escaping (String) -> Void, onEnd: @escaping () -> Void) {
-        guard let file = try? AVAudioFile(forReading: url) else { return onError("could not read \(url.path)") }
-        guard let (recognizer, request, id) = prepare(onError: onError) else { return }
+        // Always signal the end, even on failure, so callers (benchmarks) never hang.
+        guard let file = try? AVAudioFile(forReading: url) else {
+            onError("could not read \(url.path)")
+            return DispatchQueue.main.async(execute: onEnd)
+        }
+        guard let (recognizer, request, id) = prepare(onError: onError) else { return DispatchQueue.main.async(execute: onEnd) }
         recognize(recognizer, request, id: id, onUtterance: onUtterance, onError: onError)
         let format = file.processingFormat
         DispatchQueue.global(qos: .userInitiated).async {
@@ -64,7 +71,7 @@ class SpeechEngine {
                 guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk),
                       (try? file.read(into: buffer, frameCount: chunk)) != nil, buffer.frameLength > 0 else { break }
                 request.append(buffer)
-                Thread.sleep(forTimeInterval: Double(buffer.frameLength) / format.sampleRate)
+                if realTime { Thread.sleep(forTimeInterval: Double(buffer.frameLength) / format.sampleRate) }
             }
             DispatchQueue.main.async(execute: onEnd)
         }
