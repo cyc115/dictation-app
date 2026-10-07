@@ -1,5 +1,6 @@
 #!/bin/zsh
-# Build + install DictationApp on your Mac. Run once:  zsh ~/DictationApp/build.sh
+# Build, install, and (re)launch DictationApp:  ./build.sh
+# Quits any running copy first, so it's safe to run after every change.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -19,6 +20,11 @@ swiftc -swift-version 5 -O -o /tmp/DictationApp-bin \
   -framework ApplicationServices \
   -Xlinker -weak_framework -Xlinker FoundationModels
 
+echo "==> Quitting running DictationApp (if any)…"
+pkill -x DictationApp || true
+for _ in {1..20}; do pgrep -x DictationApp >/dev/null || break; sleep 0.1; done
+pkill -9 -x DictationApp || true
+
 echo "==> Bundling into $APP …"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
@@ -36,4 +42,4 @@ echo "Grant the 3 permissions when prompted:"
 echo "  1. Microphone (system prompt)"
 echo "  2. Speech Recognition (system prompt)"
 echo "  3. Accessibility: System Settings → Privacy & Security → Accessibility → enable DictationApp"
-echo "Then relaunch the app and hold Fn to dictate."
+echo "Then relaunch the app and hold the hotkey (default Fn; change it in the menu bar) to dictate."

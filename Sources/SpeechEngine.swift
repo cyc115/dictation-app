@@ -16,7 +16,8 @@ class SpeechEngine {
     /// How long stop() waits for the recognizer's final result before using what it has.
     private let finalResultTimeout: TimeInterval = 2.0
 
-    func start(onPartial: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
+    /// `onLevel` gets the mic level (0…1) for each audio buffer, on the main queue.
+    func start(onLevel: @escaping (Float) -> Void, onError: @escaping (String) -> Void) {
         complete()  // deliver any previous dictation still waiting for its final result
         session += 1
         let id = session
@@ -42,6 +43,8 @@ class SpeechEngine {
         input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             self?.request?.append(buffer)
+            let level = Self.level(of: buffer)
+            DispatchQueue.main.async { onLevel(level) }
         }
         audioEngine.prepare()
         do {
@@ -59,7 +62,6 @@ class SpeechEngine {
             let stopping = self.finishHandler != nil
             if let result = result {
                 self.lastText = result.bestTranscription.formattedString
-                if !stopping { onPartial(self.lastText) }
                 if result.isFinal { self.complete() }
             }
             if let error = error {
@@ -87,6 +89,18 @@ class SpeechEngine {
         }
     }
 
+    /// Stops capture and throws the transcript away.
+    func cancel() {
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        finishHandler = nil
+        session += 1
+        task?.cancel()
+        task = nil
+        request = nil
+        lastText = ""
+    }
+
     /// Ends the current session and hands the transcript to the pending stop() caller.
     private func complete() {
         guard let handler = finishHandler else { return }
@@ -96,5 +110,15 @@ class SpeechEngine {
         task = nil
         request = nil
         handler(lastText)
+    }
+
+    /// RMS of the first channel mapped from -50…-10 dBFS onto 0…1.
+    private static func level(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
+        let n = Int(buffer.frameLength)
+        var sum: Float = 0
+        for i in 0..<n { sum += samples[i] * samples[i] }
+        let db = 20 * log10(max(sqrt(sum / Float(n)), 1e-6))
+        return min(max((db + 50) / 40, 0), 1)
     }
 }

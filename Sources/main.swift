@@ -15,6 +15,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var polishItem: NSMenuItem!
     private var startItem: NSMenuItem!
     private var stopItem: NSMenuItem!
+    private var hintItem: NSMenuItem!
+    private var hotkeyItems: [NSMenuItem] = []
     private var hotkey: HotkeyManager?
     private let speech = SpeechEngine()
     private let overlay = OverlayWindow()
@@ -33,12 +35,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
+        overlay.onCancel = { [weak self] in self?.cancelDictation() }
+        overlay.onConfirm = { [weak self] in self?.stopDictation() }
         Permissions.requestAll { [weak self] granted in
             guard let self = self else { return }
             // HotkeyManager prompts for Accessibility itself when needed.
             self.hotkey = HotkeyManager(
+                hotkey: Hotkey.saved,
                 onPress: { [weak self] in self?.startDictation() },
-                onRelease: { [weak self] in self?.stopDictation() }
+                onRelease: { [weak self] in self?.stopDictation() },
+                onCancel: { [weak self] in self?.cancelDictation() }
             )
             self.hotkey?.start()
             if !granted {
@@ -51,9 +57,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.title = "🎙"
         let menu = NSMenu()
-        let hint = NSMenuItem(title: "Hold Fn to dictate — release to paste", action: nil, keyEquivalent: "")
-        hint.isEnabled = false
-        menu.addItem(hint)
+        hintItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        hintItem.isEnabled = false
+        menu.addItem(hintItem)
+        let hotkeyMenu = NSMenu()
+        for key in Hotkey.allCases {
+            let item = NSMenuItem(title: key.title, action: #selector(chooseHotkey(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = key.rawValue
+            hotkeyMenu.addItem(item)
+            hotkeyItems.append(item)
+        }
+        let hotkeyItem = NSMenuItem(title: "Hotkey", action: nil, keyEquivalent: "")
+        hotkeyItem.submenu = hotkeyMenu
+        menu.addItem(hotkeyItem)
         menu.addItem(.separator())
         startItem = NSMenuItem(title: "Start dictation", action: #selector(startFromMenu), keyEquivalent: "")
         startItem.target = self
@@ -70,6 +87,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit DictationApp", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
+        updateHotkeyMenu()
+    }
+
+    private func updateHotkeyMenu() {
+        let current = Hotkey.saved
+        hintItem.title = "Hold \(current.shortName) to dictate — release to paste"
+        for item in hotkeyItems {
+            item.state = (item.representedObject as? String) == current.rawValue ? .on : .off
+        }
+    }
+
+    @objc private func chooseHotkey(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let key = Hotkey(rawValue: raw) else { return }
+        if dictating { cancelDictation() }
+        Hotkey.saved = key
+        hotkey?.hotkey = key
+        updateHotkeyMenu()
     }
 
     @objc private func togglePolish() { polishEnabled = !polishEnabled }
@@ -86,18 +120,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func startDictation() {
         guard !dictating else { return }
         setDictating(true)
-        overlay.show(message: "Listening… release Fn to paste")
+        overlay.showListening()
         speech.start(
-            onPartial: { [weak self] text in
-                DispatchQueue.main.async {
-                    guard self?.dictating == true else { return }
-                    self?.overlay.show(message: text)
-                }
+            onLevel: { [weak self] level in
+                guard self?.dictating == true else { return }
+                self?.overlay.setLevel(level)
             },
             onError: { [weak self] message in
                 DispatchQueue.main.async {
                     guard self?.dictating == true else { return }
-                    self?.overlay.show(message: "Error: \(message)")
+                    self?.overlay.showMessage(message)
                 }
             }
         )
@@ -112,16 +144,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setDictating(false)
         autoStop?.cancel()
         autoStop = nil
-        overlay.hide()
+        overlay.hideUnlessMessage()
         speech.stop { [weak self] text in
             self?.deliver(text.trimmingCharacters(in: .whitespacesAndNewlines))
         }
     }
 
+    func cancelDictation() {
+        guard dictating else { return }
+        setDictating(false)
+        autoStop?.cancel()
+        autoStop = nil
+        speech.cancel()
+        overlay.hide()
+    }
+
     private func deliver(_ raw: String) {
         guard !raw.isEmpty else { return }
         if polishEnabled {
-            overlay.show(message: "Polishing…")
+            overlay.showProcessing()
             Task { [weak self] in
                 guard let self = self else { return }
                 let polished = await self.polisher.polish(raw)
