@@ -21,8 +21,6 @@ public enum DictationAppMain {
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var polishItem: NSMenuItem!
-    private var startItem: NSMenuItem!
-    private var stopItem: NSMenuItem!
     private var hintItem: NSMenuItem!
     private var hotkey: HotkeyManager?
     private let speech = SpeechEngine()
@@ -79,14 +77,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hintItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         hintItem.isEnabled = false
         menu.addItem(hintItem)
-        menu.addItem(.separator())
-        startItem = NSMenuItem(title: "Start dictation", action: #selector(startFromMenu), keyEquivalent: "")
-        startItem.target = self
-        menu.addItem(startItem)
-        stopItem = NSMenuItem(title: "Stop & paste", action: #selector(stopFromMenu), keyEquivalent: "")
-        stopItem.target = self
-        stopItem.isEnabled = false
-        menu.addItem(stopItem)
         menu.addItem(.separator())
         polishItem = NSMenuItem(title: "AI polish (on-device)", action: #selector(togglePolish), keyEquivalent: "")
         polishItem.target = self
@@ -175,8 +165,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openHistory() { mainWindow.show(.history) }
     @objc private func openSettings() { mainWindow.show(.settings) }
     @objc private func togglePolish() { settings.polishEnabled.toggle() }
-    @objc private func startFromMenu() { startDictation() }
-    @objc private func stopFromMenu() { stopDictation() }
 
     /// Waveform glyph matching the app icon; red while the mic is open.
     private func updateStatusIcon() {
@@ -191,8 +179,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setDictating(_ value: Bool) {
         dictating = value
         updateStatusIcon()
-        startItem.isEnabled = !value
-        stopItem.isEnabled = value
     }
 
     func startDictation() {

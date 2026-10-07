@@ -49,7 +49,6 @@ Relaunch the app after enabling Accessibility.
 - Menu bar 🎙 → **AI polish (on-device)** toggles LLM cleanup (default: off).
   When on, Apple's on-device model removes fillers and fixes self-corrections —
   it never rewrites your meaning, and nothing leaves your Mac.
-- Menu bar also has Start/Stop dictation if you prefer clicking.
 
 ## Development
 
