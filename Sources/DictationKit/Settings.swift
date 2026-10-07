@@ -50,6 +50,7 @@ final class AppSettings: ObservableObject {
         static let mute = "muteWhileDictating"
         static let appearance = "appearance"
         static let dock = "showInDock"
+        static let streaming = "streamWhileSpeaking"
     }
 
     var onChange: (() -> Void)?
@@ -79,6 +80,10 @@ final class AppSettings: ObservableObject {
     @Published var appearance: AppearanceMode {
         didSet { defaults.set(appearance.rawValue, forKey: Key.appearance); onChange?() }
     }
+    /// Type each finished phrase into the focused app while dictating (instead of one paste at the end).
+    @Published var streamWhileSpeaking: Bool {
+        didSet { defaults.set(streamWhileSpeaking, forKey: Key.streaming); onChange?() }
+    }
     @Published var showInDock: Bool {
         didSet { defaults.set(showInDock, forKey: Key.dock); onChange?() }
     }
@@ -99,6 +104,7 @@ final class AppSettings: ObservableObject {
         muteWhileDictating = defaults.bool(forKey: Key.mute)
         appearance = AppearanceMode(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
         showInDock = defaults.bool(forKey: Key.dock)
+        streamWhileSpeaking = defaults.bool(forKey: Key.streaming)
         launchAtLogin = false
         refreshLoginItem()
     }
@@ -202,7 +208,17 @@ struct SettingsView: View {
             }
 
             Section {
-                SettingRow("AI polish", "Remove filler words and fix self-corrections with Apple's on-device model.") {
+                SettingRow("Type as you speak", "Insert each phrase into the focused app as soon as you pause, instead of pasting everything when you stop. Cancelling keeps what's already typed. With a held ⌘/⌥/⌃/⇧ hotkey, text is typed when you release it.") {
+                    Toggle("Type as you speak", isOn: $settings.streamWhileSpeaking)
+                }
+            } header: {
+                Label("Output", systemImage: "text.cursor")
+            }
+
+            Section {
+                SettingRow("AI polish", settings.streamWhileSpeaking
+                           ? "Not used while “Type as you speak” is on — polish needs the whole dictation."
+                           : "Remove filler words and fix self-corrections with Apple's on-device model.") {
                     Toggle("AI polish", isOn: $settings.polishEnabled)
                 }
             } header: {

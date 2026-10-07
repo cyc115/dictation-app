@@ -42,3 +42,15 @@ if (( ${#missing} )); then
   exit 1
 fi
 echo "✅ all 4 parts of the dictation kept"
+
+# Streaming mode types each finished utterance as it happens, then the rest at stop; check
+# the streamed pieces add up to exactly the final transcript (nothing doubled or lost).
+streamed=$(grep 'UTTERANCE: "' "$DIR/log.txt" | sed 's/.*UTTERANCE: "//; s/"$//' | tr -d '\n')
+utterances=$(grep -c 'UTTERANCE: "' "$DIR/log.txt" || true)
+if [[ "$final" != "$streamed"* ]]; then
+  echo "❌ streamed text is not a prefix of the final transcript"
+  echo "   streamed: $streamed"
+  exit 1
+fi
+(( utterances >= 3 )) || { echo "❌ only $utterances utterance(s) streamed; expected one per pause"; exit 1; }
+echo "✅ streamed $utterances utterances as they finished, matching the final transcript"

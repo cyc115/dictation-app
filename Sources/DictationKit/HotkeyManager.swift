@@ -94,7 +94,7 @@ class HotkeyManager {
     var isRecording: () -> Bool = { false }
     private var mouseTap: CFMachPort?
     private var monitors: [Any] = []
-    private var held = false
+    private(set) var held = false
     private var cancelled = false
 
     init(hotkey: Hotkey, mode: ActivationMode, mouseButton: MouseButton,
@@ -133,7 +133,9 @@ class HotkeyManager {
         if let m = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged, handler: { [weak self] event in
             self?.flagsChanged(event)
         }) { monitors.append(m) }
-        if let m = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: { [weak self] _ in
+        if let m = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: { [weak self] event in
+            // Text this app types itself (streaming mode) is not "another key".
+            guard event.cgEvent?.getIntegerValueField(.eventSourceUserData) != TextInjector.syntheticMarker else { return }
             self?.otherKeyPressed()
         }) { monitors.append(m) }
         installMouseTap()

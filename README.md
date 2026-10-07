@@ -33,6 +33,7 @@ Relaunch the app after enabling Accessibility.
 - Menu bar 🎙 → **History…** (⌘Y): past dictations by day, searchable; hover a row to copy it.
   Kept on this Mac only (`~/Library/Application Support/DictationApp/history.json`); choose how long to keep it.
 - Click ✕ (or press **Esc**) to throw the dictation away, ✓ to stop and paste.
+- **Type as you speak** (Settings → Output, off by default): each phrase is typed into the focused app as soon as you pause, instead of one paste at the end.
 - The bar shows which microphone is recording, under the waveform.
 - Menu bar 🎙 → **AI polish (on-device)** toggles LLM cleanup (default: off).
   When on, Apple's on-device model removes fillers and fixes self-corrections —
@@ -44,6 +45,7 @@ Relaunch the app after enabling Accessibility.
 ```sh
 ./test.sh          # unit, UI, snapshot and performance-budget tests
 ./test.sh --perf   # + launch time / idle CPU / memory of the installed app
+scripts/e2e-speech.sh  # real recognizer on a synthesized 24 s dictation with pauses
 ./build.sh         # build, install to /Applications, relaunch
 ```
 

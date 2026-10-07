@@ -16,7 +16,7 @@ final class SettingsUITests: XCTestCase {
         let hosted = host(AppSettings(defaults: makeDefaults(self)))
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
-                      "Mouse button", "AI polish"] {
+                      "Mouse button", "Type as you speak", "AI polish"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }
@@ -28,6 +28,7 @@ final class SettingsUITests: XCTestCase {
         for (title, read) in [("Interaction sounds", { settings.interactionSounds }),
                               ("Mute when dictating", { settings.muteWhileDictating }),
                               ("Show app in Dock", { settings.showInDock }),
+                              ("Type as you speak", { settings.streamWhileSpeaking }),
                               ("AI polish", { settings.polishEnabled })] as [(String, () -> Bool)] {
             let before = read()
             guard let toggle = hosted.element(id: "setting." + title) else { XCTFail("no \(title)"); continue }
@@ -38,6 +39,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertFalse(reloaded.interactionSounds)
         XCTAssertTrue(reloaded.muteWhileDictating)
         XCTAssertTrue(reloaded.showInDock)
+        XCTAssertTrue(reloaded.streamWhileSpeaking)
         XCTAssertTrue(reloaded.polishEnabled)
     }
 

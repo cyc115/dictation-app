@@ -115,6 +115,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertFalse(s.muteWhileDictating)
         XCTAssertEqual(s.appearance, .system)
         XCTAssertFalse(s.showInDock)
+        XCTAssertFalse(s.streamWhileSpeaking, "type-as-you-speak is off by default")
     }
 
     func testChangesPersistAndNotify() {
@@ -131,7 +132,8 @@ final class SettingsTests: XCTestCase {
         s.muteWhileDictating = true
         s.appearance = .dark
         s.showInDock = true
-        XCTAssertEqual(changes, 9)
+        s.streamWhileSpeaking = true
+        XCTAssertEqual(changes, 10)
 
         let r = AppSettings(defaults: defaults)
         XCTAssertEqual(r.hotkey, .rightOption)
@@ -143,6 +145,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(r.muteWhileDictating)
         XCTAssertEqual(r.appearance, .dark)
         XCTAssertTrue(r.showInDock)
+        XCTAssertTrue(r.streamWhileSpeaking)
     }
 
     func testHint() {

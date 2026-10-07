@@ -32,6 +32,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var dictating = false
     private var autoStop: DispatchWorkItem?
     private var dictationStart = Date()
+    /// Set while a "type as you speak" dictation is running.
+    private var streaming: StreamingOutput?
     private let settings = AppSettings.shared
     private let mainWindow = MainWindowController()
     private let muter = OutputMuter()
@@ -200,12 +202,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if self?.dictating == true { self?.muter.mute() }
             }
         }
+        if settings.streamWhileSpeaking {
+            streaming = StreamingOutput(
+                // A held ⌘/⌥/⌃/⇧ would turn typed letters into shortcuts/capitals; Fn is harmless.
+                canTypeNow: { [weak self] in
+                    guard let hotkey = self?.hotkey else { return true }
+                    return !(hotkey.held && hotkey.hotkey != .fn)
+                },
+                type: { [weak self] text in self?.injector.type(text) })
+        } else {
+            streaming = nil
+        }
+        let output = streaming
         speech.start(
             inputUID: settings.microphoneUID,
             onLevel: { [weak self] level in
                 guard self?.dictating == true else { return }
                 self?.overlay.setLevel(level)
             },
+            onUtterance: output.map { output in { [weak self] chunk in
+                guard self?.dictating == true else { return }
+                output.utteranceFinished(chunk)
+            } },
             onError: { [weak self] message in
                 DispatchQueue.main.async {
                     guard self?.dictating == true else { return }
@@ -234,10 +252,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         muter.restore()
         if settings.interactionSounds { InteractionSound.stop.play() }
         let duration = Date().timeIntervalSince(dictationStart)
+        let output = streaming
+        streaming = nil
         speech.stop { [weak self] text in
             let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
             Insights.shared.record(text: raw, duration: duration)
-            self?.deliver(raw, duration: duration)
+            if let output = output {
+                // Already typed as you spoke; finish the tail. No polish: it needs the whole text.
+                output.finish(fullText: raw)
+                if !raw.isEmpty { HistoryStore.shared.add(text: raw, duration: duration) }
+            } else {
+                self?.deliver(raw, duration: duration)
+            }
         }
     }
 
@@ -247,6 +273,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         autoStop?.cancel()
         autoStop = nil
         speech.cancel()
+        streaming = nil  // what's already typed stays; nothing more is added
         overlay.hide()
         muter.restore()
         if settings.interactionSounds { InteractionSound.cancel.play() }
