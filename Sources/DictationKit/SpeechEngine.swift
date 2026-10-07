@@ -4,11 +4,7 @@ import Speech
 /// On-device streaming speech recognition.
 /// The microphone is opened only for the duration of one dictation — never in the background.
 class SpeechEngine {
-    /// Recognition language, e.g. "en-US" or "zh-CN" (Apple's models are one language each).
-    var localeIdentifier = "en-US"
-    /// Words the recognizer should favor (e.g. English terms you use while speaking Chinese).
-    var vocabulary: [String] = []
-    private var recognizer: SFSpeechRecognizer? { SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier)) }
+    private let recognizer: SFSpeechRecognizer? = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     private var audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
@@ -91,7 +87,6 @@ class SpeechEngine {
         request.requiresOnDeviceRecognition = true  // nothing leaves the Mac
         request.taskHint = .dictation
         request.addsPunctuation = true
-        request.contextualStrings = vocabulary
         self.request = request
         return (recognizer, request, session)
     }
