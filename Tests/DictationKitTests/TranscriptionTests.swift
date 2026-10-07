@@ -10,6 +10,20 @@ final class TranscriptionModelTests: XCTestCase {
         XCTAssertEqual(TranscriptionModel.metaMuse.openRouterID, "meta/muse-voice-transcribe-1.0")
         XCTAssertFalse(TranscriptionModel.metaMuse.supportsStreaming)
         XCTAssertFalse(TranscriptionModel.metaMuse.supportsLanguageChoice)
+        XCTAssertEqual(TranscriptionModel.qwenASR.openRouterID, "qwen/qwen3-asr-1.7b")
+        for model in TranscriptionModel.allCases where model.isCloud {
+            XCTAssertFalse(model.supportsStreaming, "\(model) is batch")
+            XCTAssertFalse(model.supportsLanguageChoice, "\(model) detects the language")
+            XCTAssertNotNil(model.provider, "\(model) needs a provider for the privacy note")
+            XCTAssertNotNil(model.costPerAudioHour, "\(model) needs a price")
+        }
+        XCTAssertNil(TranscriptionModel.local.provider)
+    }
+
+    func testQwenPersists() {
+        let defaults = makeDefaults(self)
+        AppSettings(defaults: defaults, secrets: InMemorySecretStore()).transcriptionModel = .qwenASR
+        XCTAssertEqual(AppSettings(defaults: defaults, secrets: InMemorySecretStore()).transcriptionModel, .qwenASR)
     }
 }
 
@@ -108,7 +122,10 @@ final class WAVRecorderTests: XCTestCase {
 
 /// Hits the real API. Opt-in: LIVE_OPENROUTER=1 OPENROUTER_KEY=… swift test --filter LiveOpenRouterTests
 final class LiveOpenRouterTests: XCTestCase {
-    func testMuseTranscribesMixedClip() throws {
+    func testMuseTranscribesMixedClip() throws { try transcribesMixedClip(.metaMuse) }
+    func testQwenTranscribesMixedClip() throws { try transcribesMixedClip(.qwenASR) }
+
+    private func transcribesMixedClip(_ model: TranscriptionModel) throws {
         let env = ProcessInfo.processInfo.environment
         guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_KEY"] else {
             throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_KEY to run")
@@ -117,7 +134,7 @@ final class LiveOpenRouterTests: XCTestCase {
             .appendingPathComponent("../../bench/audio/mixed-01.wav").standardized
         let done = expectation(description: "transcribed")
         var text = ""
-        _ = OpenRouterClient().transcribe(wav: wav, model: TranscriptionModel.metaMuse.openRouterID!, apiKey: key) { result in
+        _ = OpenRouterClient().transcribe(wav: wav, model: model.openRouterID!, apiKey: key) { result in
             switch result {
             case .success(let r): text = r.text
             case .failure(let e): XCTFail(e.localizedDescription)

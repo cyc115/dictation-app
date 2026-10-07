@@ -34,8 +34,9 @@ Relaunch the app after enabling Accessibility.
   Kept on this Mac only (`~/Library/Application Support/DictationApp/history.json`); choose how long to keep it.
 - Click ✕ (or press **Esc**) to throw the dictation away, ✓ to stop and paste.
 - **Speech model** (Settings → Speech model): *Local (Apple)* — on-device, English or 中文 — or
-  *Meta Muse (cloud, via OpenRouter)* — handles English mixed into Chinese; asks for an OpenRouter
-  API key (stored in the Keychain) and sends audio to Meta when you stop (~$0.18 per audio hour).
+  a cloud model via OpenRouter — *Qwen3 ASR 1.7B* (~$0.03 per audio hour, ~0.6 s wait; best in
+  bench/) or *Meta Muse* (~$0.18/hr, ~2.4 s) — which handle English mixed into Chinese; they ask for an
+  OpenRouter API key (stored in the Keychain, shared by both) and send audio when you stop.
   Settings a model can't support (e.g. Type as you speak with a cloud model) are disabled but remembered.
 - **Type as you speak** (Settings → Output, off by default): each phrase is typed into the focused app as soon as you pause, instead of one paste at the end.
 - The bar shows which microphone is recording, under the waveform.

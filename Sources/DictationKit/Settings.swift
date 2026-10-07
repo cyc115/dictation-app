@@ -173,12 +173,18 @@ struct SettingsView: View {
 
     private var cloud: Bool { settings.transcriptionModel.isCloud }
 
+    private var modelDetail: String {
+        let model = settings.transcriptionModel
+        guard let provider = model.provider, let cost = model.costPerAudioHour else {
+            return "Runs on this Mac; nothing leaves it."
+        }
+        return "Audio is sent to \(provider) via OpenRouter when you stop (~$\(String(format: cost < 0.1 ? "%.3f" : "%.2f", cost)) per hour of audio). Handles English mixed into Chinese."
+    }
+
     var body: some View {
         Form {
             Section {
-                SettingRow("Model", cloud
-                           ? "Audio is sent to Meta via OpenRouter when you stop (~$0.18 per hour of audio). Handles English mixed into Chinese."
-                           : "Runs on this Mac; nothing leaves it.") {
+                SettingRow("Model", modelDetail) {
                     Picker("Model", selection: Binding(
                         get: { settings.transcriptionModel },
                         set: { model in
@@ -320,7 +326,7 @@ private struct APIKeySheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("OpenRouter API key").font(.headline)
-            Text("Meta Muse runs through OpenRouter. Paste an API key from openrouter.ai/keys — it's stored in your Keychain. The account must have credits and the 18+ confirmation in OpenRouter's preferences.")
+            Text("Cloud models run through OpenRouter. Paste an API key from openrouter.ai/keys — it's stored in your Keychain and shared by all cloud models. The account needs credits; Meta Muse also needs the 18+ confirmation in OpenRouter's preferences.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

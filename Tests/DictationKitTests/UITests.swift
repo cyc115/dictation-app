@@ -64,6 +64,12 @@ final class SettingsUITests: XCTestCase {
         XCTAssertNotNil(hosted.element(id: "setting.OpenRouter API key"))
         XCTAssertTrue(settings.streamWhileSpeaking, "state is remembered while disabled")
         XCTAssertEqual(settings.localLanguage, .mandarin)
+
+        settings.transcriptionModel = .qwenASR
+        hosted.settle()
+        XCTAssertEqual(enabled("Type as you speak"), false)
+        XCTAssertNotNil(hosted.element(id: "setting.OpenRouter API key"), "same key for every cloud model")
+        XCTAssertTrue(hosted.allText.contains("Alibaba Qwen"), "privacy note names who gets the audio")
     }
 
     func testFnTipOnlyShownForFn() {

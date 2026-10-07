@@ -9,11 +9,31 @@ import Security
 enum TranscriptionModel: String, CaseIterable {
     case local
     case metaMuse = "openrouter:meta/muse-voice-transcribe-1.0"
+    case qwenASR = "openrouter:qwen/qwen3-asr-1.7b"
 
     var title: String {
         switch self {
         case .local: return "Local (Apple, on-device)"
         case .metaMuse: return "Meta Muse (cloud, via OpenRouter)"
+        case .qwenASR: return "Qwen3 ASR 1.7B (cloud, via OpenRouter)"
+        }
+    }
+
+    /// Who receives the audio, for the privacy note in Settings.
+    var provider: String? {
+        switch self {
+        case .local: return nil
+        case .metaMuse: return "Meta"
+        case .qwenASR: return "Alibaba Qwen"
+        }
+    }
+
+    /// OpenRouter list price, US$ per hour of audio (see bench/ for measured cost and accuracy).
+    var costPerAudioHour: Double? {
+        switch self {
+        case .local: return nil
+        case .metaMuse: return 0.18
+        case .qwenASR: return 0.027
         }
     }
 
