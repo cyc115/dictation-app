@@ -7,33 +7,26 @@ import Security
 /// Which speech-to-text model dictation uses.
 /// Adding another OpenRouter model = one more case with its OpenRouter id.
 enum TranscriptionModel: String, CaseIterable {
+    // Raw values are stored in settings, so keep them stable; order here is the menu order.
     case local
-    case metaMuse = "openrouter:meta/muse-voice-transcribe-1.0"
     case qwenASR = "openrouter:qwen/qwen3-asr-1.7b"
+    case metaMuse = "openrouter:meta/muse-voice-transcribe-1.0"
 
+    /// Name shown in the app. Users see product tiers, not vendors or model ids.
     var title: String {
         switch self {
-        case .local: return "Local (Apple, on-device)"
-        case .metaMuse: return "Meta Muse (cloud, via OpenRouter)"
-        case .qwenASR: return "Qwen3 ASR 1.7B (cloud, via OpenRouter)"
+        case .local: return "On-device"
+        case .qwenASR: return "Cloud Flash"
+        case .metaMuse: return "Cloud Big"
         }
     }
 
-    /// Who receives the audio, for the privacy note in Settings.
-    var provider: String? {
+    /// One line for Settings (speeds measured in bench/).
+    var summary: String {
         switch self {
-        case .local: return nil
-        case .metaMuse: return "Meta"
-        case .qwenASR: return "Alibaba Qwen"
-        }
-    }
-
-    /// OpenRouter list price, US$ per hour of audio (see bench/ for measured cost and accuracy).
-    var costPerAudioHour: Double? {
-        switch self {
-        case .local: return nil
-        case .metaMuse: return 0.18
-        case .qwenASR: return 0.027
+        case .local: return "Runs on this Mac; nothing leaves it. One language at a time."
+        case .qwenASR: return "Fastest cloud model — text in about half a second. Handles English mixed into Chinese. Audio is sent to the cloud when you stop."
+        case .metaMuse: return "Larger cloud model — text in about two seconds. Handles English mixed into Chinese. Audio is sent to the cloud when you stop."
         }
     }
 
@@ -244,8 +237,9 @@ final class OpenRouterClient: TranscriptionClient {
         }
         let apiMessage = (json?["error"] as? [String: Any])?["message"] as? String
         switch status {
-        case 401: return .failure(TranscriptionError.message("OpenRouter rejected the API key — check it in Settings."))
-        case 402: return .failure(TranscriptionError.message("OpenRouter account is out of credits."))
+        case 401: return .failure(TranscriptionError.message("The cloud service rejected the API key — check it in Settings."))
+        case 402: return .failure(TranscriptionError.message("The cloud account is out of credits."))
+        case 403: return .failure(TranscriptionError.message("The cloud account needs to be set up before this model can be used."))
         default: return .failure(TranscriptionError.message(apiMessage ?? "Transcription failed (HTTP \(status))."))
         }
     }

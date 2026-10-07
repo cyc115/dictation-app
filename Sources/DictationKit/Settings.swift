@@ -173,18 +173,11 @@ struct SettingsView: View {
 
     private var cloud: Bool { settings.transcriptionModel.isCloud }
 
-    private var modelDetail: String {
-        let model = settings.transcriptionModel
-        guard let provider = model.provider, let cost = model.costPerAudioHour else {
-            return "Runs on this Mac; nothing leaves it."
-        }
-        return "Audio is sent to \(provider) via OpenRouter when you stop (~$\(String(format: cost < 0.1 ? "%.3f" : "%.2f", cost)) per hour of audio). Handles English mixed into Chinese."
-    }
 
     var body: some View {
         Form {
             Section {
-                SettingRow("Model", modelDetail) {
+                SettingRow("Model", settings.transcriptionModel.summary) {
                     Picker("Model", selection: Binding(
                         get: { settings.transcriptionModel },
                         set: { model in
@@ -195,17 +188,21 @@ struct SettingsView: View {
                     }
                 }
                 SettingRow("Language", settings.transcriptionModel.supportsLanguageChoice
-                           ? "Language the local model listens for."
-                           : "Not needed — this model detects English and Chinese automatically.") {
-                    Picker("Language", selection: $settings.localLanguage) {
-                        ForEach(LocalLanguage.allCases, id: \.self) { Text($0.title).tag($0) }
+                           ? "Language the on-device model listens for."
+                           : "Cloud models detect English and Chinese automatically.",
+                           available: settings.transcriptionModel.supportsLanguageChoice) {
+                    if settings.transcriptionModel.supportsLanguageChoice {
+                        Picker("Language", selection: $settings.localLanguage) {
+                            ForEach(LocalLanguage.allCases, id: \.self) { Text($0.title).tag($0) }
+                        }
+                    } else {
+                        Text("Auto-detect").foregroundStyle(.secondary)
                     }
                 }
-                .disabled(!settings.transcriptionModel.supportsLanguageChoice)
                 if cloud {
-                    SettingRow("OpenRouter API key", settings.hasOpenRouterKey
+                    SettingRow("Cloud API key", settings.hasOpenRouterKey
                                ? "Saved in your Keychain."
-                               : "Required for this model.") {
+                               : "Required for cloud models.") {
                         Button(settings.hasOpenRouterKey ? "Change…" : "Add Key…") { keyDraft = ""; askForKey = true }
                     }
                 }
@@ -282,10 +279,14 @@ struct SettingsView: View {
             Section {
                 SettingRow("Type as you speak", settings.transcriptionModel.supportsStreaming
                            ? "Insert each phrase into the focused app as soon as you pause, instead of pasting everything when you stop. Cancelling keeps what's already typed. With a held ⌘/⌥/⌃/⇧ hotkey, text is typed when you release it."
-                           : "Not available with \(settings.transcriptionModel.title) — it transcribes after you stop.") {
-                    Toggle("Type as you speak", isOn: $settings.streamWhileSpeaking)
+                           : "Only works with the On-device model. Cloud models write the text after you stop.",
+                           available: settings.transcriptionModel.supportsStreaming) {
+                    // Shown off while unavailable so it doesn't look active; the saved choice is
+                    // kept and comes back with the On-device model.
+                    Toggle("Type as you speak", isOn: Binding(
+                        get: { settings.effectiveStreaming },
+                        set: { settings.streamWhileSpeaking = $0 }))
                 }
-                .disabled(!settings.transcriptionModel.supportsStreaming)
             } header: {
                 Label("Output", systemImage: "text.cursor")
             }
@@ -325,12 +326,12 @@ private struct APIKeySheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("OpenRouter API key").font(.headline)
-            Text("Cloud models run through OpenRouter. Paste an API key from openrouter.ai/keys — it's stored in your Keychain and shared by all cloud models. The account needs credits; Meta Muse also needs the 18+ confirmation in OpenRouter's preferences.")
+            Text("Cloud API key").font(.headline)
+            Text("Cloud models need an API key. It's stored in your Keychain and shared by Cloud Flash and Cloud Big.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            SecureField("sk-or-v1-…", text: $key)
+            SecureField("Paste your API key", text: $key)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("apikey.field")
                 .onSubmit { if !key.isEmpty { onSave() } }
@@ -351,18 +352,32 @@ private struct APIKeySheet: View {
 private struct SettingRow<Control: View>: View {
     let title: String
     let detail: String
+    let available: Bool
     let control: Control
 
-    init(_ title: String, _ detail: String, @ViewBuilder control: () -> Control) {
+    /// `available: false` greys out the whole row (not just the control) and labels it, so it
+    /// clearly can't be used with the current choice.
+    init(_ title: String, _ detail: String, available: Bool = true, @ViewBuilder control: () -> Control) {
         self.title = title
         self.detail = detail
+        self.available = available
         self.control = control()
     }
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.body.weight(.medium))
+                HStack(spacing: 6) {
+                    Text(title).font(.body.weight(.medium))
+                    if !available {
+                        Text("Unavailable")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .overlay(Capsule().stroke(.secondary.opacity(0.6)))
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 Text(detail)
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -376,5 +391,9 @@ private struct SettingRow<Control: View>: View {
                 .fixedSize()
         }
         .padding(.vertical, 3)
+        .disabled(!available)
+        .opacity(available ? 1 : 0.4)
+        .accessibilityElement(children: .contain)
+        .accessibilityHint(available ? "" : "Unavailable with the current speech model")
     }
 }

@@ -1,4 +1,6 @@
-# DictationApp — your Typeless replacement (on-device, $0)
+# DictationApp
+
+Fast dictation for macOS — on-device, or in the cloud for English mixed into Chinese.
 
 Hold **Fn** (or another hotkey you pick) to dictate into any app on your Mac. Release to paste.
 A small bar at the bottom of the screen shows a live waveform while you speak,
@@ -33,11 +35,15 @@ Relaunch the app after enabling Accessibility.
 - Menu bar 🎙 → **History…** (⌘Y): past dictations by day, searchable; hover a row to copy it.
   Kept on this Mac only (`~/Library/Application Support/DictationApp/history.json`); choose how long to keep it.
 - Click ✕ (or press **Esc**) to throw the dictation away, ✓ to stop and paste.
-- **Speech model** (Settings → Speech model): *Local (Apple)* — on-device, English or 中文 — or
-  a cloud model via OpenRouter — *Qwen3 ASR 1.7B* (~$0.03 per audio hour, ~0.6 s wait; best in
-  bench/) or *Meta Muse* (~$0.18/hr, ~2.4 s) — which handle English mixed into Chinese; they ask for an
-  OpenRouter API key (stored in the Keychain, shared by both) and send audio when you stop.
-  Settings a model can't support (e.g. Type as you speak with a cloud model) are disabled but remembered.
+- **Speech model** (Settings → Speech model):
+  - *On-device* — runs on your Mac, English or 中文 (one at a time).
+  - *Cloud Flash* — text in ~0.5 s after you stop; handles English mixed into Chinese.
+  - *Cloud Big* — text in ~2 s; handles English mixed into Chinese.
+
+  Cloud models ask for an API key (stored in the Keychain, shared by both) and send audio when you
+  stop. Settings that a model can't use are greyed out and marked *Unavailable*; your choice is kept.
+  (Which provider/model backs each tier, and how they compare, is in `bench/` and
+  `TranscriptionModel` in `Sources/DictationKit/Transcription.swift`.)
 - **Type as you speak** (Settings → Output, off by default): each phrase is typed into the focused app as soon as you pause, instead of one paste at the end.
 - The bar shows which microphone is recording, under the waveform.
 - Menu bar 🎙 → **AI polish (on-device)** toggles LLM cleanup (default: off).

@@ -54,22 +54,42 @@ final class SettingsUITests: XCTestCase {
         }
         XCTAssertEqual(enabled("Type as you speak"), true)
         XCTAssertEqual(enabled("Language"), true)
-        XCTAssertNil(hosted.element(id: "setting.OpenRouter API key"), "key row only for cloud models")
+        XCTAssertNil(hosted.element(id: "setting.Cloud API key"), "key row only for cloud models")
 
         settings.setOpenRouterKey("sk-or-v1-test")
         settings.transcriptionModel = .metaMuse
         hosted.settle()
         XCTAssertEqual(enabled("Type as you speak"), false)
         XCTAssertEqual(enabled("Language"), false)
-        XCTAssertNotNil(hosted.element(id: "setting.OpenRouter API key"))
+        XCTAssertNotNil(hosted.element(id: "setting.Cloud API key"))
         XCTAssertTrue(settings.streamWhileSpeaking, "state is remembered while disabled")
         XCTAssertEqual(settings.localLanguage, .mandarin)
 
         settings.transcriptionModel = .qwenASR
         hosted.settle()
         XCTAssertEqual(enabled("Type as you speak"), false)
-        XCTAssertNotNil(hosted.element(id: "setting.OpenRouter API key"), "same key for every cloud model")
-        XCTAssertTrue(hosted.allText.contains("Alibaba Qwen"), "privacy note names who gets the audio")
+        XCTAssertNotNil(hosted.element(id: "setting.Cloud API key"), "same key for every cloud model")
+        XCTAssertTrue(hosted.allText.contains("Unavailable"), "unavailable rows are labeled")
+        let toggle = hosted.element(id: "setting.Type as you speak")
+        XCTAssertEqual(toggle?.value, "0", "unavailable toggle shows off, not the saved on-state")
+        XCTAssertTrue(settings.streamWhileSpeaking)
+        settings.transcriptionModel = .local
+        hosted.settle()
+        XCTAssertEqual(hosted.element(id: "setting.Type as you speak")?.value, "1", "saved choice comes back")
+    }
+
+    func testNoVendorOrModelNamesInSettings() {
+        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        settings.setOpenRouterKey("sk-or-v1-test")
+        let hosted = host(settings)
+        for model in TranscriptionModel.allCases {
+            settings.transcriptionModel = model
+            hosted.settle()
+            let text = hosted.allText.lowercased()
+            for banned in ["openrouter", "muse", "qwen", "meta", "alibaba", "sk-or"] {
+                XCTAssertFalse(text.contains(banned), "\(model.title): settings mention \(banned)")
+            }
+        }
     }
 
     func testFnTipOnlyShownForFn() {

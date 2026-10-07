@@ -201,7 +201,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let engine: DictationEngine
         if let modelID = model.openRouterID {
             guard let key = settings.openRouterKey, !key.isEmpty else {
-                overlay.showMessage("Add your OpenRouter API key in Settings to use \(model.title)", hideAfter: 4)
+                overlay.showMessage("Add your cloud API key in Settings to use \(model.title)", hideAfter: 4)
                 mainWindow.show(.settings)
                 return
             }

@@ -14,10 +14,10 @@ final class TranscriptionModelTests: XCTestCase {
         for model in TranscriptionModel.allCases where model.isCloud {
             XCTAssertFalse(model.supportsStreaming, "\(model) is batch")
             XCTAssertFalse(model.supportsLanguageChoice, "\(model) detects the language")
-            XCTAssertNotNil(model.provider, "\(model) needs a provider for the privacy note")
-            XCTAssertNotNil(model.costPerAudioHour, "\(model) needs a price")
         }
-        XCTAssertNil(TranscriptionModel.local.provider)
+        XCTAssertEqual(TranscriptionModel.allCases.map(\.title), ["On-device", "Cloud Flash", "Cloud Big"])
+        XCTAssertEqual(TranscriptionModel.qwenASR.title, "Cloud Flash")
+        XCTAssertEqual(TranscriptionModel.metaMuse.title, "Cloud Big")
     }
 
     func testQwenPersists() {
@@ -72,6 +72,13 @@ final class OpenRouterClientTests: XCTestCase {
         XCTAssertEqual(r, TranscriptionResult(text: "帮我build一个", audioSeconds: 3.7, cost: 0.000185))
     }
 
+    func testErrorsNeverNameTheService() {
+        for status in [401, 402, 403] {
+            guard case .failure(let e) = OpenRouterClient.parse(data: Data("{}".utf8), status: status) else { continue }
+            XCTAssertFalse(e.localizedDescription.lowercased().contains("openrouter"), "\(status): \(e.localizedDescription)")
+        }
+    }
+
     func testFriendlyErrors() {
         func message(_ status: Int, _ body: String) -> String {
             guard case .failure(let e) = OpenRouterClient.parse(data: Data(body.utf8), status: status) else { return "success?" }
@@ -79,7 +86,7 @@ final class OpenRouterClientTests: XCTestCase {
         }
         XCTAssertTrue(message(401, #"{"error":{"message":"User not found."}}"#).contains("API key"))
         XCTAssertTrue(message(402, "{}").contains("credits"))
-        XCTAssertTrue(message(403, #"{"error":{"message":"requires 18+ age confirmation"}}"#).contains("18+"))
+        XCTAssertTrue(message(403, #"{"error":{"message":"requires 18+ age confirmation at openrouter.ai"}}"#).contains("account"))
         XCTAssertTrue(message(500, "oops").contains("HTTP 500"))
     }
 
