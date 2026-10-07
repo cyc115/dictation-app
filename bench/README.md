@@ -3,6 +3,8 @@
 Compares dictation models on the same audio: **Chinese with English mixed in**, **Chinese only**,
 and **English only**, at three levels (L1 easy, L2 hard jargon/idioms, L3 hard + fast + noisy).
 
+**Latest results:** [`results/report.html`](results/report.html) — open it in a browser (self-contained, works offline).
+
 ```sh
 bench/bench.py synth                                   # generate missing audio (macOS `say`)
 bench/bench.py run -r 3 -m openrouter:<model-id>       # 3 runs per clip → min/median/max wait
