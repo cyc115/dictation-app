@@ -66,7 +66,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.title = "🎙"
+        updateStatusIcon()
         let menu = NSMenu()
         hintItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         hintItem.isEnabled = false
@@ -167,9 +167,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func startFromMenu() { startDictation() }
     @objc private func stopFromMenu() { stopDictation() }
 
+    /// Waveform glyph matching the app icon; red while the mic is open.
+    private func updateStatusIcon() {
+        guard let button = statusItem.button else { return }
+        let image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "DictationApp")?
+            .withSymbolConfiguration(.init(pointSize: 14, weight: .semibold))
+        image?.isTemplate = !dictating
+        button.image = image
+        button.contentTintColor = dictating ? .systemRed : nil
+    }
+
     private func setDictating(_ value: Bool) {
         dictating = value
-        statusItem.button?.title = value ? "🔴" : "🎙"
+        updateStatusIcon()
         startItem.isEnabled = !value
         stopItem.isEnabled = value
     }
