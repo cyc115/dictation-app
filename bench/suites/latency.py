@@ -1,7 +1,7 @@
 """Turnaround latency: how long after you press stop until your text is ready.
 
-  bench/suite.py latency run                         # On-device + Cloud Flash × {no polish, Apple polish}, 5 rounds
-  bench/suite.py latency run --big                   # … plus Cloud Big (~7× the cost of a default run)
+  bench/suite.py latency run                         # Cloud Flash × {no polish, Apple polish}, 5 rounds
+  bench/suite.py latency run --local --big           # … plus On-device and Cloud Big (opt-in)
   bench/suite.py latency run -s flash -s big -r 10   # just the cloud models, 10 rounds
   bench/suite.py latency run -P none -P apple -P openrouter:anthropic/claude-haiku-5.5
   bench/suite.py latency run --recorded              # your own dictations (Settings → Keep recordings)
@@ -59,8 +59,8 @@ STT_ALIASES = {
     "big": ("openrouter:meta/muse-voice-transcribe-1.0", "Cloud Big"),
 }
 POLISH_TITLES = {"none": "no polish", "apple": "Apple on-device"}
-# Cloud Big is opt-in (--big, or -s big): it costs ~7× Cloud Flash per audio second.
-DEFAULT_STT = ["local", "flash"]
+# Only Cloud Flash by default; --local / --big (or -s) add the others. Cloud Big costs ~7× Flash.
+DEFAULT_STT = ["flash"]
 DEFAULT_POLISH = ["none", "apple"]
 LENGTH_BUCKETS = [(0, 5, "< 5 s"), (5, 10, "5–10 s"), (10, float("inf"), "≥ 10 s")]
 
@@ -361,7 +361,7 @@ def report_text(result: dict, by_length: bool = False, markdown: bool = False) -
 # ---------------------------------------------------------------- commands
 
 def cmd_run(args) -> int:
-    stt = list(dict.fromkeys(resolve_stt(m) for m in (args.stt or DEFAULT_STT) + (["big"] if args.big else [])))
+    stt = list(dict.fromkeys(resolve_stt(m) for m in (args.stt or DEFAULT_STT) + (["local"] if args.local else []) + (["big"] if args.big else [])))
     polish = list(dict.fromkeys(check_polish(p) for p in (args.polish or DEFAULT_POLISH)))
     clips = select_clips(args)
     trials = plan_trials(stt, polish, clips, args.rounds, args.warmup, args.seed)
@@ -415,6 +415,7 @@ def main(argv: list[str]) -> int:
     r = sub.add_parser("run", help="time dictations in the installed app and report percentiles")
     r.add_argument("-s", "--stt", action="append", metavar="MODEL",
                    help=f"speech model (repeatable; default: {' '.join(DEFAULT_STT)})")
+    r.add_argument("--local", action="store_true", help="also time On-device (free; plays each clip in real time)")
     r.add_argument("--big", action="store_true", help="also time Cloud Big (adds ≈ $0.02 per default-size run)")
     r.add_argument("-P", "--polish", action="append", metavar="MODEL",
                    help=f"polish model (repeatable; default: {' '.join(DEFAULT_POLISH)})")
