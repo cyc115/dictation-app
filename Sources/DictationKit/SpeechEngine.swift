@@ -1,3 +1,4 @@
+import Accelerate
 import AVFoundation
 import Speech
 
@@ -218,13 +219,13 @@ class SpeechEngine {
         finishRecording(transcript: text)  // after the text is delivered: no file I/O in your wait
     }
 
-    /// RMS of the first channel mapped from -50…-10 dBFS onto 0…1.
+    /// RMS of the first channel mapped from -50…-10 dBFS onto 0…1. Runs on the audio thread for
+    /// every buffer, so it uses Accelerate (vDSP) rather than a Swift loop.
     static func level(of buffer: AVAudioPCMBuffer) -> Float {
         guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
-        let n = Int(buffer.frameLength)
-        var sum: Float = 0
-        for i in 0..<n { sum += samples[i] * samples[i] }
-        let db = 20 * log10(max(sqrt(sum / Float(n)), 1e-6))
+        var rms: Float = 0
+        vDSP_rmsqv(samples, 1, &rms, vDSP_Length(buffer.frameLength))
+        let db = 20 * log10(max(rms, 1e-6))
         return min(max((db + 50) / 40, 0), 1)
     }
 }

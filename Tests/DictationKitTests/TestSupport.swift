@@ -152,6 +152,10 @@ struct AXNode {
 
 /// Compares a view's rendering to a reference PNG in __Snapshots__/.
 /// Record or re-record with: RECORD_SNAPSHOTS=1 swift test
+///
+/// Views in on-screen windows (the overlay pill) render at that display's scale, so references are
+/// kept per scale: `name.png` at 1×, `name@2x.png` on Retina. Resampling one to the other would
+/// blur edges and make the pixel comparison flaky.
 func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.01,
                     file: StaticString = #filePath, line: UInt = #line) {
     view.layoutSubtreeIfNeeded()
@@ -163,13 +167,14 @@ func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.0
         return XCTFail("could not encode \(name)", file: file, line: line)
     }
     let dir = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().appendingPathComponent("__Snapshots__")
-    let reference = dir.appendingPathComponent("\(name).png")
+    let scale = view.bounds.width > 0 ? Int((Double(rep.pixelsWide) / Double(view.bounds.width)).rounded()) : 1
+    let reference = dir.appendingPathComponent(scale == 1 ? "\(name).png" : "\(name)@\(scale)x.png")
     let record = ProcessInfo.processInfo.environment["RECORD_SNAPSHOTS"] == "1"
     if record || !FileManager.default.fileExists(atPath: reference.path) {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try? png.write(to: reference)
         if !record {
-            XCTFail("recorded new snapshot \(name).png — review it and re-run", file: file, line: line)
+            XCTFail("recorded new snapshot \(reference.lastPathComponent) — review it and re-run", file: file, line: line)
         }
         return
     }
@@ -179,7 +184,7 @@ func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.0
     let failures = dir.appendingPathComponent("failures")
     func saveFailure() {
         try? FileManager.default.createDirectory(at: failures, withIntermediateDirectories: true)
-        try? png.write(to: failures.appendingPathComponent("\(name).png"))
+        try? png.write(to: failures.appendingPathComponent(reference.lastPathComponent))
     }
     guard expected.pixelsWide == rep.pixelsWide, expected.pixelsHigh == rep.pixelsHigh else {
         saveFailure()
