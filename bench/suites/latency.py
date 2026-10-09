@@ -261,6 +261,7 @@ def merge(trials: list[dict], samples: list[dict]) -> list[dict]:
         s = by_id.get(t["id"], {"error": "no result"})
         rows.append({**{k: t[k] for k in ("id", "round", "warmup", "clip", "audio_seconds", "stt")},
                      "transcribe": s.get("transcribe"), "raw": s.get("raw", ""), "error": s.get("error"),
+                     "answered_by": s.get("answeredBy"),
                      "polish": {p["model"]: {k: p.get(k) for k in ("seconds", "text", "error")}
                                 for p in s.get("polish", [])}})
     return rows
@@ -294,6 +295,14 @@ def summarize(rows: list[dict], stt: list[str], polish: list[str]) -> dict:
         "turnaround": {},
         "transcription_by_length": {},
     }
+    # Cloud Flash also asks a fallback model when it's slow (TranscriptionModel.fallbackOpenRouterID).
+    summary["fallbacks"] = {}
+    for s, sel in by_stt.items():
+        answered = [r for r in sel if not r["warmup"] and _transcribed(r)]
+        by_other = [r for r in answered if r.get("answered_by") and r["answered_by"] != s]
+        if by_other:
+            summary["fallbacks"][s] = {"count": len(by_other), "of": len(answered),
+                                       "models": sorted({r["answered_by"] for r in by_other})}
     for s, sel in by_stt.items():
         for p in polish:
             def total(r, p=p):
@@ -353,6 +362,9 @@ def report_text(result: dict, by_length: bool = False, markdown: bool = False) -
         out.append(harness.table(["speech model"] + labels,
                                  [[title(k)] + [cell(v[label]) for label in labels]
                                   for k, v in s["transcription_by_length"].items()], markdown))
+    for stt, f in s.get("fallbacks", {}).items():
+        out.append(f"\n{title(stt).split('  ')[0]}: {f['count']} of {f['of']} dictations answered by the fallback "
+                   f"({', '.join(f['models'])}) after the first model was slow or failed.")
     out += ["", "best/worst = fastest/slowest dictation; cold = the warm-up (first use), not in the percentiles.",
             "* fewer than 20 samples: treat p95 as rough (raise --rounds)."]
     return "\n".join(out)

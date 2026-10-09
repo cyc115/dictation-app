@@ -50,4 +50,8 @@ Pasted from the terminal report; the full JSON stayed on the Mac (`results/laten
 - **#2** Apple polish is created and prewarmed when dictation starts (`PolishService.prepare()`),
   so loading overlaps with speaking. The benchmark prepares it at trial start the same way. The
   Settings copy now says "about 2 seconds"; update it once the new numbers are in.
-- **#3** not changed: Cloud Flash (qwen3-asr-1.7b) has a single OpenRouter provider (DeepInfra).
+- **#3** Cloud Flash (qwen3-asr-1.7b) has a single OpenRouter provider (DeepInfra), so there's no faster
+  provider to route to. Instead, if it hasn't answered within 3 s, or fails, qwen3-asr-0.6b is asked too
+  and the first transcript wins (`UploadRace`). The report says how many dictations the fallback answered.
+  OpenRouter's STT `provider` object doesn't document `sort`, and 0.6b is also DeepInfra-only, so no
+  routing preference is sent.

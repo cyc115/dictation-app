@@ -195,6 +195,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             cloud.modelID = modelID
+            cloud.fallbackModelID = model.fallbackOpenRouterID
             cloud.apiKey = key
             engine = cloud
         } else {

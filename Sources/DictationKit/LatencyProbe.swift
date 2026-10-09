@@ -45,6 +45,8 @@ struct LatencySample: Encodable, Equatable {
     var raw = ""
     var error: String?
     var polish: [Polish] = []
+    /// Cloud only: the model whose transcript was used ("openrouter:<id>"), the fallback if it won.
+    var answeredBy: String?
 }
 
 /// Runs trials one at a time and reports each one's sample on the main queue.
@@ -91,6 +93,7 @@ final class LatencyRunner {
             let engine = CloudEngine()
             engine.client = transcriptionClient
             engine.modelID = String(trial.stt.dropFirst("openrouter:".count))
+            engine.fallbackModelID = TranscriptionModel(rawValue: trial.stt)?.fallbackOpenRouterID  // as the app does
             engine.apiKey = apiKey
             cloud = engine
             // Recording happens before you press stop, so the clip goes in at full speed.
@@ -100,7 +103,10 @@ final class LatencyRunner {
                 return completion(sample)
             }
             let started = clock()
-            engine.stop(completion: { raw in finish(raw, started, nil) },
+            engine.stop(completion: { [weak engine] raw in
+                            sample.answeredBy = engine?.lastAnsweredBy.map { "openrouter:\($0)" }
+                            finish(raw, started, nil)
+                        },
                         failure: { message in
                             sample.error = message
                             completion(sample)

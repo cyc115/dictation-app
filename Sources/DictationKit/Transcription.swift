@@ -40,6 +40,12 @@ enum TranscriptionModel: String, CaseIterable {
     var supportsStreaming: Bool { !isCloud }
     /// Apple's models are one language each; cloud models detect English/Chinese themselves.
     var supportsLanguageChoice: Bool { !isCloud }
+
+    /// Asked as well when this model hasn't answered within `CloudEngine.fallbackDelay`, or fails;
+    /// the first answer wins. Cloud Flash usually answers in ~2 s but its p95 was 28 s and worst 50 s
+    /// (bench/results/latency/BASELINE-pre-optimization.md); the 0.6B model is a bit less accurate
+    /// (85% vs 90% on mixed speech, bench/) but only answers the slow ones.
+    var fallbackOpenRouterID: String? { self == .qwenASR ? "qwen/qwen3-asr-0.6b" : nil }
 }
 
 /// Recognition language for the local (Apple) model.
@@ -272,10 +278,15 @@ final class CloudEngine: DictationEngine {
     var client: TranscriptionClient = OpenRouterClient()
     /// Set while "Keep recordings" is on: finished recordings go here instead of being deleted.
     var archive: RecordingArchive?
+    /// Also asked when `modelID` hasn't answered within `fallbackDelay` seconds, or fails (see UploadRace).
+    var fallbackModelID: String?
+    var fallbackDelay: TimeInterval = 3
+    /// The model whose transcript the last dictation used (the fallback, if it answered first).
+    private(set) var lastAnsweredBy: String?
 
     private var audioEngine = AVAudioEngine()
     private var recorder: WAVRecorder?
-    private var upload: URLSessionTask?
+    private var race: UploadRace?
     private let lock = NSLock()
 
     /// Starts a new recording file. Called by `start`; tests call it directly with `record(_:)`
@@ -326,20 +337,25 @@ final class CloudEngine: DictationEngine {
         let url = recorder.url
         let archive = self.archive
         let info = RecordingInfo(date: Date(), model: "openrouter:\(modelID)", transcript: "", seconds: recorder.duration)
-        upload = client.transcribe(wav: url, model: modelID, apiKey: apiKey) { result in
+        lastAnsweredBy = nil
+        race = UploadRace(wav: url, apiKey: apiKey, client: client, primary: modelID, fallback: fallbackModelID,
+                          fallbackDelay: fallbackDelay) { [weak self] outcome in
             var heard = info
-            switch result {
-            case .success(let r): heard.transcript = r.text
-            case .failure(let e): heard.error = e.localizedDescription
-            }
-            switch result {
-            case .success(let r): completion(r.text)
-            case .failure(let e): failure(e.localizedDescription)
+            switch outcome {
+            case .text(let text, let model):
+                heard.transcript = text
+                heard.model = "openrouter:\(model)"
+                self?.lastAnsweredBy = model
+                completion(text)
+            case .failed(let message):
+                heard.error = message
+                failure(message)
             }
             // After the text is delivered, so keeping it adds nothing to your wait. Failed uploads
             // are kept too: they're the cases a benchmark most needs.
             if let archive = archive { archive.keep(wav: url, info: heard) } else { try? FileManager.default.removeItem(at: url) }
         }
+        race?.start()
     }
 
     func cancel() {
@@ -347,5 +363,83 @@ final class CloudEngine: DictationEngine {
         audioEngine.inputNode.removeTap(onBus: 0)
         lock.lock(); let url = recorder?.url; recorder = nil; lock.unlock()
         if let url = url { try? FileManager.default.removeItem(at: url) }
+    }
+}
+
+/// One dictation's upload: the chosen model, plus a fallback model that's asked too when the first
+/// hasn't answered within `fallbackDelay` or fails. The first transcript wins and the other request
+/// is cancelled; if every model fails, the first error is reported. Runs on the main queue (clients
+/// call back there), and keeps itself alive until it's done.
+final class UploadRace {
+    enum Outcome {
+        case text(String, model: String)
+        case failed(String)
+    }
+
+    private let wav: URL
+    private let apiKey: String
+    private let client: TranscriptionClient
+    private let primary: String
+    private let fallback: String?
+    private let fallbackDelay: TimeInterval
+    private let onDone: (Outcome) -> Void
+    private var tasks: [URLSessionTask] = []
+    private var running = 0
+    private var fallbackStarted = false
+    private var finished = false
+    private var firstError: String?
+    private var timer: DispatchWorkItem?
+
+    init(wav: URL, apiKey: String, client: TranscriptionClient, primary: String, fallback: String?,
+         fallbackDelay: TimeInterval, onDone: @escaping (Outcome) -> Void) {
+        self.wav = wav
+        self.apiKey = apiKey
+        self.client = client
+        self.primary = primary
+        self.fallback = fallback
+        self.fallbackDelay = fallbackDelay
+        self.onDone = onDone
+    }
+
+    func start() {
+        send(primary)
+        guard fallback != nil, !finished else { return }
+        let timer = DispatchWorkItem { [self] in startFallback() }
+        self.timer = timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + fallbackDelay, execute: timer)
+    }
+
+    private func startFallback() {
+        guard !finished, !fallbackStarted, let fallback = fallback else { return }
+        fallbackStarted = true
+        timer?.cancel()
+        send(fallback)
+    }
+
+    private func send(_ model: String) {
+        running += 1
+        let task = client.transcribe(wav: wav, model: model, apiKey: apiKey) { [self] result in
+            running -= 1
+            guard !finished else { return }  // the loser, or cancelled after the winner answered
+            switch result {
+            case .success(let r):
+                finish(.text(r.text, model: model))
+            case .failure(let error):
+                firstError = firstError ?? error.localizedDescription
+                if fallback != nil && !fallbackStarted {
+                    startFallback()  // don't wait out the delay after a failure
+                } else if running == 0 {
+                    finish(.failed(firstError ?? "Transcription failed."))
+                }
+            }
+        }
+        if let task = task { tasks.append(task) }
+    }
+
+    private func finish(_ outcome: Outcome) {
+        finished = true
+        timer?.cancel()
+        tasks.forEach { $0.cancel() }  // stops the other request; a finished task ignores it
+        onDone(outcome)
     }
 }

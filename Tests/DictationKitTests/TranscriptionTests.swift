@@ -237,9 +237,12 @@ final class CloudEngineTests: XCTestCase {
             .appendingPathComponent("../../bench/audio/mixed-01.wav").standardized)
         let input = AVAudioPCMBuffer(pcmFormat: src.processingFormat, frameCapacity: AVAudioFrameCount(src.length))!
         try src.read(into: input)
-        for model in TranscriptionModel.allCases where model.isCloud {
+        // Every model the app can ask, fallbacks included.
+        let models = TranscriptionModel.allCases.compactMap(\.openRouterID)
+            + TranscriptionModel.allCases.compactMap(\.fallbackOpenRouterID)
+        for model in models {
             let engine = CloudEngine()
-            engine.modelID = model.openRouterID!
+            engine.modelID = model
             engine.apiKey = key
             XCTAssertTrue(engine.beginRecording())
             engine.record(input)  // 16 kHz clip; WAVRecorder converts whatever the mic format is

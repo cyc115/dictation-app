@@ -205,3 +205,21 @@ def test_only_cloud_flash_by_default(monkeypatch, capsys):
     for argv in ([], ["--big"], ["--local"], ["--local", "--big"], ["-s", "big"], ["-s", "big", "--big"]):
         latency.main(["run", "--dry-run", "--clip", "english-01", *argv])
     assert planned == [[flash], [flash, big], [flash, local], [flash, local, big], [big], [big]]
+
+
+def test_report_counts_fallback_answers():
+    flash = "openrouter:qwen/qwen3-asr-1.7b"
+    rows = [row(flash, 1.0), row(flash, 3.2), row(flash, 3.5), row(flash, 9.0, warmup=True)]
+    rows[1]["answered_by"] = rows[2]["answered_by"] = "openrouter:qwen/qwen3-asr-0.6b"
+    rows[0]["answered_by"] = flash
+    rows[3]["answered_by"] = "openrouter:qwen/qwen3-asr-0.6b"  # warm-ups don't count
+    s = latency.summarize(rows, [flash], ["none"])
+    assert s["fallbacks"][flash] == {"count": 2, "of": 3, "models": ["openrouter:qwen/qwen3-asr-0.6b"]}
+    result = {"summary": s, "config": {"clips": ["a"], "rounds": 1}, "run_at": "t", "env": {}}
+    assert "Cloud Flash: 2 of 3 dictations answered by the fallback" in latency.report_text(result)
+
+
+def test_merge_keeps_which_model_answered():
+    trials = [{"id": "0", "round": 1, "warmup": False, "clip": "c", "audio_seconds": 3, "stt": "s", "polish": []}]
+    rows = latency.merge(trials, [{"id": "0", "transcribe": 3.1, "raw": "hi", "answeredBy": "openrouter:b"}])
+    assert rows[0]["answered_by"] == "openrouter:b"
