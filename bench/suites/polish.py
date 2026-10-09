@@ -56,10 +56,10 @@ _TOKEN = re.compile(r"[㐀-鿿豈-﫿]|[a-z0-9]+(?:'[a-z]+)?")
 
 # ---------------------------------------------------------------- the app's prompt and the cases
 
-def instructions(swift: Path = SWIFT) -> str:
-    """PolishService.instructions, exactly as the app sends it."""
+def instructions(swift: Path = SWIFT, name: str = "instructions") -> str:
+    """PolishService.instructions (or another prompt constant there), exactly as the app sends it."""
     src = swift.read_text()
-    body = re.search(r'static let instructions = """\n(.*?)\n\s*"""', src, re.S).group(1)
+    body = re.search(rf'static let {name} = """\n(.*?)\n\s*"""', src, re.S).group(1)
     lines = [line.strip() for line in body.splitlines()]
     # Swift multi-line strings: a trailing backslash joins the next line without a newline.
     return "".join(line[:-1] if line.endswith("\\") else line + "\n" for line in lines).strip()

@@ -17,7 +17,7 @@ final class SettingsUITests: XCTestCase {
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
                       "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep recordings",
-                      "Backup model when slow"] {
+                      "Backup model when slow", "Polish model"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }
@@ -81,6 +81,24 @@ final class SettingsUITests: XCTestCase {
         XCTAssertFalse(settings.effectiveBackup, "Cloud Big has no backup")
         XCTAssertEqual(hosted.element(id: id)?.value, "0", "unavailable toggle shows off")
         XCTAssertTrue(settings.backupWhenSlow, "the saved choice is kept")
+    }
+
+    func testPolishModelDefaultsToOnDeviceAndOnlyAppliesWhilePolishIsOn() {
+        let defaults = makeDefaults(self)
+        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
+        XCTAssertEqual(settings.polishModel, .onDevice, "nothing leaves the Mac unless you choose cloud")
+        let hosted = host(settings)
+        let enabled = { hosted.element(id: "setting.Polish model")?.object.value(forKey: "accessibilityEnabled") as? Bool }
+        XCTAssertEqual(enabled(), false, "AI polish is off by default")
+        settings.polishEnabled = true
+        hosted.settle()
+        XCTAssertEqual(enabled(), true)
+        XCTAssertTrue(hosted.allText.contains("nothing leaves it"))
+        settings.setOpenRouterKey("sk-or-v1-test")
+        settings.polishModel = .cloud
+        hosted.settle()
+        XCTAssertTrue(hosted.allText.contains("Sends the transcript text to the cloud"))
+        XCTAssertEqual(AppSettings(defaults: defaults, secrets: InMemorySecretStore()).polishModel, .cloud)
     }
 
     func testCloudModelDisablesUnsupportedSettingsButKeepsThem() {

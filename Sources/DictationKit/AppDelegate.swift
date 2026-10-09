@@ -31,7 +31,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var engine: DictationEngine?
     private let overlay = OverlayWindow()
     private let injector = TextInjector()
-    private let polisher = PolishService()
+    /// Kept across dictations: it holds the prewarmed session.
+    private let onDevicePolish = OnDevicePolish()
+    /// Chosen from Settings when a dictation starts.
+    private var polisher = PolishService()
     private var dictating = false
     private var autoStop: DispatchWorkItem?
     private var dictationStart = Date()
@@ -80,7 +83,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hintItem.isEnabled = false
         menu.addItem(hintItem)
         menu.addItem(.separator())
-        polishItem = NSMenuItem(title: "AI polish (on-device)", action: #selector(togglePolish), keyEquivalent: "")
+        polishItem = NSMenuItem(title: "AI polish", action: #selector(togglePolish), keyEquivalent: "")
         polishItem.target = self
         menu.addItem(polishItem)
         menu.addItem(.separator())
@@ -206,7 +209,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.engine = engine
         // Load the polish model while you speak instead of after you stop.
-        if settings.polishEnabled && !settings.effectiveStreaming { polisher.prepare() }
+        if settings.polishEnabled && !settings.effectiveStreaming {
+            polisher = PolishService(backend: settings.polishModel.backend(apiKey: settings.openRouterKey,
+                                                                            onDevice: onDevicePolish))
+            polisher.prepare()
+        }
         setDictating(true)
         dictationStart = Date()
         overlay.showListening(micName: AudioDevices.activeInputName(preferredUID: settings.microphoneUID))

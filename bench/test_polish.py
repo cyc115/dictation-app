@@ -12,6 +12,14 @@ def test_reads_the_apps_prompt_from_the_swift_source():
     assert prompt.endswith("Output only the cleaned text.") and "\n" not in prompt and "\\" not in prompt
 
 
+def test_the_apps_cloud_prompt_is_the_benchmarked_one():
+    """Cloud polish must send exactly the prompt that won the benchmark (PolishModel.cloud)."""
+    swift = polish.SWIFT.read_text()
+    benchmarked = (polish.CASES.parent / "polish_prompts/v3.txt").read_text().strip()
+    assert polish.instructions(name="cloudInstructions") == benchmarked
+    assert 'static let cloudModel = "openai/gpt-oss-120b"' in swift and 'static let cloudProvider = "Groq"' in swift
+
+
 def test_every_expected_output_passes_its_own_checks():
     holdout = polish.load_cases(polish.CASES.parent / "polish_cases_holdout.json")
     for case in polish.load_cases() + holdout:

@@ -44,6 +44,7 @@ final class AppSettings: ObservableObject {
         static let hotkey = "hotkey"
         static let mode = "activationMode"
         static let polish = "aiPolishEnabled"
+        static let polishModel = "polishModel"
         static let mouse = "mouseButton"
         static let microphone = "microphoneUID"
         static let sounds = "interactionSounds"
@@ -70,6 +71,9 @@ final class AppSettings: ObservableObject {
     }
     @Published var polishEnabled: Bool {
         didSet { defaults.set(polishEnabled, forKey: Key.polish); onChange?() }
+    }
+    @Published var polishModel: PolishModel {
+        didSet { defaults.set(polishModel.rawValue, forKey: Key.polishModel); onChange?() }
     }
     /// CoreAudio device UID; empty means the system default input.
     @Published var microphoneUID: String {
@@ -138,6 +142,7 @@ final class AppSettings: ObservableObject {
         hotkey = Hotkey(rawValue: defaults.string(forKey: Key.hotkey) ?? "") ?? .fn
         mode = ActivationMode(rawValue: defaults.string(forKey: Key.mode) ?? "") ?? .hold
         polishEnabled = defaults.bool(forKey: Key.polish)
+        polishModel = PolishModel(rawValue: defaults.string(forKey: Key.polishModel) ?? "") ?? .onDevice
         mouseButton = MouseButton(rawValue: defaults.string(forKey: Key.mouse) ?? "") ?? .off
         microphoneUID = defaults.string(forKey: Key.microphone) ?? ""
         interactionSounds = defaults.object(forKey: Key.sounds) as? Bool ?? true
@@ -317,8 +322,21 @@ struct SettingsView: View {
             Section {
                 SettingRow("AI polish", settings.effectiveStreaming
                            ? "Not used while “Type as you speak” is on — polish needs the whole dictation."
-                           : "Removes filler words and fixes self-corrections. Adds about 1 second to a sentence, up to 3 to a long paragraph.") {
+                           : "Removes filler words and fixes self-corrections.") {
                     Toggle("AI polish", isOn: $settings.polishEnabled)
+                }
+                SettingRow("Polish model", settings.polishModel == .onDevice
+                           ? "Runs on this Mac; nothing leaves it. Adds about 1 second to a sentence, up to 3 to a long paragraph."
+                           : "Adds about half a second. Sends the transcript text to the cloud; uses your cloud API key.",
+                           available: settings.polishEnabled && !settings.effectiveStreaming) {
+                    Picker("Polish model", selection: Binding(
+                        get: { settings.polishModel },
+                        set: { model in
+                            settings.polishModel = model
+                            if model == .cloud && !settings.hasOpenRouterKey { keyDraft = ""; askForKey = true }
+                        })) {
+                        ForEach(PolishModel.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
                 }
             } header: {
                 Label("Cleanup", systemImage: "wand.and.stars")
@@ -344,7 +362,10 @@ struct SettingsView: View {
                         onCancel: {
                             askForKey = false
                             // No key, no cloud model: fall back so dictation keeps working.
-                            if !settings.hasOpenRouterKey { settings.transcriptionModel = .local }
+                            if !settings.hasOpenRouterKey {
+                                settings.transcriptionModel = .local
+                                settings.polishModel = .onDevice
+                            }
                         })
         }
         .onAppear {
