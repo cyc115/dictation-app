@@ -48,6 +48,10 @@ Relaunch the app after enabling Accessibility.
 - The bar shows which microphone is recording, under the waveform.
 - **Keep recordings** (Settings → Recordings, off by default): saves each dictation's audio and
   transcript on this Mac, to use as a benchmark set (`bench/README.md`).
+- **Backup model when slow** (Settings → Experimental, off by default; Cloud Flash only): if Cloud
+  Flash hasn't answered in 2 s, a smaller, faster model is asked too and the first answer is used;
+  after a slow answer both are asked at once for 5 minutes. Faster in slow spells, but the smaller
+  model gets more technical terms wrong. Off, only Cloud Flash is asked.
 - Menu bar 🎙 → **AI polish (on-device)** toggles LLM cleanup (default: off).
   When on, Apple's on-device model removes fillers and fixes self-corrections —
   it never rewrites your meaning, and nothing leaves your Mac.

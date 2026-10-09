@@ -237,9 +237,9 @@ final class CloudEngineTests: XCTestCase {
             .appendingPathComponent("../../bench/audio/mixed-01.wav").standardized)
         let input = AVAudioPCMBuffer(pcmFormat: src.processingFormat, frameCapacity: AVAudioFrameCount(src.length))!
         try src.read(into: input)
-        // Every model the app can ask, fallbacks included.
+        // Every model the app can ask, backups included.
         let models = TranscriptionModel.allCases.compactMap(\.openRouterID)
-            + TranscriptionModel.allCases.compactMap(\.fallbackOpenRouterID)
+            + TranscriptionModel.allCases.compactMap(\.backupOpenRouterID)
         for model in models {
             let engine = CloudEngine()
             engine.modelID = model

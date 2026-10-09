@@ -25,6 +25,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkey: HotkeyManager?
     private let speech = SpeechEngine()
     private let cloud = CloudEngine()
+    /// Experimental "Backup model when slow"; one instance so a slow spell carries over.
+    private let backup = AdaptiveBackup()
     /// Engine for the dictation in progress (chosen from Settings when it starts).
     private var engine: DictationEngine?
     private let overlay = OverlayWindow()
@@ -195,7 +197,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             cloud.modelID = modelID
-            cloud.fallbackModelID = model.fallbackOpenRouterID
+            cloud.backup = settings.effectiveBackup ? backup : nil
             cloud.apiKey = key
             engine = cloud
         } else {

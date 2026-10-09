@@ -41,11 +41,9 @@ enum TranscriptionModel: String, CaseIterable {
     /// Apple's models are one language each; cloud models detect English/Chinese themselves.
     var supportsLanguageChoice: Bool { !isCloud }
 
-    /// Asked as well when this model hasn't answered within `CloudEngine.fallbackDelay`, or fails;
-    /// the first answer wins. Cloud Flash usually answers in ~2 s but its p95 was 28 s and worst 50 s
-    /// (bench/results/latency/BASELINE-pre-optimization.md); the 0.6B model is a bit less accurate
-    /// (85% vs 90% on mixed speech, bench/) but only answers the slow ones.
-    var fallbackOpenRouterID: String? { self == .qwenASR ? "qwen/qwen3-asr-0.6b" : nil }
+    /// Smaller, faster model the experimental "Backup model when slow" setting also asks when this
+    /// one is slow (AdaptiveBackup). Cloud Flash only.
+    var backupOpenRouterID: String? { self == .qwenASR ? "qwen/qwen3-asr-0.6b" : nil }
 }
 
 /// Recognition language for the local (Apple) model.
@@ -278,10 +276,9 @@ final class CloudEngine: DictationEngine {
     var client: TranscriptionClient = OpenRouterClient()
     /// Set while "Keep recordings" is on: finished recordings go here instead of being deleted.
     var archive: RecordingArchive?
-    /// Also asked when `modelID` hasn't answered within `fallbackDelay` seconds, or fails (see UploadRace).
-    var fallbackModelID: String?
-    var fallbackDelay: TimeInterval = 3
-    /// The model whose transcript the last dictation used (the fallback, if it answered first).
+    /// Experimental "Backup model when slow"; nil (the default) asks only `modelID`.
+    var backup: AdaptiveBackup?
+    /// The model whose transcript the last dictation used (the backup, if it answered first).
     private(set) var lastAnsweredBy: String?
 
     private var audioEngine = AVAudioEngine()
@@ -338,10 +335,12 @@ final class CloudEngine: DictationEngine {
         let archive = self.archive
         let info = RecordingInfo(date: Date(), model: "openrouter:\(modelID)", transcript: "", seconds: recorder.duration)
         lastAnsweredBy = nil
-        race = UploadRace(wav: url, apiKey: apiKey, client: client, primary: modelID, fallback: fallbackModelID,
-                          fallbackDelay: fallbackDelay) { [weak self] outcome in
+        let main = modelID, backup = self.backup
+        race = UploadRace(wav: url, apiKey: apiKey, client: client, main: main,
+                          backup: backup?.plan(for: main)) { [weak self] report in
+            backup?.learn(main, from: report)
             var heard = info
-            switch outcome {
+            switch report.outcome {
             case .text(let text, let model):
                 heard.transcript = text
                 heard.model = "openrouter:\(model)"
@@ -366,69 +365,130 @@ final class CloudEngine: DictationEngine {
     }
 }
 
-/// One dictation's upload: the chosen model, plus a fallback model that's asked too when the first
-/// hasn't answered within `fallbackDelay` or fails. The first transcript wins and the other request
-/// is cancelled; if every model fails, the first error is reported. Runs on the main queue (clients
-/// call back there), and keeps itself alive until it's done.
+// MARK: - Backup model (experimental)
+
+/// Experimental, off by default (Settings → "Backup model when slow"). Cloud Flash usually answers in
+/// about a second, but in slow spells lasting minutes it takes 3–50 s (bench/results/latency/). This
+/// also asks the model's smaller backup (`TranscriptionModel.backupOpenRouterID`); the first answer wins.
+///  - Normally the backup is asked only once the main model hasn't answered within `wait`, or failed.
+///  - After the main model was late, both are asked at once for `spell`: the next answers would
+///    likely be late too. The main model answering on time ends the spell early.
+/// The backup is less accurate on mixed Chinese/English with technical terms (85% vs 90%, bench/).
+/// The app keeps one instance, so a slow spell carries over between dictations.
+final class AdaptiveBackup {
+    var wait: TimeInterval = 2
+    var spell: TimeInterval = 5 * 60
+    private let clock: () -> TimeInterval
+    /// When each main model (OpenRouter id) was last late.
+    private var lateAt: [String: TimeInterval] = [:]
+
+    init(clock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) { self.clock = clock }
+
+    /// The backup to ask in a dictation with `model`, and after how long; nil if it has none.
+    func plan(for model: String) -> UploadRace.Backup? {
+        guard let backup = TranscriptionModel(rawValue: "openrouter:\(model)")?.backupOpenRouterID else { return nil }
+        return UploadRace.Backup(model: backup, delay: inSlowSpell(model) ? 0 : wait)
+    }
+
+    func inSlowSpell(_ model: String) -> Bool {
+        guard let at = lateAt[model] else { return false }
+        return clock() - at < spell
+    }
+
+    /// Learns from a finished upload whose main model was `model`.
+    func learn(_ model: String, from report: UploadRace.Report) {
+        if report.mainFailed || report.seconds > wait {
+            lateAt[model] = clock()  // late: start (or extend) a slow spell
+        } else if report.answeredBy == model {
+            lateAt[model] = nil  // on time: back to normal
+        }
+        // Otherwise the backup answered within `wait`, before the main model: nothing learned about it.
+    }
+}
+
+/// One dictation's upload: the main model, plus an optional backup asked after `Backup.delay` (or
+/// as soon as the main model fails). The first transcript wins and the other request is cancelled;
+/// if every model fails, the first error is reported. Runs on the main queue (clients call back
+/// there), and keeps itself alive until it's done.
 final class UploadRace {
+    struct Backup: Equatable {
+        let model: String
+        let delay: TimeInterval
+    }
+
     enum Outcome {
         case text(String, model: String)
         case failed(String)
     }
 
+    struct Report {
+        let outcome: Outcome
+        /// Upload start → outcome.
+        let seconds: TimeInterval
+        let mainFailed: Bool
+        var answeredBy: String? {
+            if case .text(_, let model) = outcome { return model }
+            return nil
+        }
+    }
+
     private let wav: URL
     private let apiKey: String
     private let client: TranscriptionClient
-    private let primary: String
-    private let fallback: String?
-    private let fallbackDelay: TimeInterval
-    private let onDone: (Outcome) -> Void
+    private let main: String
+    private let backup: Backup?
+    private let onDone: (Report) -> Void
+    private let clock: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+    private var startedAt: TimeInterval = 0
     private var tasks: [URLSessionTask] = []
-    private var running = 0
-    private var fallbackStarted = false
-    private var finished = false
+    private var pending = 0
+    private var backupAsked = false
+    private var mainFailed = false
     private var firstError: String?
+    private var finished = false
     private var timer: DispatchWorkItem?
 
-    init(wav: URL, apiKey: String, client: TranscriptionClient, primary: String, fallback: String?,
-         fallbackDelay: TimeInterval, onDone: @escaping (Outcome) -> Void) {
+    init(wav: URL, apiKey: String, client: TranscriptionClient, main: String, backup: Backup?,
+         onDone: @escaping (Report) -> Void) {
         self.wav = wav
         self.apiKey = apiKey
         self.client = client
-        self.primary = primary
-        self.fallback = fallback
-        self.fallbackDelay = fallbackDelay
+        self.main = main
+        self.backup = backup
         self.onDone = onDone
     }
 
     func start() {
-        send(primary)
-        guard fallback != nil, !finished else { return }
-        let timer = DispatchWorkItem { [self] in startFallback() }
+        startedAt = clock()
+        ask(main)
+        guard let backup = backup else { return }
+        guard backup.delay > 0 else { return askBackup() }
+        let timer = DispatchWorkItem { [self] in askBackup() }
         self.timer = timer
-        DispatchQueue.main.asyncAfter(deadline: .now() + fallbackDelay, execute: timer)
+        DispatchQueue.main.asyncAfter(deadline: .now() + backup.delay, execute: timer)
     }
 
-    private func startFallback() {
-        guard !finished, !fallbackStarted, let fallback = fallback else { return }
-        fallbackStarted = true
+    private func askBackup() {
+        guard let backup = backup, !backupAsked, !finished else { return }
+        backupAsked = true
         timer?.cancel()
-        send(fallback)
+        ask(backup.model)
     }
 
-    private func send(_ model: String) {
-        running += 1
+    private func ask(_ model: String) {
+        pending += 1
         let task = client.transcribe(wav: wav, model: model, apiKey: apiKey) { [self] result in
-            running -= 1
+            pending -= 1
             guard !finished else { return }  // the loser, or cancelled after the winner answered
             switch result {
             case .success(let r):
                 finish(.text(r.text, model: model))
             case .failure(let error):
                 firstError = firstError ?? error.localizedDescription
-                if fallback != nil && !fallbackStarted {
-                    startFallback()  // don't wait out the delay after a failure
-                } else if running == 0 {
+                if model == main { mainFailed = true }
+                if backup != nil && !backupAsked {
+                    askBackup()  // don't wait out the delay after a failure
+                } else if pending == 0 {
                     finish(.failed(firstError ?? "Transcription failed."))
                 }
             }
@@ -440,6 +500,6 @@ final class UploadRace {
         finished = true
         timer?.cancel()
         tasks.forEach { $0.cancel() }  // stops the other request; a finished task ignores it
-        onDone(outcome)
+        onDone(Report(outcome: outcome, seconds: clock() - startedAt, mainFailed: mainFailed))
     }
 }

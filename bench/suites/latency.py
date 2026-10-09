@@ -2,6 +2,7 @@
 
   bench/suite.py latency run                         # Cloud Flash × {no polish, Apple polish}, 5 rounds
   bench/suite.py latency run --local --big           # … plus On-device and Cloud Big (opt-in)
+  bench/suite.py latency run --backup                # Cloud Flash with vs without the backup model
   bench/suite.py latency run -s flash -s big -r 10   # just the cloud models, 10 rounds
   bench/suite.py latency run -P none -P apple -P openrouter:anthropic/claude-haiku-5.5
   bench/suite.py latency run --recorded              # your own dictations (Settings → Keep recordings)
@@ -23,8 +24,9 @@ network hits every model alike. The first dictation per model is a warm-up (conn
 load): it's reported as "cold" and kept out of the percentiles. On-device models are one language
 each, so they're timed on clips in their language (repeated to the same count).
 
-Speech models: local (apple:en-US), local-zh (apple:zh-CN), flash, big, or any apple:<locale> /
-openrouter:<model id>. Polish: none, apple (on-device), or openrouter:<model id> (any chat model;
+Speech models: local (apple:en-US), local-zh (apple:zh-CN), flash, flash+backup, big, or any
+apple:<locale> / openrouter:<model id>. "+backup" turns on the experimental "Backup model when slow"
+setting for that model's dictations (AdaptiveBackup in Transcription.swift). Polish: none, apple (on-device), or openrouter:<model id> (any chat model;
 the app itself only offers on-device polish today). Cloud models use the key saved in the app's
 Settings, or --key-env VAR to pass one.
 """
@@ -56,12 +58,14 @@ STT_ALIASES = {
     "local": ("apple:en-US", "On-device"),
     "local-zh": ("apple:zh-CN", "On-device 中文"),
     "flash": ("openrouter:qwen/qwen3-asr-1.7b", "Cloud Flash"),
+    "flash+backup": ("openrouter:qwen/qwen3-asr-1.7b+backup", "Cloud Flash+backup"),
     "big": ("openrouter:meta/muse-voice-transcribe-1.0", "Cloud Big"),
 }
 POLISH_TITLES = {"none": "no polish", "apple": "Apple on-device"}
 # Only Cloud Flash by default; --local / --big (or -s) add the others. Cloud Big costs ~7× Flash.
 DEFAULT_STT = ["flash"]
 DEFAULT_POLISH = ["none", "apple"]
+BACKUP = "+backup"
 LENGTH_BUCKETS = [(0, 5, "< 5 s"), (5, 10, "5–10 s"), (10, float("inf"), "≥ 10 s")]
 
 _STT_SPEC = re.compile(r"^(apple:[A-Za-z]{2,3}(-[A-Za-z0-9]+)*|openrouter:\S+)$")
@@ -295,14 +299,15 @@ def summarize(rows: list[dict], stt: list[str], polish: list[str]) -> dict:
         "turnaround": {},
         "transcription_by_length": {},
     }
-    # Cloud Flash also asks a fallback model when it's slow (TranscriptionModel.fallbackOpenRouterID).
-    summary["fallbacks"] = {}
+    # With "+backup", a smaller model may answer instead (TranscriptionModel.backupOpenRouterID).
+    summary["backups"] = {}
     for s, sel in by_stt.items():
+        main = s.removesuffix(BACKUP)
         answered = [r for r in sel if not r["warmup"] and _transcribed(r)]
-        by_other = [r for r in answered if r.get("answered_by") and r["answered_by"] != s]
-        if by_other:
-            summary["fallbacks"][s] = {"count": len(by_other), "of": len(answered),
-                                       "models": sorted({r["answered_by"] for r in by_other})}
+        by_backup = [r for r in answered if r.get("answered_by") and r["answered_by"] != main]
+        if by_backup:
+            summary["backups"][s] = {"count": len(by_backup), "of": len(answered),
+                                     "models": sorted({r["answered_by"] for r in by_backup})}
     for s, sel in by_stt.items():
         for p in polish:
             def total(r, p=p):
@@ -362,9 +367,9 @@ def report_text(result: dict, by_length: bool = False, markdown: bool = False) -
         out.append(harness.table(["speech model"] + labels,
                                  [[title(k)] + [cell(v[label]) for label in labels]
                                   for k, v in s["transcription_by_length"].items()], markdown))
-    for stt, f in s.get("fallbacks", {}).items():
-        out.append(f"\n{title(stt).split('  ')[0]}: {f['count']} of {f['of']} dictations answered by the fallback "
-                   f"({', '.join(f['models'])}) after the first model was slow or failed.")
+    for stt, f in s.get("backups", s.get("fallbacks", {})).items():  # "fallbacks": results before the rename
+        out.append(f"\n{title(stt).split('  ')[0]}: {f['count']} of {f['of']} dictations answered by the backup "
+                   f"({', '.join(f['models'])}) because the main model was slow or failed.")
     out += ["", "best/worst = fastest/slowest dictation; cold = the warm-up (first use), not in the percentiles.",
             "* fewer than 20 samples: treat p95 as rough (raise --rounds)."]
     return "\n".join(out)
@@ -373,7 +378,9 @@ def report_text(result: dict, by_length: bool = False, markdown: bool = False) -
 # ---------------------------------------------------------------- commands
 
 def cmd_run(args) -> int:
-    stt = list(dict.fromkeys(resolve_stt(m) for m in (args.stt or DEFAULT_STT) + (["local"] if args.local else []) + (["big"] if args.big else [])))
+    names = ((args.stt or DEFAULT_STT) + (["local"] if args.local else []) + (["big"] if args.big else [])
+             + (["flash", "flash+backup"] if args.backup else []))
+    stt = list(dict.fromkeys(resolve_stt(m) for m in names))
     polish = list(dict.fromkeys(check_polish(p) for p in (args.polish or DEFAULT_POLISH)))
     clips = select_clips(args)
     trials = plan_trials(stt, polish, clips, args.rounds, args.warmup, args.seed)
@@ -429,6 +436,8 @@ def main(argv: list[str]) -> int:
                    help=f"speech model (repeatable; default: {' '.join(DEFAULT_STT)})")
     r.add_argument("--local", action="store_true", help="also time On-device (free; plays each clip in real time)")
     r.add_argument("--big", action="store_true", help="also time Cloud Big (adds ≈ $0.02 per default-size run)")
+    r.add_argument("--backup", action="store_true",
+                   help="time Cloud Flash with and without the experimental backup model, interleaved")
     r.add_argument("-P", "--polish", action="append", metavar="MODEL",
                    help=f"polish model (repeatable; default: {' '.join(DEFAULT_POLISH)})")
     r.add_argument("-r", "--rounds", type=int, default=5, help="times each clip × speech model is dictated (default 5)")

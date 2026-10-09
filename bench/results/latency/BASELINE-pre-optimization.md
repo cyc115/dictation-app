@@ -53,5 +53,8 @@ Pasted from the terminal report; the full JSON stayed on the Mac (`results/laten
 - **#3** Cloud Flash (qwen3-asr-1.7b) has a single OpenRouter provider (DeepInfra), so there's no faster
   provider to route to. Instead, if it hasn't answered within 3 s, or fails, qwen3-asr-0.6b is asked too
   and the first transcript wins (`UploadRace`). The report says how many dictations the fallback answered.
+  *Since then:* this is the experimental, off-by-default "Backup model when slow" setting
+  (`AdaptiveBackup`): it waits 2 s, not 3, and after a late answer asks both models at once for 5 min.
+  Off, only Cloud Flash is asked. Measure it with `bench/suite.py latency run --backup`.
   OpenRouter's STT `provider` object doesn't document `sort`, and 0.6b is also DeepInfra-only, so no
   routing preference is sent.

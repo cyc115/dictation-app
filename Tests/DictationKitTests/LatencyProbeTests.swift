@@ -95,6 +95,31 @@ final class LatencyRunnerTests: XCTestCase {
         XCTAssertEqual(sample.polish.first?.error, "unknown polish model gpt:x")
     }
 
+    func testBackupSuffixTurnsOnTheExperimentalBackupAsTheSettingDoes() throws {
+        let runner = LatencyRunner()
+        runner.backup.wait = 0.1
+        let client = ScriptedTranscriptionClient()  // the main model never answers
+        client.scripts["qwen/qwen3-asr-0.6b"] = .init(delay: 0, result: ScriptedTranscriptionClient.text("backup"))
+        runner.transcriptionClient = client
+        let sample = try XCTUnwrap(run(runner, LatencyTrial(id: "on", file: Self.clip,
+                                                            stt: "openrouter:qwen/qwen3-asr-1.7b+backup", polish: [])))
+        XCTAssertEqual(sample.raw, "backup")
+        XCTAssertEqual(sample.answeredBy, "openrouter:qwen/qwen3-asr-0.6b")
+        XCTAssertEqual(client.asked.map(\.model), ["qwen/qwen3-asr-1.7b", "qwen/qwen3-asr-0.6b"])
+    }
+
+    func testWithoutTheSuffixOnlyTheMainModelIsAsked() throws {
+        let runner = LatencyRunner()
+        runner.backup.wait = 0.1
+        let client = ScriptedTranscriptionClient()
+        client.scripts["qwen/qwen3-asr-1.7b"] = .init(delay: 0.3, result: ScriptedTranscriptionClient.text("main"))
+        runner.transcriptionClient = client
+        let sample = try XCTUnwrap(run(runner, LatencyTrial(id: "off", file: Self.clip,
+                                                            stt: "openrouter:qwen/qwen3-asr-1.7b", polish: [])))
+        XCTAssertEqual(sample.answeredBy, "openrouter:qwen/qwen3-asr-1.7b")
+        XCTAssertEqual(client.asked.map(\.model), ["qwen/qwen3-asr-1.7b"])
+    }
+
     func testRealBackendsForSpecs() {
         let runner = LatencyRunner()
         runner.apiKey = "k"

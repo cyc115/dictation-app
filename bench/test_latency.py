@@ -41,6 +41,7 @@ def test_plan_matches_what_the_app_decodes():
 
 def test_resolves_model_names():
     assert latency.resolve_stt("flash") == "openrouter:qwen/qwen3-asr-1.7b"
+    assert latency.resolve_stt("flash+backup") == "openrouter:qwen/qwen3-asr-1.7b+backup"
     assert latency.resolve_stt("apple:zh-CN") == "apple:zh-CN"
     assert latency.resolve_stt("openrouter:deepgram/nova-3") == "openrouter:deepgram/nova-3"
     with pytest.raises(SystemExit):
@@ -202,21 +203,30 @@ def test_only_cloud_flash_by_default(monkeypatch, capsys):
     planned = []
     monkeypatch.setattr(latency, "plan_trials", lambda stt, *a: planned.append(stt) or [])
     flash, big, local = ("openrouter:qwen/qwen3-asr-1.7b", "openrouter:meta/muse-voice-transcribe-1.0", "apple:en-US")
-    for argv in ([], ["--big"], ["--local"], ["--local", "--big"], ["-s", "big"], ["-s", "big", "--big"]):
+    for argv in ([], ["--big"], ["--local"], ["--local", "--big"], ["-s", "big"], ["-s", "big", "--big"], ["--backup"]):
         latency.main(["run", "--dry-run", "--clip", "english-01", *argv])
-    assert planned == [[flash], [flash, big], [flash, local], [flash, local, big], [big], [big]]
+    assert planned == [[flash], [flash, big], [flash, local], [flash, local, big], [big], [big],
+                       [flash, flash + "+backup"]]
 
 
-def test_report_counts_fallback_answers():
-    flash = "openrouter:qwen/qwen3-asr-1.7b"
-    rows = [row(flash, 1.0), row(flash, 3.2), row(flash, 3.5), row(flash, 9.0, warmup=True)]
-    rows[1]["answered_by"] = rows[2]["answered_by"] = "openrouter:qwen/qwen3-asr-0.6b"
-    rows[0]["answered_by"] = flash
-    rows[3]["answered_by"] = "openrouter:qwen/qwen3-asr-0.6b"  # warm-ups don't count
-    s = latency.summarize(rows, [flash], ["none"])
-    assert s["fallbacks"][flash] == {"count": 2, "of": 3, "models": ["openrouter:qwen/qwen3-asr-0.6b"]}
+def test_report_counts_backup_answers():
+    flash, backup = "openrouter:qwen/qwen3-asr-1.7b", "openrouter:qwen/qwen3-asr-1.7b+backup"
+    small = "openrouter:qwen/qwen3-asr-0.6b"
+    rows = [row(backup, 1.0), row(backup, 3.2), row(backup, 3.5), row(backup, 9.0, warmup=True), row(flash, 1.1)]
+    rows[1]["answered_by"] = rows[2]["answered_by"] = small
+    rows[0]["answered_by"] = rows[4]["answered_by"] = flash  # the main model, not the "+backup" spec
+    rows[3]["answered_by"] = small  # warm-ups don't count
+    s = latency.summarize(rows, [flash, backup], ["none"])
+    assert s["backups"] == {backup: {"count": 2, "of": 3, "models": [small]}}
     result = {"summary": s, "config": {"clips": ["a"], "rounds": 1}, "run_at": "t", "env": {}}
-    assert "Cloud Flash: 2 of 3 dictations answered by the fallback" in latency.report_text(result)
+    assert "Cloud Flash+backup: 2 of 3 dictations answered by the backup" in latency.report_text(result)
+
+
+def test_reports_saved_before_the_rename_still_show_backup_answers():
+    s = latency.summarize([row("openrouter:qwen/qwen3-asr-1.7b", 1.0)], ["openrouter:qwen/qwen3-asr-1.7b"], ["none"])
+    s["fallbacks"] = s.pop("backups") | {"openrouter:qwen/qwen3-asr-1.7b": {"count": 1, "of": 1, "models": ["m"]}}
+    result = {"summary": s, "config": {"clips": ["a"], "rounds": 1}, "run_at": "t", "env": {}}
+    assert "1 of 1 dictations answered by the backup" in latency.report_text(result)
 
 
 def test_merge_keeps_which_model_answered():

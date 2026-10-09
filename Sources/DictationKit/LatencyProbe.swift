@@ -17,7 +17,8 @@ struct LatencyTrial: Decodable, Equatable {
     let id: String
     /// Audio clip (16 kHz mono WAV from bench/audio).
     let file: String
-    /// "apple:<locale>" or "openrouter:<model id>".
+    /// "apple:<locale>", "openrouter:<model id>", or "openrouter:<model id>+backup" for the
+    /// experimental "Backup model when slow" setting turned on.
     let stt: String
     /// Polish backends to time on this trial's transcript, in order: "apple" or "openrouter:<model id>".
     let polish: [String]
@@ -45,7 +46,7 @@ struct LatencySample: Encodable, Equatable {
     var raw = ""
     var error: String?
     var polish: [Polish] = []
-    /// Cloud only: the model whose transcript was used ("openrouter:<id>"), the fallback if it won.
+    /// Cloud only: the model whose transcript was used ("openrouter:<id>"), the backup if it won.
     var answeredBy: String?
 }
 
@@ -55,6 +56,8 @@ final class LatencyRunner {
     var transcriptionClient: TranscriptionClient = OpenRouterClient()
     /// Polish backends by spec, overriding the real ones (tests).
     var polishers: [String: PolishBackend] = [:]
+    /// Shared by every "+backup" trial, as the app shares one across dictations.
+    var backup = AdaptiveBackup()
 
     private let speech = SpeechEngine()
     private var cloud: CloudEngine?
@@ -90,10 +93,13 @@ final class LatencyRunner {
             completion(sample)
         }
         if trial.stt.hasPrefix("openrouter:") {
+            var model = String(trial.stt.dropFirst("openrouter:".count))
+            let withBackup = model.hasSuffix("+backup")
+            if withBackup { model.removeLast("+backup".count) }
             let engine = CloudEngine()
             engine.client = transcriptionClient
-            engine.modelID = String(trial.stt.dropFirst("openrouter:".count))
-            engine.fallbackModelID = TranscriptionModel(rawValue: trial.stt)?.fallbackOpenRouterID  // as the app does
+            engine.modelID = model
+            engine.backup = withBackup ? backup : nil  // as AppDelegate does with the setting
             engine.apiKey = apiKey
             cloud = engine
             // Recording happens before you press stop, so the clip goes in at full speed.

@@ -7,7 +7,7 @@ import XCTest
 /// (and a user) would, and checks the app state they change.
 final class SettingsUITests: XCTestCase {
     private func host(_ settings: AppSettings) -> HostedView<SettingsView> {
-        let hosted = HostedView(SettingsView(settings: settings), size: NSSize(width: 640, height: 1700))
+        let hosted = HostedView(SettingsView(settings: settings), size: NSSize(width: 640, height: 1900))
         addTeardownBlock { hosted.close() }
         return hosted
     }
@@ -16,7 +16,8 @@ final class SettingsUITests: XCTestCase {
         let hosted = host(AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore()))
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
-                      "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep recordings"] {
+                      "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep recordings",
+                      "Backup model when slow"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }
@@ -53,6 +54,31 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(hosted.click(toggle))
         hosted.settle()
         XCTAssertNotNil(hosted.element(id: "setting.Recordings folder"))
+    }
+
+    func testBackupModelOnlyForCloudFlashOffByDefaultAndPersists() {
+        let defaults = makeDefaults(self)
+        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
+        XCTAssertFalse(settings.backupWhenSlow, "experimental: off by default")
+        let hosted = host(settings)
+        let id = "setting.Backup model when slow"
+        XCTAssertEqual(hosted.element(id: id)?.object.value(forKey: "accessibilityEnabled") as? Bool, false,
+                       "On-device has no backup")
+
+        settings.setOpenRouterKey("sk-or-v1-test")
+        settings.transcriptionModel = .qwenASR
+        hosted.settle()
+        guard let toggle = hosted.element(id: id) else { return XCTFail("no toggle") }
+        XCTAssertTrue(hosted.click(toggle))
+        XCTAssertTrue(settings.backupWhenSlow)
+        XCTAssertTrue(settings.effectiveBackup)
+        XCTAssertTrue(AppSettings(defaults: defaults, secrets: InMemorySecretStore()).backupWhenSlow)
+
+        settings.transcriptionModel = .metaMuse
+        hosted.settle()
+        XCTAssertFalse(settings.effectiveBackup, "Cloud Big has no backup")
+        XCTAssertEqual(hosted.element(id: id)?.value, "0", "unavailable toggle shows off")
+        XCTAssertTrue(settings.backupWhenSlow, "the saved choice is kept")
     }
 
     func testCloudModelDisablesUnsupportedSettingsButKeepsThem() {

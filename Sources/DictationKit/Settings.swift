@@ -54,6 +54,7 @@ final class AppSettings: ObservableObject {
         static let model = "transcriptionModel"
         static let language = "localLanguage"
         static let keepRecordings = "keepRecordings"
+        static let backupWhenSlow = "experimentalBackupWhenSlow"
     }
 
     var onChange: (() -> Void)?
@@ -98,6 +99,10 @@ final class AppSettings: ObservableObject {
     @Published var keepRecordings: Bool {
         didSet { defaults.set(keepRecordings, forKey: Key.keepRecordings); onChange?() }
     }
+    /// Experimental: also ask a smaller, faster model when Cloud Flash is slow (AdaptiveBackup).
+    @Published var backupWhenSlow: Bool {
+        didSet { defaults.set(backupWhenSlow, forKey: Key.backupWhenSlow); onChange?() }
+    }
     @Published private(set) var hasOpenRouterKey = false
     private let secrets: SecretStore
     static let openRouterAccount = "openrouter-api-key"
@@ -114,6 +119,8 @@ final class AppSettings: ObservableObject {
     /// "Type as you speak" only when the setting is on and the model streams; the saved
     /// preference is kept either way.
     var effectiveStreaming: Bool { streamWhileSpeaking && transcriptionModel.supportsStreaming }
+    /// "Backup model when slow" only when it's on and the model has a backup.
+    var effectiveBackup: Bool { backupWhenSlow && transcriptionModel.backupOpenRouterID != nil }
 
     @Published var showInDock: Bool {
         didSet { defaults.set(showInDock, forKey: Key.dock); onChange?() }
@@ -140,6 +147,7 @@ final class AppSettings: ObservableObject {
         transcriptionModel = TranscriptionModel(rawValue: defaults.string(forKey: Key.model) ?? "") ?? .local
         localLanguage = LocalLanguage(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .english
         keepRecordings = defaults.bool(forKey: Key.keepRecordings)
+        backupWhenSlow = defaults.bool(forKey: Key.backupWhenSlow)
         hasOpenRouterKey = !(secrets.get(Self.openRouterAccount) ?? "").isEmpty
         launchAtLogin = false
         refreshLoginItem()
@@ -318,6 +326,20 @@ struct SettingsView: View {
                 }
             } header: {
                 Label("Recordings", systemImage: "waveform")
+            }
+
+            Section {
+                let hasBackup = settings.transcriptionModel.backupOpenRouterID != nil
+                SettingRow("Backup model when slow", hasBackup
+                           ? "If Cloud Flash hasn't answered in 2 seconds, a smaller, faster model is asked too and the first answer is used. After a slow answer, both are asked at once for 5 minutes. The smaller model gets more technical terms wrong."
+                           : "Only works with Cloud Flash.",
+                           available: hasBackup) {
+                    Toggle("Backup model when slow", isOn: Binding(
+                        get: { settings.effectiveBackup },
+                        set: { settings.backupWhenSlow = $0 }))
+                }
+            } header: {
+                Label("Experimental", systemImage: "flask")
             }
         }
         .formStyle(.grouped)
