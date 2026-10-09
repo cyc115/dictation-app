@@ -1,0 +1,42 @@
+# Latency baseline — before optimization
+
+Recorded 2026-10-09 by the app's owner on a MacBook Pro (MacBookPro18,2, macOS 27.0.1), home network.
+Run: `bench/suite.py latency run` with all three speech models (On-device en-US, Cloud Flash, Cloud Big)
+× {no polish, Apple on-device polish}, default 9 clips × 5 rounds + 1 warm-up per model. Seconds.
+Pasted from the terminal report; the full JSON stayed on the Mac (`results/latency/`).
+
+## Transcription — stop pressed → raw text
+
+| speech model | n | errors | best | p50 | p90 | p95 | worst | cold |
+|:--|--:|--:|--:|--:|--:|--:|--:|--:|
+| On-device en-US | 45 | | 0.05 | 1.10 | 2.10 | 2.11 | 2.22 | 0.27 |
+| Cloud Flash (qwen/qwen3-asr-1.7b) | 42 | 3 | 0.49 | 2.01 | 14.86 | 28.40 | 49.84 | 1.39 |
+| Cloud Big (meta/muse-voice-transcribe-1.0) | 45 | | 1.16 | 2.35 | 6.37 | 6.82 | 7.58 | 1.75 |
+
+## AI polish — raw text → polished text
+
+| polish model | n | errors | best | p50 | p90 | p95 | worst | cold |
+|:--|--:|--:|--:|--:|--:|--:|--:|--:|
+| Apple on-device | 132 | | 0.79 | 2.42 | 3.87 | 4.03 | 4.22 | 2.40 |
+
+## Turnaround — stop pressed → text ready to paste
+
+| speech model + polish | n | errors | best | p50 | p90 | p95 | worst | cold |
+|:--|--:|--:|--:|--:|--:|--:|--:|--:|
+| On-device + no polish | 45 | | 0.05 | 1.10 | 2.10 | 2.11 | 2.22 | 0.27 |
+| Cloud Flash + no polish | 42 | 3 | 0.49 | 2.01 | 14.86 | 28.40 | 49.84 | 1.39 |
+| Cloud Big + no polish | 45 | | 1.16 | 2.35 | 6.37 | 6.82 | 7.58 | 1.75 |
+| Cloud Big + Apple on-device | 45 | | 2.05 | 3.58 | 10.27 | 10.57 | 11.29 | 2.90 |
+| Cloud Flash + Apple on-device | 42 | 3 | 1.50 | 4.06 | 17.64 | 30.80 | 52.32 | 2.31 |
+| On-device + Apple on-device | 45 | | 0.85 | 4.75 | 6.04 | 6.17 | 6.21 | 2.66 |
+
+## What stands out (optimization targets)
+
+1. **On-device piles up at ~2.1 s**: p90 2.10, p95 2.11, worst 2.22. That's `SpeechEngine.finalResultTimeout`
+   (2.0 s). On many clips the recognizer never sends `isFinal` after `endAudio()`, so stop() waits out the
+   timeout. The text is usually already complete by then, so this is mostly avoidable wait.
+2. **Apple polish is ~2.4 s typical, 4 s at p95**, not the "~1 s" the Settings copy claims. `PolishService`
+   creates a new `LanguageModelSession` per dictation and never prewarms it.
+3. **Cloud Flash has a long tail plus 3 errors**: p50 2.0 s but p95 28 s and worst 50 s. Cloud Big is
+   steadier (p95 6.8 s). Nothing currently caps how long a dictation can wait on a slow upload (60 s request
+   timeout).
