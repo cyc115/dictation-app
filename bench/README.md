@@ -1,4 +1,59 @@
-# Speech-to-text benchmark
+# Benchmarks
+
+One entry point, one suite per question. Results land in `results/<suite>/` (accuracy: `results/`).
+
+```sh
+bench/suite.py list
+bench/suite.py latency run        # how long after you press stop until text is ready (p50/p90/p95)
+bench/suite.py accuracy run -m …  # how right the transcript is, and what it costs (= bench/bench.py)
+```
+
+Adding a suite: write `suites/<name>.py` with `NAME`, `HELP` and `main(argv)`, list it in
+`suites/__init__.py`. `harness.py` has the shared parts: percentiles, interleaved scheduling,
+run metadata (commit, Mac model, macOS), result files and tables.
+Tests: `uv run --with pytest --with opencc-python-reimplemented==0.1.7 pytest bench`.
+
+## Turnaround latency (`suite.py latency`)
+
+What you wait for after pressing stop, measured **inside the installed app through its real code
+paths** (`Sources/DictationKit/LatencyProbe.swift`), so it includes everything the app does:
+
+| stage | from → to | |
+|:--|:--|:--|
+| transcription | stop pressed → raw text | cloud: close the WAV, upload, wait for the API (`CloudEngine.stop()`); on-device: clip plays in real time like the mic, then `SpeechEngine.stop()` waits for the final result |
+| AI polish | raw text → polished text | `PolishService`; every polish model runs on the same transcript, in shuffled order |
+| turnaround | stop pressed → text ready to paste | transcription + polish **of the same dictation**; the percentiles are of those sums (adding separate p95s overstates the tail). Paste (~10 ms) not included |
+
+```sh
+./build.sh                                            # the suite drives /Applications/DictationApp.app
+bench/suite.py latency run --dry-run                  # plan + estimated time (default ≈ 13 min)
+bench/suite.py latency run                            # On-device, Cloud Flash, Cloud Big × {no polish, Apple polish}
+bench/suite.py latency run -s flash -s big -r 10      # cloud only, 10 rounds → 90 samples per model
+bench/suite.py latency run -P none -P apple \
+    -P openrouter:anthropic/claude-haiku-5.5 -P openrouter:google/gemini-3.8-flash   # compare polish models
+bench/suite.py latency report --by-length --markdown  # latest result again; Markdown for notes/PRs
+bench/suite.py latency run --simulate                 # fake timings: try the report without a Mac/key
+```
+
+- **Models.** Speech: `local` (apple:en-US), `local-zh` (apple:zh-CN), `flash`, `big`, or any
+  `apple:<locale>` / `openrouter:<id>`. Polish: `none`, `apple`, or any OpenRouter chat model
+  `openrouter:<id>` (the app only offers on-device polish today; the benchmark tells you whether a
+  cloud one is worth adding). Cloud models use the key saved in Settings (`--key-env VAR` to override).
+- **Method.** 9 clips by default: per language, the shortest, median and longest clean clip,
+  including `long-mixed-01` (28 s) and `long-english-01` (22 s), since cloud latency grows with
+  length (`--by-length` shows it). Each round plays every clip × model once in a fresh shuffled
+  order, so a slow minute on the network hits every model alike. The first dictation per model is a
+  warm-up (connection setup, model load), shown as **cold**, not in the percentiles. On-device
+  models only get clips in their language (repeated to the same count). Failed dictations are
+  counted under *errors* and never timed: a failed polish is not a fast polish.
+- **Reading it.** best / p50 / p90 / p95 / worst per model. p50 is the typical wait, p95 the
+  "1 in 20 feels slow" wait. With fewer than 20 samples p95 is marked `*`: raise `--rounds`.
+  Cloud numbers are your network at that moment: compare models within one run, and re-run at a
+  different time of day before deciding on a small gap.
+- Results: `results/latency/<time>_<models>.json` with every dictation (text included), config
+  and machine, so any run can be re-reported or compared later.
+
+## Speech-to-text accuracy (`suite.py accuracy` = `bench.py`)
 
 Compares dictation models on the same audio: **Chinese with English mixed in**, **Chinese only**,
 and **English only**, at three levels (L1 easy, L2 hard jargon/idioms, L3 hard + fast + noisy).

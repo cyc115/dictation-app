@@ -56,6 +56,7 @@ Relaunch the app after enabling Accessibility.
 ./test.sh          # unit, UI, snapshot and performance-budget tests
 ./test.sh --perf   # + launch time / idle CPU / memory of the installed app
 scripts/e2e-speech.sh  # real recognizer on a synthesized 24 s dictation with pauses
+bench/suite.py latency run   # wait after you press stop, per speech/polish model (p50/p90/p95)
 ./build.sh         # build, install to /Applications, relaunch
 ```
 

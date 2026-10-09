@@ -15,11 +15,24 @@ import Speech
 /// path per line>, DICTATIONAPP_PROBE_LOCALE=en-US|zh-CN, DICTATIONAPP_PROBE_OUT=<jsonl path>.
 /// Each clip is fed as fast as possible; one JSON line per clip: file, text, latency (seconds
 /// from end of audio to final transcript).
+///
+/// Turnaround benchmark (bench/suite.py latency): DICTATIONAPP_LATENCY_PLAN / _OUT, see LatencyProbe.swift.
 enum Diagnostics {
     private static var probe: AnyObject?  // kept alive until the app exits
 
     static func runIfRequested() -> Bool {
         let env = ProcessInfo.processInfo.environment
+        if let plan = env["DICTATIONAPP_LATENCY_PLAN"], let out = env["DICTATIONAPP_LATENCY_OUT"] {
+            let key = env["DICTATIONAPP_PROBE_KEY"] ?? KeychainStore().get(AppSettings.openRouterAccount) ?? ""
+            guard let latency = LatencyProbe(planPath: plan, outPath: out, apiKey: key) else {
+                try? "{\"id\": \"plan\", \"error\": \"could not read the plan\"}\n"
+                    .write(toFile: out, atomically: true, encoding: .utf8)
+                exit(1)
+            }
+            probe = latency
+            latency.run()
+            return true
+        }
         if let list = env["DICTATIONAPP_PROBE_LIST"], let out = env["DICTATIONAPP_PROBE_OUT"] {
             let batch = BatchProbe(listPath: list, outPath: out, locale: env["DICTATIONAPP_PROBE_LOCALE"] ?? "en-US")
             probe = batch

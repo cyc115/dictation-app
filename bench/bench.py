@@ -204,8 +204,26 @@ def cmd_synth(args) -> int:
                 add_noise(out, c["noise_snr_db"], babble_track(Path(tmp)), c["id"])
         made += 1
         print(f"  {c['id']}  {wav_seconds(out):4.1f}s  {c['text']}")
+    for c in load_cases():
+        if c.get("source") != "concat":
+            continue
+        out = AUDIO / f"{c['id']}.wav"
+        if out.exists() and not args.force:
+            continue
+        concat_clips(c["parts"], c.get("gap", 0.4), out)
+        made += 1
+        print(f"  {c['id']}  {wav_seconds(out):4.1f}s  (= {' + '.join(c['parts'])})")
     print(f"synthesized {made} clip(s) into {AUDIO.relative_to(ROOT.parent)}/")
     return 0
+
+
+def concat_clips(parts: list[str], gap_seconds: float, out: Path) -> None:
+    """A long dictation made of existing clips with short pauses between them."""
+    gap = [0] * int(16000 * gap_seconds)
+    samples: list[int] = []
+    for i, part in enumerate(parts):
+        samples += (gap if i else []) + _read_pcm(AUDIO / f"{part}.wav")
+    _write_pcm(out, samples)
 
 
 def cmd_add(args) -> int:
