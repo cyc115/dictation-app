@@ -8,6 +8,7 @@
   bench/suite.py latency run --recorded              # your own dictations (Settings → Keep recordings)
   bench/suite.py latency run --dry-run               # show the plan and how long it'll take
   bench/suite.py latency report [--by-length] [--markdown] [--file results/latency/….json]
+  bench/suite.py latency polish-cost                 # does polish time follow words in, or words out?
 
 Runs inside the installed app (LatencyProbe.swift, needs ./build.sh) through its real code paths:
   transcription  stop pressed → raw transcript. Cloud: CloudEngine.stop() closes the WAV and uploads
@@ -38,6 +39,7 @@ import os
 import platform
 import random
 import re
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -375,6 +377,138 @@ def report_text(result: dict, by_length: bool = False, markdown: bool = False) -
     return "\n".join(out)
 
 
+# ---------------------------------------------------------------- polish cost vs length
+
+_WORD = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]|[A-Za-z0-9]+(?:'[A-Za-z]+)?")
+OUTPUT_BOUND = 3  # a word out costing ≥ this many words in: the time is in what the model writes
+
+
+def words(text: str) -> int:
+    """Chinese characters + English words: a rough, model-independent stand-in for tokens."""
+    return len(_WORD.findall(text or ""))
+
+
+def fit(columns: list[list[float]], y: list[float]) -> tuple[list[float], float] | None:
+    """Least squares y ≈ b0 + b1·x1 + …; ([b0, b1, …], R²), or None if the columns can't be separated."""
+    rows = [[1.0] + [c[i] for c in columns] for i in range(len(y))]
+    k = len(rows[0])
+    a = [[sum(r[i] * r[j] for r in rows) for j in range(k)] + [sum(r[i] * v for r, v in zip(rows, y))]
+         for i in range(k)]
+    for col in range(k):  # Gauss-Jordan on the normal equations
+        pivot = max(range(col, k), key=lambda r: abs(a[r][col]))
+        if abs(a[pivot][col]) < 1e-9:
+            return None
+        a[col], a[pivot] = a[pivot], a[col]
+        for r in range(k):
+            if r != col:
+                f = a[r][col] / a[col][col]
+                a[r] = [x - f * c for x, c in zip(a[r], a[col])]
+    beta = [a[i][k] / a[i][i] for i in range(k)]
+    mean = statistics.fmean(y)
+    total = sum((v - mean) ** 2 for v in y)
+    resid = sum((v - sum(b * x for b, x in zip(beta, r))) ** 2 for r, v in zip(rows, y))
+    return beta, (1 - resid / total) if total else 1.0
+
+
+def polish_samples(result: dict, spec: str) -> list[dict]:
+    """Timed, non-warm-up polishes: words in (transcript), words out (polished text), seconds."""
+    out = []
+    for r in result["trials"]:
+        p = (r.get("polish") or {}).get(spec) or {}
+        if not r["warmup"] and _transcribed(r) and p.get("seconds") is not None:
+            out.append({"clip": r["clip"], "stt": r["stt"], "in": words(r["raw"]), "out": words(p.get("text")),
+                        "seconds": p["seconds"]})
+    return out
+
+
+def polish_cost_text(result: dict, spec: str, markdown: bool = False) -> str:
+    samples = polish_samples(result, spec)
+    if len(samples) < 5:
+        return f"only {len(samples)} timed {title(spec)} polishes in this run — need at least 5"
+    w_in, w_out, secs = ([s[k] for s in samples] for k in ("in", "out", "seconds"))
+    together = statistics.correlation(w_in, w_out) if len(set(w_in)) > 1 and len(set(w_out)) > 1 else 1.0
+    fits = {"out": fit([w_out], secs), "in": fit([w_in], secs), "both": fit([w_in, w_out], secs)}
+    sec = lambda x: f"{x:+.3f} s" if x is not None else ""
+    rows = []
+    for label, key, cols in (("fixed + words out", "out", ("out",)), ("fixed + words in", "in", ("in",)),
+                             ("fixed + words in + words out", "both", ("in", "out"))):
+        f = fits[key]
+        if f is None:
+            rows.append([label, "—", "", "", "can't separate"])
+            continue
+        beta, r2 = f
+        per = dict(zip(cols, beta[1:]))
+        rows.append([label, f"{beta[0]:.2f} s", sec(per.get("in")), sec(per.get("out")), f"{r2:.2f}"])
+    out = [f"{title(spec)}: what its time depends on — {len(samples)} polishes, warm-ups left out",
+           f"words = Chinese characters + English words. In: {min(w_in)}–{max(w_in)} (transcript), "
+           f"out: {min(w_out)}–{max(w_out)} (polished). Correlation of in and out: {together:.2f}", ""]
+    out.append(harness.table(["time ≈", "fixed", "per word in", "per word out", "R²"], rows, markdown))
+
+    # Same audio, different transcripts: does the polish time follow the words?
+    by_clip: dict[tuple, list[dict]] = {}
+    for s in samples:
+        by_clip.setdefault((s["clip"], s["stt"]), []).append(s)
+    clips_seen = {}
+    for clip, stt in by_clip:
+        clips_seen.setdefault(clip, set()).add(stt)
+    shared = sorted(c for c, stts in clips_seen.items() if len(stts) > 1)
+    if shared:
+        out += ["", "Same clip, different speech models (mean words, p50 seconds):", ""]
+        table_rows = []
+        for clip in shared:
+            for (c, stt), group in sorted(by_clip.items()):
+                if c == clip:
+                    table_rows.append([f"{clip}  {title(stt).split('  ')[0]}", len(group),
+                                       f"{statistics.fmean(g['in'] for g in group):.0f}",
+                                       f"{statistics.fmean(g['out'] for g in group):.0f}",
+                                       harness.seconds(harness.percentile([g['seconds'] for g in group], 50))])
+        out.append(harness.table(["clip  speech model", "n", "words in", "words out", "p50"], table_rows, markdown))
+
+    out += ["", polish_cost_verdict(fits, together, max(w_out))]
+    return "\n".join(out)
+
+
+def polish_cost_verdict(fits: dict, together: float, longest: int) -> str:
+    one = fits["out"]
+    if one is None or one[1] < 0.5:
+        return ("Length explains little of the polish time here (R² < 0.5): something else dominates, so "
+                "polishing earlier phrases while you speak would save little.")
+    (fixed, per_out), r2 = one
+    example = (f"For the longest dictation here ({longest} words out) that's ≈ {fixed + per_out * longest:.1f} s now, "
+               f"vs ≈ {fixed + per_out * min(15, longest):.1f} s if only a last 15-word phrase were left to write.")
+    both = fits["both"]
+    if both is not None and together < 0.95:
+        _, per_in, per_word_out = both[0]
+        if per_word_out >= OUTPUT_BOUND * max(per_in, 0):
+            return ("Polish time follows what the model writes, not what it reads: a word out costs "
+                    f"{per_word_out:.3f} s, a word in {per_in:.3f} s. Polishing earlier phrases while you speak "
+                    f"should help. {example}")
+        return ("Reading the transcript costs about as much as writing it "
+                f"({per_in:.3f} s vs {per_word_out:.3f} s a word): polishing earlier phrases while you speak "
+                "saves less, since the whole text still has to be read for context.")
+    return (f"Polish time grows with length (R² {r2:.2f}, {per_out:.3f} s a word, {fixed:.2f} s fixed), but words in "
+            f"and out move together here (correlation {together:.2f}), so this run can't say whether reading or "
+            f"writing costs the time. {per_out:.3f} s a word is {1 / per_out:.0f} words/s; LLMs usually read many "
+            f"times faster than they write, so a rate this slow points to writing — an inference, not a measurement. "
+            f"{example}")
+
+
+def cmd_polish_cost(args) -> int:
+    spec = check_polish(args.polish)
+    if args.file:
+        path = Path(args.file)
+    else:
+        with_polish = [f for f in harness.result_files(NAME)
+                       if spec in json.loads(f.read_text()).get("config", {}).get("polish", [])]
+        path = with_polish[-1] if with_polish else None
+    if path is None:
+        print(f"no results with {spec} polish yet — run `bench/suite.py latency run`")
+        return 1
+    print(f"{path}\n")
+    print(polish_cost_text(json.loads(path.read_text()), spec, markdown=args.markdown))
+    return 0
+
+
 # ---------------------------------------------------------------- commands
 
 def cmd_run(args) -> int:
@@ -460,6 +594,11 @@ def main(argv: list[str]) -> int:
     rep.add_argument("--by-length", action="store_true")
     rep.add_argument("--markdown", action="store_true", help="Markdown tables, for pasting into notes or PRs")
     rep.set_defaults(func=cmd_report)
+    pc = sub.add_parser("polish-cost", help="does polish time follow the words read, or the words written?")
+    pc.add_argument("--file", help="result JSON (default: the latest with that polish model)")
+    pc.add_argument("-P", "--polish", default="apple", metavar="MODEL", help="polish model (default: apple)")
+    pc.add_argument("--markdown", action="store_true")
+    pc.set_defaults(func=cmd_polish_cost)
     args = p.parse_args(argv)
     if getattr(args, "rounds", 1) < 1:
         p.error("--rounds must be at least 1")

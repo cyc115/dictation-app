@@ -233,3 +233,55 @@ def test_merge_keeps_which_model_answered():
     trials = [{"id": "0", "round": 1, "warmup": False, "clip": "c", "audio_seconds": 3, "stt": "s", "polish": []}]
     rows = latency.merge(trials, [{"id": "0", "transcribe": 3.1, "raw": "hi", "answeredBy": "openrouter:b"}])
     assert rows[0]["answered_by"] == "openrouter:b"
+
+
+def polish_result(samples):
+    """A saved run whose Apple polishes have (words in, words out, seconds)."""
+    trials = []
+    for i, (w_in, w_out, secs) in enumerate(samples):
+        r = row("openrouter:qwen/qwen3-asr-1.7b" if i % 2 else "apple:en-US", 1.0, {"apple": secs})
+        r.update(clip=f"c{i % 3}", raw=" ".join(["w"] * w_in))
+        r["polish"]["apple"]["text"] = "字" * w_out
+        trials.append(r)
+    trials.append({**trials[0], "warmup": True})  # left out
+    return {"trials": trials, "config": {"polish": ["none", "apple"]}}
+
+
+def test_words_counts_chinese_characters_and_english_words():
+    assert latency.words("帮我写一个 Python script, it's fine") == 9
+    assert latency.words("") == latency.words(None) == 0
+
+
+def test_fit_recovers_known_costs():
+    w_in, w_out = [10, 40, 20, 80, 30, 60], [12, 20, 35, 30, 70, 50]
+    secs = [0.4 + 0.002 * i + 0.03 * o for i, o in zip(w_in, w_out)]
+    (fixed, per_in, per_out), r2 = latency.fit([w_in, w_out], secs)
+    assert (round(fixed, 3), round(per_in, 4), round(per_out, 4), round(r2, 3)) == (0.4, 0.002, 0.03, 1.0)
+    assert latency.fit([[5, 5, 5]], [1, 2, 3]) is None  # a constant column can't explain anything
+
+
+def test_polish_cost_says_writing_drives_the_time_when_it_can_tell():
+    w_in, w_out = [10, 40, 20, 80, 30, 60, 15, 45], [12, 20, 35, 30, 70, 50, 40, 10]
+    result = polish_result([(i, o, 0.4 + 0.002 * i + 0.03 * o) for i, o in zip(w_in, w_out)])
+    text = latency.polish_cost_text(result, "apple")
+    assert "8 polishes" in text
+    assert "follows what the model writes" in text
+    assert "Same clip, different speech models" in text
+
+
+def test_polish_cost_admits_when_words_in_and_out_move_together():
+    result = polish_result([(n, n, 0.4 + 0.03 * n) for n in (5, 10, 20, 40, 80, 100)])
+    text = latency.polish_cost_text(result, "apple")
+    assert "can't say whether reading or writing" in text
+    assert "an inference, not a measurement" in text
+
+
+def test_polish_cost_needs_enough_samples():
+    assert "need at least 5" in latency.polish_cost_text(polish_result([(5, 5, 1.0)]), "apple")
+
+
+def test_polish_cost_command_reads_a_saved_run(tmp_path, capsys):
+    path = tmp_path / "run.json"
+    path.write_text(json.dumps(polish_result([(n, n, 0.4 + 0.03 * n) for n in (5, 10, 20, 40, 80)])))
+    assert latency.main(["polish-cost", "--file", str(path)]) == 0
+    assert "Apple on-device: what its time depends on" in capsys.readouterr().out
