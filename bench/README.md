@@ -71,6 +71,30 @@ bench/suite.py latency run --simulate                 # fake timings: try the re
 - Results: `results/latency/<time>_<models>.json` with every dictation (text included), config
   and machine, so any run can be re-reported or compared later.
 
+## AI polish models (`suite.py polish`)
+
+How well and how fast a model cleans up tricky dictations, with the app's prompt or a candidate one.
+The results and the reasoning behind the cloud polish choice are in `results/polish/README.md`.
+
+```sh
+bench/suite.py polish cases                                              # the test set
+bench/suite.py polish run -m openai/gpt-oss-120b@Groq -m google/gemini-3.1-flash-lite   # any OpenRouter model
+bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq --wrap \
+    --prompt-file bench/polish_prompts/v3.txt -r 2                       # Apple (via the app) vs cloud
+bench/suite.py polish report --failures openai/gpt-oss-120b@Groq         # what one model got wrong
+```
+
+- **Cases** (`polish_cases.json`; `polish_cases_holdout.json` for prompts tuned on the first set):
+  fillers, self-corrections, already-clean text, and traps — dictations that ask or instruct, which
+  a polish model must clean up, not carry out. A pass needs every check to hold and the words within
+  25% of the expected cleanup.
+- **Models:** `apple` runs Apple's model inside the installed app (Mac only, after `./build.sh`);
+  `openrouter:<id>[@Provider]` pins a host (`@Groq`, `@Cerebras`), else `--sort latency` asks
+  OpenRouter to pick. Reasoning is off or at its lowest.
+- **Key:** `$OPENROUTER_API_KEY`, else the key saved in the app's Settings (Keychain).
+- **Prompts:** `--prompt-file` (see `polish_prompts/`), `--wrap` puts the transcript in
+  `<transcript>` tags. The app's cloud polish uses `v3.txt` + tags (a test keeps them identical).
+
 ## Speech-to-text accuracy (`suite.py accuracy` = `bench.py`)
 
 Compares dictation models on the same audio: **Chinese with English mixed in**, **Chinese only**,
