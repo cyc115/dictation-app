@@ -22,7 +22,8 @@ struct LatencyTrial: Decodable, Equatable {
     /// "Backup model when slow" setting on (the app's default).
     let stt: String
     /// Polish backends to time on this trial's transcript, in order: "apple", "apple-tail" (only the
-    /// last `LatencyRunner.tailWords` words rewritten, the rest as context) or "openrouter:<model id>".
+    /// last `LatencyRunner.tailWords` words rewritten, the rest as context) or
+    /// "openrouter:<model id>[@<Provider>]".
     let polish: [String]
     /// Polish-only trial (bench/suite.py polish): this is the transcript; `file` and `stt` are unused.
     var text: String? = nil
@@ -92,8 +93,10 @@ final class LatencyRunner {
         if spec == "apple" { return OnDevicePolish(instructions: instructions, wrap: wrap) }
         if spec == "apple-tail" { return OnDevicePolish(tailWords: Self.tailWords) }
         if spec.hasPrefix("openrouter:") {
-            return OpenRouterPolish(model: String(spec.dropFirst("openrouter:".count)), apiKey: apiKey,
-                                    instructions: instructions ?? PolishService.instructions, wrap: wrap)
+            // "openrouter:<id>@<Provider>" pins a provider, as bench/suite.py polish does.
+            let parts = spec.dropFirst("openrouter:".count).split(separator: "@", maxSplits: 1).map(String.init)
+            return OpenRouterPolish(model: parts[0], apiKey: apiKey, instructions: instructions ?? PolishService.instructions,
+                                    wrap: wrap, provider: parts.count > 1 ? parts[1] : nil)
         }
         return nil
     }

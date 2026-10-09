@@ -159,25 +159,34 @@ struct OpenRouterPolish: PolishBackend {
     var session: URLSession = .shared
     var instructions = PolishService.instructions
     var wrap = false
+    /// Only this OpenRouter provider (e.g. "Groq", "Cerebras": fast hosts); nil lets OpenRouter route.
+    var provider: String?
 
     func polish(_ text: String) async throws -> String {
         let request = Self.request(model: model, apiKey: apiKey, text: PolishService.userMessage(text, wrap: wrap),
-                                   instructions: instructions)
+                                   instructions: instructions, provider: provider)
         let (data, response) = try await session.data(for: request)
         return try Self.parse(data: data, status: (response as? HTTPURLResponse)?.statusCode ?? 0).get()
     }
 
+    /// Thinking adds seconds and nothing to a cleanup: off where the model allows it, else the lowest
+    /// effort (gpt-oss and gpt-5 models can't turn it off). Same settings as bench/suite.py polish.
+    static func reasoning(for model: String) -> [String: Any] {
+        model.hasPrefix("openai/gpt-oss") || model.hasPrefix("openai/gpt-5") ? ["effort": "minimal"] : ["enabled": false]
+    }
+
     static func request(model: String, apiKey: String, text: String,
-                        instructions: String = PolishService.instructions) -> URLRequest {
+                        instructions: String = PolishService.instructions, provider: String? = nil) -> URLRequest {
         var request = URLRequest(url: endpoint, timeoutInterval: 60)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("DictationApp", forHTTPHeaderField: "X-Title")
-        let body: [String: Any] = ["model": model, "temperature": 0, "messages": [
+        var body: [String: Any] = ["model": model, "temperature": 0, "reasoning": reasoning(for: model), "messages": [
             ["role": "system", "content": instructions],
             ["role": "user", "content": text],
         ]]
+        if let provider = provider { body["provider"] = ["order": [provider], "allow_fallbacks": false] }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         return request
     }

@@ -247,6 +247,20 @@ final class OpenRouterPolishTests: XCTestCase {
         XCTAssertEqual(messages.map { $0["role"] }, ["system", "user"])
         XCTAssertEqual(messages[0]["content"], PolishService.instructions)
         XCTAssertEqual(messages[1]["content"], "um 帮我 build")
+        XCTAssertEqual(body["reasoning"] as? [String: Bool], ["enabled": false], "no thinking for a cleanup")
+        XCTAssertNil(body["provider"], "OpenRouter routes unless a provider is pinned")
+    }
+
+    func testPinnedProviderAndLowestReasoningForModelsThatMustThink() throws {
+        let request = OpenRouterPolish.request(model: "openai/gpt-oss-120b", apiKey: "k", text: "t", provider: "Groq")
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        XCTAssertEqual(body["reasoning"] as? [String: String], ["effort": "minimal"])
+        let provider = try XCTUnwrap(body["provider"] as? [String: Any])
+        XCTAssertEqual(provider["order"] as? [String], ["Groq"])
+        XCTAssertEqual(provider["allow_fallbacks"] as? Bool, false)
+        let pinned = try XCTUnwrap(LatencyRunner().polisher(for: "openrouter:qwen/qwen3.8-27b@Cerebras") as? OpenRouterPolish)
+        XCTAssertEqual(pinned.model, "qwen/qwen3.8-27b")
+        XCTAssertEqual(pinned.provider, "Cerebras")
     }
 
     func testWrappedTranscriptAndCustomInstructions() throws {
