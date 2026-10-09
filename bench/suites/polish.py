@@ -350,6 +350,16 @@ def failures_text(result: dict, spec: str) -> str:
 
 # ---------------------------------------------------------------- commands
 
+def saved_key() -> str:
+    """The cloud key the app saved in your Keychain (macOS may ask to allow access once)."""
+    if sys.platform != "darwin":
+        return ""
+    import subprocess
+    out = subprocess.run(["security", "find-generic-password", "-s", "com.mikechen.DictationApp",
+                          "-a", "openrouter-api-key", "-w"], capture_output=True, text=True)
+    return out.stdout.strip() if out.returncode == 0 else ""
+
+
 def read_specs(args) -> list[str]:
     specs = list(args.model or [])
     if args.models_file:
@@ -370,9 +380,9 @@ def cmd_run(args) -> int:
     if args.case:
         cases = [c for c in cases if c["id"] in args.case]
     cloud = [s for s in specs if s != "apple"]
-    key = os.environ.get(args.key_env, "")
+    key = os.environ.get(args.key_env, "") or (saved_key() if cloud else "")
     if cloud and not key:
-        sys.exit(f"${args.key_env} is not set (your OpenRouter key)")
+        sys.exit(f"no cloud key: save one in the app's Settings, or set ${args.key_env}")
     total = len(specs) * (len(cases) * args.rounds + 1)
     print(f"==> {len(specs)} model(s) × {len(cases)} cases × {args.rounds} rounds (+1 warm-up) = {total} requests")
     done = [0]
@@ -444,7 +454,8 @@ def main(argv: list[str]) -> int:
     r.add_argument("--prompt-file", help="system prompt to try instead of the app's (PolishService.instructions)")
     r.add_argument("--wrap", action="store_true", help="send the transcript inside <transcript> tags")
     r.add_argument("--seed", type=int, default=1)
-    r.add_argument("--key-env", default="OPENROUTER_API_KEY", help="env var with your OpenRouter key")
+    r.add_argument("--key-env", default="OPENROUTER_API_KEY",
+                   help="env var with your OpenRouter key (default: the key saved in the app's Settings)")
     r.add_argument("--where", default="this machine", help="where the run happened, for the report")
     r.add_argument("--label", help="name for the result file")
     r.add_argument("--out", metavar="DIR", help="save here instead of results/polish/")
