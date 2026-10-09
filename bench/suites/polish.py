@@ -331,7 +331,7 @@ def report_text(result: dict, markdown: bool = False) -> str:
 
 
 def failures_text(result: dict, spec: str) -> str:
-    cases = {c["id"]: c for c in load_cases()}
+    cases = {c["id"]: c for c in load_cases(harness.ROOT / result["config"].get("cases_file", CASES.name))}
     lines = []
     for r in result["trials"]:
         if r["model"] != spec or r["warmup"]:
@@ -364,7 +364,7 @@ def read_specs(args) -> list[str]:
 
 def cmd_run(args) -> int:
     specs = read_specs(args)
-    cases = load_cases()
+    cases = load_cases(Path(args.cases_file) if args.cases_file else CASES)
     if args.case:
         cases = [c for c in cases if c["id"] in args.case]
     cloud = [s for s in specs if s != "apple"]
@@ -392,6 +392,7 @@ def cmd_run(args) -> int:
     result = {"suite": NAME, "run_at": started.isoformat(timespec="seconds"), "env": harness.environment(),
               "config": {"models": specs, "cases": [c["id"] for c in cases], "rounds": args.rounds, "seed": args.seed,
                          "sort": args.sort, "parallel": args.parallel, "where": args.where,
+                         "cases_file": Path(args.cases_file).name if args.cases_file else CASES.name,
                          "prompt": "app" if not args.prompt_file else Path(args.prompt_file).name,
                          "instructions": prompt, "wrap": args.wrap},
               "summary": summarize(rows), "trials": rows}
@@ -432,6 +433,8 @@ def main(argv: list[str]) -> int:
     r.add_argument("--models-file", help="one model spec per line (# comments)")
     r.add_argument("-r", "--rounds", type=int, default=1, help="times each case is polished per model (default 1)")
     r.add_argument("--case", action="append", metavar="ID", help="only these cases")
+    r.add_argument("--cases-file", help="test set (default polish_cases.json; polish_cases_holdout.json checks a "
+                                        "prompt on dictations it wasn't tuned on)")
     r.add_argument("--sort", choices=["latency", "throughput", "price"],
                    help="ask OpenRouter to route to the provider best at this (unpinned models)")
     r.add_argument("--parallel", type=int, default=4, help="models run side by side (default 4)")

@@ -13,12 +13,14 @@ def test_reads_the_apps_prompt_from_the_swift_source():
 
 
 def test_every_expected_output_passes_its_own_checks():
-    for case in polish.load_cases():
+    holdout = polish.load_cases(polish.CASES.parent / "polish_cases_holdout.json")
+    for case in polish.load_cases() + holdout:
         assert polish.check(case, case["expected"])["passed"], case["id"]
+        assert not polish.check(case, case["raw"])["passed"] or case["kind"] in ("trap", "clean"), case["id"]
 
 
 def test_cases_are_well_formed():
-    cases = polish.load_cases()
+    cases = polish.load_cases() + polish.load_cases(polish.CASES.parent / "polish_cases_holdout.json")
     assert len({c["id"] for c in cases}) == len(cases)
     for c in cases:
         assert c["category"] in ("english", "chinese", "mixed") and c["kind"] in ("filler", "correction", "trap", "clean")
