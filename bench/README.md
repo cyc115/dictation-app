@@ -54,8 +54,7 @@ bench/suite.py latency run --simulate                 # fake timings: try the re
 - **Cost** per default run: about **$0.003**. Cloud Flash hears ~7 min of audio (9 clips × 5
   rounds + warm-up) at the rate measured in `results/`; Apple polish is free. `--local` adds
   On-device (free, but plays each clip in real time: ≈ +7 min); `--big` adds Cloud Big,
-  ≈ $0.02 more. A cloud polish model adds roughly $0.01 per 140
-  dictations. It scales with `--rounds` and clip length.
+  ≈ $0.02 more. A cloud polish model adds under $0.01. It scales with `--rounds` and clip length.
 - **Your own voice** (`--recorded`): turn on Settings → Keep recordings, dictate as usual, then
   `bench/bench.py import-recordings`. Real speech beats TTS for both suites; see below.
 - Results: `results/latency/<time>_<models>.json` with every dictation (text included), config
