@@ -26,8 +26,9 @@ paths** (`Sources/DictationKit/LatencyProbe.swift`), so it includes everything t
 
 ```sh
 ./build.sh                                            # the suite drives /Applications/DictationApp.app
-bench/suite.py latency run --dry-run                  # plan + estimated time (default ≈ 13 min)
-bench/suite.py latency run                            # On-device, Cloud Flash, Cloud Big × {no polish, Apple polish}
+bench/suite.py latency run --dry-run                  # plan + estimated time (default ≈ 11 min)
+bench/suite.py latency run                            # On-device, Cloud Flash × {no polish, Apple polish}
+bench/suite.py latency run --big                      # … plus Cloud Big (opt-in: ~7× Cloud Flash's price)
 bench/suite.py latency run -s flash -s big -r 10      # cloud only, 10 rounds → 90 samples per model
 bench/suite.py latency run -P none -P apple \
     -P openrouter:anthropic/claude-haiku-5.5 -P openrouter:google/gemini-3.8-flash   # compare polish models
@@ -50,10 +51,10 @@ bench/suite.py latency run --simulate                 # fake timings: try the re
   "1 in 20 feels slow" wait. With fewer than 20 samples p95 is marked `*`: raise `--rounds`.
   Cloud numbers are your network at that moment: compare models within one run, and re-run at a
   different time of day before deciding on a small gap.
-- **Cost** per default run: about **$0.02**. Each cloud model hears ~7 min of audio (9 clips × 5
-  rounds + warm-up): Cloud Flash ≈ $0.003, Cloud Big ≈ $0.02 at the rates measured in `results/`.
-  On-device and Apple polish are free. A cloud polish model adds roughly $0.01 per 140 dictations.
-  It scales with `--rounds` and clip length.
+- **Cost** per default run: about **$0.003**. Cloud Flash hears ~7 min of audio (9 clips × 5
+  rounds + warm-up) at the rate measured in `results/`; On-device and Apple polish are free.
+  `--big` adds Cloud Big, ≈ $0.02 more. A cloud polish model adds roughly $0.01 per 140
+  dictations. It scales with `--rounds` and clip length.
 - **Your own voice** (`--recorded`): turn on Settings → Keep recordings, dictate as usual, then
   `bench/bench.py import-recordings`. Real speech beats TTS for both suites; see below.
 - Results: `results/latency/<time>_<models>.json` with every dictation (text included), config

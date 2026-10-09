@@ -193,3 +193,17 @@ def test_recorded_clips_only_with_the_flag(monkeypatch, tmp_path):
     assert "rec-1" not in {c["id"] for c in latency.select_clips(args)}, "default set stays fixed"
     args.recorded = True
     assert [c["id"] for c in latency.select_clips(args)] == ["rec-1"]
+
+
+def test_cloud_big_is_opt_in(monkeypatch, capsys):
+    monkeypatch.setattr(latency, "estimate_seconds", lambda trials, pause: 0)
+    latency.main(["run", "--dry-run", "--clip", "english-01"])
+    assert "2 speech model(s)" in capsys.readouterr().out
+    planned = []
+    monkeypatch.setattr(latency, "plan_trials", lambda stt, *a: planned.append(stt) or [])
+    for argv in (["--big"], ["-s", "big"], ["-s", "flash", "--big"], ["-s", "big", "--big"]):
+        latency.main(["run", "--dry-run", "--clip", "english-01", *argv])
+    big = "openrouter:meta/muse-voice-transcribe-1.0"
+    assert planned[0] == ["apple:en-US", "openrouter:qwen/qwen3-asr-1.7b", big]
+    assert planned[1] == [big] and planned[2] == ["openrouter:qwen/qwen3-asr-1.7b", big]
+    assert planned[3] == [big], "asked twice, timed once"
