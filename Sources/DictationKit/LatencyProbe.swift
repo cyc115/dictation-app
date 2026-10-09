@@ -59,8 +59,11 @@ final class LatencyRunner {
     private let clock: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
 
     func run(_ trial: LatencyTrial, completion: @escaping (LatencySample) -> Void) {
+        // As in AppDelegate.startDictation: polish models start loading when dictation starts.
+        let backends = trial.polish.map { polisher(for: $0) }
+        backends.forEach { $0?.prepare() }
         transcribe(trial) { [weak self] sample in
-            self?.polish(sample, with: trial.polish, completion: completion)
+            self?.polish(sample, with: trial.polish, backends: backends, completion: completion)
         }
     }
 
@@ -118,10 +121,10 @@ final class LatencyRunner {
     }
 
     /// Times each polish backend on the transcript, one after another.
-    private func polish(_ sample: LatencySample, with specs: [String], completion: @escaping (LatencySample) -> Void) {
+    private func polish(_ sample: LatencySample, with specs: [String], backends: [PolishBackend?],
+                        completion: @escaping (LatencySample) -> Void) {
         guard !specs.isEmpty else { return completion(sample) }
         let clock = self.clock
-        let backends = specs.map { polisher(for: $0) }
         Task {
             var sample = sample
             for (spec, backend) in zip(specs, backends) {

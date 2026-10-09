@@ -2,8 +2,14 @@ import Foundation
 
 /// A model that cleans up a dictated transcript.
 protocol PolishBackend {
+    /// Called when dictation starts, so slow setup (loading a model) overlaps with speaking.
+    func prepare()
     /// The cleaned text. Throws when the model is unavailable or fails.
     func polish(_ text: String) async throws -> String
+}
+
+extension PolishBackend {
+    func prepare() {}
 }
 
 enum PolishError: LocalizedError {
@@ -31,6 +37,9 @@ class PolishService {
 
     init(backend: PolishBackend = OnDevicePolish()) { self.backend = backend }
 
+    /// Starts loading the model while you're still speaking (call when dictation starts).
+    func prepare() { backend.prepare() }
+
     /// The polished text, or the raw text if polishing fails — you always get your words.
     func polish(_ text: String) async -> String {
         (try? await polished(text)) ?? text
@@ -46,18 +55,39 @@ class PolishService {
 #if canImport(FoundationModels)
 import FoundationModels
 
-/// Apple's on-device model (Apple Intelligence).
-struct OnDevicePolish: PolishBackend {
+/// Apple's on-device model (Apple Intelligence). Polish took ~2.4 s typical when the session was
+/// created after you stopped (bench/results/latency/BASELINE-pre-optimization.md), so `prepare()`
+/// creates and prewarms the next dictation's session while you speak. Each dictation gets a fresh
+/// session: a reused one would carry earlier dictations in its context.
+final class OnDevicePolish: PolishBackend {
+    private var prepared: LanguageModelSession?
+    private let lock = NSLock()  // prepare() runs on main, polish() in a Task
+
+    func prepare() {
+        guard case .available = SystemLanguageModel.default.availability else { return }
+        let session = LanguageModelSession(instructions: PolishService.instructions)
+        session.prewarm()
+        lock.lock(); prepared = session; lock.unlock()
+    }
+
+    /// The prewarmed session, used once.
+    private func takePrepared() -> LanguageModelSession? {
+        lock.lock(); defer { lock.unlock() }
+        let session = prepared
+        prepared = nil
+        return session
+    }
+
     func polish(_ text: String) async throws -> String {
         guard case .available = SystemLanguageModel.default.availability else {
             throw PolishError.unavailable("Apple Intelligence isn't available on this Mac.")
         }
-        let session = LanguageModelSession(instructions: PolishService.instructions)
+        let session = takePrepared() ?? LanguageModelSession(instructions: PolishService.instructions)
         return try await session.respond(to: text).content
     }
 }
 #else
-struct OnDevicePolish: PolishBackend {
+final class OnDevicePolish: PolishBackend {
     func polish(_ text: String) async throws -> String {
         throw PolishError.unavailable("Apple Intelligence isn't available on this Mac.")
     }

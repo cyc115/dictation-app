@@ -202,6 +202,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             engine = speech
         }
         self.engine = engine
+        // Load the polish model while you speak instead of after you stop.
+        if settings.polishEnabled && !settings.effectiveStreaming { polisher.prepare() }
         setDictating(true)
         dictationStart = Date()
         overlay.showListening(micName: AudioDevices.activeInputName(preferredUID: settings.microphoneUID))

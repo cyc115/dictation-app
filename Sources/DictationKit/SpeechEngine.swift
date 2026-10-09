@@ -15,8 +15,17 @@ class SpeechEngine {
     private var session = 0
     /// Set while stop() waits for the final transcript.
     private var finishHandler: ((String) -> Void)?
-    /// How long stop() waits for the recognizer's final result before using what it has.
-    private let finalResultTimeout: TimeInterval = 2.0
+    /// After stop(), the recognizer often never sends a final result, so waiting for one cost a flat
+    /// 2 s (bench/results/latency/BASELINE-pre-optimization.md). Instead stop() finishes once no new
+    /// words have arrived for `settleDelay` (it has caught up with the audio), at least `minimumWait`
+    /// after stop, and never later than `finalResultTimeout`. A final result still finishes at once.
+    static let finalResultTimeout: TimeInterval = 2.0
+    static let settleDelay: TimeInterval = 0.35
+    static let minimumWait: TimeInterval = 0.2
+    /// When the last recognizer result arrived, and when stop() was called (system uptime).
+    private var lastResultAt: TimeInterval = 0
+    private var stoppedAt: TimeInterval = 0
+    private let clock: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     /// Debug hook: every raw recognizer result (used by Diagnostics).
     var onResult: ((SFSpeechRecognitionResult) -> Void)?
     /// Set while "Keep recordings" is on: mic dictations are also written to WAV and kept here.
@@ -87,6 +96,7 @@ class SpeechEngine {
         complete()  // deliver any previous dictation still waiting for its final result
         session += 1
         transcript = TranscriptAccumulator()
+        lastResultAt = clock()
         guard let recognizer = recognizer else {
             onError("speech recognizer unavailable")
             return nil
@@ -111,6 +121,7 @@ class SpeechEngine {
             guard let self = self, id == self.session else { return }
             let stopping = self.finishHandler != nil
             if let result = result {
+                self.lastResultAt = self.clock()
                 self.onResult?(result)
                 // Metadata marks the last result of an utterance (the recognizer restarts after it).
                 let ended = result.speechRecognitionMetadata != nil || result.isFinal
@@ -138,11 +149,25 @@ class SpeechEngine {
         }
         finishHandler = completion
         request?.endAudio()
-        let id = session
-        DispatchQueue.main.asyncAfter(deadline: .now() + finalResultTimeout) { [weak self] in
-            guard let self = self, id == self.session else { return }
-            self.complete()
+        stoppedAt = clock()
+        finishWhenSettled(session)
+    }
+
+    /// Completes once the recognizer has gone quiet (see `remainingWait`); re-checks until then.
+    private func finishWhenSettled(_ id: Int) {
+        guard id == session, finishHandler != nil else { return }
+        let now = clock()
+        guard let wait = Self.remainingWait(sinceStop: now - stoppedAt, sinceLastResult: now - lastResultAt) else {
+            return complete()
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in self?.finishWhenSettled(id) }
+    }
+
+    /// How much longer stop() should wait for the last words, or nil to finish now.
+    static func remainingWait(sinceStop: TimeInterval, sinceLastResult: TimeInterval) -> TimeInterval? {
+        guard sinceStop < finalResultTimeout else { return nil }
+        let wait = max(minimumWait - sinceStop, settleDelay - sinceLastResult)
+        return wait > 0 ? min(wait, finalResultTimeout - sinceStop) : nil
     }
 
     /// Stops capture and throws the transcript away.

@@ -40,3 +40,14 @@ Pasted from the terminal report; the full JSON stayed on the Mac (`results/laten
 3. **Cloud Flash has a long tail plus 3 errors**: p50 2.0 s but p95 28 s and worst 50 s. Cloud Big is
    steadier (p95 6.8 s). Nothing currently caps how long a dictation can wait on a slow upload (60 s request
    timeout).
+
+## Fixes since (re-run to compare)
+
+- **#1** `SpeechEngine.stop()` now finishes once the recognizer has gone quiet: no new words for 0.35 s,
+  at least 0.2 s after stop, never past 2 s. A real final result still finishes immediately. Expect
+  On-device p50/p95 well under the old 1.10 / 2.11 s. Check On-device accuracy didn't drop
+  (`bench.py run -m apple:en-US`).
+- **#2** Apple polish is created and prewarmed when dictation starts (`PolishService.prepare()`),
+  so loading overlaps with speaking. The benchmark prepares it at trial start the same way. The
+  Settings copy now says "about 2 seconds"; update it once the new numbers are in.
+- **#3** not changed: Cloud Flash (qwen3-asr-1.7b) has a single OpenRouter provider (DeepInfra).

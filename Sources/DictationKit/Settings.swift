@@ -300,7 +300,7 @@ struct SettingsView: View {
             Section {
                 SettingRow("AI polish", settings.effectiveStreaming
                            ? "Not used while “Type as you speak” is on — polish needs the whole dictation."
-                           : "Removes filler words and fixes self-corrections. Adds ~1 s per dictation.") {
+                           : "Removes filler words and fixes self-corrections. Adds about 2 seconds before your text appears.") {
                     Toggle("AI polish", isOn: $settings.polishEnabled)
                 }
             } header: {
