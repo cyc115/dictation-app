@@ -28,8 +28,9 @@ each, so they're timed on clips in their language (repeated to the same count).
 Speech models: local (apple:en-US), local-zh (apple:zh-CN), flash, flash+backup, big, or any
 apple:<locale> / openrouter:<model id>. "+backup" turns on the experimental "Backup model when slow"
 setting for that model's dictations (AdaptiveBackup in Transcription.swift). Polish: none, apple (on-device), or openrouter:<model id> (any chat model;
-the app itself only offers on-device polish today). Cloud models use the key saved in the app's
-Settings, or --key-env VAR to pass one.
+the app itself only offers on-device polish today), or apple-tail: Apple rewriting only the last
+15 words with the rest as context, the wait if earlier phrases were polished while you speak.
+Cloud models use the key saved in the app's Settings, or --key-env VAR to pass one.
 """
 from __future__ import annotations
 
@@ -63,7 +64,9 @@ STT_ALIASES = {
     "flash+backup": ("openrouter:qwen/qwen3-asr-1.7b+backup", "Cloud Flash+backup"),
     "big": ("openrouter:meta/muse-voice-transcribe-1.0", "Cloud Big"),
 }
-POLISH_TITLES = {"none": "no polish", "apple": "Apple on-device"}
+# apple-tail: Apple rewriting only the last 15 words (LatencyRunner.tailWords), the rest as context —
+# the wait if earlier phrases were polished while you speak. Timed, never pasted.
+POLISH_TITLES = {"none": "no polish", "apple": "Apple on-device", "apple-tail": "Apple, last 15 words"}
 # Only Cloud Flash by default; --local / --big (or -s) add the others. Cloud Big costs ~7× Flash.
 DEFAULT_STT = ["flash"]
 DEFAULT_POLISH = ["none", "apple"]
@@ -71,7 +74,7 @@ BACKUP = "+backup"
 LENGTH_BUCKETS = [(0, 5, "< 5 s"), (5, 10, "5–10 s"), (10, float("inf"), "≥ 10 s")]
 
 _STT_SPEC = re.compile(r"^(apple:[A-Za-z]{2,3}(-[A-Za-z0-9]+)*|openrouter:\S+)$")
-_POLISH_SPEC = re.compile(r"^(none|apple|openrouter:\S+)$")
+_POLISH_SPEC = re.compile(r"^(none|apple|apple-tail|openrouter:\S+)$")
 
 
 # ---------------------------------------------------------------- models & clips
@@ -85,7 +88,7 @@ def resolve_stt(name: str) -> str:
 
 def check_polish(spec: str) -> str:
     if not _POLISH_SPEC.match(spec):
-        raise SystemExit(f"unknown polish model {spec!r}: use none, apple or openrouter:<id>")
+        raise SystemExit(f"unknown polish model {spec!r}: use none, apple, apple-tail or openrouter:<id>")
     return spec
 
 

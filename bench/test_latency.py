@@ -39,6 +39,12 @@ def test_plan_matches_what_the_app_decodes():
     assert '("id", "file", "stt", "polish")' in src and '{"pause": pause, "timeout": timeout, "trials"' in src
 
 
+def test_tail_word_count_matches_the_app():
+    swift = (REPO / "Sources/DictationKit/LatencyProbe.swift").read_text()
+    words = re.search(r"static let tailWords = (\d+)", swift).group(1)
+    assert f"last {words} words" in latency.POLISH_TITLES["apple-tail"]
+
+
 def test_resolves_model_names():
     assert latency.resolve_stt("flash") == "openrouter:qwen/qwen3-asr-1.7b"
     assert latency.resolve_stt("flash+backup") == "openrouter:qwen/qwen3-asr-1.7b+backup"
@@ -47,6 +53,7 @@ def test_resolves_model_names():
     with pytest.raises(SystemExit):
         latency.resolve_stt("whisper")
     assert latency.check_polish("openrouter:anthropic/claude-haiku-5.5")
+    assert latency.check_polish("apple-tail") and latency.title("apple-tail") == "Apple, last 15 words"
     with pytest.raises(SystemExit):
         latency.check_polish("gpt")
 

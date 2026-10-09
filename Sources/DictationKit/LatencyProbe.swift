@@ -20,7 +20,8 @@ struct LatencyTrial: Decodable, Equatable {
     /// "apple:<locale>", "openrouter:<model id>", or "openrouter:<model id>+backup" for the
     /// experimental "Backup model when slow" setting turned on.
     let stt: String
-    /// Polish backends to time on this trial's transcript, in order: "apple" or "openrouter:<model id>".
+    /// Polish backends to time on this trial's transcript, in order: "apple", "apple-tail" (only the
+    /// last `LatencyRunner.tailWords` words rewritten, the rest as context) or "openrouter:<model id>".
     let polish: [String]
 }
 
@@ -56,6 +57,8 @@ final class LatencyRunner {
     var transcriptionClient: TranscriptionClient = OpenRouterClient()
     /// Polish backends by spec, overriding the real ones (tests).
     var polishers: [String: PolishBackend] = [:]
+    /// "apple-tail": the newest phrase a chunked polish would still have to write after you stop.
+    static let tailWords = 15
     /// Shared by every "+backup" trial, as the app shares one across dictations.
     var backup = AdaptiveBackup()
 
@@ -75,6 +78,7 @@ final class LatencyRunner {
     func polisher(for spec: String) -> PolishBackend? {
         if let fake = polishers[spec] { return fake }
         if spec == "apple" { return OnDevicePolish() }
+        if spec == "apple-tail" { return OnDevicePolish(tailWords: Self.tailWords) }
         if spec.hasPrefix("openrouter:") {
             return OpenRouterPolish(model: String(spec.dropFirst("openrouter:".count)), apiKey: apiKey)
         }
