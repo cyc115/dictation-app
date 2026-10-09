@@ -46,6 +46,8 @@ Relaunch the app after enabling Accessibility.
   `TranscriptionModel` in `Sources/DictationKit/Transcription.swift`.)
 - **Type as you speak** (Settings → Output, off by default): each phrase is typed into the focused app as soon as you pause, instead of one paste at the end.
 - The bar shows which microphone is recording, under the waveform.
+- **Keep recordings** (Settings → Recordings, off by default): saves each dictation's audio and
+  transcript on this Mac, to use as a benchmark set (`bench/README.md`).
 - Menu bar 🎙 → **AI polish (on-device)** toggles LLM cleanup (default: off).
   When on, Apple's on-device model removes fillers and fixes self-corrections —
   it never rewrites your meaning, and nothing leaves your Mac.
@@ -71,6 +73,7 @@ bench/suite.py latency run   # wait after you press stop, per speech/polish mode
 
 - The mic opens **only** while you hold Fn (or while menu-bar dictation is active) — never in the background.
 - Transcription runs 100% on-device via Apple Speech (`requiresOnDeviceRecognition`).
+- Audio is deleted once transcribed, unless you turn on Keep recordings (stored only on this Mac).
 - Your clipboard is saved before pasting and restored ~1s after, so nothing you copied is lost.
 
 ## Troubleshooting

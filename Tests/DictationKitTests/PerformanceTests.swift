@@ -14,6 +14,17 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// With "Keep recordings" on, the mic tap also converts each buffer to 16 kHz and writes it
+    /// (on-device and cloud alike); a buffer arrives every 21 ms.
+    func testRecordingPerBuffer() throws {
+        let recorder = try WAVRecorder(url: makeTempURL(self, "rec.wav"))
+        let buffer = AudioLevelTests.buffer(amplitude: 0.2)
+        assertFaster(than: 0.002, iterations: 500, "WAV recorder append per 1024-frame buffer") {
+            recorder.append(buffer)
+        }
+        recorder.finish()
+    }
+
     /// Redrawn on every buffer while listening; must fit well inside a 16 ms frame.
     func testWaveformRedraw() {
         let waveform = WaveformView(frame: NSRect(x: 0, y: 0, width: 72, height: 20))

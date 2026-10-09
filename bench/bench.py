@@ -15,6 +15,8 @@ Compare any OpenRouter transcription model against Apple's on-device models on t
   bench/bench.py report                     # latest result per model, side by side
   bench/bench.py export > results.json      # everything the comparison page needs
   bench/bench.py add my-clip.m4a --id mixed-real-01 --category mixed --text "帮我 build 一下"
+  bench/bench.py import-recordings          # your dictations, kept by Settings → Keep recordings
+  bench/bench.py verify rec-… --text "what I actually said"   # then they count for accuracy
   bench/bench.py list
 
 Models: "openrouter:<model-id>" or "apple:<locale>". Results: bench/results/*.json.
@@ -52,6 +54,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 CASES = ROOT / "cases.json"
 AUDIO = ROOT / "audio"
+# Your own recordings (import-recordings): git-ignored, like audio/rec-*.wav — your voice stays local.
+RECORDED = ROOT / "recorded.json"
+APP_RECORDINGS = Path.home() / "Library/Application Support/DictationApp/Recordings"
 RESULTS = ROOT / "results"
 APP = Path("/Applications/DictationApp.app")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/audio/transcriptions"
@@ -122,8 +127,24 @@ def english_recall(reference: str, hypothesis: str) -> float | None:
 # ---------------------------------------------------------------- cases & audio
 
 def load_cases(categories: list[str] | None = None) -> list[dict]:
-    cases = json.loads(CASES.read_text())["cases"]
+    cases = json.loads(CASES.read_text())["cases"] + load_recorded()
     return [c for c in cases if not categories or c["category"] in categories]
+
+
+def load_recorded() -> list[dict]:
+    return json.loads(RECORDED.read_text())["cases"] if RECORDED.exists() else []
+
+
+def save_recorded(cases: list[dict]) -> None:
+    RECORDED.write_text(json.dumps({"about": "Your recordings (bench.py import-recordings). Git-ignored. "
+                                    "'verified': false means text is what the app heard, not checked yet.",
+                                    "cases": cases}, ensure_ascii=False, indent=2) + "\n")
+
+
+def guess_category(text: str) -> str:
+    has_cjk = bool(_CJK.search(text))
+    has_latin = bool(re.search(r"[A-Za-z]{2,}", text))
+    return "mixed" if has_cjk and has_latin else "chinese" if has_cjk else "english"
 
 
 def to_wav(src: Path, dst: Path) -> None:
@@ -237,11 +258,71 @@ def cmd_add(args) -> int:
     return 0
 
 
+def cmd_import_recordings(args) -> int:
+    """Copies recordings kept by the app (WAV + JSON of what it heard) into the benchmark as cases."""
+    source = Path(args.dir).expanduser()
+    wavs = sorted(source.glob("*.wav")) if source.is_dir() else []
+    if not wavs:
+        print(f"no recordings in {source} — turn on Settings → Keep recordings and dictate a few")
+        return 1
+    recorded = load_recorded()
+    known = {c["id"] for c in json.loads(CASES.read_text())["cases"] + recorded}
+    added = 0
+    for wav in wavs:
+        cid = f"rec-{wav.stem}"
+        if cid in known:
+            continue
+        meta_path = wav.with_suffix(".json")
+        meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+        out = AUDIO / f"{cid}.wav"
+        try:
+            with wave.open(str(wav)) as w:
+                plain = (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, 16000)
+        except (wave.Error, EOFError):
+            plain = False  # a WAV variant Python can't parse: afconvert can
+        if plain:
+            _write_pcm(out, _read_pcm(wav))  # rewrites the header: the app's WAVs can carry padding chunks
+        else:
+            to_wav(wav, out)
+        if wav_seconds(out) < args.min_seconds:
+            out.unlink()
+            continue
+        text = meta.get("transcript", "")
+        recorded.append({"id": cid, "category": args.category or guess_category(text), "source": "recorded",
+                         "text": text, "verified": False, "heard_by": meta.get("model"),
+                         "recorded_at": meta.get("date"), **({"error": meta["error"]} if meta.get("error") else {})})
+        known.add(cid)
+        added += 1
+        print(f"  {cid}  {wav_seconds(out):5.1f}s  {recorded[-1]['category']:<8} {text[:70] or '(' + meta.get('error', 'no transcript') + ')'}")
+    save_recorded(recorded)
+    print(f"imported {added} recording(s) into bench/{RECORDED.name} (git-ignored).")
+    if added:
+        print("Latency works with them now (suite.py latency run --recorded). For accuracy, correct each text\n"
+              "to what you actually said: bench/bench.py verify <id> --text \"…\" (or edit recorded.json, verified: true).")
+    return 0
+
+
+def cmd_verify(args) -> int:
+    recorded = load_recorded()
+    case = next((c for c in recorded if c["id"] == args.id), None)
+    if case is None:
+        sys.exit(f"no recorded case {args.id!r} (bench/bench.py list)")
+    if args.text is not None:
+        case["text"] = args.text
+    if args.category:
+        case["category"] = args.category
+    case["verified"] = True
+    save_recorded(recorded)
+    print(f"verified {case['id']}: {case['text']}")
+    return 0
+
+
 def cmd_list(args) -> int:
     for c in load_cases(args.category):
         wav = AUDIO / f"{c['id']}.wav"
         dur = f"{wav_seconds(wav):4.1f}s" if wav.exists() else "  —  "
-        print(f"{c['id']:<17} L{c.get('level', 1)} {c['category']:<8} {c.get('source', 'tts'):<9} {dur}  {c['text']}")
+        flag = " (unverified)" if c.get("verified") is False else ""
+        print(f"{c['id']:<17} L{c.get('level', 1)} {c['category']:<8} {c.get('source', 'tts'):<9} {dur}  {c['text']}{flag}")
     return 0
 
 
@@ -399,6 +480,11 @@ def cmd_run(args) -> int:
     cases = load_cases(args.category)
     if args.level:
         cases = [c for c in cases if c.get("level", 1) in args.level]
+    unverified = [c for c in cases if c.get("verified") is False]
+    if unverified and not args.include_unverified:
+        # Their text is what one model heard: scoring against it would favour that model.
+        print(f"skipping {len(unverified)} unverified recording(s) — `bench.py verify` them, or --include-unverified")
+        cases = [c for c in cases if c.get("verified") is not False]
     missing = [c["id"] for c in cases if not (AUDIO / f"{c['id']}.wav").exists()]
     if missing:
         sys.exit(f"missing audio for {', '.join(missing)} — run `bench/bench.py synth`")
@@ -507,6 +593,8 @@ def main(argv=None) -> int:
     r.add_argument("-p", "--parallel", type=int, default=12, help="cloud models to run at once")
     r.add_argument("--key-env", default="OPENROUTER_KEY", help="env var holding the OpenRouter key")
     r.add_argument("--json", action="store_true", help="print the summary as JSON")
+    r.add_argument("--include-unverified", action="store_true",
+                   help="also score recordings whose text hasn't been checked (biased toward the model that heard them)")
     r.set_defaults(func=cmd_run)
     rep = sub.add_parser("report", help="compare the latest result of each model")
     rep.add_argument("-m", "--model", action="append", help="only these models")
@@ -528,6 +616,16 @@ def main(argv=None) -> int:
     a.add_argument("--category", required=True, choices=CATEGORIES)
     a.add_argument("--text", required=True, help="exact reference transcript")
     a.set_defaults(func=cmd_add)
+    im = sub.add_parser("import-recordings", help="add recordings the app kept (Settings → Keep recordings)")
+    im.add_argument("dir", nargs="?", default=str(APP_RECORDINGS), help=f"default: {APP_RECORDINGS}")
+    im.add_argument("--category", choices=CATEGORIES, help="instead of guessing from the transcript")
+    im.add_argument("--min-seconds", type=float, default=1.0, help="skip shorter recordings")
+    im.set_defaults(func=cmd_import_recordings)
+    v = sub.add_parser("verify", help="mark a recording's text as checked (optionally correcting it)")
+    v.add_argument("id")
+    v.add_argument("--text", help="what was actually said")
+    v.add_argument("--category", choices=CATEGORIES)
+    v.set_defaults(func=cmd_verify)
     ls = sub.add_parser("list", help="list cases")
     ls.add_argument("-c", "--category", action="append", choices=CATEGORIES)
     ls.set_defaults(func=cmd_list)

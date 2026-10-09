@@ -180,3 +180,16 @@ def test_run_with_no_finished_dictations_saves_nothing(monkeypatch, tmp_path, ca
                          "--out", str(tmp_path)]) == 1
     assert not list(tmp_path.glob("*.json"))
     assert "nothing saved" in capsys.readouterr().out
+
+
+def test_recorded_clips_only_with_the_flag(monkeypatch, tmp_path):
+    import argparse
+    mine = {"id": "rec-1", "category": "mixed", "source": "recorded", "text": "", "verified": False}
+    monkeypatch.setattr(harness, "load_cases", lambda: harness.json.loads(harness.CASES.read_text())["cases"] + [mine])
+    monkeypatch.setattr(latency, "clip_seconds", lambda c: 99.0 if c["id"] == "rec-1" else harness.wav_seconds(harness.AUDIO / f"{c['id']}.wav"))
+    real_exists = Path.exists
+    monkeypatch.setattr(Path, "exists", lambda p: p.name == "rec-1.wav" or real_exists(p))
+    args = argparse.Namespace(clip=None, all_clips=False, recorded=False)
+    assert "rec-1" not in {c["id"] for c in latency.select_clips(args)}, "default set stays fixed"
+    args.recorded = True
+    assert [c["id"] for c in latency.select_clips(args)] == ["rec-1"]

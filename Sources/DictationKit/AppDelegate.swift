@@ -184,6 +184,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func startDictation() {
         guard !dictating else { return }
         let model = settings.transcriptionModel
+        let archive = settings.keepRecordings ? RecordingArchive.shared : nil
+        cloud.archive = archive
+        speech.archive = archive
         let engine: DictationEngine
         if let modelID = model.openRouterID {
             guard let key = settings.openRouterKey, !key.isEmpty else {

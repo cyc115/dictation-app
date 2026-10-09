@@ -2,3 +2,6 @@
 .serena/
 Tests/DictationKitTests/__Snapshots__/failures/
 __pycache__/
+# Your own dictations (bench.py import-recordings) stay on this Mac
+bench/recorded.json
+bench/audio/rec-*.wav

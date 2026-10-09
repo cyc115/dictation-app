@@ -3,6 +3,7 @@
   bench/suite.py latency run                         # app models × {no polish, Apple polish}, 5 rounds
   bench/suite.py latency run -s flash -s big -r 10   # just the cloud models, 10 rounds
   bench/suite.py latency run -P none -P apple -P openrouter:anthropic/claude-haiku-5.5
+  bench/suite.py latency run --recorded              # your own dictations (Settings → Keep recordings)
   bench/suite.py latency run --dry-run               # show the plan and how long it'll take
   bench/suite.py latency report [--by-length] [--markdown] [--file results/latency/….json]
 
@@ -97,7 +98,8 @@ def default_clips(cases: list[dict]) -> list[dict]:
     command up to a long dictation. Latency grows with length for cloud models (bigger upload)."""
     picked: list[dict] = []
     for category in ("mixed", "chinese", "english"):
-        pool = sorted((c for c in cases if c["category"] == category and c.get("level", 1) <= 2),
+        pool = sorted((c for c in cases if c["category"] == category and c.get("level", 1) <= 2
+                       and c.get("source") != "recorded"),  # a fixed set, so runs stay comparable
                       key=lambda c: (clip_seconds(c), c["id"]))
         for c in (pool[0], pool[len(pool) // 2], pool[-1]) if pool else ():
             if c not in picked:
@@ -115,6 +117,11 @@ def select_clips(args) -> list[dict]:
         return [by_id[i] for i in args.clip]
     if args.all_clips:
         return cases
+    if args.recorded:
+        mine = [c for c in cases if c.get("source") == "recorded"]
+        if not mine:
+            raise SystemExit("no recordings imported yet — bench/bench.py import-recordings")
+        return mine
     return default_clips(cases)
 
 
@@ -411,6 +418,8 @@ def main(argv: list[str]) -> int:
     r.add_argument("-r", "--rounds", type=int, default=5, help="times each clip × speech model is dictated (default 5)")
     r.add_argument("--clip", action="append", metavar="ID", help="use these clips instead of the default 9")
     r.add_argument("--all-clips", action="store_true", help="every clip with audio (slow)")
+    r.add_argument("--recorded", action="store_true",
+                   help="your own dictations (bench.py import-recordings) instead of the TTS clips")
     r.add_argument("--warmup", type=int, default=1, help="warm-up dictations per speech model (default 1)")
     r.add_argument("--seed", type=int, default=1, help="shuffle seed, for a reproducible order")
     r.add_argument("--pause", type=float, default=0.3, help="seconds between dictations")

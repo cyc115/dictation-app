@@ -7,7 +7,7 @@ import XCTest
 /// (and a user) would, and checks the app state they change.
 final class SettingsUITests: XCTestCase {
     private func host(_ settings: AppSettings) -> HostedView<SettingsView> {
-        let hosted = HostedView(SettingsView(settings: settings), size: NSSize(width: 640, height: 1400))
+        let hosted = HostedView(SettingsView(settings: settings), size: NSSize(width: 640, height: 1700))
         addTeardownBlock { hosted.close() }
         return hosted
     }
@@ -16,7 +16,7 @@ final class SettingsUITests: XCTestCase {
         let hosted = host(AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore()))
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
-                      "Mouse button", "Type as you speak", "AI polish", "Model", "Language"] {
+                      "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep recordings"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }
@@ -29,7 +29,8 @@ final class SettingsUITests: XCTestCase {
                               ("Mute when dictating", { settings.muteWhileDictating }),
                               ("Show app in Dock", { settings.showInDock }),
                               ("Type as you speak", { settings.streamWhileSpeaking }),
-                              ("AI polish", { settings.polishEnabled })] as [(String, () -> Bool)] {
+                              ("AI polish", { settings.polishEnabled }),
+                              ("Keep recordings", { settings.keepRecordings })] as [(String, () -> Bool)] {
             let before = read()
             guard let toggle = hosted.element(id: "setting." + title) else { XCTFail("no \(title)"); continue }
             XCTAssertTrue(hosted.click(toggle), "\(title) not clickable")
@@ -41,6 +42,17 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(reloaded.showInDock)
         XCTAssertTrue(reloaded.streamWhileSpeaking)
         XCTAssertTrue(reloaded.polishEnabled)
+        XCTAssertTrue(reloaded.keepRecordings)
+    }
+
+    func testRecordingsFolderOnlyShownWhileKeepingRecordings() {
+        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        let hosted = host(settings)
+        XCTAssertNil(hosted.element(id: "setting.Recordings folder"))
+        guard let toggle = hosted.element(id: "setting.Keep recordings") else { return XCTFail("no toggle") }
+        XCTAssertTrue(hosted.click(toggle))
+        hosted.settle()
+        XCTAssertNotNil(hosted.element(id: "setting.Recordings folder"))
     }
 
     func testCloudModelDisablesUnsupportedSettingsButKeepsThem() {

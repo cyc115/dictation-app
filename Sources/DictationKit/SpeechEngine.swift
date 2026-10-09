@@ -19,6 +19,9 @@ class SpeechEngine {
     private let finalResultTimeout: TimeInterval = 2.0
     /// Debug hook: every raw recognizer result (used by Diagnostics).
     var onResult: ((SFSpeechRecognitionResult) -> Void)?
+    /// Set while "Keep recordings" is on: mic dictations are also written to WAV and kept here.
+    var archive: RecordingArchive?
+    private var recorder: WAVRecorder?
 
     /// Starts listening on the microphone.
     /// - `inputUID` picks a microphone by CoreAudio UID; empty or missing uses the system default.
@@ -34,9 +37,11 @@ class SpeechEngine {
         if !inputUID.isEmpty { AudioDevices.route(audioEngine, toInputUID: inputUID) }
         let input = audioEngine.inputNode
         let format = input.outputFormat(forBus: 0)
+        let recorder = startRecording()
         input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             self?.request?.append(buffer)
+            recorder?.append(buffer)
             let level = Self.level(of: buffer)
             DispatchQueue.main.async { onLevel(level) }
         }
@@ -46,6 +51,7 @@ class SpeechEngine {
         } catch {
             input.removeTap(onBus: 0)
             self.request = nil
+            finishRecording(transcript: nil)
             onError("could not open microphone: \(error.localizedDescription)")
             return
         }
@@ -126,6 +132,7 @@ class SpeechEngine {
         audioEngine.inputNode.removeTap(onBus: 0)
         guard task != nil else {  // start failed — nothing more is coming
             request = nil
+            finishRecording(transcript: nil)
             completion(transcript.text)
             return
         }
@@ -148,6 +155,29 @@ class SpeechEngine {
         task = nil
         request = nil
         transcript = TranscriptAccumulator()
+        finishRecording(transcript: nil)
+    }
+
+    /// Opens a WAV for this dictation when recordings are kept (the mic tap appends to it).
+    func startRecording() -> WAVRecorder? {
+        finishRecording(transcript: nil)
+        guard archive != nil else { return nil }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-\(UUID().uuidString).wav")
+        recorder = try? WAVRecorder(url: url)
+        return recorder
+    }
+
+    /// Closes the WAV and keeps it with what was heard, or deletes it (cancelled, failed, a tap of the key).
+    func finishRecording(transcript text: String?) {
+        guard let recorder = recorder else { return }
+        self.recorder = nil
+        recorder.finish()
+        if let archive = archive, let text = text, recorder.duration >= 0.3 {
+            archive.keep(wav: recorder.url, info: RecordingInfo(date: Date(), model: "apple:\(localeIdentifier)",
+                                                                transcript: text, seconds: recorder.duration))
+        } else {
+            try? FileManager.default.removeItem(at: recorder.url)
+        }
     }
 
     /// Ends the current session and hands the transcript to the pending stop() caller.
@@ -158,7 +188,9 @@ class SpeechEngine {
         task?.cancel()
         task = nil
         request = nil
-        handler(transcript.text)
+        let text = transcript.text
+        handler(text)
+        finishRecording(transcript: text)  // after the text is delivered: no file I/O in your wait
     }
 
     /// RMS of the first channel mapped from -50…-10 dBFS onto 0…1.

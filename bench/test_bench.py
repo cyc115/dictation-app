@@ -77,3 +77,93 @@ def test_score_case_aggregates_repeats(monkeypatch):
     assert row["en_recall"] == 0.5
     assert row["latency"] == 2.0 and row["latencies"] == [1.0, 3.0]
     assert row["cost"] == 0.002 and row["runs"] == 2
+
+
+def _app_recording(directory, stem, transcript, seconds=2.0, model="openrouter:qwen/qwen3-asr-1.7b", error=None):
+    """What RecordingArchive writes: a 16 kHz mono WAV and a JSON of what was heard."""
+    import json
+    bench._write_pcm(directory / f"{stem}.wav", [0] * int(16000 * seconds))
+    meta = {"date": "2026-10-08T22:57:11Z", "model": model, "transcript": transcript, "seconds": seconds}
+    if error:
+        meta["error"] = error
+    (directory / f"{stem}.json").write_text(json.dumps(meta, ensure_ascii=False))
+
+
+def _isolated(monkeypatch, tmp_path):
+    audio = tmp_path / "audio"
+    audio.mkdir()
+    monkeypatch.setattr(bench, "AUDIO", audio)
+    monkeypatch.setattr(bench, "RECORDED", tmp_path / "recorded.json")
+    app = tmp_path / "Recordings"
+    app.mkdir()
+    return app, audio
+
+
+def test_import_recordings_adds_unverified_cases_once(monkeypatch, tmp_path):
+    import argparse
+    app, audio = _isolated(monkeypatch, tmp_path)
+    _app_recording(app, "20261008-225711-123", "帮我 build 一下")
+    _app_recording(app, "20261008-225800-000", "今天天气很好")
+    _app_recording(app, "20261008-225900-000", "Ship it today", model="apple:en-US")
+    _app_recording(app, "20261008-230000-000", "", error="Provider could not process the audio input")
+    _app_recording(app, "20261008-230100-000", "嗯", seconds=0.4)  # a tap of the key
+    args = argparse.Namespace(dir=str(app), category=None, min_seconds=1.0)
+    assert bench.cmd_import_recordings(args) == 0
+    cases = {c["id"]: c for c in bench.load_recorded()}
+    assert set(cases) == {"rec-20261008-225711-123", "rec-20261008-225800-000", "rec-20261008-225900-000",
+                          "rec-20261008-230000-000"}
+    first = cases["rec-20261008-225711-123"]
+    assert first["category"] == "mixed" and first["verified"] is False and first["source"] == "recorded"
+    assert first["heard_by"] == "openrouter:qwen/qwen3-asr-1.7b"
+    assert cases["rec-20261008-225800-000"]["category"] == "chinese"
+    assert cases["rec-20261008-225900-000"]["category"] == "english"
+    assert cases["rec-20261008-230000-000"]["error"].startswith("Provider")
+    assert abs(bench.wav_seconds(audio / "rec-20261008-225711-123.wav") - 2.0) < 0.01
+    assert not (audio / "rec-20261008-230100-000.wav").exists()
+    assert bench.cmd_import_recordings(args) == 0
+    assert len(bench.load_recorded()) == 4, "importing again adds nothing"
+
+
+def test_verify_corrects_text_and_unverified_cases_are_not_scored(monkeypatch, tmp_path):
+    import argparse
+    app, _ = _isolated(monkeypatch, tmp_path)
+    _app_recording(app, "a", "帮我定一下")
+    bench.cmd_import_recordings(argparse.Namespace(dir=str(app), category=None, min_seconds=1.0))
+    assert any(c["id"] == "rec-a" for c in bench.load_cases())
+    bench.cmd_verify(argparse.Namespace(id="rec-a", text="帮我 build 一下", category="mixed"))
+    case = bench.load_recorded()[0]
+    assert case["verified"] is True and case["text"] == "帮我 build 一下"
+
+
+def test_run_skips_unverified_recordings(monkeypatch, tmp_path, capsys):
+    import argparse
+    app, audio = _isolated(monkeypatch, tmp_path)
+    for clip in (bench.ROOT / "audio").glob("*.wav"):
+        (audio / clip.name).symlink_to(clip)
+    _app_recording(app, "a", "hello there friend")
+    bench.cmd_import_recordings(argparse.Namespace(dir=str(app), category=None, min_seconds=1.0))
+    ran = []
+    monkeypatch.setattr(bench, "run_model", lambda m, cases, args, commit: ran.extend(c["id"] for c in cases))
+    monkeypatch.setattr(bench, "cmd_report", lambda a: 0)
+    monkeypatch.setattr(bench, "RESULTS", tmp_path / "results")
+    base = dict(model=["openrouter:x"], category=["english"], level=None, repeat=1, parallel=1,
+                key_env="K", json=False)
+    bench.cmd_run(argparse.Namespace(**base, include_unverified=False))
+    assert "rec-a" not in ran and "english-01" in ran
+    assert "skipping 1 unverified" in capsys.readouterr().out
+    ran.clear()
+    bench.cmd_run(argparse.Namespace(**base, include_unverified=True))
+    assert "rec-a" in ran
+
+
+def test_guess_category():
+    assert bench.guess_category("帮我 build 一下") == "mixed"
+    assert bench.guess_category("今天天气很好。") == "chinese"
+    assert bench.guess_category("Ship it.") == "english"
+
+
+def test_recordings_never_reach_git():
+    import subprocess
+    root = Path(__file__).resolve().parents[1]
+    for path in ("bench/recorded.json", "bench/audio/rec-20261008-225711-123.wav"):
+        assert subprocess.run(["git", "check-ignore", "-q", path], cwd=root).returncode == 0, path

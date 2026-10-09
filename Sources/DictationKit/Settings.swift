@@ -53,6 +53,7 @@ final class AppSettings: ObservableObject {
         static let streaming = "streamWhileSpeaking"
         static let model = "transcriptionModel"
         static let language = "localLanguage"
+        static let keepRecordings = "keepRecordings"
     }
 
     var onChange: (() -> Void)?
@@ -92,6 +93,10 @@ final class AppSettings: ObservableObject {
     /// Language for the local model (kept while a cloud model is selected).
     @Published var localLanguage: LocalLanguage {
         didSet { defaults.set(localLanguage.rawValue, forKey: Key.language); onChange?() }
+    }
+    /// Save each dictation's audio and transcript on this Mac, for benchmarks (RecordingArchive).
+    @Published var keepRecordings: Bool {
+        didSet { defaults.set(keepRecordings, forKey: Key.keepRecordings); onChange?() }
     }
     @Published private(set) var hasOpenRouterKey = false
     private let secrets: SecretStore
@@ -134,6 +139,7 @@ final class AppSettings: ObservableObject {
         streamWhileSpeaking = defaults.bool(forKey: Key.streaming)
         transcriptionModel = TranscriptionModel(rawValue: defaults.string(forKey: Key.model) ?? "") ?? .local
         localLanguage = LocalLanguage(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .english
+        keepRecordings = defaults.bool(forKey: Key.keepRecordings)
         hasOpenRouterKey = !(secrets.get(Self.openRouterAccount) ?? "").isEmpty
         launchAtLogin = false
         refreshLoginItem()
@@ -299,6 +305,19 @@ struct SettingsView: View {
                 }
             } header: {
                 Label("Cleanup", systemImage: "wand.and.stars")
+            }
+
+            Section {
+                SettingRow("Keep recordings", "Save each dictation's audio and what was heard on this Mac, to build a test set for comparing speech models. When off, audio is deleted once it's transcribed.") {
+                    Toggle("Keep recordings", isOn: $settings.keepRecordings)
+                }
+                if settings.keepRecordings {
+                    SettingRow("Recordings folder", "Application Support › DictationApp › Recordings. Cancelled dictations aren't kept.") {
+                        Button("Show in Finder") { RecordingArchive.shared.showInFinder() }
+                    }
+                }
+            } header: {
+                Label("Recordings", systemImage: "waveform")
             }
         }
         .formStyle(.grouped)

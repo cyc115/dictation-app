@@ -50,6 +50,12 @@ bench/suite.py latency run --simulate                 # fake timings: try the re
   "1 in 20 feels slow" wait. With fewer than 20 samples p95 is marked `*`: raise `--rounds`.
   Cloud numbers are your network at that moment: compare models within one run, and re-run at a
   different time of day before deciding on a small gap.
+- **Cost** per default run: about **$0.02**. Each cloud model hears ~7 min of audio (9 clips × 5
+  rounds + warm-up): Cloud Flash ≈ $0.003, Cloud Big ≈ $0.02 at the rates measured in `results/`.
+  On-device and Apple polish are free. A cloud polish model adds roughly $0.01 per 140 dictations.
+  It scales with `--rounds` and clip length.
+- **Your own voice** (`--recorded`): turn on Settings → Keep recordings, dictate as usual, then
+  `bench/bench.py import-recordings`. Real speech beats TTS for both suites; see below.
 - Results: `results/latency/<time>_<models>.json` with every dictation (text included), config
   and machine, so any run can be re-reported or compared later.
 
@@ -83,3 +89,17 @@ uv run --with pytest --with opencc-python-reimplemented==0.1.7 pytest bench   # 
 - **Cost** is what OpenRouter charged per audio second, shown in the page as a multiple of Meta Muse.
 - **Audio** is TTS, so it's cleaner than real speech. Add real recordings with `add` for a truer picture;
   keep case ids stable so results stay comparable.
+
+## Your own recordings as a test set
+
+1. Settings → **Keep recordings** (off by default). Every finished dictation is saved on this Mac
+   as a 16 kHz WAV plus a JSON of what the model heard, in
+   `~/Library/Application Support/DictationApp/Recordings/`. Cancelled dictations aren't kept;
+   failed cloud uploads are (with the error), since they're the cases worth testing.
+2. `bench/bench.py import-recordings` copies new ones in as cases `rec-<time>`, with the category
+   guessed from the transcript. They go to `recorded.json` and `audio/rec-*.wav`, both **git-ignored**
+   so your voice and what you said never get committed by accident.
+3. Latency needs no more than that: `bench/suite.py latency run --recorded`.
+4. Accuracy needs the right answer. The imported text is only what one model heard, so the cases
+   start `verified: false` and `bench.py run` skips them (scoring against one model's guess would
+   favour that model). Fix each one with `bench/bench.py verify rec-… --text "what I actually said"`.

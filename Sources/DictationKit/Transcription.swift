@@ -128,6 +128,8 @@ final class WAVRecorder {
     private var converter: AVAudioConverter?
     private(set) var framesWritten: AVAudioFramePosition = 0
     private var finished = false
+    /// append() runs on the audio thread, finish() on main.
+    private let lock = NSLock()
 
     init(url: URL) throws {
         self.url = url
@@ -142,12 +144,14 @@ final class WAVRecorder {
     /// Closes the file so its header declares the real length. Must happen before the file is
     /// read: until then the header says 0 bytes of audio, which strict providers (Qwen) reject.
     func finish() {
+        lock.lock(); defer { lock.unlock() }
         guard !finished else { return }
         finished = true
         file.close()
     }
 
     func append(_ buffer: AVAudioPCMBuffer) {
+        lock.lock(); defer { lock.unlock() }
         guard !finished else { return }
         if converter == nil || converter?.inputFormat != buffer.format {
             converter = AVAudioConverter(from: buffer.format, to: outputFormat)
@@ -266,6 +270,8 @@ final class CloudEngine: DictationEngine {
     var modelID = TranscriptionModel.metaMuse.openRouterID!
     var apiKey = ""
     var client: TranscriptionClient = OpenRouterClient()
+    /// Set while "Keep recordings" is on: finished recordings go here instead of being deleted.
+    var archive: RecordingArchive?
 
     private var audioEngine = AVAudioEngine()
     private var recorder: WAVRecorder?
@@ -318,12 +324,21 @@ final class CloudEngine: DictationEngine {
         }
         recorder.finish()
         let url = recorder.url
+        let archive = self.archive
+        let info = RecordingInfo(date: Date(), model: "openrouter:\(modelID)", transcript: "", seconds: recorder.duration)
         upload = client.transcribe(wav: url, model: modelID, apiKey: apiKey) { result in
-            try? FileManager.default.removeItem(at: url)
+            var heard = info
+            switch result {
+            case .success(let r): heard.transcript = r.text
+            case .failure(let e): heard.error = e.localizedDescription
+            }
             switch result {
             case .success(let r): completion(r.text)
             case .failure(let e): failure(e.localizedDescription)
             }
+            // After the text is delivered, so keeping it adds nothing to your wait. Failed uploads
+            // are kept too: they're the cases a benchmark most needs.
+            if let archive = archive { archive.keep(wav: url, info: heard) } else { try? FileManager.default.removeItem(at: url) }
         }
     }
 

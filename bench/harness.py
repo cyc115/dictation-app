@@ -119,8 +119,12 @@ CASES = ROOT / "cases.json"
 AUDIO = ROOT / "audio"
 
 
+RECORDED = ROOT / "recorded.json"  # your own recordings (bench.py import-recordings), git-ignored
+
+
 def load_cases() -> list[dict]:
-    return json.loads(CASES.read_text())["cases"]
+    recorded = json.loads(RECORDED.read_text())["cases"] if RECORDED.exists() else []
+    return json.loads(CASES.read_text())["cases"] + recorded
 
 
 def wav_seconds(path: Path) -> float:
