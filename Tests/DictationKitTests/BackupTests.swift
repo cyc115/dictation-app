@@ -27,7 +27,7 @@ final class ScriptedTranscriptionClient: TranscriptionClient {
     }
 }
 
-/// Experimental "Backup model when slow": Cloud Flash's slow tail (p95 28 s in the latency
+/// "Backup model when slow": Cloud Flash's slow tail (p95 28 s in the latency
 /// baseline) comes in spells. Runs the real CloudEngine.stop() → UploadRace path with a scripted client.
 final class CloudBackupTests: XCTestCase {
     typealias Client = ScriptedTranscriptionClient

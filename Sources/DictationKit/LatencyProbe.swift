@@ -18,7 +18,7 @@ struct LatencyTrial: Decodable, Equatable {
     /// Audio clip (16 kHz mono WAV from bench/audio).
     let file: String
     /// "apple:<locale>", "openrouter:<model id>", or "openrouter:<model id>+backup" for the
-    /// experimental "Backup model when slow" setting turned on.
+    /// "Backup model when slow" setting on (the app's default).
     let stt: String
     /// Polish backends to time on this trial's transcript, in order: "apple", "apple-tail" (only the
     /// last `LatencyRunner.tailWords` words rewritten, the rest as context) or "openrouter:<model id>".

@@ -41,7 +41,7 @@ enum TranscriptionModel: String, CaseIterable {
     /// Apple's models are one language each; cloud models detect English/Chinese themselves.
     var supportsLanguageChoice: Bool { !isCloud }
 
-    /// Smaller, faster model the experimental "Backup model when slow" setting also asks when this
+    /// Smaller, faster model the "Backup model when slow" setting also asks when this
     /// one is slow (AdaptiveBackup). Cloud Flash only.
     var backupOpenRouterID: String? { self == .qwenASR ? "qwen/qwen3-asr-0.6b" : nil }
 }
@@ -276,7 +276,7 @@ final class CloudEngine: DictationEngine {
     var client: TranscriptionClient = OpenRouterClient()
     /// Set while "Keep recordings" is on: finished recordings go here instead of being deleted.
     var archive: RecordingArchive?
-    /// Experimental "Backup model when slow"; nil (the default) asks only `modelID`.
+    /// "Backup model when slow"; nil asks only `modelID`.
     var backup: AdaptiveBackup?
     /// The model whose transcript the last dictation used (the backup, if it answered first).
     private(set) var lastAnsweredBy: String?
@@ -367,7 +367,7 @@ final class CloudEngine: DictationEngine {
 
 // MARK: - Backup model (experimental)
 
-/// Experimental, off by default (Settings → "Backup model when slow"). Cloud Flash usually answers in
+/// On by default (Settings → Speech model → "Backup model when slow"); off asks Cloud Flash only. Cloud Flash usually answers in
 /// about a second, but in slow spells lasting minutes it takes 3–50 s (bench/results/latency/). This
 /// also asks the model's smaller backup (`TranscriptionModel.backupOpenRouterID`); the first answer wins.
 ///  - Normally the backup is asked only once the main model hasn't answered within `wait`, or failed.

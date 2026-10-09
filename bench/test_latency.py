@@ -210,10 +210,11 @@ def test_only_cloud_flash_by_default(monkeypatch, capsys):
     planned = []
     monkeypatch.setattr(latency, "plan_trials", lambda stt, *a: planned.append(stt) or [])
     flash, big, local = ("openrouter:qwen/qwen3-asr-1.7b", "openrouter:meta/muse-voice-transcribe-1.0", "apple:en-US")
+    default = flash + "+backup"  # as the app runs Cloud Flash by default
     for argv in ([], ["--big"], ["--local"], ["--local", "--big"], ["-s", "big"], ["-s", "big", "--big"], ["--backup"]):
         latency.main(["run", "--dry-run", "--clip", "english-01", *argv])
-    assert planned == [[flash], [flash, big], [flash, local], [flash, local, big], [big], [big],
-                       [flash, flash + "+backup"]]
+    assert planned == [[default], [default, big], [default, local], [default, local, big], [big], [big],
+                       [default, flash]]
 
 
 def test_report_counts_backup_answers():

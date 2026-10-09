@@ -27,7 +27,7 @@ paths** (`Sources/DictationKit/LatencyProbe.swift`), so it includes everything t
 ```sh
 ./build.sh                                            # the suite drives /Applications/DictationApp.app
 bench/suite.py latency run --dry-run                  # plan + estimated time (default ≈ 2 min)
-bench/suite.py latency run                            # Cloud Flash × {no polish, Apple polish}
+bench/suite.py latency run                            # Cloud Flash (+backup, as the app) × {no polish, Apple polish}
 bench/suite.py latency run --local --big              # … plus On-device and Cloud Big (opt-in)
 bench/suite.py latency run --backup                   # Cloud Flash with vs without the backup model
 bench/suite.py latency run -s flash -s big -r 10      # cloud only, 10 rounds → 90 samples per model
@@ -41,8 +41,8 @@ bench/suite.py latency run --simulate                 # fake timings: try the re
 ```
 
 - **Models.** Speech: `local` (apple:en-US), `local-zh` (apple:zh-CN), `flash`, `flash+backup`,
-  `big`, or any `apple:<locale>` / `openrouter:<id>`. `+backup` turns on the experimental "Backup
-  model when slow" setting for those dictations; `--backup` interleaves `flash` and `flash+backup`
+  `big`, or any `apple:<locale>` / `openrouter:<id>`. `+backup` has the "Backup model when slow"
+  setting on (the app's default) for those dictations; `--backup` interleaves `flash` and `flash+backup`
   in one run, so both see the same network, and the report counts how often the backup answered. Polish: `none`, `apple`, or any OpenRouter chat model
   `openrouter:<id>` (the app only offers on-device polish today; the benchmark tells you whether a
   cloud one is worth adding). Cloud models use the key saved in Settings (`--key-env VAR` to override).

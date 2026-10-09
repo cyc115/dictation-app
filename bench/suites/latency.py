@@ -1,6 +1,6 @@
 """Turnaround latency: how long after you press stop until your text is ready.
 
-  bench/suite.py latency run                         # Cloud Flash × {no polish, Apple polish}, 5 rounds
+  bench/suite.py latency run                         # Cloud Flash (+backup) × {no polish, Apple polish}, 5 rounds
   bench/suite.py latency run --local --big           # … plus On-device and Cloud Big (opt-in)
   bench/suite.py latency run --backup                # Cloud Flash with vs without the backup model
   bench/suite.py latency run -s flash -s big -r 10   # just the cloud models, 10 rounds
@@ -26,8 +26,8 @@ load): it's reported as "cold" and kept out of the percentiles. On-device models
 each, so they're timed on clips in their language (repeated to the same count).
 
 Speech models: local (apple:en-US), local-zh (apple:zh-CN), flash, flash+backup, big, or any
-apple:<locale> / openrouter:<model id>. "+backup" turns on the experimental "Backup model when slow"
-setting for that model's dictations (AdaptiveBackup in Transcription.swift). Polish: none, apple (on-device), or openrouter:<model id> (any chat model;
+apple:<locale> / openrouter:<model id>. "+backup" has the "Backup model when slow" setting
+on (the app's default) for that model's dictations (AdaptiveBackup in Transcription.swift). Polish: none, apple (on-device), or openrouter:<model id> (any chat model;
 the app itself only offers on-device polish today), or apple-tail: Apple rewriting only the last
 15 words with the rest as context, the wait if earlier phrases were polished while you speak.
 Cloud models use the key saved in the app's Settings, or --key-env VAR to pass one.
@@ -67,8 +67,9 @@ STT_ALIASES = {
 # apple-tail: Apple rewriting only the last 15 words (LatencyRunner.tailWords), the rest as context —
 # the wait if earlier phrases were polished while you speak. Timed, never pasted.
 POLISH_TITLES = {"none": "no polish", "apple": "Apple on-device", "apple-tail": "Apple, last 15 words"}
-# Only Cloud Flash by default; --local / --big (or -s) add the others. Cloud Big costs ~7× Flash.
-DEFAULT_STT = ["flash"]
+# Cloud Flash as the app runs it by default (backup on); --local / --big (or -s) add the others.
+# Cloud Big costs ~7× Flash.
+DEFAULT_STT = ["flash+backup"]
 DEFAULT_POLISH = ["none", "apple"]
 BACKUP = "+backup"
 LENGTH_BUCKETS = [(0, 5, "< 5 s"), (5, 10, "5–10 s"), (10, float("inf"), "≥ 10 s")]
@@ -574,7 +575,7 @@ def main(argv: list[str]) -> int:
     r.add_argument("--local", action="store_true", help="also time On-device (free; plays each clip in real time)")
     r.add_argument("--big", action="store_true", help="also time Cloud Big (adds ≈ $0.02 per default-size run)")
     r.add_argument("--backup", action="store_true",
-                   help="time Cloud Flash with and without the experimental backup model, interleaved")
+                   help="time Cloud Flash with and without the backup model, interleaved")
     r.add_argument("-P", "--polish", action="append", metavar="MODEL",
                    help=f"polish model (repeatable; default: {' '.join(DEFAULT_POLISH)})")
     r.add_argument("-r", "--rounds", type=int, default=5, help="times each clip × speech model is dictated (default 5)")

@@ -56,10 +56,10 @@ final class SettingsUITests: XCTestCase {
         XCTAssertNotNil(hosted.element(id: "setting.Recordings folder"))
     }
 
-    func testBackupModelOnlyForCloudFlashOffByDefaultAndPersists() {
+    func testBackupModelOnlyForCloudFlashOnByDefaultAndPersists() {
         let defaults = makeDefaults(self)
         let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
-        XCTAssertFalse(settings.backupWhenSlow, "experimental: off by default")
+        XCTAssertTrue(settings.backupWhenSlow, "on by default")
         let hosted = host(settings)
         let id = "setting.Backup model when slow"
         XCTAssertEqual(hosted.element(id: id)?.object.value(forKey: "accessibilityEnabled") as? Bool, false,
@@ -68,11 +68,13 @@ final class SettingsUITests: XCTestCase {
         settings.setOpenRouterKey("sk-or-v1-test")
         settings.transcriptionModel = .qwenASR
         hosted.settle()
+        XCTAssertTrue(settings.effectiveBackup)
         guard let toggle = hosted.element(id: id) else { return XCTFail("no toggle") }
         XCTAssertTrue(hosted.click(toggle))
-        XCTAssertTrue(settings.backupWhenSlow)
-        XCTAssertTrue(settings.effectiveBackup)
-        XCTAssertTrue(AppSettings(defaults: defaults, secrets: InMemorySecretStore()).backupWhenSlow)
+        XCTAssertFalse(settings.backupWhenSlow)
+        XCTAssertFalse(AppSettings(defaults: defaults, secrets: InMemorySecretStore()).backupWhenSlow,
+                       "turning it off is remembered")
+        XCTAssertTrue(hosted.click(toggle))
 
         settings.transcriptionModel = .metaMuse
         hosted.settle()

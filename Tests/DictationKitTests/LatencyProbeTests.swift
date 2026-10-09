@@ -95,7 +95,7 @@ final class LatencyRunnerTests: XCTestCase {
         XCTAssertEqual(sample.polish.first?.error, "unknown polish model gpt:x")
     }
 
-    func testBackupSuffixTurnsOnTheExperimentalBackupAsTheSettingDoes() throws {
+    func testBackupSuffixTurnsOnTheBackupAsTheSettingDoes() throws {
         let runner = LatencyRunner()
         runner.backup.wait = 0.1
         let client = ScriptedTranscriptionClient()  // the main model never answers

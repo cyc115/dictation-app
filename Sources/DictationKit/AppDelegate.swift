@@ -25,7 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkey: HotkeyManager?
     private let speech = SpeechEngine()
     private let cloud = CloudEngine()
-    /// Experimental "Backup model when slow"; one instance so a slow spell carries over.
+    /// "Backup model when slow" (on by default); one instance so a slow spell carries over.
     private let backup = AdaptiveBackup()
     /// Engine for the dictation in progress (chosen from Settings when it starts).
     private var engine: DictationEngine?
