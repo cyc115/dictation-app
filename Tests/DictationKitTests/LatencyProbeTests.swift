@@ -124,6 +124,8 @@ final class LatencyProbeTests: XCTestCase {
         let finished = expectation(description: "finished")
         probe.onFinish = { finished.fulfill() }
         probe.run()
+        XCTAssertTrue(FileManager.default.fileExists(atPath: out.path),
+                      "created at launch, so suite.py can tell this build understood the plan")
         wait(for: [finished], timeout: 5)
 
         let lines = try String(contentsOf: out, encoding: .utf8).split(separator: "\n")

@@ -153,3 +153,30 @@ def test_app_runner_refuses_off_macos(monkeypatch):
     monkeypatch.setattr(latency.platform, "system", lambda: "Linux")
     with pytest.raises(SystemExit, match="Mac"):
         latency.run_in_app([], 0.3, 90, None, lambda s, i: None)
+
+
+def test_stale_app_build_fails_fast_instead_of_timing_out(monkeypatch, tmp_path):
+    """An app built before LatencyProbe ignores the plan: say so within seconds, don't wait out the stall timer."""
+    import subprocess
+    app = tmp_path / "DictationApp.app"
+    app.mkdir()
+    monkeypatch.setattr(latency, "APP", app)
+    monkeypatch.setattr(latency, "STARTUP_SECONDS", 0.3)
+    monkeypatch.setattr(latency.platform, "system", lambda: "Darwin")
+    launched = []
+    def fake_run(cmd, **kw):
+        launched.append(cmd[0])
+        return subprocess.CompletedProcess(cmd, 1, b"", b"")  # pgrep: not running; open: ignored
+    monkeypatch.setattr(latency.subprocess, "run", fake_run)
+    trial = {"id": "0", "file": "a.wav", "stt": "openrouter:m", "polish": [], "audio_seconds": 3}
+    with pytest.raises(SystemExit, match="older than this checkout"):
+        latency.run_in_app([trial], 0, 90, None, lambda s, i: None)
+    assert "open" in launched and launched[-1] == "pkill", "the probe instance is cleaned up"
+
+
+def test_run_with_no_finished_dictations_saves_nothing(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(latency, "simulate", lambda trials, seed, show: [])
+    assert latency.main(["run", "--simulate", "-r", "1", "--clip", "english-01", "-s", "flash",
+                         "--out", str(tmp_path)]) == 1
+    assert not list(tmp_path.glob("*.json"))
+    assert "nothing saved" in capsys.readouterr().out

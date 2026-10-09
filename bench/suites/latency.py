@@ -46,6 +46,8 @@ import harness
 NAME = "latency"
 HELP = "turnaround after you press stop: transcription, AI polish, both (p50/p90/p95)"
 APP = Path("/Applications/DictationApp.app")
+# A current build creates its output file as soon as it launches; an older one never does.
+STARTUP_SECONDS = 15
 
 # The app's models by their short names (TranscriptionModel in Transcription.swift; a test keeps them in sync).
 STT_ALIASES = {
@@ -199,6 +201,9 @@ def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | 
         try:
             while len(lines) < len(trials):
                 time.sleep(0.25)
+                if not out.exists() and time.monotonic() - last_change > STARTUP_SECONDS:
+                    raise SystemExit(f"{APP.name} didn't start the benchmark: the installed build is older than this "
+                                     "checkout. Run ./build.sh (after ./test.sh passes), then try again.")
                 fresh = out.read_text().splitlines() if out.exists() else []
                 for i, line in enumerate(fresh[len(lines):], len(lines) + 1):
                     sample = json.loads(line)
@@ -365,6 +370,9 @@ def cmd_run(args) -> int:
         samples = simulate(trials, args.seed, show)
     else:
         samples = run_in_app(trials, args.pause, args.timeout, args.key_env, show)
+    if not samples:
+        print("\nno dictations finished — nothing saved")
+        return 1
     rows = merge(trials, samples)
     result = {
         "suite": NAME, "run_at": started.isoformat(timespec="seconds"), "simulated": args.simulate,

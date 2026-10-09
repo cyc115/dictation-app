@@ -179,7 +179,11 @@ final class LatencyProbe {
         runner.apiKey = apiKey
     }
 
-    func run() { next() }
+    func run() {
+        // An empty output file tells bench/suite.py this build understood the plan.
+        try? "".write(toFile: outPath, atomically: true, encoding: .utf8)
+        next()
+    }
 
     private func next() {
         guard index < plan.trials.count else { return onFinish() }
