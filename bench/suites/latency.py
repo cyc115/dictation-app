@@ -194,8 +194,10 @@ def progress(trials: list[dict]):
     return show
 
 
-def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | None, on_sample) -> list[dict]:
-    """Launches the installed app in benchmark mode and collects one sample per trial."""
+def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | None, on_sample,
+               plan_extra: dict | None = None) -> list[dict]:
+    """Launches the installed app in benchmark mode and collects one sample per trial. `plan_extra`
+    and a trial's "text" are for polish-only runs (suite polish: prompt overrides, no audio)."""
     if platform.system() != "Darwin":
         raise SystemExit("the latency suite runs the installed macOS app — run it on your Mac (or try --simulate)")
     if not APP.exists():
@@ -206,8 +208,8 @@ def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | 
         env += ["--env", f"DICTATIONAPP_PROBE_KEY={key}"]
     with tempfile.TemporaryDirectory() as tmp:
         plan, out = Path(tmp) / "plan.json", Path(tmp) / "out.jsonl"
-        plan.write_text(json.dumps({"pause": pause, "timeout": timeout, "trials": [
-            {k: t[k] for k in ("id", "file", "stt", "polish")} for t in trials]}, ensure_ascii=False))
+        plan.write_text(json.dumps({"pause": pause, "timeout": timeout, **(plan_extra or {}), "trials": [
+            {k: t[k] for k in ("id", "file", "stt", "polish", "text") if k in t} for t in trials]}, ensure_ascii=False))
         running = lambda: subprocess.run(["pgrep", "-x", "DictationApp"], capture_output=True).returncode == 0
         was_running = running()
         subprocess.run(["pkill", "-x", "DictationApp"], capture_output=True)

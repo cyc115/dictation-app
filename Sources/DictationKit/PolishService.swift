@@ -50,6 +50,12 @@ class PolishService {
         (try? await polished(text)) ?? text
     }
 
+    /// The transcript as the model sees it. `wrap` marks it as data, not a request to the model
+    /// (benchmarked with bench/suite.py polish --wrap).
+    static func userMessage(_ text: String, wrap: Bool) -> String {
+        wrap ? "<transcript>\n\(text)\n</transcript>" : text
+    }
+
     /// The polished text; throws instead of falling back, so benchmarks see failures.
     func polished(_ text: String) async throws -> String {
         let cleaned = try await backend.polish(text).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -88,12 +94,21 @@ final class OnDevicePolish: PolishBackend {
     /// as context — what polishing phrases while you speak would leave for after you stop. Its
     /// output is just that last part, so it's timed, never pasted.
     let tailWords: Int?
+    /// Benchmark overrides (bench/suite.py polish --prompt-file / --wrap); the app uses the defaults.
+    let customInstructions: String?
+    let wrap: Bool
     private var prepared: LanguageModelSession?
     private let lock = NSLock()  // prepare() runs on main, polish() in a Task
 
-    init(tailWords: Int? = nil) { self.tailWords = tailWords }
+    init(tailWords: Int? = nil, instructions: String? = nil, wrap: Bool = false) {
+        self.tailWords = tailWords
+        customInstructions = instructions
+        self.wrap = wrap
+    }
 
-    private var instructions: String { tailWords == nil ? PolishService.instructions : PolishService.tailInstructions }
+    private var instructions: String {
+        customInstructions ?? (tailWords == nil ? PolishService.instructions : PolishService.tailInstructions)
+    }
 
     func prepare() {
         guard case .available = SystemLanguageModel.default.availability else { return }
@@ -115,14 +130,20 @@ final class OnDevicePolish: PolishBackend {
             throw PolishError.unavailable("Apple Intelligence isn't available on this Mac.")
         }
         let session = takePrepared() ?? LanguageModelSession(instructions: instructions)
-        let prompt = tailWords.map { PolishService.tailPrompt(text, words: $0) } ?? text
+        let prompt = tailWords.map { PolishService.tailPrompt(text, words: $0) } ?? PolishService.userMessage(text, wrap: wrap)
         return try await session.respond(to: prompt).content
     }
 }
 #else
 final class OnDevicePolish: PolishBackend {
     let tailWords: Int?
-    init(tailWords: Int? = nil) { self.tailWords = tailWords }
+    let customInstructions: String?
+    let wrap: Bool
+    init(tailWords: Int? = nil, instructions: String? = nil, wrap: Bool = false) {
+        self.tailWords = tailWords
+        customInstructions = instructions
+        self.wrap = wrap
+    }
     func polish(_ text: String) async throws -> String {
         throw PolishError.unavailable("Apple Intelligence isn't available on this Mac.")
     }
@@ -136,20 +157,25 @@ struct OpenRouterPolish: PolishBackend {
     let model: String
     let apiKey: String
     var session: URLSession = .shared
+    var instructions = PolishService.instructions
+    var wrap = false
 
     func polish(_ text: String) async throws -> String {
-        let (data, response) = try await session.data(for: Self.request(model: model, apiKey: apiKey, text: text))
+        let request = Self.request(model: model, apiKey: apiKey, text: PolishService.userMessage(text, wrap: wrap),
+                                   instructions: instructions)
+        let (data, response) = try await session.data(for: request)
         return try Self.parse(data: data, status: (response as? HTTPURLResponse)?.statusCode ?? 0).get()
     }
 
-    static func request(model: String, apiKey: String, text: String) -> URLRequest {
+    static func request(model: String, apiKey: String, text: String,
+                        instructions: String = PolishService.instructions) -> URLRequest {
         var request = URLRequest(url: endpoint, timeoutInterval: 60)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("DictationApp", forHTTPHeaderField: "X-Title")
         let body: [String: Any] = ["model": model, "temperature": 0, "messages": [
-            ["role": "system", "content": PolishService.instructions],
+            ["role": "system", "content": instructions],
             ["role": "user", "content": text],
         ]]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)

@@ -11,6 +11,7 @@ import Foundation
 //   DICTATIONAPP_LATENCY_PLAN=<plan.json>  {"pause": 0.3, "timeout": 90, "trials": [LatencyTrial]}
 //   DICTATIONAPP_LATENCY_OUT=<out.jsonl>   one LatencySample per line, written as each finishes
 //   DICTATIONAPP_PROBE_KEY=<key>           optional; otherwise the cloud key saved in Settings
+// bench/suite.py polish uses the same plan with `text` trials: no audio, the text is the transcript.
 
 /// One dictation to time.
 struct LatencyTrial: Decodable, Equatable {
@@ -23,6 +24,8 @@ struct LatencyTrial: Decodable, Equatable {
     /// Polish backends to time on this trial's transcript, in order: "apple", "apple-tail" (only the
     /// last `LatencyRunner.tailWords` words rewritten, the rest as context) or "openrouter:<model id>".
     let polish: [String]
+    /// Polish-only trial (bench/suite.py polish): this is the transcript; `file` and `stt` are unused.
+    var text: String? = nil
 }
 
 struct LatencyPlan: Decodable {
@@ -31,6 +34,10 @@ struct LatencyPlan: Decodable {
     /// Seconds before a trial that hasn't answered is recorded as timed out.
     let timeout: Double
     let trials: [LatencyTrial]
+    /// Polish system prompt to try instead of PolishService.instructions (bench/suite.py polish).
+    var instructions: String? = nil
+    /// Send the transcript inside <transcript> tags.
+    var wrap: Bool? = nil
 }
 
 /// What one trial measured, in seconds; nil when that step failed (see `error`).
@@ -59,6 +66,11 @@ final class LatencyRunner {
     var polishers: [String: PolishBackend] = [:]
     /// "apple-tail": the newest phrase a chunked polish would still have to write after you stop.
     static let tailWords = 15
+    /// Polish prompt overrides from the plan (bench/suite.py polish); nil/false = the app's.
+    var instructions: String?
+    var wrap = false
+    /// Polish-only trials wait this long after `prepare()`, as if you were speaking, before polishing.
+    var speakingTime: TimeInterval = 1.5
     /// Shared by every "+backup" trial, as the app shares one across dictations.
     var backup = AdaptiveBackup()
 
@@ -77,10 +89,11 @@ final class LatencyRunner {
 
     func polisher(for spec: String) -> PolishBackend? {
         if let fake = polishers[spec] { return fake }
-        if spec == "apple" { return OnDevicePolish() }
+        if spec == "apple" { return OnDevicePolish(instructions: instructions, wrap: wrap) }
         if spec == "apple-tail" { return OnDevicePolish(tailWords: Self.tailWords) }
         if spec.hasPrefix("openrouter:") {
-            return OpenRouterPolish(model: String(spec.dropFirst("openrouter:".count)), apiKey: apiKey)
+            return OpenRouterPolish(model: String(spec.dropFirst("openrouter:".count)), apiKey: apiKey,
+                                    instructions: instructions ?? PolishService.instructions, wrap: wrap)
         }
         return nil
     }
@@ -90,6 +103,12 @@ final class LatencyRunner {
         let url = URL(fileURLWithPath: trial.file)
         let clock = self.clock
         var sample = LatencySample(id: trial.id)
+        if let text = trial.text {
+            sample.raw = text
+            sample.transcribe = 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + speakingTime) { completion(sample) }
+            return
+        }
         let finish = { (raw: String, started: TimeInterval, error: String?) in
             sample.transcribe = clock() - started
             sample.raw = raw
@@ -196,6 +215,8 @@ final class LatencyProbe {
         self.plan = plan
         self.outPath = outPath
         runner.apiKey = apiKey
+        runner.instructions = plan.instructions
+        runner.wrap = plan.wrap ?? false
     }
 
     func run() {

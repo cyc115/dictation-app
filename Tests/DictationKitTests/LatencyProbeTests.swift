@@ -131,9 +131,50 @@ final class LatencyRunnerTests: XCTestCase {
         XCTAssertEqual(cloud?.apiKey, "k")
         XCTAssertNil(runner.polisher(for: "none"))
     }
+
+    func testTextTrialSkipsTranscriptionAndPolishesTheText() throws {
+        let runner = LatencyRunner()
+        runner.speakingTime = 0
+        runner.polishers = ["apple": SlowPolish(delay: 0.01)]
+        let trial = LatencyTrial(id: "t", file: "", stt: "text", polish: ["apple"], text: "嗯帮我 merge 一下")
+        let sample = try XCTUnwrap(run(runner, trial))
+        XCTAssertNil(sample.error)
+        XCTAssertEqual(sample.raw, "嗯帮我 merge 一下")
+        XCTAssertEqual(sample.transcribe, 0)
+        XCTAssertEqual(sample.polish.first?.text, "嗯帮我 merge 一下。")
+    }
+
+    func testPromptOverridesReachEveryBackend() throws {
+        let runner = LatencyRunner()
+        runner.instructions = "Only clean up."
+        runner.wrap = true
+        let apple = try XCTUnwrap(runner.polisher(for: "apple") as? OnDevicePolish)
+        XCTAssertEqual(apple.customInstructions, "Only clean up.")
+        XCTAssertTrue(apple.wrap)
+        let cloud = try XCTUnwrap(runner.polisher(for: "openrouter:m") as? OpenRouterPolish)
+        XCTAssertEqual(cloud.instructions, "Only clean up.")
+        XCTAssertTrue(cloud.wrap)
+        let defaults = try XCTUnwrap(LatencyRunner().polisher(for: "openrouter:m") as? OpenRouterPolish)
+        XCTAssertEqual(defaults.instructions, PolishService.instructions, "the app's prompt unless overridden")
+        XCTAssertFalse(defaults.wrap)
+    }
 }
 
 final class LatencyProbeTests: XCTestCase {
+    func testPlanDecodesPolishOnlyTrialsAndPromptOverrides() throws {
+        let json = """
+            {"pause": 0, "timeout": 5, "instructions": "P", "wrap": true,
+             "trials": [{"id": "a", "file": "", "stt": "text", "polish": ["apple"], "text": "hi"},
+                        {"id": "b", "file": "x.wav", "stt": "openrouter:m", "polish": []}]}
+            """
+        let plan = try JSONDecoder().decode(LatencyPlan.self, from: Data(json.utf8))
+        XCTAssertEqual(plan.instructions, "P")
+        XCTAssertEqual(plan.wrap, true)
+        XCTAssertEqual(plan.trials.map(\.text), ["hi", nil])
+        let old = try JSONDecoder().decode(LatencyPlan.self, from: Data(#"{"pause": 0, "timeout": 5, "trials": []}"#.utf8))
+        XCTAssertNil(old.instructions, "plans from the latency suite don't set them")
+    }
+
     /// The plan format bench/suite.py writes; a hung trial times out and the run continues.
     func testRunsPlanWritesOneLinePerTrialAndTimesOutHungTrials() throws {
         let plan = makeTempURL(self, "plan.json")
@@ -206,6 +247,14 @@ final class OpenRouterPolishTests: XCTestCase {
         XCTAssertEqual(messages.map { $0["role"] }, ["system", "user"])
         XCTAssertEqual(messages[0]["content"], PolishService.instructions)
         XCTAssertEqual(messages[1]["content"], "um 帮我 build")
+    }
+
+    func testWrappedTranscriptAndCustomInstructions() throws {
+        XCTAssertEqual(PolishService.userMessage("hi", wrap: false), "hi")
+        XCTAssertEqual(PolishService.userMessage("hi", wrap: true), "<transcript>\nhi\n</transcript>")
+        let request = OpenRouterPolish.request(model: "m", apiKey: "k", text: "t", instructions: "P")
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        XCTAssertEqual((body["messages"] as? [[String: String]])?.first?["content"], "P")
     }
 
     func testParsesReplyAndErrors() {
