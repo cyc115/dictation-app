@@ -304,7 +304,7 @@ final class CloudEngine: DictationEngine {
     /// The model whose transcript the last dictation used (the backup, if it answered first).
     private(set) var lastAnsweredBy: String?
 
-    private var audioEngine = AVAudioEngine()
+    let mic = MicCapture()
     private var recorder: WAVRecorder?
     private var race: UploadRace?
     private let lock = NSLock()
@@ -326,28 +326,20 @@ final class CloudEngine: DictationEngine {
     func start(inputUID: String, onLevel: @escaping (Float) -> Void,
                onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
         guard beginRecording() else { return onError("Couldn't create a recording file.") }
-        audioEngine = AVAudioEngine()
-        if !inputUID.isEmpty { AudioDevices.route(audioEngine, toInputUID: inputUID) }
-        let input = audioEngine.inputNode
-        input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { [weak self] buffer, _ in
-            guard let self = self else { return }
-            self.record(buffer)
-            let level = SpeechEngine.level(of: buffer)
-            DispatchQueue.main.async { onLevel(level) }
-        }
-        audioEngine.prepare()
         do {
-            try audioEngine.start()
+            try mic.start(inputUID: inputUID, onBuffer: { [weak self] buffer in
+                guard let self = self else { return }
+                self.record(buffer)
+                let level = SpeechEngine.level(of: buffer)
+                DispatchQueue.main.async { onLevel(level) }
+            }, onError: onError)
         } catch {
-            input.removeTap(onBus: 0)
             onError("could not open microphone: \(error.localizedDescription)")
         }
     }
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
+        mic.stop()
         lock.lock(); let recorder = self.recorder; self.recorder = nil; lock.unlock()
         guard let recorder = recorder, recorder.duration >= 0.3 else {
             if let url = recorder?.url { try? FileManager.default.removeItem(at: url) }
@@ -381,8 +373,7 @@ final class CloudEngine: DictationEngine {
     }
 
     func cancel() {
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
+        mic.stop()
         lock.lock(); let url = recorder?.url; recorder = nil; lock.unlock()
         if let url = url { try? FileManager.default.removeItem(at: url) }
     }

@@ -8,7 +8,7 @@ class SpeechEngine {
     /// Recognition language, e.g. "en-US" or "zh-CN" (Apple's models are one language each).
     var localeIdentifier = LocalLanguage.english.rawValue
     private var recognizer: SFSpeechRecognizer? { SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier)) }
-    private var audioEngine = AVAudioEngine()
+    let mic = MicCapture()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var transcript = TranscriptAccumulator()
@@ -42,24 +42,15 @@ class SpeechEngine {
                onUtterance: ((String) -> Void)? = nil, onError: @escaping (String) -> Void) {
         guard let (recognizer, request, id) = prepare(onError: onError) else { return }
 
-        // Fresh engine per dictation so a newly chosen or reconnected mic is picked up.
-        audioEngine = AVAudioEngine()
-        if !inputUID.isEmpty { AudioDevices.route(audioEngine, toInputUID: inputUID) }
-        let input = audioEngine.inputNode
-        let format = input.outputFormat(forBus: 0)
         let recorder = startRecording()
-        input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            self?.request?.append(buffer)
-            recorder?.append(buffer)
-            let level = Self.level(of: buffer)
-            DispatchQueue.main.async { onLevel(level) }
-        }
-        audioEngine.prepare()
         do {
-            try audioEngine.start()
+            try mic.start(inputUID: inputUID, onBuffer: { [weak self] buffer in
+                self?.request?.append(buffer)
+                recorder?.append(buffer)
+                let level = Self.level(of: buffer)
+                DispatchQueue.main.async { onLevel(level) }
+            }, onError: onError)
         } catch {
-            input.removeTap(onBus: 0)
             self.request = nil
             finishRecording(transcript: nil)
             onError("could not open microphone: \(error.localizedDescription)")
@@ -140,8 +131,7 @@ class SpeechEngine {
     /// Stops capture, waits for the recognizer to finish the last words, then calls
     /// `completion` on the main queue with the full transcript.
     func stop(completion: @escaping (String) -> Void) {
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
+        mic.stop()
         guard task != nil else {  // start failed — nothing more is coming
             request = nil
             finishRecording(transcript: nil)
@@ -173,8 +163,7 @@ class SpeechEngine {
 
     /// Stops capture and throws the transcript away.
     func cancel() {
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
+        mic.stop()
         finishHandler = nil
         session += 1
         task?.cancel()
