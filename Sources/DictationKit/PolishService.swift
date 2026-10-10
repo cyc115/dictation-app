@@ -26,10 +26,13 @@ protocol PolishBackend {
     func prepare()
     /// The cleaned text. Throws when the model is unavailable or fails.
     func polish(_ text: String) async throws -> String
+    /// Which model, for kept recordings: e.g. "openrouter:openai/gpt-oss-120b".
+    var name: String { get }
 }
 
 extension PolishBackend {
     func prepare() {}
+    var name: String { String(describing: Self.self) }
 }
 
 enum PolishError: LocalizedError {
@@ -88,7 +91,12 @@ class PolishService {
 
     /// The polished text, or the raw text if polishing fails — you always get your words.
     func polish(_ text: String) async -> String {
-        (try? await polished(text)) ?? text
+        await polishReporting(text).text
+    }
+
+    /// Like `polish`, plus why it fell back to the raw text, if it did.
+    func polishReporting(_ text: String) async -> (text: String, error: String?) {
+        do { return (try await polished(text), nil) } catch { return (text, error.localizedDescription) }
     }
 
     /// The transcript as the model sees it. `wrap` marks it as data, not a request to the model
@@ -147,6 +155,8 @@ final class OnDevicePolish: PolishBackend {
         self.wrap = wrap
     }
 
+    var name: String { "apple:on-device" }
+
     private var instructions: String {
         customInstructions ?? (tailWords == nil ? PolishService.instructions : PolishService.tailInstructions)
     }
@@ -185,6 +195,8 @@ final class OnDevicePolish: PolishBackend {
         customInstructions = instructions
         self.wrap = wrap
     }
+
+    var name: String { "apple:on-device" }
     func polish(_ text: String) async throws -> String {
         throw PolishError.unavailable("Apple Intelligence isn't available on this Mac.")
     }
@@ -202,6 +214,8 @@ struct OpenRouterPolish: PolishBackend {
     var wrap = false
     /// Only this OpenRouter provider (e.g. "Groq", "Cerebras": fast hosts); nil lets OpenRouter route.
     var provider: String?
+
+    var name: String { "openrouter:\(model)" + (provider.map { "@\($0)" } ?? "") }
 
     func polish(_ text: String) async throws -> String {
         let request = Self.request(model: model, apiKey: apiKey, text: PolishService.userMessage(text, wrap: wrap),

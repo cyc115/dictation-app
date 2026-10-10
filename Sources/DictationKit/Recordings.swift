@@ -10,6 +10,63 @@ struct RecordingInfo: Codable, Equatable {
     var transcript: String
     var seconds: Double
     var error: String?
+    /// Whether AI polish ran on this dictation (off in the settings, or streaming, which types as you speak).
+    /// nil in recordings kept before polish was recorded.
+    var polishEnabled: Bool?
+    /// Polish model, e.g. "openrouter:openai/gpt-oss-120b" or "apple:on-device".
+    var polishModel: String?
+    /// What polish made of `transcript` — the text that was typed. nil if polish was off or never finished.
+    var polished: String?
+    /// Why polish failed; `transcript` was typed instead.
+    var polishError: String?
+    var polishSeconds: Double?
+}
+
+/// The polish half of one kept recording's JSON. The engine keeps the audio with the raw transcript
+/// as soon as it's heard; polish usually finishes after that, rarely before. Whichever comes second
+/// writes the JSON, so it ends up with both.
+final class RecordingNote {
+    private let lock = NSLock()
+    let polishEnabled: Bool
+    let polishModel: String?
+    private var polished: String?
+    private var polishError: String?
+    private var polishSeconds: Double?
+    private var json: URL?
+
+    init(polishEnabled: Bool, polishModel: String?) {
+        self.polishEnabled = polishEnabled
+        self.polishModel = polishEnabled ? polishModel : nil
+    }
+
+    /// Records the polish result; rewrites the JSON if the recording is already kept.
+    func polished(_ text: String, seconds: Double, error: String?) {
+        lock.lock(); defer { lock.unlock() }
+        polished = text
+        polishSeconds = seconds
+        polishError = error
+        guard let json = json, let data = try? Data(contentsOf: json),
+              var info = try? RecordingArchive.decoder.decode(RecordingInfo.self, from: data) else { return }
+        apply(to: &info)
+        try? RecordingArchive.encoder.encode(info).write(to: json)
+    }
+
+    /// Called by the archive: writes `info` with the polish so far to `json`.
+    func keep(_ info: RecordingInfo, at json: URL) throws {
+        lock.lock(); defer { lock.unlock() }
+        var info = info
+        apply(to: &info)
+        try RecordingArchive.encoder.encode(info).write(to: json)
+        self.json = json
+    }
+
+    private func apply(to info: inout RecordingInfo) {
+        info.polishEnabled = polishEnabled
+        info.polishModel = polishModel
+        info.polished = polished
+        info.polishError = polishError
+        info.polishSeconds = polishSeconds
+    }
 }
 
 /// Keeps dictation audio for building benchmark sets (Settings → Keep recordings, off by default):
@@ -34,7 +91,7 @@ final class RecordingArchive {
     /// Moves a finished recording into the archive and writes its JSON. Returns the kept WAV,
     /// or nil (and deletes the recording) if it couldn't be stored.
     @discardableResult
-    func keep(wav: URL, info: RecordingInfo) -> URL? {
+    func keep(wav: URL, info: RecordingInfo, note: RecordingNote? = nil) -> URL? {
         let fm = FileManager.default
         var name = Self.nameFormatter.string(from: info.date)
         var n = 2
@@ -46,10 +103,8 @@ final class RecordingArchive {
         do {
             try fm.createDirectory(at: directory, withIntermediateDirectories: true)
             try fm.moveItem(at: wav, to: dest)
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(info).write(to: directory.appendingPathComponent(name + ".json"))
+            let json = directory.appendingPathComponent(name + ".json")
+            if let note = note { try note.keep(info, at: json) } else { try Self.encoder.encode(info).write(to: json) }
             return dest
         } catch {
             try? fm.removeItem(at: wav)
@@ -62,6 +117,19 @@ final class RecordingArchive {
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
         return files.filter { $0.pathExtension == "wav" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
+
+    static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return encoder
+    }()
+
+    static let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
 
     func showInFinder() {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

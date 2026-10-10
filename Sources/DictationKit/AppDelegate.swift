@@ -35,6 +35,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let onDevicePolish = OnDevicePolish()
     /// Chosen from Settings when a dictation starts.
     private var polisher = PolishService()
+    /// The polish half of the current dictation's kept-recording JSON (nil unless Keep recordings is on).
+    private var note: RecordingNote?
     private var dictating = false
     private var autoStop: DispatchWorkItem?
     private var dictationStart = Date()
@@ -214,6 +216,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                                                                             onDevice: onDevicePolish))
             polisher.prepare()
         }
+        let polishes = settings.polishEnabled && !settings.effectiveStreaming
+        note = archive.map { _ in RecordingNote(polishEnabled: polishes, polishModel: polisher.backend.name) }
+        cloud.note = note
+        speech.note = note
         setDictating(true)
         dictationStart = Date()
         overlay.showListening(micName: AudioDevices.activeInputName(preferredUID: settings.microphoneUID))
@@ -276,6 +282,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let duration = Date().timeIntervalSince(dictationStart)
         let output = streaming
         streaming = nil
+        let note = self.note
         guard let engine = engine else { return overlay.hideUnlessMessage() }
         // Cloud models transcribe after you stop: keep the pill up ("working") until text arrives.
         let batch = engine.isBatch
@@ -289,7 +296,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 output.finish(fullText: raw)
                 if !raw.isEmpty { HistoryStore.shared.add(text: raw, duration: duration) }
             } else {
-                self?.deliver(raw, duration: duration)
+                self?.deliver(raw, duration: duration, note: note)
             }
         }, failure: { [weak self] message in
             self?.overlay.showMessage(message, hideAfter: 5)
@@ -308,17 +315,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if settings.interactionSounds { InteractionSound.cancel.play() }
     }
 
-    private func deliver(_ raw: String, duration: TimeInterval) {
+    private func deliver(_ raw: String, duration: TimeInterval, note: RecordingNote?) {
         guard !raw.isEmpty else { return }
         if settings.polishEnabled {
             overlay.showProcessing()
             Task { [weak self] in
                 guard let self = self else { return }
-                let polished = await self.polisher.polish(raw)
+                let started = Date()
+                let (polished, error) = await self.polisher.polishReporting(raw)
                 await MainActor.run {
                     self.overlay.hide()
                     HistoryStore.shared.add(text: polished, duration: duration)
                     self.injector.inject(polished)
+                    // After typing it, so saving it adds nothing to your wait.
+                    note?.polished(polished, seconds: Date().timeIntervalSince(started), error: error)
                 }
             }
         } else {

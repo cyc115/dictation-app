@@ -31,7 +31,11 @@ class SpeechEngine {
     var onResult: ((SFSpeechRecognitionResult) -> Void)?
     /// Set while "Keep recordings" is on: mic dictations are also written to WAV and kept here.
     var archive: RecordingArchive?
+    /// Set with `archive`, before each dictation: the polish half of its JSON.
+    var note: RecordingNote?
     private var recorder: WAVRecorder?
+    /// `note` as it was when this recording started (the next dictation may set a new one first).
+    private var recorderNote: RecordingNote?
 
     /// Starts listening on the microphone.
     /// - `inputUID` picks a microphone by CoreAudio UID; empty or missing uses the system default.
@@ -179,6 +183,7 @@ class SpeechEngine {
         guard archive != nil else { return nil }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-\(UUID().uuidString).wav")
         recorder = try? WAVRecorder(url: url)
+        recorderNote = note
         return recorder
     }
 
@@ -189,7 +194,8 @@ class SpeechEngine {
         recorder.finish()
         if let archive = archive, let text = text, recorder.duration >= 0.3 {
             archive.keep(wav: recorder.url, info: RecordingInfo(date: Date(), model: "apple:\(localeIdentifier)",
-                                                                transcript: text, seconds: recorder.duration))
+                                                                transcript: text, seconds: recorder.duration),
+                         note: recorderNote)
         } else {
             try? FileManager.default.removeItem(at: recorder.url)
         }

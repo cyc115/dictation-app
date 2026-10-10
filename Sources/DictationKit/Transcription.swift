@@ -299,6 +299,8 @@ final class CloudEngine: DictationEngine {
     var client: TranscriptionClient = OpenRouterClient()
     /// Set while "Keep recordings" is on: finished recordings go here instead of being deleted.
     var archive: RecordingArchive?
+    /// Set with `archive`, before each dictation: the polish half of its JSON.
+    var note: RecordingNote?
     /// "Backup model when slow"; nil asks only `modelID`.
     var backup: AdaptiveBackup?
     /// The model whose transcript the last dictation used (the backup, if it answered first).
@@ -347,7 +349,7 @@ final class CloudEngine: DictationEngine {
         }
         recorder.finish()
         let url = recorder.url
-        let archive = self.archive
+        let archive = self.archive, note = self.note
         let info = RecordingInfo(date: Date(), model: "openrouter:\(modelID)", transcript: "", seconds: recorder.duration)
         lastAnsweredBy = nil
         let main = modelID, backup = self.backup
@@ -367,7 +369,7 @@ final class CloudEngine: DictationEngine {
             }
             // After the text is delivered, so keeping it adds nothing to your wait. Failed uploads
             // are kept too: they're the cases a benchmark most needs.
-            if let archive = archive { archive.keep(wav: url, info: heard) } else { try? FileManager.default.removeItem(at: url) }
+            if let archive = archive { archive.keep(wav: url, info: heard, note: note) } else { try? FileManager.default.removeItem(at: url) }
         }
         race?.start()
     }
