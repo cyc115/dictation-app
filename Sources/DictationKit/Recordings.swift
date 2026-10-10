@@ -19,7 +19,11 @@ struct RecordingInfo: Codable, Equatable {
     var polished: String?
     /// Why polish failed; `transcript` was typed instead.
     var polishError: String?
+    /// Round trip, polish: transcript in hand → polished text (before it's typed).
     var polishSeconds: Double?
+    /// Round trip, speech model: you stop dictating → transcript (upload and back for cloud models,
+    /// the recognizer catching up for on-device ones).
+    var transcribeSeconds: Double?
 }
 
 /// The polish half of one kept recording's JSON. The engine keeps the audio with the raw transcript
@@ -32,6 +36,7 @@ final class RecordingNote {
     private var polished: String?
     private var polishError: String?
     private var polishSeconds: Double?
+    private var transcribeSeconds: Double?
     private var json: URL?
 
     init(polishEnabled: Bool, polishModel: String?) {
@@ -39,12 +44,24 @@ final class RecordingNote {
         self.polishModel = polishEnabled ? polishModel : nil
     }
 
-    /// Records the polish result; rewrites the JSON if the recording is already kept.
+    /// Records how long the speech model took after you stopped.
+    func transcribed(seconds: Double) {
+        update { $0.transcribeSeconds = seconds }
+    }
+
+    /// Records the polish result.
     func polished(_ text: String, seconds: Double, error: String?) {
+        update {
+            $0.polished = text
+            $0.polishSeconds = seconds
+            $0.polishError = error
+        }
+    }
+
+    /// Changes the note, then rewrites the JSON if the recording is already kept.
+    private func update(_ change: (RecordingNote) -> Void) {
         lock.lock(); defer { lock.unlock() }
-        polished = text
-        polishSeconds = seconds
-        polishError = error
+        change(self)
         guard let json = json, let data = try? Data(contentsOf: json),
               var info = try? RecordingArchive.decoder.decode(RecordingInfo.self, from: data) else { return }
         apply(to: &info)
@@ -66,6 +83,7 @@ final class RecordingNote {
         info.polished = polished
         info.polishError = polishError
         info.polishSeconds = polishSeconds
+        info.transcribeSeconds = transcribeSeconds
     }
 }
 

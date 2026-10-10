@@ -283,11 +283,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let output = streaming
         streaming = nil
         let note = self.note
+        let stoppedAt = ProcessInfo.processInfo.systemUptime
         guard let engine = engine else { return overlay.hideUnlessMessage() }
         // Cloud models transcribe after you stop: keep the pill up ("working") until text arrives.
         let batch = engine.isBatch
         if batch { overlay.showProcessing() } else { overlay.hideUnlessMessage() }
         engine.stop(completion: { [weak self] text in
+            note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
             if batch { self?.overlay.hideUnlessMessage() }
             let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
             Insights.shared.record(text: raw, duration: duration)
@@ -299,6 +301,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.deliver(raw, duration: duration, note: note)
             }
         }, failure: { [weak self] message in
+            note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
             self?.overlay.showMessage(message, hideAfter: 5)
         })
     }
@@ -319,16 +322,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard !raw.isEmpty else { return }
         if settings.polishEnabled {
             overlay.showProcessing()
+            let started = ProcessInfo.processInfo.systemUptime
             Task { [weak self] in
                 guard let self = self else { return }
-                let started = Date()
                 let (polished, error) = await self.polisher.polishReporting(raw)
+                let seconds = ProcessInfo.processInfo.systemUptime - started
                 await MainActor.run {
                     self.overlay.hide()
                     HistoryStore.shared.add(text: polished, duration: duration)
                     self.injector.inject(polished)
                     // After typing it, so saving it adds nothing to your wait.
-                    note?.polished(polished, seconds: Date().timeIntervalSince(started), error: error)
+                    note?.polished(polished, seconds: seconds, error: error)
                 }
             }
         } else {

@@ -143,11 +143,14 @@ final class KeepRecordingsEngineTests: XCTestCase {
         XCTAssertEqual(saved.polishModel, "openrouter:openai/gpt-oss-120b@Groq")
         XCTAssertNil(saved.polished, "polish hasn't finished yet")
 
+        note.transcribed(seconds: 1.2)  // cloud: noted after the engine kept it
+        XCTAssertEqual(try info(kept).transcribeSeconds, 1.2)
         note.polished("帮我 build 一下。", seconds: 0.4, error: nil)  // polish finishes after the recording is kept
         saved = try info(kept)
         XCTAssertEqual(saved.transcript, "帮我 build 一下", "the raw transcript stays")
         XCTAssertEqual(saved.polished, "帮我 build 一下。")
         XCTAssertEqual(saved.polishSeconds, 0.4)
+        XCTAssertEqual(saved.transcribeSeconds, 1.2, "polish doesn't wipe the transcribe time")
         XCTAssertNil(saved.polishError)
         XCTAssertEqual(saved.model, "openrouter:qwen/qwen3-asr-1.7b")
     }
@@ -155,6 +158,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
     func testPolishFinishingBeforeTheRecordingIsKeptIsStillSaved() throws {
         let archive = RecordingArchive(directory: makeTempURL(self, "Recordings"))
         let note = RecordingNote(polishEnabled: true, polishModel: "apple:on-device")
+        note.transcribed(seconds: 0.35)  // on-device: noted before the engine keeps it
         note.polished("hello", seconds: 1, error: "Apple Intelligence isn't available on this Mac.")
         let engine = SpeechEngine()
         engine.archive = archive
@@ -167,6 +171,8 @@ final class KeepRecordingsEngineTests: XCTestCase {
         XCTAssertEqual(saved.polishEnabled, true, "uses the note from when this recording started")
         XCTAssertEqual(saved.polished, "hello")
         XCTAssertEqual(saved.polishError, "Apple Intelligence isn't available on this Mac.")
+        XCTAssertEqual(saved.transcribeSeconds, 0.35)
+        XCTAssertEqual(saved.polishSeconds, 1)
     }
 
     func testPolishOffIsRecorded() throws {
