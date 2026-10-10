@@ -373,10 +373,8 @@ enum Permissions {
             3. Accessibility — System Settings → Privacy & Security → Accessibility → \
                enable DictationApp. Needed for the Fn hotkey and pasting text.
 
-            The mic opens only while you hold Fn — never in the background. Only the \
-            On-device model is local only: your audio and text stay on this Mac. Every \
-            other model (Cloud Flash, Cloud Big, cloud setups you add) sends your audio \
-            or text to OpenRouter when you stop.
+            The mic opens only while you hold Fn. On-device is completely private; \
+            cloud models send your audio to the cloud for transcription and polish.
             """
         alert.addButton(withTitle: "OK")
         alert.runModal()
