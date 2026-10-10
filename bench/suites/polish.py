@@ -231,8 +231,12 @@ def run(specs: list[str], cases: list[dict], rounds: int, seed: int, key: str, s
             show(row)
         return out
 
+    # Apple first, on its own: it stops the run straight away if the installed app is too old.
+    if "apple" in specs:
+        rows += work("apple")
+    cloud = [s for s in specs if s != "apple"]
     with concurrent.futures.ThreadPoolExecutor(max(1, parallel)) as pool:
-        for part in pool.map(work, specs):
+        for part in pool.map(work, cloud):
             rows += part
     return rows
 
@@ -248,6 +252,9 @@ def run_apple(jobs: list, prompt: str, wrap: bool, timeout: float, show) -> list
     rows = {}
 
     def on_sample(sample: dict, _done: int) -> None:
+        if "unknown speech model text" in (sample.get("error") or ""):
+            raise SystemExit("the installed app is older than this checkout (it can't run polish-only trials): "
+                             "run ./build.sh (after ./test.sh passes), then try again")
         i = int(sample["id"])
         rnd, _, case = jobs[i]
         p = (sample.get("polish") or [{}])[0]
@@ -360,6 +367,23 @@ def saved_key() -> str:
     return out.stdout.strip() if out.returncode == 0 else ""
 
 
+def key_problem(key: str) -> str | None:
+    """Why OpenRouter won't take this key, checked once before any polish request; None if it's fine
+    (or OpenRouter couldn't be reached, which the requests themselves will report)."""
+    req = urllib.request.Request("https://openrouter.ai/api/v1/key", headers={"Authorization": f"Bearer {key}"})
+    try:
+        urllib.request.urlopen(req, timeout=15).close()
+        return None
+    except urllib.error.HTTPError as e:
+        try:
+            message = json.loads(e.read()).get("error", {}).get("message", "")
+        except Exception:
+            message = ""
+        return f"HTTP {e.code}{': ' + message if message else ''}" if e.code in (401, 402, 403) else None
+    except Exception:
+        return None
+
+
 def read_specs(args) -> list[str]:
     specs = list(args.model or [])
     if args.models_file:
@@ -380,9 +404,14 @@ def cmd_run(args) -> int:
     if args.case:
         cases = [c for c in cases if c["id"] in args.case]
     cloud = [s for s in specs if s != "apple"]
+    source = f"${args.key_env}" if os.environ.get(args.key_env) else "the key saved in the app's Settings"
     key = os.environ.get(args.key_env, "") or (saved_key() if cloud else "")
     if cloud and not key:
         sys.exit(f"no cloud key: save one in the app's Settings, or set ${args.key_env}")
+    if cloud and (problem := key_problem(key)):
+        hint = (f" — `unset {args.key_env}` to use the key saved in the app's Settings instead"
+                if source.startswith("$") else " — update it in the app's Settings")
+        sys.exit(f"OpenRouter rejected {source} ({problem}){hint}")
     total = len(specs) * (len(cases) * args.rounds + 1)
     print(f"==> {len(specs)} model(s) × {len(cases)} cases × {args.rounds} rounds (+1 warm-up) = {total} requests")
     done = [0]

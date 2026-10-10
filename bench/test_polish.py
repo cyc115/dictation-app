@@ -138,3 +138,26 @@ def test_apple_runs_through_the_app_with_text_trials(monkeypatch):
     assert rows[1]["error"] == "unavailable" and "check" in rows[2] and rows[2]["cost"] == 0.0
     default = polish.run(["apple"], cases[:1], 1, 1, "", None, 1, 30, lambda row: None)
     assert sent["extra"] == {} and len(default) == 2, "the app's own prompt: no override sent"
+
+
+def test_apple_stops_the_run_when_the_installed_app_is_too_old(monkeypatch):
+    from suites import latency
+    calls = []
+
+    def old_app(trials, pause, timeout, key_env, on_sample, extra):
+        on_sample({"id": trials[0]["id"], "error": "unknown speech model text"}, 1)
+
+    monkeypatch.setattr(latency, "run_in_app", old_app)
+    monkeypatch.setattr(polish, "stream", lambda *a: calls.append(a) or {"error": "should not run"})
+    cases = polish.load_cases()[:2]
+    with pytest.raises(SystemExit, match="older than this checkout"):
+        polish.run(["apple", "openrouter:m"], cases, 1, 1, "k", None, 2, 30, lambda row: None)
+    assert calls == [], "no cloud requests once Apple shows the build is stale"
+
+
+def test_a_rejected_key_stops_the_run_before_any_polish(monkeypatch, capsys):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-revoked")
+    monkeypatch.setattr(polish, "key_problem", lambda key: "HTTP 401: User not found.")
+    monkeypatch.setattr(polish, "run", lambda *a, **k: pytest.fail("ran with a rejected key"))
+    with pytest.raises(SystemExit, match=r"rejected \$OPENROUTER_API_KEY .*unset OPENROUTER_API_KEY"):
+        polish.main(["run", "-m", "openai/gpt-oss-120b@Groq", "--case", "en-clean"])

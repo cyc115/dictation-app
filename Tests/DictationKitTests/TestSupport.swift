@@ -151,24 +151,23 @@ struct AXNode {
 // MARK: - Snapshot testing
 
 /// Compares a view's rendering to a reference PNG in __Snapshots__/.
-/// Record or re-record with: RECORD_SNAPSHOTS=1 swift test
+/// Record or re-record with: RECORD_SNAPSHOTS=1 ./test.sh --filter SnapshotTests
 ///
-/// Views in on-screen windows (the overlay pill) render at that display's scale, so references are
-/// kept per scale: `name.png` at 1×, `name@2x.png` on Retina. Resampling one to the other would
-/// blur edges and make the pixel comparison flaky.
+/// Views render into an sRGB bitmap at a fixed 2× scale, not at the scale and color profile of the
+/// display the window happens to be on: the overlay pill opens on the screen with the mouse, so the
+/// same test used to produce different pixels from run to run (1× vs 2×, and grays shifted by the
+/// display's profile).
 func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.01,
                     file: StaticString = #filePath, line: UInt = #line) {
     view.layoutSubtreeIfNeeded()
-    guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+    guard let rep = snapshotBitmap(of: view) else {
         return XCTFail("could not render \(name)", file: file, line: line)
     }
-    view.cacheDisplay(in: view.bounds, to: rep)
     guard let png = rep.representation(using: .png, properties: [:]) else {
         return XCTFail("could not encode \(name)", file: file, line: line)
     }
     let dir = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().appendingPathComponent("__Snapshots__")
-    let scale = view.bounds.width > 0 ? Int((Double(rep.pixelsWide) / Double(view.bounds.width)).rounded()) : 1
-    let reference = dir.appendingPathComponent(scale == 1 ? "\(name).png" : "\(name)@\(scale)x.png")
+    let reference = dir.appendingPathComponent("\(name).png")
     let record = ProcessInfo.processInfo.environment["RECORD_SNAPSHOTS"] == "1"
     if record || !FileManager.default.fileExists(atPath: reference.path) {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -182,29 +181,74 @@ func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.0
         return XCTFail("unreadable reference \(name).png", file: file, line: line)
     }
     let failures = dir.appendingPathComponent("failures")
-    func saveFailure() {
-        try? FileManager.default.createDirectory(at: failures, withIntermediateDirectories: true)
-        try? png.write(to: failures.appendingPathComponent(reference.lastPathComponent))
-    }
     guard expected.pixelsWide == rep.pixelsWide, expected.pixelsHigh == rep.pixelsHigh else {
-        saveFailure()
-        return XCTFail("\(name): size \(rep.pixelsWide)x\(rep.pixelsHigh) ≠ reference \(expected.pixelsWide)x\(expected.pixelsHigh); actual saved to __Snapshots__/failures/", file: file, line: line)
+        saveSnapshotFailure(png, diff: nil, named: name, in: failures)
+        return XCTFail("\(name): size \(rep.pixelsWide)x\(rep.pixelsHigh) ≠ reference \(expected.pixelsWide)x\(expected.pixelsHigh) "
+                       + "(references are 2×; re-record if this one predates that); actual saved to __Snapshots__/failures/",
+                       file: file, line: line)
     }
+    let diff = SnapshotDiff(rep, expected)
+    if diff.fraction > tolerance {
+        saveSnapshotFailure(png, diff: diff.image, named: name, in: failures)
+        XCTFail(String(format: "%@: %.2f%% of pixels differ (limit %.2f%%), largest change %.2f, in x %ld–%ld y %ld–%ld of %ldx%ld; "
+                       + "actual and a diff (changed pixels in red) saved to __Snapshots__/failures/",
+                       name, diff.fraction * 100, tolerance * 100, diff.maxDelta, diff.box.minX, diff.box.maxX,
+                       diff.box.minY, diff.box.maxY, rep.pixelsWide, rep.pixelsHigh), file: file, line: line)
+    }
+}
+
+/// `view` drawn into an sRGB bitmap at 2× its size in points.
+func snapshotBitmap(of view: NSView, scale: CGFloat = 2) -> NSBitmapImageRep? {
+    let size = view.bounds.size
+    guard size.width > 0, size.height > 0,
+          let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int((size.width * scale).rounded()),
+                                     pixelsHigh: Int((size.height * scale).rounded()), bitsPerSample: 8,
+                                     samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                     colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)?
+            .retagging(with: .sRGB)
+    else { return nil }
+    rep.size = size
+    view.cacheDisplay(in: view.bounds, to: rep)
+    return rep
+}
+
+/// Pixels whose color or alpha moved by more than `threshold` (0–1).
+struct SnapshotDiff {
     var differing = 0
-    for y in 0..<rep.pixelsHigh {
-        for x in 0..<rep.pixelsWide {
-            guard let a = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
-                  let b = expected.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
-            let delta = max(abs(a.redComponent - b.redComponent), abs(a.greenComponent - b.greenComponent),
-                            abs(a.blueComponent - b.blueComponent), abs(a.alphaComponent - b.alphaComponent))
-            if delta > 0.08 { differing += 1 }
+    var maxDelta: CGFloat = 0
+    var box = (minX: Int.max, maxX: -1, minY: Int.max, maxY: -1)
+    let fraction: Double
+    /// The actual image faded, with changed pixels in red.
+    let image: NSBitmapImageRep?
+
+    init(_ actual: NSBitmapImageRep, _ expected: NSBitmapImageRep, threshold: CGFloat = 0.08) {
+        let marked = actual.copy() as? NSBitmapImageRep
+        for y in 0..<actual.pixelsHigh {
+            for x in 0..<actual.pixelsWide {
+                guard let a = actual.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
+                      let b = expected.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
+                let delta = max(abs(a.redComponent - b.redComponent), abs(a.greenComponent - b.greenComponent),
+                                abs(a.blueComponent - b.blueComponent), abs(a.alphaComponent - b.alphaComponent))
+                maxDelta = max(maxDelta, delta)
+                if delta > threshold {
+                    differing += 1
+                    box = (min(box.minX, x), max(box.maxX, x), min(box.minY, y), max(box.maxY, y))
+                    marked?.setColor(.red, atX: x, y: y)
+                } else {
+                    marked?.setColor(a.withAlphaComponent(a.alphaComponent * 0.3), atX: x, y: y)
+                }
+            }
         }
+        fraction = Double(differing) / Double(max(actual.pixelsWide * actual.pixelsHigh, 1))
+        image = differing > 0 ? marked : nil
     }
-    let fraction = Double(differing) / Double(rep.pixelsWide * rep.pixelsHigh)
-    if fraction > tolerance {
-        saveFailure()
-        XCTFail(String(format: "%@: %.2f%% of pixels differ (limit %.2f%%); actual saved to __Snapshots__/failures/",
-                       name, fraction * 100, tolerance * 100), file: file, line: line)
+}
+
+private func saveSnapshotFailure(_ png: Data, diff: NSBitmapImageRep?, named name: String, in dir: URL) {
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    try? png.write(to: dir.appendingPathComponent("\(name).png"))
+    if let diffPNG = diff?.representation(using: .png, properties: [:]) {
+        try? diffPNG.write(to: dir.appendingPathComponent("\(name).diff.png"))
     }
 }
 
