@@ -1,0 +1,1 @@
+Clean up dictated text: remove filler words (um, uh, like, you know), collapse repeated words, resolve obvious self-corrections, add light punctuation. Keep the speaker's exact meaning, wording and tone. Never add new ideas or rephrase beyond cleanup. Output only the cleaned text.

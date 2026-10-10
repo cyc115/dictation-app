@@ -94,11 +94,13 @@ bench/suite.py polish report --failures openai/gpt-oss-120b@Groq         # what 
   full set (and the held-out one) before changing a default.
 - **Models:** `apple` runs Apple's model inside the installed app (Mac only, after `./build.sh`);
   `openrouter:<id>[@Provider]` pins a host (`@Groq`, `@Cerebras`), else `--sort latency` asks
-  OpenRouter to pick. Reasoning is off or at its lowest.
+  OpenRouter to pick. Reasoning is off or at its lowest. `setup:<id>` (e.g. `setup:on-device`, or
+  one of yours in `setups.json`) runs a Settings → Model setup's polish exactly as the app does.
 - **Key:** `$OPENROUTER_API_KEY`, else the key saved in the app's Settings (Keychain).
-- **Prompts:** `--prompt-file` (see `polish_prompts/`). The transcript goes in `<transcript>` tags,
-  as the app sends it to every polish model; `--no-wrap` sends it bare, to compare. The app's cloud
-  polish uses `v3.txt` + tags (a test keeps them identical).
+- **Prompts:** each model gets the prompt its setup uses in the app (`apple`: On-device's; cloud
+  models: Cloud Flash's), or `--prompt-file` (see `polish_prompts/`, versions `v1`–`v3`, identical to
+  `PolishPrompt` in `Setups.swift`; a test checks). The transcript goes in `<transcript>` tags, as
+  the app sends it; `--no-wrap` sends it bare, to compare. Built-in setups all use `v3` + tags.
 
 ## Speech-to-text accuracy (`suite.py accuracy` = `bench.py`)
 

@@ -11,6 +11,9 @@ func makeDefaults(_ test: XCTestCase) -> UserDefaults {
     return defaults
 }
 
+/// For AppSettings in tests: no custom setups, never the user's own setups.json.
+let noCustomSetups = URL(fileURLWithPath: "/nonexistent/DictationAppTests/setups.json")
+
 /// A throwaway file location, removed when the test ends.
 func makeTempURL(_ test: XCTestCase, _ name: String = "history.json") -> URL {
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent("DictationAppTests-\(UUID().uuidString)")

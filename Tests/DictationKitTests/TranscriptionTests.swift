@@ -4,57 +4,57 @@ import XCTest
 
 final class TranscriptionModelTests: XCTestCase {
     func testCapabilities() {
-        XCTAssertFalse(TranscriptionModel.local.isCloud)
-        XCTAssertTrue(TranscriptionModel.local.supportsStreaming)
-        XCTAssertTrue(TranscriptionModel.local.supportsLanguageChoice)
-        XCTAssertEqual(TranscriptionModel.metaMuse.openRouterID, "meta/muse-voice-transcribe-1.0")
-        XCTAssertFalse(TranscriptionModel.metaMuse.supportsStreaming)
-        XCTAssertFalse(TranscriptionModel.metaMuse.supportsLanguageChoice)
-        XCTAssertEqual(TranscriptionModel.qwenASR.openRouterID, "qwen/qwen3-asr-1.7b")
-        for model in TranscriptionModel.allCases where model.isCloud {
+        XCTAssertFalse(DictationSetup.onDevice.isCloud)
+        XCTAssertTrue(DictationSetup.onDevice.supportsStreaming)
+        XCTAssertTrue(DictationSetup.onDevice.supportsLanguageChoice)
+        XCTAssertEqual(DictationSetup.cloudBig.openRouterID, "meta/muse-voice-transcribe-1.0")
+        XCTAssertFalse(DictationSetup.cloudBig.supportsStreaming)
+        XCTAssertFalse(DictationSetup.cloudBig.supportsLanguageChoice)
+        XCTAssertEqual(DictationSetup.cloudFlash.openRouterID, "qwen/qwen3-asr-1.7b")
+        for model in DictationSetup.builtIns where model.isCloud {
             XCTAssertFalse(model.supportsStreaming, "\(model) is batch")
             XCTAssertFalse(model.supportsLanguageChoice, "\(model) detects the language")
         }
-        XCTAssertEqual(TranscriptionModel.allCases.map(\.title), ["On-device", "Cloud Flash", "Cloud Big"])
-        XCTAssertEqual(TranscriptionModel.qwenASR.title, "Cloud Flash")
-        XCTAssertEqual(TranscriptionModel.metaMuse.title, "Cloud Big")
+        XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash", "Cloud Big"])
+        XCTAssertEqual(DictationSetup.cloudFlash.title, "Cloud Flash")
+        XCTAssertEqual(DictationSetup.cloudBig.title, "Cloud Big")
     }
 
     func testQwenPersists() {
         let defaults = makeDefaults(self)
-        AppSettings(defaults: defaults, secrets: InMemorySecretStore()).transcriptionModel = .qwenASR
-        XCTAssertEqual(AppSettings(defaults: defaults, secrets: InMemorySecretStore()).transcriptionModel, .qwenASR)
+        AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).setup = .cloudFlash
+        XCTAssertEqual(AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).setup, .cloudFlash)
     }
 }
 
 final class ModelSettingsTests: XCTestCase {
     func testDefaultsAndPersistence() {
         let defaults = makeDefaults(self)
-        let s = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
-        XCTAssertEqual(s.transcriptionModel, .local)
+        let s = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
+        XCTAssertEqual(s.setup, .onDevice)
         XCTAssertEqual(s.localLanguage, .english)
-        s.transcriptionModel = .metaMuse
+        s.setup = .cloudBig
         s.localLanguage = .mandarin
-        let r = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
-        XCTAssertEqual(r.transcriptionModel, .metaMuse)
+        let r = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
+        XCTAssertEqual(r.setup, .cloudBig)
         XCTAssertEqual(r.localLanguage, .mandarin)
     }
 
     func testStreamingDisabledForCloudButRemembered() {
-        let s = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        let s = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         s.streamWhileSpeaking = true
         XCTAssertTrue(s.effectiveStreaming)
-        s.transcriptionModel = .metaMuse
+        s.setup = .cloudBig
         XCTAssertFalse(s.effectiveStreaming, "batch model can't stream")
         XCTAssertTrue(s.streamWhileSpeaking, "the saved preference survives")
-        s.transcriptionModel = .local
+        s.setup = .onDevice
         XCTAssertTrue(s.effectiveStreaming, "and comes back with the local model")
     }
 
     func testAPIKeyGoesToSecretStoreNotDefaults() {
         let defaults = makeDefaults(self)
         let secrets = InMemorySecretStore()
-        let s = AppSettings(defaults: defaults, secrets: secrets)
+        let s = AppSettings(defaults: defaults, secrets: secrets, customSetupsFile: noCustomSetups)
         XCTAssertFalse(s.hasOpenRouterKey)
         s.setOpenRouterKey("  sk-or-v1-test  ")
         XCTAssertTrue(s.hasOpenRouterKey)
@@ -62,6 +62,24 @@ final class ModelSettingsTests: XCTestCase {
         XCTAssertFalse(defaults.dictionaryRepresentation().values.contains { "\($0)".contains("sk-or") })
         s.setOpenRouterKey("")
         XCTAssertFalse(s.hasOpenRouterKey)
+    }
+
+    /// Reading a Keychain item can ask for the login password: launching only checks that the key
+    /// exists, and it's read once, when a cloud dictation first needs it.
+    func testKeyIsReadOnceAndNotAtLaunch() {
+        final class Spy: SecretStore {
+            var reads = 0
+            func get(_ account: String) -> String? { reads += 1; return "sk-or-v1-test" }
+            func set(_ value: String?, for account: String) {}
+            func has(_ account: String) -> Bool { true }
+        }
+        let spy = Spy()
+        let s = AppSettings(defaults: makeDefaults(self), secrets: spy, customSetupsFile: noCustomSetups)
+        XCTAssertTrue(s.hasOpenRouterKey)
+        XCTAssertEqual(spy.reads, 0)
+        XCTAssertEqual(s.openRouterKey, "sk-or-v1-test")
+        XCTAssertEqual(s.openRouterKey, "sk-or-v1-test")
+        XCTAssertEqual(spy.reads, 1, "one read per run, not one per dictation")
     }
 }
 
@@ -238,8 +256,8 @@ final class CloudEngineTests: XCTestCase {
         let input = AVAudioPCMBuffer(pcmFormat: src.processingFormat, frameCapacity: AVAudioFrameCount(src.length))!
         try src.read(into: input)
         // Every model the app can ask, backups included.
-        var models = TranscriptionModel.allCases.compactMap(\.openRouterID)
-        for backup in TranscriptionModel.allCases.compactMap(\.backupOpenRouterID) where !models.contains(backup) {
+        var models = DictationSetup.builtIns.compactMap(\.openRouterID)
+        for backup in DictationSetup.builtIns.compactMap(\.backup) where !models.contains(backup) {
             models.append(backup)
         }
         for model in models {

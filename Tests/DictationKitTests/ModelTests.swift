@@ -105,7 +105,7 @@ final class HistoryStoreTests: XCTestCase {
 
 final class SettingsTests: XCTestCase {
     func testDefaults() {
-        let s = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        let s = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         XCTAssertEqual(s.hotkey, .fn)
         XCTAssertEqual(s.mode, .hold)
         XCTAssertEqual(s.mouseButton, .off)
@@ -120,7 +120,7 @@ final class SettingsTests: XCTestCase {
 
     func testChangesPersistAndNotify() {
         let defaults = makeDefaults(self)
-        let s = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
+        let s = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         var changes = 0
         s.onChange = { changes += 1 }
         s.hotkey = .rightOption
@@ -135,7 +135,7 @@ final class SettingsTests: XCTestCase {
         s.streamWhileSpeaking = true
         XCTAssertEqual(changes, 10)
 
-        let r = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
+        let r = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         XCTAssertEqual(r.hotkey, .rightOption)
         XCTAssertEqual(r.mode, .toggle)
         XCTAssertEqual(r.mouseButton, .button4)
@@ -149,7 +149,7 @@ final class SettingsTests: XCTestCase {
     }
 
     func testHint() {
-        let s = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        let s = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         XCTAssertEqual(s.hint, "Hold Fn to dictate — release to paste")
         s.hotkey = .rightShift
         s.mode = .toggle
@@ -160,7 +160,7 @@ final class SettingsTests: XCTestCase {
         let defaults = makeDefaults(self)
         defaults.set("bogus", forKey: "hotkey")
         defaults.set("bogus", forKey: "activationMode")
-        let s = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
+        let s = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         XCTAssertEqual(s.hotkey, .fn)
         XCTAssertEqual(s.mode, .hold)
     }

@@ -35,7 +35,7 @@ struct LatencyPlan: Decodable {
     /// Seconds before a trial that hasn't answered is recorded as timed out.
     let timeout: Double
     let trials: [LatencyTrial]
-    /// Polish system prompt to try instead of PolishService.instructions (bench/suite.py polish).
+    /// Polish system prompt to try instead of each model's setup prompt (bench/suite.py polish).
     var instructions: String? = nil
     /// Send the transcript inside <transcript> tags; nil: yes, as the app does.
     var wrap: Bool? = nil
@@ -74,6 +74,8 @@ final class LatencyRunner {
     var speakingTime: TimeInterval = 1.5
     /// Shared by every "+backup" trial, as the app shares one across dictations.
     var backup = AdaptiveBackup()
+    /// How long "+backup" trials wait before asking the backup; nil: the setup's (tests set a short one).
+    var backupWait: TimeInterval?
 
     private let speech = SpeechEngine()
     private var cloud: CloudEngine?
@@ -90,15 +92,11 @@ final class LatencyRunner {
 
     func polisher(for spec: String) -> PolishBackend? {
         if let fake = polishers[spec] { return fake }
+        // Without a prompt override, each model gets its setup's prompt, as in the app.
         if spec == "apple" { return OnDevicePolish(instructions: instructions, wrap: wrap) }
         if spec == "apple-tail" { return OnDevicePolish(tailWords: Self.tailWords) }
-        if spec.hasPrefix("openrouter:") {
-            // "openrouter:<id>@<Provider>" pins a provider, as bench/suite.py polish does.
-            let parts = spec.dropFirst("openrouter:".count).split(separator: "@", maxSplits: 1).map(String.init)
-            return OpenRouterPolish(model: parts[0], apiKey: apiKey, instructions: instructions ?? PolishService.instructions,
-                                    wrap: wrap, provider: parts.count > 1 ? parts[1] : nil)
-        }
-        return nil
+        return DictationSetup.polishBackend(spec: spec, apiKey: apiKey,
+                                            instructions: instructions ?? DictationSetup.cloudFlash.promptText, wrap: wrap)
     }
 
     /// Plays the clip into the engine like the mic would, then times `stop()` → transcript.
@@ -126,6 +124,10 @@ final class LatencyRunner {
             engine.client = transcriptionClient
             engine.modelID = model
             engine.backup = withBackup ? backup : nil  // as AppDelegate does with the setting
+            // The backup of the built-in setup with this speech model, as the app would ask it.
+            let setup = DictationSetup.builtIn(speechModel: model)
+            engine.backupModelID = setup?.backup
+            engine.backupWait = backupWait ?? setup?.backupWait ?? 2
             engine.apiKey = apiKey
             cloud = engine
             // Recording happens before you press stop, so the clip goes in at full speed.

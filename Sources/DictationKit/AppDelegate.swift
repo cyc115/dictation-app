@@ -31,8 +31,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var engine: DictationEngine?
     private let overlay = OverlayWindow()
     private let injector = TextInjector()
-    /// Kept across dictations: it holds the prewarmed session.
-    private let onDevicePolish = OnDevicePolish()
+    /// Kept across dictations: it holds the prewarmed session. Replaced when the setup's prompt changes.
+    private var onDevicePolish = OnDevicePolish()
     /// Chosen from Settings when a dictation starts.
     private var polisher = PolishService()
     /// The polish half of the current dictation's kept-recording JSON (nil unless Keep recordings is on).
@@ -188,21 +188,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatusIcon()
     }
 
+    /// The on-device polisher for this prompt, reusing the kept one (and its prewarmed session) if it matches.
+    private func onDevicePolish(instructions: String, wrap: Bool) -> PolishBackend {
+        if onDevicePolish.customInstructions != instructions || onDevicePolish.wrap != wrap {
+            onDevicePolish = OnDevicePolish(instructions: instructions, wrap: wrap)
+        }
+        return onDevicePolish
+    }
+
     func startDictation() {
         guard !dictating else { return }
-        let model = settings.transcriptionModel
+        let setup = settings.setup
         let archive = settings.keepRecordings ? RecordingArchive.shared : nil
         cloud.archive = archive
         speech.archive = archive
         let engine: DictationEngine
-        if let modelID = model.openRouterID {
-            guard let key = settings.openRouterKey, !key.isEmpty else {
-                overlay.showMessage("Add your cloud API key in Settings to use \(model.title)", hideAfter: 4)
+        let key = setup.usesCloud ? settings.openRouterKey : nil
+        if let modelID = setup.openRouterID {
+            guard let key, !key.isEmpty else {
+                overlay.showMessage("Add your cloud API key in Settings to use \(setup.title)", hideAfter: 4)
                 mainWindow.show(.settings)
                 return
             }
             cloud.modelID = modelID
             cloud.backup = settings.effectiveBackup ? backup : nil
+            cloud.backupModelID = setup.backup
+            cloud.backupWait = setup.backupWait
             cloud.apiKey = key
             engine = cloud
         } else {
@@ -212,8 +223,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         self.engine = engine
         // Load the polish model while you speak instead of after you stop.
         if settings.polishEnabled && !settings.effectiveStreaming {
-            polisher = PolishService(backend: settings.polishModel.backend(apiKey: settings.openRouterKey,
-                                                                            onDevice: onDevicePolish))
+            polisher = PolishService(backend: setup.polishBackend(apiKey: key,
+                                                                  onDevice: onDevicePolish(instructions:wrap:)))
             polisher.prepare()
         }
         let polishes = settings.polishEnabled && !settings.effectiveStreaming

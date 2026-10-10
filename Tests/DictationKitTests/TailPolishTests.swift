@@ -23,7 +23,7 @@ final class TailPolishTests: XCTestCase {
         let prompt = PolishService.tailPrompt("one two three four five six", words: 2)
         XCTAssertEqual(prompt, "Earlier part (already written):\none two three four\n\n"
                        + "Newest part (clean up and output only this):\nfive six")
-        XCTAssertTrue(PolishService.tailInstructions.hasPrefix(PolishService.instructions))
+        XCTAssertTrue(PolishService.tailInstructions.hasPrefix(PolishPrompt.v1))
         XCTAssertTrue(PolishService.tailInstructions.contains("never repeat the earlier part"))
     }
 }

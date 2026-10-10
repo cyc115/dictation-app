@@ -194,9 +194,9 @@ final class KeepRecordingsEngineTests: XCTestCase {
 
     func testKeepRecordingsIsOffByDefaultAndPersists() {
         let defaults = makeDefaults(self)
-        XCTAssertFalse(AppSettings(defaults: defaults, secrets: InMemorySecretStore()).keepRecordings)
-        AppSettings(defaults: defaults, secrets: InMemorySecretStore()).keepRecordings = true
-        XCTAssertTrue(AppSettings(defaults: defaults, secrets: InMemorySecretStore()).keepRecordings)
+        XCTAssertFalse(AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).keepRecordings)
+        AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).keepRecordings = true
+        XCTAssertTrue(AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).keepRecordings)
     }
 }
 
@@ -213,7 +213,8 @@ final class PolishReportTests: XCTestCase {
     }
 
     func testModelNames() {
-        XCTAssertEqual(PolishModel.cloud.backend(apiKey: "k", onDevice: OnDevicePolish()).name, "openrouter:openai/gpt-oss-120b@Groq")
-        XCTAssertEqual(PolishModel.cloud.backend(apiKey: nil, onDevice: OnDevicePolish()).name, "apple:on-device")
+        let onDevice: (String, Bool) -> PolishBackend = { OnDevicePolish(instructions: $0, wrap: $1) }
+        XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: "k", onDevice: onDevice).name, "openrouter:openai/gpt-oss-120b@Groq")
+        XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: nil, onDevice: onDevice).name, "apple:on-device")
     }
 }

@@ -14,7 +14,7 @@ final class SettingsUITests: XCTestCase {
     }
 
     func testEverySettingIsReachable() {
-        let hosted = host(AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore()))
+        let hosted = host(AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups))
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
                       "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep history", "Keep recordings",
@@ -25,7 +25,7 @@ final class SettingsUITests: XCTestCase {
 
     func testTogglesChangeAndPersistSettings() {
         let defaults = makeDefaults(self)
-        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
+        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         let hosted = host(settings)
         for (title, read) in [("Interaction sounds", { settings.interactionSounds }),
                               ("Mute when dictating", { settings.muteWhileDictating }),
@@ -38,7 +38,7 @@ final class SettingsUITests: XCTestCase {
             XCTAssertTrue(hosted.click(toggle), "\(title) not clickable")
             XCTAssertEqual(read(), !before, "\(title) did not flip")
         }
-        let reloaded = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
+        let reloaded = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         XCTAssertFalse(reloaded.interactionSounds)
         XCTAssertTrue(reloaded.muteWhileDictating)
         XCTAssertTrue(reloaded.showInDock)
@@ -48,7 +48,7 @@ final class SettingsUITests: XCTestCase {
     }
 
     func testRecordingsFolderOnlyShownWhileKeepingRecordings() {
-        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         let hosted = host(settings)
         XCTAssertNil(hosted.element(id: "setting.Recordings folder"))
         guard let toggle = hosted.element(id: "setting.Keep recordings") else { return XCTFail("no toggle") }
@@ -60,7 +60,7 @@ final class SettingsUITests: XCTestCase {
     func testKeepHistoryLivesInSettings() {
         let defaults = makeDefaults(self)
         let history = HistoryStore(fileURL: makeTempURL(self), defaults: defaults)
-        let hosted = host(AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore()), history: history)
+        let hosted = host(AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups), history: history)
         XCTAssertNotNil(hosted.element(id: "setting.Keep history"))
         history.retention = .days30
         hosted.settle()
@@ -69,7 +69,7 @@ final class SettingsUITests: XCTestCase {
 
     func testBackupModelForCloudModelsOnByDefaultAndPersists() {
         let defaults = makeDefaults(self)
-        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
+        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         XCTAssertTrue(settings.backupWhenSlow, "on by default")
         let hosted = host(settings)
         let id = "setting.Backup model when slow"
@@ -77,22 +77,22 @@ final class SettingsUITests: XCTestCase {
                        "On-device has no backup")
 
         settings.setOpenRouterKey("sk-or-v1-test")
-        settings.transcriptionModel = .qwenASR
+        settings.setup = .cloudFlash
         hosted.settle()
         XCTAssertTrue(settings.effectiveBackup)
         guard let toggle = hosted.element(id: id) else { return XCTFail("no toggle") }
         XCTAssertTrue(hosted.click(toggle))
         XCTAssertFalse(settings.backupWhenSlow)
-        XCTAssertFalse(AppSettings(defaults: defaults, secrets: InMemorySecretStore()).backupWhenSlow,
+        XCTAssertFalse(AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).backupWhenSlow,
                        "turning it off is remembered")
         XCTAssertTrue(hosted.click(toggle))
 
-        settings.transcriptionModel = .metaMuse
+        settings.setup = .cloudBig
         hosted.settle()
         XCTAssertTrue(settings.effectiveBackup, "Cloud Big falls back to Cloud Flash")
         XCTAssertEqual(hosted.element(id: id)?.object.value(forKey: "accessibilityEnabled") as? Bool, true)
 
-        settings.transcriptionModel = .local
+        settings.setup = .onDevice
         hosted.settle()
         XCTAssertFalse(settings.effectiveBackup)
         XCTAssertEqual(hosted.element(id: id)?.value, "0", "unavailable toggle shows off")
@@ -100,23 +100,23 @@ final class SettingsUITests: XCTestCase {
     }
 
     func testPolishRunsWhereTheSpeechModelRuns() {
-        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         settings.polishEnabled = true
         let hosted = host(settings)
-        XCTAssertEqual(settings.polishModel, .onDevice, "On-device speech: nothing leaves the Mac")
+        XCTAssertTrue(settings.setup.polishesOnDevice, "On-device speech: nothing leaves the Mac")
         XCTAssertTrue(hosted.allText.contains("nothing leaves it"))
         settings.setOpenRouterKey("sk-or-v1-test")
-        for model in [TranscriptionModel.qwenASR, .metaMuse] {
-            settings.transcriptionModel = model
+        for model in [DictationSetup.cloudFlash, .cloudBig] {
+            settings.setup = model
             hosted.settle()
-            XCTAssertEqual(settings.polishModel, .cloud, model.title)
+            XCTAssertFalse(settings.setup.polishesOnDevice, model.title)
             XCTAssertTrue(hosted.allText.contains("with a cloud model"), model.title)
         }
         XCTAssertNil(hosted.element(id: "setting.Polish model"), "no separate choice: it follows the speech model")
     }
 
     func testCloudModelDisablesUnsupportedSettingsButKeepsThem() {
-        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         settings.streamWhileSpeaking = true
         settings.localLanguage = .mandarin
         let hosted = host(settings)
@@ -129,7 +129,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertNil(hosted.element(id: "setting.Cloud API key"), "key row only for cloud models")
 
         settings.setOpenRouterKey("sk-or-v1-test")
-        settings.transcriptionModel = .metaMuse
+        settings.setup = .cloudBig
         hosted.settle()
         XCTAssertEqual(enabled("Type as you speak"), false)
         XCTAssertEqual(enabled("Language"), false)
@@ -137,7 +137,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(settings.streamWhileSpeaking, "state is remembered while disabled")
         XCTAssertEqual(settings.localLanguage, .mandarin)
 
-        settings.transcriptionModel = .qwenASR
+        settings.setup = .cloudFlash
         hosted.settle()
         XCTAssertEqual(enabled("Type as you speak"), false)
         XCTAssertNotNil(hosted.element(id: "setting.Cloud API key"), "same key for every cloud model")
@@ -145,17 +145,17 @@ final class SettingsUITests: XCTestCase {
         let toggle = hosted.element(id: "setting.Type as you speak")
         XCTAssertEqual(toggle?.value, "0", "unavailable toggle shows off, not the saved on-state")
         XCTAssertTrue(settings.streamWhileSpeaking)
-        settings.transcriptionModel = .local
+        settings.setup = .onDevice
         hosted.settle()
         XCTAssertEqual(hosted.element(id: "setting.Type as you speak")?.value, "1", "saved choice comes back")
     }
 
     func testNoVendorOrModelNamesInSettings() {
-        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         settings.setOpenRouterKey("sk-or-v1-test")
         let hosted = host(settings)
-        for model in TranscriptionModel.allCases {
-            settings.transcriptionModel = model
+        for model in DictationSetup.builtIns {
+            settings.setup = model
             hosted.settle()
             let text = hosted.allText.lowercased()
             for banned in ["openrouter", "muse", "qwen", "meta", "alibaba", "sk-or"] {
@@ -165,7 +165,7 @@ final class SettingsUITests: XCTestCase {
     }
 
     func testFnTipOnlyShownForFn() {
-        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore())
+        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
         let hosted = host(settings)
         func tipShown() -> Bool { hosted.allText.contains("Press 🌐 key to") }
         XCTAssertTrue(tipShown())

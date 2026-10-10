@@ -5,6 +5,7 @@
   bench/suite.py polish report [--file results/polish/….json] [--markdown] [--failures MODEL]
   bench/suite.py polish cases [--quick]                    # the test set (--quick: the 20-case subset)
   bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq --quick   # a fast comparison
+  bench/suite.py polish run -m setup:on-device -m setup:cloud-flash --quick  # the app's setups, as shipped
 
 Each case (polish_cases.json) is a raw transcript as the speech models write it, the cleanup the app's
 instructions ask for, and checks: words that must survive (names, technical terms, the corrected
@@ -13,7 +14,10 @@ dictation says — answered the question, wrote the email, translated — instea
 
 A polish passes when every check holds and its words are within 25% of the expected text (Chinese
 characters and English words; punctuation and case ignored). Models get the system prompt the app
-uses (PolishService.instructions, read from the Swift source) at temperature 0, like OpenRouterPolish.
+gives them (their setup's, read from Setups.swift: On-device's for apple, Cloud Flash's for cloud
+models; --prompt-file to try another) at temperature 0, like OpenRouterPolish. setup:<id> runs a
+Settings → Model setup (built-in, or yours in ~/Library/Application Support/DictationApp/setups.json)
+exactly as the app does: its polish model, prompt and tags.
 
 Models: apple (Apple's on-device model, through the installed app: Mac only, needs ./build.sh), or
 openrouter:<id>, optionally @<Provider> to pin one provider (e.g. @Groq, @Cerebras), else
@@ -45,7 +49,8 @@ import harness
 NAME = "polish"
 HELP = "AI polish models: quality on tricky dictations, wait and cost, with the app's prompt"
 CASES = harness.ROOT / "polish_cases.json"
-SWIFT = harness.ROOT.parent / "Sources/DictationKit/PolishService.swift"
+SWIFT = harness.ROOT.parent / "Sources/DictationKit/Setups.swift"
+CUSTOM_SETUPS = Path.home() / "Library/Application Support/DictationApp/setups.json"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MAX_ERROR = 0.25  # words off from the expected text, as a share of its words
 # Lowest reasoning settings to try, in order, for models that can't turn it off.
@@ -57,13 +62,45 @@ _TOKEN = re.compile(r"[㐀-鿿豈-﫿]|[a-z0-9]+(?:'[a-z]+)?")
 
 # ---------------------------------------------------------------- the app's prompt and the cases
 
-def instructions(swift: Path = SWIFT, name: str = "instructions") -> str:
-    """PolishService.instructions (or another prompt constant there), exactly as the app sends it."""
+def swift_string(name: str, swift: Path = SWIFT) -> str:
+    """A multi-line string constant in Setups.swift (a prompt, or the built-in setups), as the app sees it."""
     src = swift.read_text()
     body = re.search(rf'static let {name} = """\n(.*?)\n\s*"""', src, re.S).group(1)
     lines = [line.strip() for line in body.splitlines()]
     # Swift multi-line strings: a trailing backslash joins the next line without a newline.
     return "".join(line[:-1] if line.endswith("\\") else line + "\n" for line in lines).strip()
+
+
+def prompt_text(ref: str) -> str:
+    """A prompt version ("v3", PolishPrompt in Setups.swift) or a prompt file, as DictationSetup reads it."""
+    if re.fullmatch(r"v\d+", ref):
+        return swift_string(ref)
+    return Path(ref).expanduser().read_text().strip()
+
+
+def setups(custom: Path = CUSTOM_SETUPS) -> dict[str, dict]:
+    """The app's setups by id: built-in (DictationSetup.builtInJSON), then yours in `custom`, if any."""
+    found = {s["id"]: s for s in json.loads(swift_string("builtInJSON"))}
+    if custom.exists():
+        found.update({s["id"]: s for s in json.loads(custom.read_text()).get("setups", [])})
+    return found
+
+
+def app_prompt(model: str) -> str:
+    """The prompt the app gives this polish model: On-device's for apple, Cloud Flash's for cloud models."""
+    return prompt_text(setups()["on-device" if model == "apple" else "cloud-flash"]["prompt"])
+
+
+def resolve(spec: str, prompt: str | None = None, wrap: bool = True) -> tuple[str, str, bool]:
+    """(polish model, prompt, wrap) for a spec. "setup:<id>" is that setup exactly as the app runs it;
+    other models get `prompt` (else the app's prompt for them) and `wrap`."""
+    if spec.startswith("setup:"):
+        known = setups()
+        if spec[len("setup:"):] not in known:
+            raise SystemExit(f"unknown setup {spec!r}: use one of {', '.join('setup:' + k for k in known)}")
+        setup = known[spec[len("setup:"):]]
+        return setup["polish"], prompt_text(setup["prompt"]), setup.get("wrap", True)
+    return spec, prompt or app_prompt(spec), wrap
 
 
 def load_cases(path: Path = CASES) -> list[dict]:
@@ -211,16 +248,17 @@ def plan(specs: list[str], cases: list[dict], rounds: int, seed: int) -> list[tu
 def run(specs: list[str], cases: list[dict], rounds: int, seed: int, key: str, sort: str | None,
         parallel: int, timeout: float, show, prompt: str | None = None, wrap: bool = True) -> list[dict]:
     """Models run side by side (one request at a time per model, so a model never competes with itself)."""
-    prompt = prompt or instructions()
-    callers = {s: Caller(s, key, prompt, sort, timeout, wrap) for s in specs if s != "apple"}
+    configs = {s: resolve(s, prompt, wrap) for s in specs}
+    callers = {s: Caller(m, key, p, sort, timeout, w) for s, (m, p, w) in configs.items() if m != "apple"}
     by_model: dict[str, list] = {}
     for job in plan(specs, cases, rounds, seed):
         by_model.setdefault(job[1], []).append(job)
     rows: list[dict] = []
 
     def work(spec: str) -> list[dict]:
-        if spec == "apple":
-            return run_apple(by_model[spec], prompt, wrap, timeout, show)
+        model, spec_prompt, spec_wrap = configs[spec]
+        if model == "apple":
+            return run_apple(by_model[spec], spec_prompt, spec_wrap, timeout, show, label=spec)
         out = []
         for rnd, _, case in by_model[spec]:
             result = callers[spec](case["raw"])
@@ -233,21 +271,22 @@ def run(specs: list[str], cases: list[dict], rounds: int, seed: int, key: str, s
         return out
 
     # Apple first, on its own: it stops the run straight away if the installed app is too old.
-    if "apple" in specs:
-        rows += work("apple")
-    cloud = [s for s in specs if s != "apple"]
+    # Apple runs one model at a time inside the app, so its specs go one after another, before the rest.
+    for spec in [s for s in specs if configs[s][0] == "apple"]:
+        rows += work(spec)
+    cloud = [s for s in specs if configs[s][0] != "apple"]
     with concurrent.futures.ThreadPoolExecutor(max(1, parallel)) as pool:
         for part in pool.map(work, cloud):
             rows += part
     return rows
 
 
-def run_apple(jobs: list, prompt: str, wrap: bool, timeout: float, show) -> list[dict]:
+def run_apple(jobs: list, prompt: str, wrap: bool, timeout: float, show, label: str = "apple") -> list[dict]:
     """Apple's on-device model through the installed app (LatencyProbe's polish-only trials)."""
     from suites import latency
     trials = [{"id": f"{i:04d}", "file": "", "stt": "text", "polish": ["apple"], "text": case["raw"],
                "audio_seconds": 0} for i, (_, _, case) in enumerate(jobs)]
-    extra = {} if prompt == instructions() else {"instructions": prompt}
+    extra = {} if prompt == app_prompt("apple") else {"instructions": prompt}
     extra["wrap"] = wrap
     rows = {}
 
@@ -258,7 +297,7 @@ def run_apple(jobs: list, prompt: str, wrap: bool, timeout: float, show) -> list
         i = int(sample["id"])
         rnd, _, case = jobs[i]
         p = (sample.get("polish") or [{}])[0]
-        row = {"model": "apple", "round": rnd, "warmup": rnd == 0, "case": case["id"], "category": case["category"],
+        row = {"model": label, "round": rnd, "warmup": rnd == 0, "case": case["id"], "category": case["category"],
                "kind": case["kind"], "provider": "Apple (on-device)", "cost": 0.0, "first": None}
         if sample.get("error") or p.get("error") or p.get("seconds") is None:
             row["error"] = sample.get("error") or p.get("error") or "no polish"
@@ -268,8 +307,8 @@ def run_apple(jobs: list, prompt: str, wrap: bool, timeout: float, show) -> list
         rows[i] = row
         show(row)
 
-    latency.run_in_app(trials, 0.3, timeout, None, on_sample, extra)
-    return [rows.get(i) or {"model": "apple", "round": jobs[i][0], "warmup": jobs[i][0] == 0, "case": jobs[i][2]["id"],
+    latency.run_in_app(trials, 0.3, timeout, None, on_sample, extra, needs_key=False)
+    return [rows.get(i) or {"model": label, "round": jobs[i][0], "warmup": jobs[i][0] == 0, "case": jobs[i][2]["id"],
                             "category": jobs[i][2]["category"], "kind": jobs[i][2]["kind"], "error": "no result"}
             for i in range(len(jobs))]
 
@@ -388,12 +427,13 @@ def read_specs(args) -> list[str]:
     specs = list(args.model or [])
     if args.models_file:
         specs += [line.split("#")[0].strip() for line in Path(args.models_file).read_text().splitlines()]
-    specs = [s if s == "apple" or s.startswith("openrouter:") else f"openrouter:{s}" for s in specs if s]
+    specs = [s if s == "apple" or s.startswith(("openrouter:", "setup:")) else f"openrouter:{s}" for s in specs if s]
     if not specs:
-        raise SystemExit("name models with -m apple / -m openrouter:<id>[@Provider] or --models-file")
+        raise SystemExit("name models with -m apple / -m openrouter:<id>[@Provider] / -m setup:<id> or --models-file")
     for s in specs:
-        if s != "apple":
-            parse_spec(s)
+        model = resolve(s)[0]
+        if model != "apple":
+            parse_spec(model)
     return list(dict.fromkeys(specs))
 
 
@@ -405,7 +445,7 @@ def cmd_run(args) -> int:
         cases = [c for c in cases if c.get("quick")]
     if args.case:
         cases = [c for c in cases if c["id"] in args.case]
-    cloud = [s for s in specs if s != "apple"]
+    cloud = [s for s in specs if resolve(s)[0] != "apple"]
     source = f"${args.key_env}" if os.environ.get(args.key_env) else "the key saved in the app's Settings"
     key = os.environ.get(args.key_env, "") or (saved_key() if cloud else "")
     if cloud and not key:
@@ -428,7 +468,7 @@ def cmd_run(args) -> int:
         print(f"  [{done[0]:>4}/{total}] {row['model'].replace('openrouter:', '')[:40]:<40} {row['case']:<24} {status}",
               flush=True)
 
-    prompt = Path(args.prompt_file).read_text().strip() if args.prompt_file else instructions()
+    prompt = Path(args.prompt_file).read_text().strip() if args.prompt_file else None
     started = datetime.now()
     rows = run(specs, cases, args.rounds, args.seed, key, args.sort, args.parallel, args.timeout, show,
                prompt, args.wrap)
@@ -437,7 +477,8 @@ def cmd_run(args) -> int:
                          "sort": args.sort, "parallel": args.parallel, "where": args.where,
                          "cases_files": [f.name for f in files],
                          "prompt": "app" if not args.prompt_file else Path(args.prompt_file).name,
-                         "instructions": prompt, "wrap": args.wrap},
+                         "instructions": prompt, "wrap": args.wrap,
+                         "setups": {s: setups()[s[len("setup:"):]] for s in specs if s.startswith("setup:")}},
               "summary": summarize(rows), "trials": rows}
     path = harness.save_result(NAME, args.label or f"{len(specs)}-models", result,
                                Path(args.out) if args.out else None)
@@ -473,7 +514,8 @@ def main(argv: list[str]) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run", help="polish every case with each model; quality, wait and cost")
     r.add_argument("-m", "--model", action="append", metavar="SPEC",
-                   help="apple, or openrouter:<id>[@Provider] (repeatable)")
+                   help="apple, openrouter:<id>[@Provider], or setup:<id> (a Settings → Model setup's polish model, "
+                        "prompt and tags, exactly as the app runs it; ignores --prompt-file/--no-wrap) (repeatable)")
     r.add_argument("--models-file", help="one model spec per line (# comments)")
     r.add_argument("-r", "--rounds", type=int, default=1, help="times each case is polished per model (default 1)")
     r.add_argument("--case", action="append", metavar="ID", help="only these cases")
@@ -485,7 +527,8 @@ def main(argv: list[str]) -> int:
                    help="ask OpenRouter to route to the provider best at this (unpinned models)")
     r.add_argument("--parallel", type=int, default=4, help="models run side by side (default 4)")
     r.add_argument("--timeout", type=float, default=30, help="seconds before a request counts as failed")
-    r.add_argument("--prompt-file", help="system prompt to try instead of the app's (PolishService.instructions)")
+    r.add_argument("--prompt-file", help="system prompt to try instead of the app's (the setup prompt each model "
+                                         "gets in the app: On-device's for apple, Cloud Flash's for cloud models)")
     r.add_argument("--wrap", action=argparse.BooleanOptionalAction, default=True,
                    help="send the transcript inside <transcript> tags, as the app does (default; --no-wrap to compare)")
     r.add_argument("--seed", type=int, default=1)

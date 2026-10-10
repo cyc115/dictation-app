@@ -6,18 +6,39 @@ import pytest
 from suites import polish
 
 
-def test_reads_the_apps_prompt_from_the_swift_source():
-    prompt = polish.instructions()
-    assert prompt.startswith("Clean up dictated text: remove filler words (um, uh, like, you know), collapse")
-    assert prompt.endswith("Output only the cleaned text.") and "\n" not in prompt and "\\" not in prompt
+def test_prompt_versions_match_their_benchmark_files():
+    """The app sends exactly the prompts that were benchmarked (PolishPrompt in Setups.swift)."""
+    for version in ("v1", "v2", "v3"):
+        benchmarked = (polish.CASES.parent / f"polish_prompts/{version}.txt").read_text().strip()
+        assert polish.prompt_text(version) == benchmarked, version
+    v1 = polish.prompt_text("v1")
+    assert v1.startswith("Clean up dictated text: remove filler words (um, uh, like, you know), collapse")
+    assert "\n" not in v1 and "\\" not in v1
 
 
-def test_the_apps_cloud_prompt_is_the_benchmarked_one():
-    """Cloud polish must send exactly the prompt that won the benchmark (PolishModel.cloud)."""
-    swift = polish.SWIFT.read_text()
-    benchmarked = (polish.CASES.parent / "polish_prompts/v3.txt").read_text().strip()
-    assert polish.instructions(name="cloudInstructions") == benchmarked
-    assert 'static let cloudModel = "openai/gpt-oss-120b"' in swift and 'static let cloudProvider = "Groq"' in swift
+def test_reads_the_apps_setups_and_their_prompts(tmp_path):
+    built_in = polish.setups(tmp_path / "none.json")
+    assert list(built_in) == ["on-device", "cloud-flash", "cloud-big"]
+    assert all(s["prompt"] == "v3" and s["wrap"] for s in built_in.values())
+    assert polish.resolve("setup:on-device", "ignored", False) == ("apple", polish.prompt_text("v3"), True)
+    assert polish.resolve("setup:cloud-big")[0] == "openrouter:openai/gpt-oss-120b@Groq"
+    assert polish.app_prompt("apple") == polish.app_prompt("openrouter:x") == polish.prompt_text("v3")
+    assert polish.resolve("openrouter:m") == ("openrouter:m", polish.prompt_text("v3"), True)
+    assert polish.resolve("openrouter:m", "P", False) == ("openrouter:m", "P", False)
+    with pytest.raises(SystemExit, match="unknown setup"):
+        polish.resolve("setup:nope")
+
+
+def test_custom_setups_and_prompt_files(tmp_path, monkeypatch):
+    prompt = tmp_path / "mine.txt"
+    prompt.write_text("Only fix typos.\n")
+    custom = tmp_path / "setups.json"
+    custom.write_text(json.dumps({"setups": [{"id": "mine", "title": "Mine", "speech": "apple", "polish": "apple",
+                                              "prompt": str(prompt), "wrap": False}]}))
+    monkeypatch.setattr(polish, "CUSTOM_SETUPS", custom)
+    monkeypatch.setattr(polish.setups, "__defaults__", (custom,))
+    assert polish.resolve("setup:mine") == ("apple", "Only fix typos.", False)
+    assert polish.resolve("setup:on-device")[0] == "apple", "built-ins are still there"
 
 
 def test_every_expected_output_passes_its_own_checks():
@@ -122,8 +143,8 @@ def test_apple_runs_through_the_app_with_text_trials(monkeypatch):
     from suites import latency
     sent = {}
 
-    def fake_app(trials, pause, timeout, key_env, on_sample, extra):
-        sent.update(trials=trials, extra=extra)
+    def fake_app(trials, pause, timeout, key_env, on_sample, extra, needs_key=True):
+        sent.update(trials=trials, extra=extra, needs_key=needs_key)
         for i, t in enumerate(trials):
             polished = t["text"].replace("嗯", "") if i != 1 else None
             on_sample({"id": t["id"], "transcribe": 0, "raw": t["text"],
@@ -135,20 +156,25 @@ def test_apple_runs_through_the_app_with_text_trials(monkeypatch):
     cases = [c for c in polish.load_cases() if c["id"] in ("zh-short-filler", "mixed-ok")]
     rows = polish.run(["apple"], cases, 1, 1, "", None, 1, 30, lambda row: None, prompt="P", wrap=True)
     assert sent["extra"] == {"instructions": "P", "wrap": True}
+    assert sent["needs_key"] is False, "polish-only: the app needn't touch the Keychain"
     assert all(t["stt"] == "text" and t["polish"] == ["apple"] and t["text"] for t in sent["trials"])
     assert [r["warmup"] for r in rows] == [True, False, False]
     assert rows[1]["error"] == "unavailable" and "check" in rows[2] and rows[2]["cost"] == 0.0
     default = polish.run(["apple"], cases[:1], 1, 1, "", None, 1, 30, lambda row: None)
+    assert default[0]["model"] == "apple"
     assert sent["extra"] == {"wrap": True} and len(default) == 2, "the app's own prompt, in tags like the app"
     polish.run(["apple"], cases[:1], 1, 1, "", None, 1, 30, lambda row: None, wrap=False)
     assert sent["extra"] == {"wrap": False}, "--no-wrap reaches the app, whose default is to wrap"
+    as_shipped = polish.run(["setup:on-device"], cases[:1], 1, 1, "", None, 1, 30, lambda row: None, prompt="P", wrap=False)
+    assert sent["extra"] == {"wrap": True}, "a setup runs as the app does: its prompt and tags, not the overrides"
+    assert {r["model"] for r in as_shipped} == {"setup:on-device"}
 
 
 def test_apple_stops_the_run_when_the_installed_app_is_too_old(monkeypatch):
     from suites import latency
     calls = []
 
-    def old_app(trials, pause, timeout, key_env, on_sample, extra):
+    def old_app(trials, pause, timeout, key_env, on_sample, extra, needs_key=True):
         on_sample({"id": trials[0]["id"], "error": "unknown speech model text"}, 1)
 
     monkeypatch.setattr(latency, "run_in_app", old_app)

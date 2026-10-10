@@ -21,9 +21,11 @@ def fake_durations(monkeypatch):
 
 
 def test_aliases_match_the_apps_models():
-    """flash/big must name the models the app actually ships (TranscriptionModel raw values)."""
+    """flash/big must name the speech models the app's cloud setups use (DictationSetup.builtInJSON)."""
+    from suites import polish
     swift = (REPO / "Sources/DictationKit/Transcription.swift").read_text()
-    shipped = set(re.findall(r'case \w+ = "(openrouter:[^"]+)"', swift))
+    built_in = polish.setups(REPO / "nonexistent.json")
+    shipped = {built_in["cloud-flash"]["speech"], built_in["cloud-big"]["speech"]}
     assert {latency.STT_ALIASES["flash"][0], latency.STT_ALIASES["big"][0]} == shipped
     locales = set(re.findall(r'case \w+ = "([a-z]{2}-[A-Z]{2})"', swift))
     assert {latency.STT_ALIASES["local"][0], latency.STT_ALIASES["local-zh"][0]} == {f"apple:{l}" for l in locales}
@@ -184,6 +186,26 @@ def test_stale_app_build_fails_fast_instead_of_timing_out(monkeypatch, tmp_path)
     with pytest.raises(SystemExit, match="older than this checkout"):
         latency.run_in_app([trial], 0, 90, None, lambda s, i: None)
     assert "open" in launched and launched[-1] == "pkill", "the probe instance is cleaned up"
+
+
+def test_runs_that_need_no_key_keep_the_app_away_from_the_keychain(monkeypatch, tmp_path):
+    import subprocess
+    app = tmp_path / "DictationApp.app"
+    app.mkdir()
+    monkeypatch.setattr(latency, "APP", app)
+    monkeypatch.setattr(latency, "STARTUP_SECONDS", 0.3)
+    monkeypatch.setattr(latency.platform, "system", lambda: "Darwin")
+    opened = []
+    def fake_run(cmd, **kw):
+        if cmd[0] == "open":
+            opened.append(cmd)
+        return subprocess.CompletedProcess(cmd, 1, b"", b"")
+    monkeypatch.setattr(latency.subprocess, "run", fake_run)
+    trial = {"id": "0", "file": "", "stt": "text", "polish": ["apple"], "text": "hi", "audio_seconds": 0}
+    for needs_key, expected in ((False, True), (True, False)):
+        with pytest.raises(SystemExit):
+            latency.run_in_app([trial], 0, 90, None, lambda s, i: None, needs_key=needs_key)
+        assert ("DICTATIONAPP_PROBE_KEY=" in opened[-1]) == expected
 
 
 def test_run_with_no_finished_dictations_saves_nothing(monkeypatch, tmp_path, capsys):

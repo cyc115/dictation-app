@@ -2,73 +2,6 @@ import AVFoundation
 import Foundation
 import Security
 
-// MARK: - Models
-
-/// Which speech-to-text model dictation uses.
-/// Adding another OpenRouter model = one more case with its OpenRouter id.
-enum TranscriptionModel: String, CaseIterable {
-    // Raw values are stored in settings, so keep them stable; order here is the menu order.
-    case local
-    case qwenASR = "openrouter:qwen/qwen3-asr-1.7b"
-    case metaMuse = "openrouter:meta/muse-voice-transcribe-1.0"
-
-    /// Name shown in the app. Users see product tiers, not vendors or model ids.
-    var title: String {
-        switch self {
-        case .local: return "On-device"
-        case .qwenASR: return "Cloud Flash"
-        case .metaMuse: return "Cloud Big"
-        }
-    }
-
-    /// One line for Settings (speeds measured in bench/).
-    var summary: String {
-        switch self {
-        case .local: return "Runs on this Mac; nothing leaves it. One language at a time."
-        case .qwenASR: return "Fastest cloud model — text in about half a second. Handles English mixed into Chinese. Audio is sent to the cloud when you stop."
-        case .metaMuse: return "Larger cloud model — text in about two seconds. Handles English mixed into Chinese. Audio is sent to the cloud when you stop."
-        }
-    }
-
-    /// OpenRouter model id for cloud models; nil for on-device.
-    var openRouterID: String? {
-        rawValue.hasPrefix("openrouter:") ? String(rawValue.dropFirst("openrouter:".count)) : nil
-    }
-
-    var isCloud: Bool { openRouterID != nil }
-    /// Polish runs where the speech model runs: on-device keeps everything on the Mac; for cloud models
-    /// the cloud polish model is faster and better (bench/results/polish/README.md).
-    var polishModel: PolishModel { isCloud ? .cloud : .onDevice }
-    /// Text appears phrase by phrase while you speak (needed for "Type as you speak").
-    var supportsStreaming: Bool { !isCloud }
-    /// Apple's models are one language each; cloud models detect English/Chinese themselves.
-    var supportsLanguageChoice: Bool { !isCloud }
-
-    /// Faster model the "Backup model when slow" setting also asks when this one is slow
-    /// (AdaptiveBackup): Cloud Flash's smaller sibling for Cloud Flash, Cloud Flash for Cloud Big.
-    var backupOpenRouterID: String? {
-        switch self {
-        case .local: return nil
-        case .qwenASR: return "qwen/qwen3-asr-0.6b"
-        case .metaMuse: return TranscriptionModel.qwenASR.openRouterID
-        }
-    }
-
-    /// How long this model gets before its backup is asked too: past its usual answer time
-    /// (Cloud Flash about 1 s; Cloud Big p50 2.3 s, p90 6.4 s in bench/results/latency/).
-    var backupWait: TimeInterval { self == .metaMuse ? 4 : 2 }
-
-    /// Settings help for "Backup model when slow"; nil when this model has no backup.
-    var backupHelp: String? {
-        let after = "the first answer is used. After a slow answer, both are asked at once for 5 minutes."
-        switch self {
-        case .local: return nil
-        case .qwenASR: return "If Cloud Flash hasn't answered in \(Int(backupWait)) seconds, a smaller, faster model is asked too and \(after) The smaller model gets more technical terms wrong."
-        case .metaMuse: return "If Cloud Big hasn't answered in \(Int(backupWait)) seconds, Cloud Flash is asked too and \(after)"
-        }
-    }
-}
-
 /// Recognition language for the local (Apple) model.
 enum LocalLanguage: String, CaseIterable {
     case english = "en-US"
@@ -107,6 +40,12 @@ extension SpeechEngine: DictationEngine {
 protocol SecretStore: AnyObject {
     func get(_ account: String) -> String?
     func set(_ value: String?, for account: String)
+    /// Whether a value is saved, without reading it (reading can ask for the Keychain password).
+    func has(_ account: String) -> Bool
+}
+
+extension SecretStore {
+    func has(_ account: String) -> Bool { !(get(account) ?? "").isEmpty }
 }
 
 /// API keys live in the macOS Keychain, never in UserDefaults.
@@ -138,6 +77,13 @@ final class KeychainStore: SecretStore {
               let value = String(data: data, encoding: .utf8) else { return nil }
         if attrs[kSecAttrComment as String] as? String != Self.aclMarker { set(value, for: account) }
         return value
+    }
+
+    /// Attributes only: no decrypt, so no Keychain password prompt (unlike `get`).
+    func has(_ account: String) -> Bool {
+        var query = base(account)
+        query[kSecReturnAttributes as String] = true
+        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
     }
 
     func comment(_ account: String) -> String? {
@@ -327,7 +273,7 @@ enum TranscriptionError: LocalizedError {
 /// Records the mic to WAV while dictating, then uploads it for transcription when you stop.
 final class CloudEngine: DictationEngine {
     var isBatch: Bool { true }
-    var modelID = TranscriptionModel.metaMuse.openRouterID!
+    var modelID = DictationSetup.cloudBig.openRouterID!
     var apiKey = ""
     var client: TranscriptionClient = OpenRouterClient()
     /// Set while "Keep recordings" is on: finished recordings go here instead of being deleted.
@@ -336,6 +282,9 @@ final class CloudEngine: DictationEngine {
     var note: RecordingNote?
     /// "Backup model when slow"; nil asks only `modelID`.
     var backup: AdaptiveBackup?
+    /// The model `backup` also asks, and after how long (the setup's `backup` / `backupWait`).
+    var backupModelID: String?
+    var backupWait: TimeInterval = 2
     /// The model whose transcript the last dictation used (the backup, if it answered first).
     private(set) var lastAnsweredBy: String?
 
@@ -385,10 +334,11 @@ final class CloudEngine: DictationEngine {
         let archive = self.archive, note = self.note
         let info = RecordingInfo(date: Date(), model: "openrouter:\(modelID)", transcript: "", seconds: recorder.duration)
         lastAnsweredBy = nil
-        let main = modelID, backup = self.backup
+        let main = modelID, wait = backupWait
+        let backup = backupModelID == nil ? nil : self.backup
         race = UploadRace(wav: url, apiKey: apiKey, client: client, main: main,
-                          backup: backup?.plan(for: main)) { [weak self] report in
-            backup?.learn(main, from: report)
+                          backup: backupModelID.flatMap { backup?.plan(for: main, backup: $0, wait: wait) }) { [weak self] report in
+            backup?.learn(main, wait: wait, from: report)
             var heard = info
             switch report.outcome {
             case .text(let text, let model):
@@ -418,17 +368,15 @@ final class CloudEngine: DictationEngine {
 
 /// On by default (Settings → Speech model → "Backup model when slow"); off asks the chosen model only. Cloud Flash usually answers in
 /// about a second, but in slow spells lasting minutes it takes 3–50 s (bench/results/latency/); Cloud
-/// Big's tail reaches 7 s. This also asks the model's faster backup (`TranscriptionModel.backupOpenRouterID`:
+/// Big's tail reaches 7 s. This also asks the setup's faster backup (`DictationSetup.backup`:
 /// a smaller sibling for Cloud Flash, Cloud Flash for Cloud Big); the first answer wins.
 ///  - Normally the backup is asked only once the main model hasn't answered within its wait
-///    (`TranscriptionModel.backupWait`), or failed.
+///    (`DictationSetup.backupWait`), or failed.
 ///  - After the main model was late, both are asked at once for `spell`: the next answers would
 ///    likely be late too. The main model answering on time ends the spell early.
 /// The backup is less accurate on mixed Chinese/English with technical terms (85% vs 90%, bench/).
 /// The app keeps one instance, so a slow spell carries over between dictations.
 final class AdaptiveBackup {
-    /// nil: each model's own `TranscriptionModel.backupWait`. Tests and the latency probe set a short one.
-    var wait: TimeInterval?
     var spell: TimeInterval = 5 * 60
     private let clock: () -> TimeInterval
     /// When each main model (OpenRouter id) was last late.
@@ -436,14 +384,9 @@ final class AdaptiveBackup {
 
     init(clock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) { self.clock = clock }
 
-    /// The backup to ask in a dictation with `model`, and after how long; nil if it has none.
-    func plan(for model: String) -> UploadRace.Backup? {
-        guard let backup = TranscriptionModel(rawValue: "openrouter:\(model)")?.backupOpenRouterID else { return nil }
-        return UploadRace.Backup(model: backup, delay: inSlowSpell(model) ? 0 : wait(for: model))
-    }
-
-    func wait(for model: String) -> TimeInterval {
-        wait ?? TranscriptionModel(rawValue: "openrouter:\(model)")?.backupWait ?? 2
+    /// When to ask `backup` in a dictation with `model`: after `wait`, or at once in a slow spell.
+    func plan(for model: String, backup: String, wait: TimeInterval) -> UploadRace.Backup {
+        UploadRace.Backup(model: backup, delay: inSlowSpell(model) ? 0 : wait)
     }
 
     func inSlowSpell(_ model: String) -> Bool {
@@ -452,8 +395,8 @@ final class AdaptiveBackup {
     }
 
     /// Learns from a finished upload whose main model was `model`.
-    func learn(_ model: String, from report: UploadRace.Report) {
-        if report.mainFailed || report.seconds > wait(for: model) {
+    func learn(_ model: String, wait: TimeInterval, from report: UploadRace.Report) {
+        if report.mainFailed || report.seconds > wait {
             lateAt[model] = clock()  // late: start (or extend) a slow spell
         } else if report.answeredBy == model {
             lateAt[model] = nil  // on time: back to normal

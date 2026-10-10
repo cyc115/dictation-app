@@ -51,7 +51,7 @@ final class AppSettings: ObservableObject {
         static let appearance = "appearance"
         static let dock = "showInDock"
         static let streaming = "streamWhileSpeaking"
-        static let model = "transcriptionModel"
+        static let model = "transcriptionModel"  // the setup's id (before setups: the speech model)
         static let language = "localLanguage"
         static let keepRecordings = "keepRecordings"
         static let backupWhenSlow = "backupWhenSlow"
@@ -71,8 +71,6 @@ final class AppSettings: ObservableObject {
     @Published var polishEnabled: Bool {
         didSet { defaults.set(polishEnabled, forKey: Key.polish); onChange?() }
     }
-    /// Follows the speech model: on-device with On-device, cloud with Cloud Flash / Cloud Big.
-    var polishModel: PolishModel { transcriptionModel.polishModel }
     /// CoreAudio device UID; empty means the system default input.
     @Published var microphoneUID: String {
         didSet { defaults.set(microphoneUID, forKey: Key.microphone); onChange?() }
@@ -90,9 +88,15 @@ final class AppSettings: ObservableObject {
     @Published var streamWhileSpeaking: Bool {
         didSet { defaults.set(streamWhileSpeaking, forKey: Key.streaming); onChange?() }
     }
-    @Published var transcriptionModel: TranscriptionModel {
-        didSet { defaults.set(transcriptionModel.rawValue, forKey: Key.model); onChange?() }
+    /// Settings → Model: speech model, polish model and prompt (DictationSetup).
+    @Published var setup: DictationSetup {
+        didSet { defaults.set(setup.id, forKey: Key.model); onChange?() }
     }
+    /// The built-in setups, then the valid ones in `customSetupsFile`.
+    @Published private(set) var setups: [DictationSetup] = DictationSetup.builtIns
+    /// What's wrong in `customSetupsFile`, if anything.
+    @Published private(set) var setupsError: String?
+    let customSetupsFile: URL
     /// Language for the local model (kept while a cloud model is selected).
     @Published var localLanguage: LocalLanguage {
         didSet { defaults.set(localLanguage.rawValue, forKey: Key.language); onChange?() }
@@ -110,20 +114,27 @@ final class AppSettings: ObservableObject {
     private let secrets: SecretStore
     static let openRouterAccount = "openrouter-api-key"
 
-    var openRouterKey: String? { secrets.get(Self.openRouterAccount) }
+    /// Read from the Keychain once, when a dictation first needs it, then kept: each read can ask
+    /// for the login password.
+    private var cachedKey: String?
+    var openRouterKey: String? {
+        if cachedKey == nil, hasOpenRouterKey { cachedKey = secrets.get(Self.openRouterAccount) }
+        return cachedKey
+    }
 
     func setOpenRouterKey(_ key: String?) {
-        let trimmed = key?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = key?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         secrets.set(trimmed, for: Self.openRouterAccount)
-        hasOpenRouterKey = !(openRouterKey ?? "").isEmpty
+        cachedKey = trimmed.isEmpty ? nil : trimmed
+        hasOpenRouterKey = cachedKey != nil
         onChange?()
     }
 
     /// "Type as you speak" only when the setting is on and the model streams; the saved
     /// preference is kept either way.
-    var effectiveStreaming: Bool { streamWhileSpeaking && transcriptionModel.supportsStreaming }
-    /// "Backup model when slow" only when it's on and the model has a backup.
-    var effectiveBackup: Bool { backupWhenSlow && transcriptionModel.backupOpenRouterID != nil }
+    var effectiveStreaming: Bool { streamWhileSpeaking && setup.supportsStreaming }
+    /// "Backup model when slow" only when it's on and the setup has a backup.
+    var effectiveBackup: Bool { backupWhenSlow && setup.backup != nil }
 
     @Published var showInDock: Bool {
         didSet { defaults.set(showInDock, forKey: Key.dock); onChange?() }
@@ -134,9 +145,11 @@ final class AppSettings: ObservableObject {
 
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard, secrets: SecretStore = KeychainStore()) {
+    init(defaults: UserDefaults = .standard, secrets: SecretStore = KeychainStore(),
+         customSetupsFile: URL = DictationSetup.customFile) {
         self.defaults = defaults
         self.secrets = secrets
+        self.customSetupsFile = customSetupsFile
         hotkey = Hotkey(rawValue: defaults.string(forKey: Key.hotkey) ?? "") ?? .fn
         mode = ActivationMode(rawValue: defaults.string(forKey: Key.mode) ?? "") ?? .hold
         polishEnabled = defaults.bool(forKey: Key.polish)
@@ -147,13 +160,27 @@ final class AppSettings: ObservableObject {
         appearance = AppearanceMode(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
         showInDock = defaults.bool(forKey: Key.dock)
         streamWhileSpeaking = defaults.bool(forKey: Key.streaming)
-        transcriptionModel = TranscriptionModel(rawValue: defaults.string(forKey: Key.model) ?? "") ?? .local
+        setup = .onDevice
         localLanguage = LocalLanguage(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .english
         keepRecordings = defaults.bool(forKey: Key.keepRecordings)
         backupWhenSlow = defaults.object(forKey: Key.backupWhenSlow) as? Bool ?? true
-        hasOpenRouterKey = !(secrets.get(Self.openRouterAccount) ?? "").isEmpty
+        // Not `get`: reading the key at launch asked for the Keychain password before anything needed it.
+        hasOpenRouterKey = secrets.has(Self.openRouterAccount)
         launchAtLogin = false
+        let saved = defaults.string(forKey: Key.model).map { DictationSetup.legacyIDs[$0] ?? $0 }
+        reloadSetups(selecting: saved)
         refreshLoginItem()
+    }
+
+    /// Re-reads `customSetupsFile` (Settings calls this when it opens, so edits show up). The chosen
+    /// setup picks up its edits; if it's gone, On-device is chosen.
+    func reloadSetups(selecting id: String? = nil) {
+        let custom = DictationSetup.loadCustom(from: customSetupsFile)
+        setups = DictationSetup.builtIns + custom.setups
+        setupsError = custom.error
+        let wanted = id ?? setup.id
+        let chosen = setups.first { $0.id == wanted } ?? .onDevice
+        if chosen != setup || defaults.string(forKey: Key.model) != chosen.id { setup = chosen }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -189,27 +216,27 @@ struct SettingsView: View {
     @State private var askForKey = false
     @State private var keyDraft = ""
 
-    private var cloud: Bool { settings.transcriptionModel.isCloud }
+    private var cloud: Bool { settings.setup.usesCloud }
 
 
     var body: some View {
         Form {
             Section {
-                SettingRow("Model", settings.transcriptionModel.summary) {
+                SettingRow("Model", settings.setup.summary + (settings.setupsError.map { "\n⚠︎ " + $0 } ?? "")) {
                     Picker("Model", selection: Binding(
-                        get: { settings.transcriptionModel },
-                        set: { model in
-                            settings.transcriptionModel = model
-                            if model.isCloud && !settings.hasOpenRouterKey { keyDraft = ""; askForKey = true }
+                        get: { settings.setup },
+                        set: { setup in
+                            settings.setup = setup
+                            if setup.usesCloud && !settings.hasOpenRouterKey { keyDraft = ""; askForKey = true }
                         })) {
-                        ForEach(TranscriptionModel.allCases, id: \.self) { Text($0.title).tag($0) }
+                        ForEach(settings.setups) { Text($0.title).tag($0) }
                     }
                 }
-                SettingRow("Language", settings.transcriptionModel.supportsLanguageChoice
+                SettingRow("Language", settings.setup.supportsLanguageChoice
                            ? "Language the on-device model listens for."
                            : "Cloud models detect English and Chinese automatically.",
-                           available: settings.transcriptionModel.supportsLanguageChoice) {
-                    if settings.transcriptionModel.supportsLanguageChoice {
+                           available: settings.setup.supportsLanguageChoice) {
+                    if settings.setup.supportsLanguageChoice {
                         Picker("Language", selection: $settings.localLanguage) {
                             ForEach(LocalLanguage.allCases, id: \.self) { Text($0.title).tag($0) }
                         }
@@ -217,8 +244,8 @@ struct SettingsView: View {
                         Text("Auto-detect").foregroundStyle(.secondary)
                     }
                 }
-                SettingRow("Backup model when slow", settings.transcriptionModel.backupHelp ?? "Only works with cloud models.",
-                           available: settings.transcriptionModel.backupOpenRouterID != nil) {
+                SettingRow("Backup model when slow", settings.setup.backupHelp ?? "Only works with cloud models.",
+                           available: settings.setup.backup != nil) {
                     Toggle("Backup model when slow", isOn: Binding(
                         get: { settings.effectiveBackup },
                         set: { settings.backupWhenSlow = $0 }))
@@ -301,10 +328,10 @@ struct SettingsView: View {
             }
 
             Section {
-                SettingRow("Type as you speak", settings.transcriptionModel.supportsStreaming
+                SettingRow("Type as you speak", settings.setup.supportsStreaming
                            ? "Insert each phrase into the focused app as soon as you pause, instead of pasting everything when you stop. Cancelling keeps what's already typed. With a held ⌘/⌥/⌃/⇧ hotkey, text is typed when you release it."
                            : "Only works with the On-device model. Cloud models write the text after you stop.",
-                           available: settings.transcriptionModel.supportsStreaming) {
+                           available: settings.setup.supportsStreaming) {
                     // Shown off while unavailable so it doesn't look active; the saved choice is
                     // kept and comes back with the On-device model.
                     Toggle("Type as you speak", isOn: Binding(
@@ -313,7 +340,7 @@ struct SettingsView: View {
                 }
                 SettingRow("AI polish", settings.effectiveStreaming
                            ? "Not used while “Type as you speak” is on — polish needs the whole dictation."
-                           : settings.polishModel == .onDevice
+                           : settings.setup.polishesOnDevice
                            ? "Removes filler words and fixes self-corrections, on this Mac like the speech model: nothing leaves it. Adds about 1 second to a sentence, up to 3 to a long paragraph."
                            : "Removes filler words and fixes self-corrections with a cloud model, like the speech model. Adds about half a second.") {
                     Toggle("AI polish", isOn: $settings.polishEnabled)
@@ -349,12 +376,13 @@ struct SettingsView: View {
                         onCancel: {
                             askForKey = false
                             // No key, no cloud model: fall back so dictation keeps working.
-                            if !settings.hasOpenRouterKey { settings.transcriptionModel = .local }
+                            if !settings.hasOpenRouterKey { settings.setup = .onDevice }
                         })
         }
         .onAppear {
             microphones = AudioDevices.inputDevices()
             settings.refreshLoginItem()
+            settings.reloadSetups()
         }
     }
 }
