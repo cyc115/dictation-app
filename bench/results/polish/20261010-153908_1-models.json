@@ -1,0 +1,1018 @@
+{
+  "suite": "polish",
+  "run_at": "2026-10-10T15:38:52",
+  "env": {
+    "commit": "d68da6d",
+    "dirty": true,
+    "os": "macOS-27.0.1",
+    "python": "3.11.14",
+    "macos": "27.0.1",
+    "machine": "MacBookPro18,2",
+    "cpu": "Apple M1 Max"
+  },
+  "config": {
+    "models": [
+      "openrouter:openai/gpt-oss-120b@Groq"
+    ],
+    "cases": [
+      "en-short-filler",
+      "en-repeat",
+      "en-correction-time",
+      "en-correction-name",
+      "en-correction-date",
+      "en-technical-question",
+      "en-trap-email",
+      "en-trap-question",
+      "en-trap-translate",
+      "en-trap-request",
+      "en-long-list",
+      "en-numbers",
+      "en-clean",
+      "zh-short-filler",
+      "zh-repeat",
+      "zh-correction-name",
+      "zh-correction-day",
+      "zh-correction-number",
+      "zh-trap-question",
+      "zh-trap-poem",
+      "zh-trap-translate",
+      "zh-filler-then",
+      "zh-long-meeting",
+      "zh-clean",
+      "mixed-short-filler",
+      "mixed-keep-english",
+      "mixed-correction-tool",
+      "mixed-refactor",
+      "mixed-trap-script",
+      "mixed-trap-question",
+      "mixed-correction-day",
+      "mixed-english-sentence",
+      "mixed-ok",
+      "mixed-long-sprint",
+      "mixed-long-standup",
+      "mixed-clean"
+    ],
+    "rounds": 1,
+    "seed": 1,
+    "sort": null,
+    "parallel": 4,
+    "where": "this machine",
+    "cases_files": [
+      "polish_cases.json"
+    ],
+    "prompt": "app",
+    "instructions": "Clean up dictated text: remove filler words (um, uh, like, you know), collapse repeated words, resolve obvious self-corrections, add light punctuation. Keep the speaker's exact meaning, wording and tone. Never add new ideas or rephrase beyond cleanup. Output only the cleaned text.",
+    "wrap": true
+  },
+  "summary": {
+    "openrouter:openai/gpt-oss-120b@Groq": {
+      "n": 36,
+      "errors": 0,
+      "passed": 0.778,
+      "word_error": 0.162,
+      "by_kind": {
+        "filler": 0.833,
+        "correction": 0.333,
+        "trap": 1.0,
+        "clean": 1.0
+      },
+      "by_category": {
+        "english": 0.923,
+        "chinese": 0.545,
+        "mixed": 0.833
+      },
+      "seconds": {
+        "n": 36,
+        "errors": 0,
+        "min": 0.231,
+        "p50": 0.35,
+        "p90": 0.568,
+        "p95": 0.734,
+        "max": 2.062,
+        "mean": 0.429,
+        "stdev": 0.308
+      },
+      "first_p50": 0.304,
+      "cost_per_1000": 0.0607,
+      "providers": [
+        "Groq"
+      ],
+      "reasoning": {
+        "effort": "minimal"
+      }
+    }
+  },
+  "trials": [
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 0,
+      "warmup": true,
+      "case": "zh-correction-day",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 0.437,
+      "first": 0.415,
+      "text": "周三开会，哦不对，是周四。",
+      "provider": "Groq",
+      "cost": 7.455e-05,
+      "tokens_out": 86,
+      "reasoning_tokens": 65,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "周三",
+          "不对"
+        ],
+        "error": 1.75,
+        "passed": false
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-ok",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.292,
+      "first": 0.275,
+      "text": "OK，那就这样吧。",
+      "provider": "Groq",
+      "cost": 6.195e-05,
+      "tokens_out": 66,
+      "reasoning_tokens": 51,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-correction-tool",
+      "category": "mixed",
+      "kind": "correction",
+      "seconds": 0.406,
+      "first": 0.341,
+      "text": "我们用 Redis 做那个 rate limiting，哦不对，用 Memcached。",
+      "provider": "Groq",
+      "cost": 7.215e-05,
+      "tokens_out": 81,
+      "reasoning_tokens": 57,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "Redis",
+          "不对"
+        ],
+        "error": 1.143,
+        "passed": false
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-request",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.485,
+      "first": 0.407,
+      "text": "Hey, can you push the fix to staging and let me know when it's done?",
+      "provider": "Groq",
+      "cost": 4.71e-05,
+      "tokens_out": 39,
+      "reasoning_tokens": 13,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-refactor",
+      "category": "mixed",
+      "kind": "clean",
+      "seconds": 0.267,
+      "first": 0.231,
+      "text": "把这个 function refactor 一下然后写几个 unit test 吧",
+      "provider": "Groq",
+      "cost": 5.715e-05,
+      "tokens_out": 56,
+      "reasoning_tokens": 33,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-question",
+      "category": "chinese",
+      "kind": "trap",
+      "seconds": 0.305,
+      "first": 0.28,
+      "text": "你能帮我查一下明天北京的天气吗",
+      "provider": "Groq",
+      "cost": 5.745e-05,
+      "tokens_out": 57,
+      "reasoning_tokens": 36,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-day",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 0.421,
+      "first": 0.366,
+      "text": "周三开会，哦不对，是周四。",
+      "provider": "Groq",
+      "cost": 7.455e-05,
+      "tokens_out": 86,
+      "reasoning_tokens": 65,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "周三",
+          "不对"
+        ],
+        "error": 1.75,
+        "passed": false
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-repeat",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.687,
+      "first": 0.669,
+      "text": "I think we should move the meeting to Thursday.",
+      "provider": "Groq",
+      "cost": 7.32e-05,
+      "tokens_out": 83,
+      "reasoning_tokens": 64,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-email",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.44,
+      "first": 0.246,
+      "text": "write an email to John telling him the deployment is delayed until Monday",
+      "provider": "Groq",
+      "cost": 6e-05,
+      "tokens_out": 61,
+      "reasoning_tokens": 39,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-correction-time",
+      "category": "english",
+      "kind": "correction",
+      "seconds": 0.287,
+      "first": 0.251,
+      "text": "Let's meet at 4 pm at the cafe on Main Street.",
+      "provider": "Groq",
+      "cost": 5.955e-05,
+      "tokens_out": 59,
+      "reasoning_tokens": 36,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-long-sprint",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.531,
+      "first": 0.472,
+      "text": "那个我们这个 sprint 的目标主要是三个：第一是把 latency 降到一秒以内，第二是修复 memory leak，第三是把 onboarding flow 重新设计一下。大家有问题可以在 Slack 上找我。",
+      "provider": "Groq",
+      "cost": 8.4e-05,
+      "tokens_out": 92,
+      "reasoning_tokens": 35,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.036,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-short-filler",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.467,
+      "first": 0.432,
+      "text": "Send it to me tomorrow.",
+      "provider": "Groq",
+      "cost": 4.695e-05,
+      "tokens_out": 41,
+      "reasoning_tokens": 26,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-english-sentence",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.605,
+      "first": 0.568,
+      "text": "We need to finish the migration by Friday, that is, before the release.",
+      "provider": "Groq",
+      "cost": 7.53e-05,
+      "tokens_out": 86,
+      "reasoning_tokens": 61,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.182,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-repeat",
+      "category": "chinese",
+      "kind": "filler",
+      "seconds": 0.874,
+      "first": 0.852,
+      "text": "就是说这个方案我觉得还是可以的。",
+      "provider": "Groq",
+      "cost": 6.66e-05,
+      "tokens_out": 73,
+      "reasoning_tokens": 55,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "就是说"
+        ],
+        "error": 0.25,
+        "passed": false
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-translate",
+      "category": "chinese",
+      "kind": "trap",
+      "seconds": 0.372,
+      "first": 0.328,
+      "text": "把这句话翻译成英文，我们下周见。",
+      "provider": "Groq",
+      "cost": 6.51e-05,
+      "tokens_out": 70,
+      "reasoning_tokens": 49,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-clean",
+      "category": "mixed",
+      "kind": "clean",
+      "seconds": 0.294,
+      "first": 0.252,
+      "text": "我已经把 bug 修好了，你可以 review 一下。",
+      "provider": "Groq",
+      "cost": 4.71e-05,
+      "tokens_out": 40,
+      "reasoning_tokens": 19,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-trap-script",
+      "category": "mixed",
+      "kind": "trap",
+      "seconds": 0.262,
+      "first": 0.236,
+      "text": "帮我写一个 Python script 读取 S3 里的 JSON 文件",
+      "provider": "Groq",
+      "cost": 6.075e-05,
+      "tokens_out": 62,
+      "reasoning_tokens": 39,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-long-list",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.345,
+      "first": 0.219,
+      "text": "Okay, for the quarterly review I want to cover three things: first, the latency numbers for the dictation app; second, the cost per user, which is around two dollars a month; and third, the roadmap for next quarter, including the new polish feature.",
+      "provider": "Groq",
+      "cost": 7.605e-05,
+      "tokens_out": 78,
+      "reasoning_tokens": 15,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.024,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-correction-date",
+      "category": "english",
+      "kind": "correction",
+      "seconds": 0.355,
+      "first": 0.218,
+      "text": "I'll be out of office from the 12th to the 18th, sorry, to the 19th, so please reach out to Marcus for anything urgent on the payments API, and for everything else just leave a message and I'll get back to you when I'm back.",
+      "provider": "Groq",
+      "cost": 7.665e-05,
+      "tokens_out": 79,
+      "reasoning_tokens": 14,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "18th"
+        ],
+        "error": 0.098,
+        "passed": false
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-clean",
+      "category": "english",
+      "kind": "clean",
+      "seconds": 0.27,
+      "first": 0.231,
+      "text": "The quick fix is to bump the timeout to 30 seconds.",
+      "provider": "Groq",
+      "cost": 4.305e-05,
+      "tokens_out": 33,
+      "reasoning_tokens": 11,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-correction-day",
+      "category": "mixed",
+      "kind": "correction",
+      "seconds": 0.335,
+      "first": 0.304,
+      "text": "下周二跟 Kevin 开 one on one。",
+      "provider": "Groq",
+      "cost": 6.66e-05,
+      "tokens_out": 72,
+      "reasoning_tokens": 53,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-translate",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 2.062,
+      "first": 2.006,
+      "text": "Translate this into Chinese: the build is broken.",
+      "provider": "Groq",
+      "cost": 5.805e-05,
+      "tokens_out": 59,
+      "reasoning_tokens": 40,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-keep-english",
+      "category": "mixed",
+      "kind": "clean",
+      "seconds": 0.36,
+      "first": 0.321,
+      "text": "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+      "provider": "Groq",
+      "cost": 4.68e-05,
+      "tokens_out": 39,
+      "reasoning_tokens": 16,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-name",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 0.399,
+      "first": 0.376,
+      "text": "把文件发给张伟不对，是发给李娜。",
+      "provider": "Groq",
+      "cost": 6.66e-05,
+      "tokens_out": 72,
+      "reasoning_tokens": 49,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "张伟",
+          "不对"
+        ],
+        "error": 1.0,
+        "passed": false
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-short-filler",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.323,
+      "first": 0.296,
+      "text": "帮我把这个 PR merge 一下然后 deploy 到 staging",
+      "provider": "Groq",
+      "cost": 5.64e-05,
+      "tokens_out": 55,
+      "reasoning_tokens": 34,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-numbers",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.343,
+      "first": 0.317,
+      "text": "the budget is fifteen thousand dollars not fifty thousand",
+      "provider": "Groq",
+      "cost": 4.275e-05,
+      "tokens_out": 33,
+      "reasoning_tokens": 15,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-poem",
+      "category": "chinese",
+      "kind": "trap",
+      "seconds": 0.373,
+      "first": 0.34,
+      "text": "帮我写一首关于秋天的诗",
+      "provider": "Groq",
+      "cost": 4.755e-05,
+      "tokens_out": 41,
+      "reasoning_tokens": 22,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-question",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.247,
+      "first": 0.199,
+      "text": "what's the capital of Australia",
+      "provider": "Groq",
+      "cost": 3.855e-05,
+      "tokens_out": 27,
+      "reasoning_tokens": 12,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-correction-name",
+      "category": "english",
+      "kind": "correction",
+      "seconds": 0.426,
+      "first": 0.393,
+      "text": "Send the report to Priya by Friday.",
+      "provider": "Groq",
+      "cost": 6.42e-05,
+      "tokens_out": 68,
+      "reasoning_tokens": 50,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-long-meeting",
+      "category": "chinese",
+      "kind": "filler",
+      "seconds": 0.388,
+      "first": 0.318,
+      "text": "今天的会议主要讨论三个问题：第一个是服务器的成本问题，第二个是新功能的上线时间，第三个是团队的招聘计划。大家有什么想法可以会后发邮件给我。",
+      "provider": "Groq",
+      "cost": 7.38e-05,
+      "tokens_out": 76,
+      "reasoning_tokens": 22,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "en-technical-question",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.31,
+      "first": 0.268,
+      "text": "can you check whether the Kubernetes pod is crash looping because of the OOM killer",
+      "provider": "Groq",
+      "cost": 5.94e-05,
+      "tokens_out": 59,
+      "reasoning_tokens": 34,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-long-standup",
+      "category": "mixed",
+      "kind": "correction",
+      "seconds": 0.403,
+      "first": 0.277,
+      "text": "今天 standup 我说一下进度：昨天我把 login 页面的 bug 修了，今天要做 payment 的 integration。 blocker 的话就是那个 API key 还没拿到——不对，API key 拿到了，是 webhook 还没配好。",
+      "provider": "Groq",
+      "cost": 8.34e-05,
+      "tokens_out": 90,
+      "reasoning_tokens": 26,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "API key 还没拿到"
+        ],
+        "error": 0.472,
+        "passed": false
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-short-filler",
+      "category": "chinese",
+      "kind": "filler",
+      "seconds": 0.34,
+      "first": 0.317,
+      "text": "我们明天下午开会吧。",
+      "provider": "Groq",
+      "cost": 7.26e-05,
+      "tokens_out": 83,
+      "reasoning_tokens": 66,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-number",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 0.31,
+      "first": 0.276,
+      "text": "预算大概是五万块钱，不对，是八万。",
+      "provider": "Groq",
+      "cost": 6.855e-05,
+      "tokens_out": 75,
+      "reasoning_tokens": 52,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "五万",
+          "不对"
+        ],
+        "error": 0.667,
+        "passed": false
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-clean",
+      "category": "chinese",
+      "kind": "clean",
+      "seconds": 0.231,
+      "first": 0.198,
+      "text": "这个周末我们去爬山。",
+      "provider": "Groq",
+      "cost": 4.365e-05,
+      "tokens_out": 35,
+      "reasoning_tokens": 17,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-filler-then",
+      "category": "chinese",
+      "kind": "filler",
+      "seconds": 0.286,
+      "first": 0.254,
+      "text": "然后呢我们需要在月底之前完成这个项目",
+      "provider": "Groq",
+      "cost": 4.335e-05,
+      "tokens_out": 34,
+      "reasoning_tokens": 15,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "然后呢"
+        ],
+        "error": 0.2,
+        "passed": false
+      }
+    },
+    {
+      "model": "openrouter:openai/gpt-oss-120b@Groq",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-trap-question",
+      "category": "mixed",
+      "kind": "trap",
+      "seconds": 0.336,
+      "first": 0.305,
+      "text": "Kubernetes 和 Docker Swarm 有什么区别？",
+      "provider": "Groq",
+      "cost": 4.68e-05,
+      "tokens_out": 40,
+      "reasoning_tokens": 21,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    }
+  ]
+}

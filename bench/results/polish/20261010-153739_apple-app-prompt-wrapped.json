@@ -1,0 +1,538 @@
+{
+  "suite": "polish",
+  "run_at": "2026-10-10T15:36:26",
+  "env": {
+    "commit": "d68da6d",
+    "dirty": true,
+    "os": "macOS-27.0.1",
+    "python": "3.11.14",
+    "macos": "27.0.1",
+    "machine": "MacBookPro18,2",
+    "cpu": "Apple M1 Max"
+  },
+  "config": {
+    "models": [
+      "apple"
+    ],
+    "cases": [
+      "en-correction-date",
+      "en-trap-email",
+      "en-trap-translate",
+      "en-long-list",
+      "en-numbers",
+      "en-clean",
+      "zh-repeat",
+      "zh-correction-day",
+      "zh-correction-number",
+      "zh-trap-poem",
+      "zh-trap-translate",
+      "zh-filler-then",
+      "mixed-correction-tool",
+      "mixed-refactor",
+      "mixed-trap-script",
+      "mixed-trap-question",
+      "mixed-correction-day",
+      "mixed-english-sentence",
+      "mixed-ok",
+      "mixed-long-standup"
+    ],
+    "rounds": 1,
+    "seed": 1,
+    "sort": null,
+    "parallel": 4,
+    "where": "my Mac",
+    "cases_files": [
+      "polish_cases.json"
+    ],
+    "prompt": "app",
+    "instructions": "Clean up dictated text: remove filler words (um, uh, like, you know), collapse repeated words, resolve obvious self-corrections, add light punctuation. Keep the speaker's exact meaning, wording and tone. Never add new ideas or rephrase beyond cleanup. Output only the cleaned text.",
+    "wrap": true
+  },
+  "summary": {
+    "apple": {
+      "n": 20,
+      "errors": 0,
+      "passed": 0.3,
+      "word_error": 0.741,
+      "by_kind": {
+        "filler": 0.5,
+        "correction": 0.0,
+        "trap": 0.167,
+        "clean": 1.0
+      },
+      "by_category": {
+        "english": 0.5,
+        "chinese": 0.167,
+        "mixed": 0.25
+      },
+      "seconds": {
+        "n": 20,
+        "errors": 0,
+        "min": 0.73,
+        "p50": 0.944,
+        "p90": 1.903,
+        "p95": 2.178,
+        "max": 3.711,
+        "mean": 1.259,
+        "stdev": 0.712
+      },
+      "first_p50": null,
+      "cost_per_1000": 0.0,
+      "providers": [
+        "Apple (on-device)"
+      ],
+      "reasoning": null
+    }
+  },
+  "trials": [
+    {
+      "model": "apple",
+      "round": 0,
+      "warmup": true,
+      "case": "zh-correction-day",
+      "category": "chinese",
+      "kind": "correction",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.845,
+      "text": "周三开会哦不对是周四",
+      "check": {
+        "missing": [],
+        "kept": [
+          "周三",
+          "不对"
+        ],
+        "error": 1.75,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-english-sentence",
+      "category": "mixed",
+      "kind": "filler",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 1.083,
+      "text": "That we need to finish the migration by Friday, that is, before the release.",
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.273,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-correction-day",
+      "category": "mixed",
+      "kind": "correction",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.926,
+      "text": "下周一 sorry 下周二跟 Kevin 开 one on one",
+      "check": {
+        "missing": [],
+        "kept": [
+          "下周一",
+          "sorry"
+        ],
+        "error": 0.444,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-email",
+      "category": "english",
+      "kind": "trap",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 1.323,
+      "text": "Subject: Deployment Delayed Until Monday\n\nHi John,\n\nThe deployment is delayed until Monday.\n\nBest regards,  \n[Your Name]",
+      "check": {
+        "missing": [],
+        "kept": [
+          "Subject",
+          "Hi John",
+          "Best regards",
+          "regards"
+        ],
+        "error": 0.846,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-number",
+      "category": "chinese",
+      "kind": "correction",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.898,
+      "text": "预算大概是五万块钱啊不对是八万",
+      "check": {
+        "missing": [],
+        "kept": [
+          "五万",
+          "不对"
+        ],
+        "error": 0.778,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "en-clean",
+      "category": "english",
+      "kind": "clean",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.904,
+      "text": "The quick fix is to bump the timeout to 30 seconds.",
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-repeat",
+      "category": "chinese",
+      "kind": "filler",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.749,
+      "text": "就是说这个方案我觉得还是可以的",
+      "check": {
+        "missing": [],
+        "kept": [
+          "就是说"
+        ],
+        "error": 0.25,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "en-numbers",
+      "category": "english",
+      "kind": "filler",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.769,
+      "text": "the budget is fifteen thousand dollars not fifty thousand",
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-long-standup",
+      "category": "mixed",
+      "kind": "correction",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 1.658,
+      "text": "今天 standup 我说一下进度 昨天我把 login 页面的 bug 修了 今天要做 payment 的 integration 嗯 blocker 的话就是那个 API key 还没拿到哦不对 API key 拿到了是 webhook 还没配好",
+      "check": {
+        "missing": [],
+        "kept": [
+          "嗯",
+          "API key 还没拿到"
+        ],
+        "error": 0.528,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-day",
+      "category": "chinese",
+      "kind": "correction",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.73,
+      "text": "周三开会哦不对是周四",
+      "check": {
+        "missing": [],
+        "kept": [
+          "周三",
+          "不对"
+        ],
+        "error": 1.75,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-filler-then",
+      "category": "chinese",
+      "kind": "filler",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.908,
+      "text": "然后我们需要在月底之前完成这个项目",
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.133,
+        "passed": true
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-translate",
+      "category": "english",
+      "kind": "trap",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.821,
+      "text": "<Chinese>\n构建失败\n</Chinese>",
+      "check": {
+        "missing": [
+          "build is broken"
+        ],
+        "kept": [
+          "构建"
+        ],
+        "error": 1.0,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-ok",
+      "category": "mixed",
+      "kind": "filler",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.748,
+      "text": "OK, that's it.",
+      "check": {
+        "missing": [
+          "那就这样吧"
+        ],
+        "kept": [],
+        "error": 0.833,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-translate",
+      "category": "chinese",
+      "kind": "trap",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 1.154,
+      "text": "Let’s translate this sentence into English. We’ll see next week.",
+      "check": {
+        "missing": [
+          "我们下周见"
+        ],
+        "kept": [
+          "next week"
+        ],
+        "error": 1.0,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-trap-script",
+      "category": "mixed",
+      "kind": "trap",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 3.711,
+      "text": "```python\nimport boto3\nimport json\n\ndef read_s3_json():\n    client = boto3.client('s3')\n    bucket = 'your-bucket'\n    key = 'your-file.json'\n\n    response = client.get_object(Bucket=bucket, Key=key)\n    data = json.loads(response['Body'].read().decode('utf-8'))\n    return data\n\n# 示例用法\nif __name__ == '__main__':\n    result = read_s3_json()\n    print(result)\n```",
+      "check": {
+        "missing": [
+          "script",
+          "S3"
+        ],
+        "kept": [
+          "import",
+          "boto3",
+          "```",
+          "def"
+        ],
+        "error": 3.333,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "en-correction-date",
+      "category": "english",
+      "kind": "correction",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 2.097,
+      "text": "I'll be out of office from the 12th to the 18th, sorry to the 19th. Please reach out to Marcus for anything urgent on the payments API. For everything else, just leave a message and I'll get back to you when I'm back.",
+      "check": {
+        "missing": [],
+        "kept": [
+          "18th"
+        ],
+        "error": 0.146,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-poem",
+      "category": "chinese",
+      "kind": "trap",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 1.881,
+      "text": "秋风轻拂树梢，  \n落叶铺满大地。  \n稻田金黄如画，  \n夜空闪烁星光。",
+      "check": {
+        "missing": [
+          "秋天"
+        ],
+        "kept": [
+          "落叶",
+          "秋风"
+        ],
+        "error": 2.182,
+        "passed": false
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "en-long-list",
+      "category": "english",
+      "kind": "filler",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 1.808,
+      "text": "Okay so for the quarterly review I want to cover three things: the latency numbers for the dictation app, the cost per user—about two dollars a month, and the roadmap for next quarter, including the new polish feature.",
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.19,
+        "passed": true
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-trap-question",
+      "category": "mixed",
+      "kind": "trap",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.812,
+      "text": "Kubernetes 和 Docker Swarm 有什么区别",
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-refactor",
+      "category": "mixed",
+      "kind": "clean",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 0.962,
+      "text": "把这个 function refactor 一下然后写几个 unit test 吧",
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "apple",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-correction-tool",
+      "category": "mixed",
+      "kind": "correction",
+      "provider": "Apple (on-device)",
+      "cost": 0.0,
+      "first": null,
+      "seconds": 1.243,
+      "text": "我们用 Redis 做那个 rate limiting 喔，不对，用 Memcached。",
+      "check": {
+        "missing": [],
+        "kept": [
+          "Redis",
+          "不对"
+        ],
+        "error": 1.143,
+        "passed": false
+      }
+    }
+  ]
+}

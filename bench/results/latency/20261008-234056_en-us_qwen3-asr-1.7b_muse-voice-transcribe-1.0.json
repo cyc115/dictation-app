@@ -1,0 +1,2771 @@
+{
+  "suite": "latency",
+  "run_at": "2026-10-08T23:08:26",
+  "simulated": false,
+  "env": {
+    "commit": "b32ece7",
+    "dirty": false,
+    "os": "macOS-27.0.1",
+    "python": "3.11.14",
+    "macos": "27.0.1",
+    "machine": "MacBookPro18,2",
+    "cpu": "Apple M1 Max"
+  },
+  "config": {
+    "stt": [
+      "apple:en-US",
+      "openrouter:qwen/qwen3-asr-1.7b",
+      "openrouter:meta/muse-voice-transcribe-1.0"
+    ],
+    "polish": [
+      "none",
+      "apple"
+    ],
+    "clips": [
+      "mixed-01",
+      "mixed-02",
+      "long-mixed-01",
+      "chinese-03",
+      "chinese-05",
+      "chinese-hard-02",
+      "english-01",
+      "english-hard-01",
+      "long-english-01"
+    ],
+    "rounds": 5,
+    "warmup": 1,
+    "seed": 1,
+    "pause": 0.3,
+    "timeout": 90
+  },
+  "summary": {
+    "transcription": {
+      "apple:en-US": {
+        "n": 45,
+        "errors": 0,
+        "min": 0.051,
+        "p50": 1.098,
+        "p90": 2.104,
+        "p95": 2.111,
+        "max": 2.219,
+        "mean": 1.091,
+        "stdev": 0.869,
+        "cold": 0.267
+      },
+      "openrouter:qwen/qwen3-asr-1.7b": {
+        "n": 42,
+        "errors": 3,
+        "min": 0.492,
+        "p50": 2.007,
+        "p90": 14.858,
+        "p95": 28.397,
+        "max": 49.835,
+        "mean": 6.588,
+        "stdev": 10.06,
+        "cold": 1.392
+      },
+      "openrouter:meta/muse-voice-transcribe-1.0": {
+        "n": 45,
+        "errors": 0,
+        "min": 1.158,
+        "p50": 2.345,
+        "p90": 6.365,
+        "p95": 6.815,
+        "max": 7.584,
+        "mean": 3.091,
+        "stdev": 1.848,
+        "cold": 1.748
+      }
+    },
+    "polish": {
+      "apple": {
+        "n": 132,
+        "errors": 0,
+        "min": 0.785,
+        "p50": 2.417,
+        "p90": 3.873,
+        "p95": 4.028,
+        "max": 4.225,
+        "mean": 2.183,
+        "stdev": 1.085,
+        "cold": 2.398
+      }
+    },
+    "turnaround": {
+      "apple:en-US + none": {
+        "n": 45,
+        "errors": 0,
+        "min": 0.051,
+        "p50": 1.098,
+        "p90": 2.104,
+        "p95": 2.111,
+        "max": 2.219,
+        "mean": 1.091,
+        "stdev": 0.869,
+        "cold": 0.267
+      },
+      "apple:en-US + apple": {
+        "n": 45,
+        "errors": 0,
+        "min": 0.848,
+        "p50": 4.753,
+        "p90": 6.044,
+        "p95": 6.165,
+        "max": 6.214,
+        "mean": 4.005,
+        "stdev": 1.572,
+        "cold": 2.664
+      },
+      "openrouter:qwen/qwen3-asr-1.7b + none": {
+        "n": 42,
+        "errors": 3,
+        "min": 0.492,
+        "p50": 2.007,
+        "p90": 14.858,
+        "p95": 28.397,
+        "max": 49.835,
+        "mean": 6.588,
+        "stdev": 10.06,
+        "cold": 1.392
+      },
+      "openrouter:qwen/qwen3-asr-1.7b + apple": {
+        "n": 42,
+        "errors": 3,
+        "min": 1.498,
+        "p50": 4.062,
+        "p90": 17.635,
+        "p95": 30.799,
+        "max": 52.321,
+        "mean": 8.454,
+        "stdev": 10.537,
+        "cold": 2.307
+      },
+      "openrouter:meta/muse-voice-transcribe-1.0 + none": {
+        "n": 45,
+        "errors": 0,
+        "min": 1.158,
+        "p50": 2.345,
+        "p90": 6.365,
+        "p95": 6.815,
+        "max": 7.584,
+        "mean": 3.091,
+        "stdev": 1.848,
+        "cold": 1.748
+      },
+      "openrouter:meta/muse-voice-transcribe-1.0 + apple": {
+        "n": 45,
+        "errors": 0,
+        "min": 2.051,
+        "p50": 3.584,
+        "p90": 10.27,
+        "p95": 10.568,
+        "max": 11.292,
+        "mean": 4.84,
+        "stdev": 2.938,
+        "cold": 2.903
+      }
+    },
+    "transcription_by_length": {
+      "apple:en-US": {
+        "< 5 s": {
+          "n": 15,
+          "errors": 0,
+          "min": 0.051,
+          "p50": 0.227,
+          "p90": 0.291,
+          "p95": 0.321,
+          "max": 0.376,
+          "mean": 0.204,
+          "stdev": 0.096,
+          "cold": 0.267
+        },
+        "5–10 s": {
+          "n": 15,
+          "errors": 0,
+          "min": 0.227,
+          "p50": 2.1,
+          "p90": 2.11,
+          "p95": 2.112,
+          "max": 2.114,
+          "mean": 1.482,
+          "stdev": 0.91,
+          "cold": null
+        },
+        "≥ 10 s": {
+          "n": 15,
+          "errors": 0,
+          "min": 1.091,
+          "p50": 1.181,
+          "p90": 2.101,
+          "p95": 2.136,
+          "max": 2.219,
+          "mean": 1.586,
+          "stdev": 0.516,
+          "cold": null
+        }
+      },
+      "openrouter:qwen/qwen3-asr-1.7b": {
+        "< 5 s": {
+          "n": 19,
+          "errors": 1,
+          "min": 0.492,
+          "p50": 3.7,
+          "p90": 22.472,
+          "p95": 30.896,
+          "max": 49.835,
+          "mean": 9.396,
+          "stdev": 12.716,
+          "cold": 1.392
+        },
+        "5–10 s": {
+          "n": 14,
+          "errors": 1,
+          "min": 0.607,
+          "p50": 1.578,
+          "p90": 10.929,
+          "p95": 13.265,
+          "max": 14.859,
+          "mean": 3.726,
+          "stdev": 4.591,
+          "cold": null
+        },
+        "≥ 10 s": {
+          "n": 9,
+          "errors": 1,
+          "min": 1.109,
+          "p50": 1.982,
+          "p90": 9.297,
+          "p95": 19.445,
+          "max": 29.592,
+          "mean": 5.112,
+          "stdev": 9.223,
+          "cold": null
+        }
+      },
+      "openrouter:meta/muse-voice-transcribe-1.0": {
+        "< 5 s": {
+          "n": 20,
+          "errors": 0,
+          "min": 1.158,
+          "p50": 1.797,
+          "p90": 2.352,
+          "p95": 2.5,
+          "max": 2.676,
+          "mean": 1.834,
+          "stdev": 0.383,
+          "cold": 1.748
+        },
+        "5–10 s": {
+          "n": 15,
+          "errors": 0,
+          "min": 2.185,
+          "p50": 2.59,
+          "p90": 2.936,
+          "p95": 3.029,
+          "max": 3.152,
+          "mean": 2.594,
+          "stdev": 0.288,
+          "cold": null
+        },
+        "≥ 10 s": {
+          "n": 10,
+          "errors": 0,
+          "min": 5.118,
+          "p50": 6.338,
+          "p90": 7.057,
+          "p95": 7.321,
+          "max": 7.584,
+          "mean": 6.352,
+          "stdev": 0.711,
+          "cold": null
+        }
+      }
+    }
+  },
+  "trials": [
+    {
+      "id": "0000",
+      "round": 0,
+      "warmup": true,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.2665828749886714,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.3977359583368525,
+          "text": "Can you send me today's meeting notes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0001",
+      "round": 0,
+      "warmup": true,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.392061416641809,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.914998916676268,
+          "text": "What’s the meeting name?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0002",
+      "round": 0,
+      "warmup": true,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.7483269583317451,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1549259999883361,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0003",
+      "round": 1,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 1.099559624970425,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.668331708351616,
+          "text": "Can you ask Priyanka whether migration is blocked on the post-rescue upgrade? Let’s circle back on the quarterly roadmap after we’ve reconciled analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme of validated data, and the staging environment employed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0004",
+      "round": 1,
+      "warmup": false,
+      "clip": "mixed-02",
+      "audio_seconds": 5.74,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.344761333311908,
+      "raw": "我觉得这个feature的UI太ugly了, 你帮我redesign一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.8938137916848063,
+          "text": "我觉得这个feature的UI太ugly了，你帮我 redesign一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0005",
+      "round": 1,
+      "warmup": false,
+      "clip": "chinese-03",
+      "audio_seconds": 3.43,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 4.003769083356019,
+      "raw": "我觉得这个方案还需要再讨论一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.7854357499745674,
+          "text": "我觉得这个方案需要再讨论一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0006",
+      "round": 1,
+      "warmup": false,
+      "clip": "chinese-hard-02",
+      "audio_seconds": 8.44,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.799598583369516,
+      "raw": "王经理昨天在会上说,下个季度的预算要压缩,所有的出差申请都要提前审批。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1692880833288655,
+          "text": "王经理昨天在会上说，下个季度的预算要压缩，所有出差申请都要提前审批。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0007",
+      "round": 1,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 0.22662879165727645,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.5441852916264907,
+          "text": "Can you ask Priyanka if the Cuba migration is blocked on the post-rescue upgrade?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0008",
+      "round": 1,
+      "warmup": false,
+      "clip": "long-mixed-01",
+      "audio_seconds": 27.8,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 29.592160041676834,
+      "raw": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 4.021639499987941,
+          "text": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0009",
+      "round": 1,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.5524887916981243,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.0791814583353698,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0010",
+      "round": 1,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.5906507916515693,
+      "raw": "can you ask Priyanka whether the Cuba needs migration is blocked on the post SQL upgrade or the auth changes?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.3904111666488461,
+          "text": "Can you ask Priyanka whether migration is blocked on the post-SQL upgrade or the auth changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0011",
+      "round": 1,
+      "warmup": false,
+      "clip": "mixed-02",
+      "audio_seconds": 5.74,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 12.405922166653909,
+      "raw": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.6545219583204016,
+          "text": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0012",
+      "round": 1,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 6.076728916668799,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the postgres QL upgrade or the auth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.7429994583362713,
+          "text": "Can you ask Priyanka whether migration is blocked on the PostgreSQL QL upgrade or the auth changes? Let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard. I need TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0013",
+      "round": 1,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 0.9006315416190773,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.0863257916644216,
+          "text": "Can you send me today’s meeting notes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0014",
+      "round": 1,
+      "warmup": false,
+      "clip": "mixed-01",
+      "audio_seconds": 3.67,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.4588519583339803,
+      "raw": "帮我build一个然后push到repository里。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.349111500021536,
+          "text": "请构建后推送至仓库。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0015",
+      "round": 1,
+      "warmup": false,
+      "clip": "chinese-05",
+      "audio_seconds": 4.36,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 2.560801833344158,
+      "raw": "这家餐厅的菜很好吃，但是价格有点贵。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2795594583149068,
+          "text": "这家餐厅的菜很好吃，但是价格有点贵。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0016",
+      "round": 1,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.3760312916710973,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.540575666644145,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0017",
+      "round": 1,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 2.1001200833707117,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post well upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.958210416662041,
+          "text": "Can you ask Priyanka whether migration to Cuba is blocked on the post? Let’s circle back on the quarterly roadmap after reconciling analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme validated, and the staging environment updated tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0018",
+      "round": 1,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.24691170832375064,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.4369998333859257,
+          "text": "Can you send me today’s meeting notes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0019",
+      "round": 1,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.190150500042364,
+      "raw": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.232423249981366,
+          "text": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0020",
+      "round": 1,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 2.0998256250168197,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post upgrade, although the author",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.8820350833120756,
+          "text": "Can you ask Priyanka whether Cuba’s migration is blocked on the post-upgrade?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0021",
+      "round": 1,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 2.1136059583513997,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade the",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.8649612916633487,
+          "text": "Can you ask Priyanka if migration is blocked on the post-rescue upgrade for Cuba?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0022",
+      "round": 1,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 2.099452291673515,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post well upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.923209083324764,
+          "text": "Can you ask Priyanka whether migration to Cuba is blocked on the post? Let’s circle back on the quarterly roadmap after we’ve reconciled analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment set up by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0023",
+      "round": 1,
+      "warmup": false,
+      "clip": "chinese-03",
+      "audio_seconds": 3.43,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.67551908333553,
+      "raw": "我觉得这个方案还需要再讨论一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.052489666675683,
+          "text": "我觉得这个方案需要再讨论一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0024",
+      "round": 1,
+      "warmup": false,
+      "clip": "long-mixed-01",
+      "audio_seconds": 27.8,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 6.486252750037238,
+      "raw": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout, latency 也涨了很多。 这个 PR 改了 off the callback URL, 还有 TypeScript 的 type definition, 你 merge 之前先跑一下子。 我刚跟 Sarah 开了个 one on one, 她说下个季度的 OKR 要 focus  在 retention 上。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.8878380833775736,
+          "text": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。 这个 PR 改了 off the callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下。 我刚跟 Sarah 开了个 one on one，她说下个季度的 OKR 要 focus 在 retention 上。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0025",
+      "round": 1,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.9822663750383072,
+      "raw": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.598905458347872,
+          "text": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0026",
+      "round": 1,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.24408366665011272,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.5970793750020675,
+          "text": "Please send today’s meeting notes.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0027",
+      "round": 1,
+      "warmup": false,
+      "clip": "mixed-01",
+      "audio_seconds": 3.67,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.1401861666236073,
+      "raw": "帮我 build 一个，然后 push 到 repository 里。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2019356249948032,
+          "text": "请构建后推送到仓库。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0028",
+      "round": 1,
+      "warmup": false,
+      "clip": "chinese-hard-02",
+      "audio_seconds": 8.44,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.2448849583161063,
+      "raw": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.3991783750243485,
+          "text": "王经理昨天在会上说，下个季度的预算要压缩，所有出差申请都要提前审批。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0029",
+      "round": 1,
+      "warmup": false,
+      "clip": "chinese-05",
+      "audio_seconds": 4.36,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.0537706667091697,
+      "raw": "这家餐厅的菜很好吃，但是价格有点贵。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1989776249974966,
+          "text": "这家餐厅的菜很好吃，但是价格有点贵。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0030",
+      "round": 2,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.2272182916640304,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.481887291709427,
+          "text": "Can you send me today’s meeting notes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0031",
+      "round": 2,
+      "warmup": false,
+      "clip": "mixed-02",
+      "audio_seconds": 5.74,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.6257990000303835,
+      "raw": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2848326250095852,
+          "text": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0032",
+      "round": 2,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.2972030416713096,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.315569916681852,
+          "text": "Please send the notes from today’s meeting.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0033",
+      "round": 2,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 11.449997999996413,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.3570767082856037,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0034",
+      "round": 2,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.5222097499645315,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.7972441666643135,
+          "text": "Please send the notes from today’s meeting.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0035",
+      "round": 2,
+      "warmup": false,
+      "clip": "chinese-03",
+      "audio_seconds": 3.43,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 28.792112624971196,
+      "raw": "我觉得这个方案还需要再讨论一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.3972770833643153,
+          "text": "我觉得这个方案还需要再讨论一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0036",
+      "round": 2,
+      "warmup": false,
+      "clip": "chinese-03",
+      "audio_seconds": 3.43,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.8058315833332017,
+      "raw": "我觉得这个方案还需要再讨论一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1243018333334476,
+          "text": "我觉得这个方案还需要再讨论一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0037",
+      "round": 2,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 2.1073236250085756,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post upgrade of the",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.879230666672811,
+          "text": "Can you ask Priyanka if Cuba’s migration is blocked after the post-upgrade?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0038",
+      "round": 2,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 2.105664999980945,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post upgrade of the",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.647714624996297,
+          "text": "Can you ask Priyanka if migration is blocked after the post-upgrade?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0039",
+      "round": 2,
+      "warmup": false,
+      "clip": "chinese-hard-02",
+      "audio_seconds": 8.44,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.975823750020936,
+      "raw": "王金理昨天在会上说， 下个季度的预算要压缩， 所有的出差申请都要提前审批。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.3930482499999925,
+          "text": "王金理昨天在会上说，下个季度的预算要压缩，所有出差申请要提前审批。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0040",
+      "round": 2,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 6.20698087499477,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the Postgres QL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated. The GraphQL schema validated and the staging environment redeployed by tonight.",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.7900080417166464,
+          "text": "Can you ask Priyanka whether migration to Cuba is blocked on the Postgres QL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated. The GraphQL schema validated and the staging environment redeployed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0041",
+      "round": 2,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 2.3267057916382328,
+      "raw": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1962642500293441,
+          "text": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0042",
+      "round": 2,
+      "warmup": false,
+      "clip": "chinese-05",
+      "audio_seconds": 4.36,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.3370638333144598,
+      "raw": "这家餐厅的菜很好吃,但是价格有点贵。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1998961250064895,
+          "text": "这家餐厅的菜很好吃，但是价格有点贵。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0043",
+      "round": 2,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 4.223394708358683,
+      "raw": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.121249000017997,
+          "text": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0044",
+      "round": 2,
+      "warmup": false,
+      "clip": "chinese-05",
+      "audio_seconds": 4.36,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 3.700282249948941,
+      "raw": "这家餐厅的菜很好吃，但是价格有点贵。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2164610416512005,
+          "text": "这家餐厅的菜很好吃，但是价格有点贵。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0045",
+      "round": 2,
+      "warmup": false,
+      "clip": "mixed-01",
+      "audio_seconds": 3.67,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.7401055000373162,
+      "raw": "帮我build一个然后push到 repository里。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1908573750406504,
+          "text": "请用 GitHub Actions 构建并推送到仓库。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0046",
+      "round": 2,
+      "warmup": false,
+      "clip": "long-mixed-01",
+      "audio_seconds": 27.8,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 7.584076125000138,
+      "raw": "我们把 Kubernetes 的 cluster  升级之后, PostgreSQL 的 connection pool 一直 timeout, latency 也涨了很多。 这个 PR 改了 all of the callback URL, 还有 TypeScript 的 type definition, 你 merge 之前先跑一下词。 我刚跟 Sarah 开了个 one on one, 她说下个季度的 OKR 要 focus 在 retention 上。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.7075288332998753,
+          "text": "我们把 Kubernetes 的 cluster 升级之后, PostgreSQL 的 connection pool 一直 timeout, latency 也涨了很多。这个 PR 改了 all of the callback URL, 还有 TypeScript 的 type definition, 你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one on one, 她说下个季度的 OKR 要 focus 在 retention 上。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0047",
+      "round": 2,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 2.100492666650098,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post well upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 4.113617249997333,
+          "text": "Can you ask Priyanka whether migration to Cuba is blocked on the post? Let’s circle back on the quarterly roadmap after we’ve reconciled analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme of validated data, and the staging environment updated tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0048",
+      "round": 2,
+      "warmup": false,
+      "clip": "mixed-01",
+      "audio_seconds": 3.67,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": null,
+      "raw": "",
+      "error": "Network error: The request timed out.",
+      "polish": {
+        "apple": {
+          "seconds": null,
+          "text": "",
+          "error": "no transcript to polish"
+        }
+      }
+    },
+    {
+      "id": "0049",
+      "round": 2,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 2.100050666660536,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post well upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.918090833351016,
+          "text": "Can you ask Priyanka if migration to Cuba is blocked on the post? Let’s circle back on the quarterly roadmap after we’ve reconciled analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme validated, and the staging environment deployed tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0050",
+      "round": 2,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 2.1000152499764226,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post upgrade of the author change",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.9612873749574646,
+          "text": "Can you ask Priyanka if migration is blocked on the post-upgrade of the author change?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0051",
+      "round": 2,
+      "warmup": false,
+      "clip": "mixed-02",
+      "audio_seconds": 5.74,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 3.151602666650433,
+      "raw": "我觉得这个feature的UI太ugly了, 你帮我redesign一下,",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.137955708312802,
+          "text": "我觉得这个feature的UI太ugly了, 你帮我 redesign 下",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0052",
+      "round": 2,
+      "warmup": false,
+      "clip": "chinese-hard-02",
+      "audio_seconds": 8.44,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 7.4834957083221525,
+      "raw": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.7887895833700895,
+          "text": "王经理昨天在会上说，下个季度的预算要压缩，所有出差申请都要提前审批。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0053",
+      "round": 2,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.254875375016127,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the postgres QL upgrade or the auth changes?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.3295177083346061,
+          "text": "Can you ask Priyanka whether migration is blocked on the PostgreSQL QL upgrade or the auth changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0054",
+      "round": 2,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 2.100865291664377,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post well upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 4.053068458335474,
+          "text": "Can you ask Priyanka if migration to Cuba is blocked on the post? Let’s circle back on the quarterly roadmap after we’ve reconciled analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme validated, and the staging environment updated tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0055",
+      "round": 2,
+      "warmup": false,
+      "clip": "long-mixed-01",
+      "audio_seconds": 27.8,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.7002011666772887,
+      "raw": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.5834804583573714,
+          "text": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0056",
+      "round": 2,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.25305683334590867,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.3428679166245274,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0057",
+      "round": 3,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 0.6580507082981057,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2461293750093319,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0058",
+      "round": 3,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 2.111673458304722,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post upgrade, although the author",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.895378625020385,
+          "text": "Can you ask Priyanka whether the Cuba migration is blocked on the post-upgrade, although the author",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0059",
+      "round": 3,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 2.098710125021171,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post well upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 4.069060500012711,
+          "text": "Can you ask Priyanka if migration to Cuba is blocked on the post? Let’s review all changes. Let’s review the quarterly roadmap after reconciling analytics discrepancies in the retention dashboard. I need type script definitions regenerated, the graph QL scheme validated, and the staging environment updated tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0060",
+      "round": 3,
+      "warmup": false,
+      "clip": "mixed-01",
+      "audio_seconds": 3.67,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.4905035000410862,
+      "raw": "帮我build一个然后push到repository里。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2595486666541547,
+          "text": "请构建并推送到仓库。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0061",
+      "round": 3,
+      "warmup": false,
+      "clip": "mixed-01",
+      "audio_seconds": 3.67,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 0.6818517916835845,
+      "raw": "帮我 build 一个，然后 push 到 repository 里。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2465561666176654,
+          "text": "请构建后推送至仓库。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0062",
+      "round": 3,
+      "warmup": false,
+      "clip": "long-mixed-01",
+      "audio_seconds": 27.8,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 6.998791083344258,
+      "raw": "我们把 Kubernetes 的 cluster  升级之后，PostgreSQL 的 connection pool 一直 timeout, latency 也涨了很多。 这个 PR 改了 all of the callback URL 还有 TypeScript 的 type definition, 你 merge 之前先跑一下死。 我刚跟 Sarah 开了个 one on one, 她说下个季度的 OKR 要 focus 在 retention 上。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 4.064914749993477,
+          "text": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。 这个 PR 改了 all of the callback URL 还有 TypeScript 的 type definition，你 merge 之前先跑一下死。 我刚跟 Sarah 开了个 one on one，她说下个季度的 OKR 要 focus 在 retention 上。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0063",
+      "round": 3,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": null,
+      "raw": "",
+      "error": "Network error: The request timed out.",
+      "polish": {
+        "apple": {
+          "seconds": null,
+          "text": "",
+          "error": "no transcript to polish"
+        }
+      }
+    },
+    {
+      "id": "0064",
+      "round": 3,
+      "warmup": false,
+      "clip": "chinese-03",
+      "audio_seconds": 3.43,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 49.83514949999517,
+      "raw": "我觉得这个方案还需要再讨论一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.486311000015121,
+          "text": "我觉得这个方案需要再讨论一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0065",
+      "round": 3,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.21621604170650244,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.457573041669093,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0066",
+      "round": 3,
+      "warmup": false,
+      "clip": "chinese-05",
+      "audio_seconds": 4.36,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 9.602111083338968,
+      "raw": "这家餐厅的菜很好吃，但是价格有点贵。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.697606708330568,
+          "text": "这家餐厅的菜很好吃，但是价格有点贵。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0067",
+      "round": 3,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 2.2192081666435115,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post well upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.974655291705858,
+          "text": "Can you ask Priyanka if migration to Cuba is blocked on the post? Let’s circle back on the quarterly roadmap after we’ve reconciled analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme validated, and the staging environment updated tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0068",
+      "round": 3,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.5898352499934845,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the Postgres QL upgrade or the OAuth changes?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2682732500252314,
+          "text": "Can you ask Priyanka if migration is blocked on the Postgres QL upgrade or the OAuth changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0069",
+      "round": 3,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 2.1366994166746736,
+      "raw": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.3187630833126605,
+          "text": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0070",
+      "round": 3,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 5.574537833337672,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the postgres QL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated. The GraphQL schema validated and the staging environment redeployed by tonight.",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.546182541642338,
+          "text": "Can you ask Priyanka whether migration is blocked on the PostgreSQL QL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard. I need TypeScript definitions regenerated. The GraphQL schema validated and the staging environment redeployed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0071",
+      "round": 3,
+      "warmup": false,
+      "clip": "chinese-hard-02",
+      "audio_seconds": 8.44,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.703909333329648,
+      "raw": "王京理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2628853333299048,
+          "text": "王京理昨天在会上说，下个季度的预算要压缩，所有出差申请都要提前审批。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0072",
+      "round": 3,
+      "warmup": false,
+      "clip": "long-mixed-01",
+      "audio_seconds": 27.8,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 2.031596624990925,
+      "raw": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.5446866249549203,
+          "text": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0073",
+      "round": 3,
+      "warmup": false,
+      "clip": "chinese-05",
+      "audio_seconds": 4.36,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.0569585416815244,
+      "raw": "这家餐厅的菜很好吃。 但是价格有点贵。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.215320083370898,
+          "text": "这家餐厅的菜很好吃。 但是价格有点贵。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0074",
+      "round": 3,
+      "warmup": false,
+      "clip": "mixed-02",
+      "audio_seconds": 5.74,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.1851237083319575,
+      "raw": "我觉得这个feature的UI太ugly了, 你帮我redesign一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.065224666672293,
+          "text": "我觉得这个feature的UI太ugly了, 你帮我 redesign一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0075",
+      "round": 3,
+      "warmup": false,
+      "clip": "chinese-03",
+      "audio_seconds": 3.43,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.9323796666576527,
+      "raw": "我觉得这个方案还需要再讨论一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.9126940833521076,
+          "text": "我觉得这个方案需要再讨论一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0076",
+      "round": 3,
+      "warmup": false,
+      "clip": "chinese-hard-02",
+      "audio_seconds": 8.44,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 0.8070489999954589,
+      "raw": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2756872500176542,
+          "text": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0077",
+      "round": 3,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.282917250005994,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.632976208347827,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0078",
+      "round": 3,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.20049320836551487,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.457392041629646,
+          "text": "Can you send me today’s meeting notes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0079",
+      "round": 3,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 2.1013519583502784,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post upgrade of the author change",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.8201615833095275,
+          "text": "Can you ask Priyanka if the Cuba migration is blocked after the post-upgrade of the author change?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0080",
+      "round": 3,
+      "warmup": false,
+      "clip": "mixed-02",
+      "audio_seconds": 5.74,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 0.7855644999654032,
+      "raw": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.3243819166673347,
+          "text": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0081",
+      "round": 3,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.79135887499433,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2656959166633897,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0082",
+      "round": 3,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 0.26339433330576867,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.5018468750058673,
+          "text": "Can you ask Priyanka if migration is blocked on the post-rescue upgrade for all changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0083",
+      "round": 3,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 1.0982468749862164,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.8030096250004135,
+          "text": "Can you ask Priyanka whether migration is blocked on the post-rescue upgrade, all changes? Let’s circle back on the quarterly roadmap after we’ve reconciled analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme of validated data, and the staging environment employed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0084",
+      "round": 4,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 0.8089581249514595,
+      "raw": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.0235128333442844,
+          "text": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0085",
+      "round": 4,
+      "warmup": false,
+      "clip": "long-mixed-01",
+      "audio_seconds": 27.8,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 6.896626916655805,
+      "raw": "我们把 Kubernetes 的 cluster 升级之后, PostgreSQL 的 connection pool 一直 time out, latency 也涨了很多。 这个 PR 改了 all of the callback URL, 还有 TypeScript 的 type definition, 你 merge 之前先跑一下词。 我刚跟 Sarah 开了个 one on one, 她说下个季度的 OKR 要 focus 在 retention 上。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.7193734166794457,
+          "text": "我们把 Kubernetes 的 cluster 升级之后, PostgreSQL 的 connection pool 一直 timeout, latency 也涨了很多。这个 PR 改了 all of the callback URL, 还有 TypeScript 的 type definition, 你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one, 她说下个季度的 OKR 要 focus 在 retention 上。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0086",
+      "round": 4,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 0.6895071666222066,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.9272040416835807,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0087",
+      "round": 4,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 0.2305925833643414,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.4690864583244547,
+          "text": "Can you ask Priyanka if migration is blocked on the post-rescue upgrade for all changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0088",
+      "round": 4,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.05135345831513405,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.7965497083496302,
+          "text": "Can you send me today’s meeting notes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0089",
+      "round": 4,
+      "warmup": false,
+      "clip": "mixed-01",
+      "audio_seconds": 3.67,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.0281397083308548,
+      "raw": "帮我build 一个然后push到repository里。.",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.932863499969244,
+          "text": "请构建后推送至仓库。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0090",
+      "round": 4,
+      "warmup": false,
+      "clip": "mixed-02",
+      "audio_seconds": 5.74,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.3232489166548476,
+      "raw": "我觉得这个feature的UI太ugly了, 你帮我redesign一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.0148698749835603,
+          "text": "我觉得这个feature的UI太ugly了，你帮我redesign一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0091",
+      "round": 4,
+      "warmup": false,
+      "clip": "chinese-hard-02",
+      "audio_seconds": 8.44,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 2.571408041694667,
+      "raw": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1335394166526385,
+          "text": "王经理昨天在会上说，下个季度的预算要压缩，所有出差申请都要提前审批。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0092",
+      "round": 4,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.07699299999512732,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.8122791666537523,
+          "text": "Yes, here are today’s meeting notes.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0093",
+      "round": 4,
+      "warmup": false,
+      "clip": "mixed-02",
+      "audio_seconds": 5.74,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.5300007083569653,
+      "raw": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.9627565833507106,
+          "text": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0094",
+      "round": 4,
+      "warmup": false,
+      "clip": "chinese-hard-02",
+      "audio_seconds": 8.44,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.811784749967046,
+      "raw": "王金礼昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.0599831666913815,
+          "text": "王金礼昨天在会上说，下个季度的预算要压缩，所有出差申请都要提前审批。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0095",
+      "round": 4,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.05873966671060771,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.959559666691348,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0096",
+      "round": 4,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": null,
+      "raw": "",
+      "error": "Network error: The request timed out.",
+      "polish": {
+        "apple": {
+          "seconds": null,
+          "text": "",
+          "error": "no transcript to polish"
+        }
+      }
+    },
+    {
+      "id": "0097",
+      "round": 4,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.469534416683018,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the postgres QL upgrade or the OAuth changes?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.788195416680537,
+          "text": "Can you ask Priyanka whether migration is blocked on the PostgreSQL QL upgrade or the OAuth changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0098",
+      "round": 4,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 2.10003141668858,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post upgrade of the author change",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.7997759583522566,
+          "text": "Can you ask Priyanka if the Cuba migration is blocked after the post-upgrade author change?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0099",
+      "round": 4,
+      "warmup": false,
+      "clip": "chinese-03",
+      "audio_seconds": 3.43,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 20.892209333309438,
+      "raw": "我觉得这个方案还需要再讨论一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.4921587499557063,
+          "text": "我觉得这个方案还需要再讨论一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0100",
+      "round": 4,
+      "warmup": false,
+      "clip": "chinese-03",
+      "audio_seconds": 3.43,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.7104347916319966,
+      "raw": "我觉得这个方案还需要再讨论一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.9363165416289121,
+          "text": "我觉得这个方案需要再讨论一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0101",
+      "round": 4,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 1.1143136249738745,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.778877208358608,
+          "text": "Can you ask Priyanka whether migration is blocked on the post-rescue upgrade? Let’s circle back on the quarterly roadmap after we’ve reconciled analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme validated, and the staging environment deployed tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0102",
+      "round": 4,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 1.0912680000183173,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.5859390000114217,
+          "text": "Can you ask Priyanka if migration is blocked on the post-rescue upgrade? Let’s circle back on the quarterly roadmap after reconciling analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme validated, and the staging environment updated tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0103",
+      "round": 4,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 0.23599970829673111,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.5265557916718535,
+          "text": "Can you ask Priyanka if the Cuba migration is blocked on the post-rescue upgrade?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0104",
+      "round": 4,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.2370341250207275,
+      "raw": "can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.940946625021752,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0105",
+      "round": 4,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 1.0923968333518133,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.673923416645266,
+          "text": "Can you ask Priyanka if migration to Cuba is blocked on the post-rescue upgrade? Let’s circle back on the quarterly roadmap after reconciling analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme validated, and the staging environment updated tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0106",
+      "round": 4,
+      "warmup": false,
+      "clip": "mixed-01",
+      "audio_seconds": 3.67,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 0.49200550001114607,
+      "raw": "帮我 build 一个，然后 push 到 repository 里。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.0058646666584536,
+          "text": "请构建后推送至仓库。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0107",
+      "round": 4,
+      "warmup": false,
+      "clip": "chinese-05",
+      "audio_seconds": 4.36,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.023422083351761,
+      "raw": "这家餐厅的菜很好吃，但是价格有点贵。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.9455308750038967,
+          "text": "这家餐厅的菜很好吃，但是价格有点贵。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0108",
+      "round": 4,
+      "warmup": false,
+      "clip": "long-mixed-01",
+      "audio_seconds": 27.8,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.2762533749919385,
+      "raw": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.2354184583527967,
+          "text": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition，我 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0109",
+      "round": 4,
+      "warmup": false,
+      "clip": "chinese-05",
+      "audio_seconds": 4.36,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.8022378333262168,
+      "raw": "这家餐厅的菜很好吃,但是价格有点贵。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.9038660416845232,
+          "text": "这家餐厅的菜很好吃，但是价格有点贵。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0110",
+      "round": 4,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 5.118149249989074,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post-gress QL upgrade or the auth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.160902041650843,
+          "text": "Can you ask Priyanka whether migration is blocked on the post-gress QL upgrade or the auth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0111",
+      "round": 5,
+      "warmup": false,
+      "clip": "mixed-02",
+      "audio_seconds": 5.74,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 0.6067721250001341,
+      "raw": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.0148033333243802,
+          "text": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0112",
+      "round": 5,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 1.164918583293911,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.5735425000311807,
+          "text": "Can you ask Priyanka whether migration is blocked on the post-rescue upgrade? Let’s circle back on the quarterly roadmap after reconciling analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated. The graph QL scheme of validated and the staging environment employed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0113",
+      "round": 5,
+      "warmup": false,
+      "clip": "chinese-05",
+      "audio_seconds": 4.36,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 0.6705461666570045,
+      "raw": "这家餐厅的菜很好吃，但是价格有点贵。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.373085583327338,
+          "text": "这家餐厅的菜很好吃，但是价格有点贵。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0114",
+      "round": 5,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 6.469773666642141,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the Postgres QL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated. The GraphQL schema validated. And the staging environment redeployed by tonight.",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 3.8810166666517034,
+          "text": "Can you ask Priyanka whether migration is blocked on the Postgres QL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated. The GraphQL schema validated. And the staging environment redeployed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0115",
+      "round": 5,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 3.921296833315864,
+      "raw": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2712883333442733,
+          "text": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0116",
+      "round": 5,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 2.0968794166692533,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post upgrade, although the author",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.710986333375331,
+          "text": "Can you ask Priyanka if the Cuba migration is blocked after the post-upgrade, although the author",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0117",
+      "round": 5,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.1093960416619666,
+      "raw": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.3025005833478644,
+          "text": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0118",
+      "round": 5,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 2.099683999957051,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post upgrade, although the author",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.706150791666005,
+          "text": "Can you ask Priyanka whether Cuba’s migration is blocked on the post-upgrade, although the author",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0119",
+      "round": 5,
+      "warmup": false,
+      "clip": "mixed-01",
+      "audio_seconds": 3.67,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.9915609166491777,
+      "raw": "帮我build一个然后push到repository里。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1298656250000931,
+          "text": "请构建后推送到仓库。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0120",
+      "round": 5,
+      "warmup": false,
+      "clip": "long-mixed-01",
+      "audio_seconds": 27.8,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 1.9574519583256915,
+      "raw": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.5340127916424535,
+          "text": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition。我 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0121",
+      "round": 5,
+      "warmup": false,
+      "clip": "chinese-hard-02",
+      "audio_seconds": 8.44,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.875829958356917,
+      "raw": "王金理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.452738958352711,
+          "text": "王金理昨天在会上说，下个季度的预算要压缩，所有出差申请都要提前审批。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0122",
+      "round": 5,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.23154112498741597,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.5981730416533537,
+          "text": "What’s the meeting name or date?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0123",
+      "round": 5,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 1.1282510833698325,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 4.224669624993112,
+          "text": "Can you ask Priyanka whether migration is blocked on the post-rescue upgrade, all changes? Let’s circle back on the quarterly roadmap after we’ve reconciled analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme of validated data, and the staging environment employed by tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0124",
+      "round": 5,
+      "warmup": false,
+      "clip": "mixed-01",
+      "audio_seconds": 3.67,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 13.595869041630067,
+      "raw": "帮我 build 一个，然后 push 到 repository 里。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.628067708341405,
+          "text": "请构建，然后推送到仓库。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0125",
+      "round": 5,
+      "warmup": false,
+      "clip": "chinese-hard-02",
+      "audio_seconds": 8.44,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 14.859449125011452,
+      "raw": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.789367458317429,
+          "text": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0126",
+      "round": 5,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.22588170832023025,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.448661958333105,
+          "text": "Can you send me today’s meeting notes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0127",
+      "round": 5,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 14.84920870832866,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.664281083329115,
+          "text": "Yes, I can send the notes from today’s meeting.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0128",
+      "round": 5,
+      "warmup": false,
+      "clip": "chinese-03",
+      "audio_seconds": 3.43,
+      "stt": "openrouter:qwen/qwen3-asr-1.7b",
+      "transcribe": 12.992592666705605,
+      "raw": "我觉得这个方案还需要再讨论一下。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.6971721250447445,
+          "text": "我觉得这个方案还需要再讨论一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0129",
+      "round": 5,
+      "warmup": false,
+      "clip": "mixed-02",
+      "audio_seconds": 5.74,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.3075292499852367,
+      "raw": "我觉得这个feature的UI太ugly了，你帮我redesign一下，",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.2109452083241194,
+          "text": "我觉得这个feature的UI太ugly了，你帮我redesign一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0130",
+      "round": 5,
+      "warmup": false,
+      "clip": "long-mixed-01",
+      "audio_seconds": 27.8,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 6.111387041630223,
+      "raw": "我们把 Kubernetes 的 cluster  升级之后, PostgreSQL 的 connection pool 一直 timeout, latency 也涨了很多。 这个 PR 改了 all of the callback URL, 还有 TypeScript 的 type definition, 你 merge 之前先跑一下词。 我刚跟 Sarah 开了个 one on one, 她说下个季度的 OKR 要 focus 在 retention 上。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 4.036183416668791,
+          "text": "我们把 Kubernetes 的 cluster 升级之后, PostgreSQL 的 connection pool 一直 timeout, latency 也涨了很多。这个 PR 改了 all of the callback URL, 还有 TypeScript 的 type definition, 你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one, 她说下个季度的 OKR 要 focus 在 retention 上。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0131",
+      "round": 5,
+      "warmup": false,
+      "clip": "chinese-03",
+      "audio_seconds": 3.43,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.6156543749966659,
+      "raw": "我觉得这个方案还需要再讨论一下。As",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.0169188333093189,
+          "text": "我觉得这个方案需要再讨论一下。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0132",
+      "round": 5,
+      "warmup": false,
+      "clip": "chinese-05",
+      "audio_seconds": 4.36,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.710855208337307,
+      "raw": "这家餐厅的菜很好吃，但是价格有点贵。",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1483282083645463,
+          "text": "这家餐厅的菜很好吃，但是价格有点贵。",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0133",
+      "round": 5,
+      "warmup": false,
+      "clip": "long-english-01",
+      "audio_seconds": 21.87,
+      "stt": "apple:en-US",
+      "transcribe": 1.1805998333147727,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard I need the type script definitions regenerated the graph QL scheme of validated and the staging environment employed by tonight",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 4.224508750019595,
+          "text": "Can you ask Priyanka if migration to Cuba is blocked on the post-rescue upgrade? Let's circle back on the quarterly roadmap after we've reconciled analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the graph QL scheme validated, and the staging environment employed tonight.",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0134",
+      "round": 5,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "apple:en-US",
+      "transcribe": 0.07303400000091642,
+      "raw": "Can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.8861959583009593,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0135",
+      "round": 5,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "apple:en-US",
+      "transcribe": 0.23575787496520206,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post rescue upgrade all the changes",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 2.6482942916918546,
+          "text": "Can you ask Priyanka if migration is blocked on the post-rescue upgrade for all changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0136",
+      "round": 5,
+      "warmup": false,
+      "clip": "english-hard-01",
+      "audio_seconds": 6.65,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 2.519990625034552,
+      "raw": "Can you ask Priyanka whether the Cuba needs migration is blocked on the Postgres SQL upgrade or the OAuth changes?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 1.1879392083501443,
+          "text": "Can you ask Priyanka whether migration is blocked on the Postgres SQL upgrade or the OAuth changes?",
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "0137",
+      "round": 5,
+      "warmup": false,
+      "clip": "english-01",
+      "audio_seconds": 2.52,
+      "stt": "openrouter:meta/muse-voice-transcribe-1.0",
+      "transcribe": 1.158310208353214,
+      "raw": "can you send me the notes from today's meeting?",
+      "error": null,
+      "polish": {
+        "apple": {
+          "seconds": 0.8925105000380427,
+          "text": "Can you send me the notes from today’s meeting?",
+          "error": null
+        }
+      }
+    }
+  ]
+}
