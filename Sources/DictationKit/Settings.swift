@@ -184,6 +184,7 @@ final class AppSettings: ObservableObject {
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
+    @ObservedObject var history: HistoryStore = .shared
     @State private var microphones: [AudioInputDevice] = []
     @State private var askForKey = false
     @State private var keyDraft = ""
@@ -310,11 +311,6 @@ struct SettingsView: View {
                         get: { settings.effectiveStreaming },
                         set: { settings.streamWhileSpeaking = $0 }))
                 }
-            } header: {
-                Label("Output", systemImage: "text.cursor")
-            }
-
-            Section {
                 SettingRow("AI polish", settings.effectiveStreaming
                            ? "Not used while “Type as you speak” is on — polish needs the whole dictation."
                            : settings.polishModel == .onDevice
@@ -323,10 +319,17 @@ struct SettingsView: View {
                     Toggle("AI polish", isOn: $settings.polishEnabled)
                 }
             } header: {
-                Label("Cleanup", systemImage: "wand.and.stars")
+                Label("Output", systemImage: "text.cursor")
             }
 
             Section {
+                SettingRow("Keep history", "Stored only on this Mac. Nothing is uploaded.") {
+                    Picker("Keep history", selection: $history.retention) {
+                        ForEach(HistoryRetention.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
                 SettingRow("Keep recordings", "Save each dictation's audio and what was heard on this Mac, to build a test set for comparing speech models. When off, audio is deleted once it's transcribed.") {
                     Toggle("Keep recordings", isOn: $settings.keepRecordings)
                 }
@@ -336,7 +339,7 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Label("Recordings", systemImage: "waveform")
+                Label("History & recordings", systemImage: "internaldrive")
             }
         }
         .formStyle(.grouped)

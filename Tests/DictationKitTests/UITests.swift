@@ -6,8 +6,9 @@ import XCTest
 /// Drives the real views through the accessibility tree, the same way assistive tech
 /// (and a user) would, and checks the app state they change.
 final class SettingsUITests: XCTestCase {
-    private func host(_ settings: AppSettings) -> HostedView<SettingsView> {
-        let hosted = HostedView(SettingsView(settings: settings), size: NSSize(width: 640, height: 1900))
+    private func host(_ settings: AppSettings, history: HistoryStore? = nil) -> HostedView<SettingsView> {
+        let history = history ?? HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let hosted = HostedView(SettingsView(settings: settings, history: history), size: NSSize(width: 640, height: 1900))
         addTeardownBlock { hosted.close() }
         return hosted
     }
@@ -16,7 +17,7 @@ final class SettingsUITests: XCTestCase {
         let hosted = host(AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore()))
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
-                      "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep recordings",
+                      "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep history", "Keep recordings",
                       "Backup model when slow"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
@@ -54,6 +55,16 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(hosted.click(toggle))
         hosted.settle()
         XCTAssertNotNil(hosted.element(id: "setting.Recordings folder"))
+    }
+
+    func testKeepHistoryLivesInSettings() {
+        let defaults = makeDefaults(self)
+        let history = HistoryStore(fileURL: makeTempURL(self), defaults: defaults)
+        let hosted = host(AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore()), history: history)
+        XCTAssertNotNil(hosted.element(id: "setting.Keep history"))
+        history.retention = .days30
+        hosted.settle()
+        XCTAssertEqual(HistoryStore(fileURL: makeTempURL(self), defaults: defaults).retention, .days30, "remembered")
     }
 
     func testBackupModelForCloudModelsOnByDefaultAndPersists() {
@@ -193,6 +204,15 @@ final class HistoryUITests: XCTestCase {
         let hosted = HostedView(HistoryView(store: store), size: NSSize(width: 760, height: 400))
         addTeardownBlock { hosted.close() }
         XCTAssertTrue(hosted.elements(id: "history.copy").isEmpty)
+        XCTAssertEqual(hosted.element(id: "history.empty").flatMap { $0.label ?? $0.value }?.hasPrefix("No dictations yet"), true)
+    }
+
+    func testEmptyStateSaysWhereToTurnHistoryBackOn() {
+        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        store.retention = .off
+        let hosted = HostedView(HistoryView(store: store), size: NSSize(width: 760, height: 400))
+        addTeardownBlock { hosted.close() }
+        XCTAssertEqual(hosted.element(id: "history.empty").flatMap { $0.label ?? $0.value }?.contains("Settings"), true)
     }
 
     func testNewDictationAppearsLive() {

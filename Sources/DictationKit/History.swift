@@ -112,8 +112,11 @@ struct HistoryView: View {
             header
             if filtered.isEmpty {
                 Spacer()
-                Text(store.entries.isEmpty ? "No dictations yet. Hold your hotkey and start talking." : "No matches.")
+                Text(!store.entries.isEmpty ? "No matches."
+                     : store.retention == .off ? "History is off. Turn it on in Settings › Keep history."
+                     : "No dictations yet. Hold your hotkey and start talking.")
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("history.empty")
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
@@ -135,31 +138,14 @@ struct HistoryView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("History").font(.largeTitle.bold())
-                Spacer()
-                Button("Clear All…") { confirmClear = true }
-                    .disabled(store.entries.isEmpty)
-                    .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
-                        Button("Delete All", role: .destructive) { store.clear() }
-                    }
-            }
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Label("Keep history", systemImage: "internaldrive").font(.headline)
-                    Text("Stored only on this Mac. Nothing is uploaded.")
-                        .font(.callout).foregroundStyle(.secondary)
+        HStack(alignment: .firstTextBaseline) {
+            Text("History").font(.largeTitle.bold())
+            Spacer()
+            Button("Clear All…") { confirmClear = true }
+                .disabled(store.entries.isEmpty)
+                .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
+                    Button("Delete All", role: .destructive) { store.clear() }
                 }
-                Spacer()
-                Picker("", selection: $store.retention) {
-                    ForEach(HistoryRetention.allCases, id: \.self) { Text($0.title).tag($0) }
-                }
-                .labelsHidden()
-                .fixedSize()
-            }
-            .padding(14)
-            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 
