@@ -52,9 +52,12 @@ Relaunch the app after enabling Accessibility.
   Flash hasn't answered in 2 s, a smaller, faster model is asked too and the first answer is used;
   after a slow answer both are asked at once for 5 minutes. Faster in slow spells, but the smaller
   model gets more technical terms wrong. Off, only Cloud Flash is asked.
-- Menu bar 🎙 → **AI polish (on-device)** toggles LLM cleanup (default: off).
-  When on, Apple's on-device model removes fillers and fixes self-corrections —
-  it never rewrites your meaning, and nothing leaves your Mac.
+- Menu bar 🎙 → **AI polish** toggles LLM cleanup (default: off). It removes fillers and fixes
+  self-corrections without rewriting your meaning. **Settings → Cleanup → Polish model**:
+  - **Cloud** (default): gpt-oss-120b on Groq through OpenRouter, about 0.4 s. It sends the
+    transcript text to the cloud and uses your cloud API key; without a key, polish runs on-device.
+  - **On-device**: Apple's model; nothing leaves your Mac, but it's slower (about 1 s, up to 3 s on
+    long paragraphs) and misses more self-corrections (`bench/results/polish/README.md`).
 
 ## Development
 
@@ -87,7 +90,7 @@ bench/suite.py latency run   # wait after you press stop, per speech/polish mode
 - **Fn also opens the emoji picker / Apple Dictation**: System Settings → Keyboard →
   "Press 🌐 key to" → Do Nothing, or pick a different hotkey.
 - **"On-device recognition unavailable"**: System Settings → Keyboard → Dictation → make sure English dictation is enabled (downloads the on-device model).
-- **AI polish does nothing**: Apple Intelligence must be available on this Mac; otherwise the toggle safely falls back to the raw transcript.
+- **AI polish does nothing**: with On-device polish, Apple Intelligence must be available on this Mac; with Cloud, the cloud API key must be valid. Either way a failed polish pastes the raw transcript.
 - **Paste lands in the wrong app**: click the target text field first, then hold Fn.
 
 ## Uninstall

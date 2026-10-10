@@ -1,18 +1,23 @@
-# AI polish research — 2026-10-09
+# AI polish research — 2026-10-09/10
 
 **Question:** is there a cheap cloud model that polishes much faster than Apple's on-device model, at
 the same or better quality?
 
-**Answer so far:** yes. **gpt-oss-120b on Groq**, with a new prompt:
-- **Quality:** 96% of 50 tricky dictations pass.
-- **Wait:** 0.48 s median, 1.12 s p95; long paragraphs 0.60 s.
-- **Cost:** about $0.08 per 1,000 polishes.
+**Answer: yes, and it's also much better.** gpt-oss-120b on Groq, with the v3 prompt and the
+transcript in `<transcript>` tags. On your Mac (20-case quick set, same prompt for both):
 
-Apple's polish took 0.6–1.1 s for a sentence and 2.2–3.4 s for a long paragraph in the latency runs.
+| | pass | traps | self-corrections | mixed zh/en | p50 | p90 | worst |
+|:--|--:|--:|--:|--:|--:|--:|--:|
+| **gpt-oss-120b @ Groq** | **90%** | 100% | 83% | 88% | **0.38 s** | 0.54 s | 0.72 s |
+| Apple on-device | 40% | 67% | 0% | 25% | 0.91 s | 1.77 s | 1.90 s |
 
-**Not yet measured:** Apple's *quality* on this test set and the cloud timing on your Mac. Both need
-the Mac run below before cloud polish should become the default. Until then it's an option:
-Settings → Cleanup → Polish model → Cloud.
+**Decision:** Cloud is now the default polish model (Settings → Cleanup → Polish model). On-device
+stays available, and polish runs on-device when no cloud key is saved.
+
+**Caveats on the Mac run:**
+- The quick set is weighted toward the hard cases.
+- Apple ran with the v3 prompt, not the app's own; that run wasn't done.
+- Neither caveat explains a 40% vs 90% gap.
 
 ## Method
 
@@ -88,8 +93,8 @@ By dictation length (p50): gpt-oss-120b @ Groq takes 0.46 s under 20 words and 0
   - It keeps Redis in "用 Redis 做那个 rate limiting 哦不对用 Memcached".
 
 **Privacy:** cloud polish sends the transcript text to OpenRouter and Groq. With a cloud speech model
-your audio already goes to the cloud. With On-device speech, it would be the first thing that leaves
-the Mac, which is why it's opt-in.
+your audio already goes to the cloud; with On-device speech, it's the one thing that leaves the Mac.
+Choose On-device polish to keep everything local.
 
 ## Caveats
 
@@ -104,7 +109,7 @@ the Mac, which is why it's opt-in.
 - **Apple's quality on this set is unknown.** It's likely below the cloud models on the traps, since
   the app's current prompt let every cloud model fall for them, but that's a guess until measured.
 
-## On your Mac (≈ 5 minutes, ≈ $0.01)
+## Re-running on your Mac
 
 ```sh
 git pull && ./test.sh && ./build.sh
