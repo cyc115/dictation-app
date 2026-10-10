@@ -78,6 +78,7 @@ The results and the reasoning behind the cloud polish choice are in `results/pol
 
 ```sh
 bench/suite.py polish cases                                              # the test set
+bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq --quick     # 20 cases, ≈ 1–2 min
 bench/suite.py polish run -m openai/gpt-oss-120b@Groq -m google/gemini-3.1-flash-lite   # any OpenRouter model
 bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq --wrap \
     --prompt-file bench/polish_prompts/v3.txt -r 2                       # Apple (via the app) vs cloud
@@ -88,6 +89,9 @@ bench/suite.py polish report --failures openai/gpt-oss-120b@Groq         # what 
   fillers, self-corrections, already-clean text, and traps — dictations that ask or instruct, which
   a polish model must clean up, not carry out. A pass needs every check to hold and the words within
   25% of the expected cleanup.
+- **Quick set** (`--quick`): 20 of the main cases, mostly the ones models disagreed on (17–86% pass
+  across the first study), over every language and kind, three of them long. For a fast check; use the
+  full set (and the held-out one) before changing a default.
 - **Models:** `apple` runs Apple's model inside the installed app (Mac only, after `./build.sh`);
   `openrouter:<id>[@Provider]` pins a host (`@Groq`, `@Cerebras`), else `--sort latency` asks
   OpenRouter to pick. Reasoning is off or at its lowest.

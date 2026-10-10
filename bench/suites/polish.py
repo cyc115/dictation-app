@@ -3,7 +3,8 @@
   bench/suite.py polish run -m openrouter:google/gemini-2.5-flash-lite -m openrouter:openai/gpt-oss-20b@Groq
   bench/suite.py polish run --models-file candidates.txt -r 3 --sort latency
   bench/suite.py polish report [--file results/polish/….json] [--markdown] [--failures MODEL]
-  bench/suite.py polish cases                              # the test set, with what each case checks
+  bench/suite.py polish cases [--quick]                    # the test set (--quick: the 20-case subset)
+  bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq --quick   # a fast comparison
 
 Each case (polish_cases.json) is a raw transcript as the speech models write it, the cleanup the app's
 instructions ask for, and checks: words that must survive (names, technical terms, the corrected
@@ -401,6 +402,8 @@ def cmd_run(args) -> int:
     specs = read_specs(args)
     files = [Path(f) for f in args.cases_file] if args.cases_file else [CASES]
     cases = [c for f in files for c in load_cases(f)]
+    if args.quick:
+        cases = [c for c in cases if c.get("quick")]
     if args.case:
         cases = [c for c in cases if c["id"] in args.case]
     cloud = [s for s in specs if s != "apple"]
@@ -460,7 +463,8 @@ def cmd_report(args) -> int:
 
 def cmd_cases(args) -> int:
     for c in load_cases():
-        print(f"{c['id']:<24} {c['category']:<8} {c['kind']:<11} {c['raw'][:70]}")
+        if c.get("quick") or not args.quick:
+            print(f"{c['id']:<24} {c['category']:<8} {c['kind']:<11} {'quick ' if c.get('quick') else '      '}{c['raw'][:64]}")
     return 0
 
 
@@ -474,6 +478,8 @@ def main(argv: list[str]) -> int:
     r.add_argument("--models-file", help="one model spec per line (# comments)")
     r.add_argument("-r", "--rounds", type=int, default=1, help="times each case is polished per model (default 1)")
     r.add_argument("--case", action="append", metavar="ID", help="only these cases")
+    r.add_argument("--quick", action="store_true",
+                   help="only the 20 quick cases: the ones models disagreed on, over every language and kind")
     r.add_argument("--cases-file", action="append", help="test set (default polish_cases.json; polish_cases_holdout.json checks a "
                                         "prompt on dictations it wasn't tuned on)")
     r.add_argument("--sort", choices=["latency", "throughput", "price"],
@@ -495,6 +501,7 @@ def main(argv: list[str]) -> int:
     rep.add_argument("--failures", metavar="MODEL", help="show what one model got wrong")
     rep.set_defaults(func=cmd_report)
     c = sub.add_parser("cases", help="list the test set")
+    c.add_argument("--quick", action="store_true", help="only the 20 quick cases")
     c.set_defaults(func=cmd_cases)
     args = p.parse_args(argv)
     return args.func(args)

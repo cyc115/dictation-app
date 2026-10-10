@@ -161,3 +161,14 @@ def test_a_rejected_key_stops_the_run_before_any_polish(monkeypatch, capsys):
     monkeypatch.setattr(polish, "run", lambda *a, **k: pytest.fail("ran with a rejected key"))
     with pytest.raises(SystemExit, match=r"rejected \$OPENROUTER_API_KEY .*unset OPENROUTER_API_KEY"):
         polish.main(["run", "-m", "openai/gpt-oss-120b@Groq", "--case", "en-clean"])
+
+
+def test_quick_set_is_twenty_main_cases_covering_every_language_and_kind():
+    quick = [c for c in polish.load_cases() if c.get("quick")]
+    assert len(quick) == 20
+    for field, values in (("category", ("english", "chinese", "mixed")), ("kind", ("filler", "correction", "trap", "clean"))):
+        assert {c[field] for c in quick} == set(values), field
+    assert sum(c["category"] == "mixed" for c in quick) >= 6, "mixed speech is the main use"
+    assert sum(len(c["raw"]) > 80 for c in quick) >= 2, "long dictations, for latency"
+    holdout = polish.load_cases(polish.CASES.parent / "polish_cases_holdout.json")
+    assert not any(c.get("quick") for c in holdout), "the held-out set stays unseen"
