@@ -227,11 +227,11 @@ final class CloudEngineTests: XCTestCase {
         wait(for: [done], timeout: 2)
     }
 
-    /// Same path against the real API. Opt-in: LIVE_OPENROUTER=1 OPENROUTER_KEY=…
+    /// Same path against the real API. Opt-in: LIVE_OPENROUTER=1 OPENROUTER_API_KEY=…
     func testLiveUploadThroughCloudEngine() throws {
         let env = ProcessInfo.processInfo.environment
-        guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_KEY"] else {
-            throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_KEY to run")
+        guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_API_KEY"] else {
+            throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_API_KEY to run")
         }
         let src = try AVAudioFile(forReading: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("../../bench/audio/mixed-01.wav").standardized)

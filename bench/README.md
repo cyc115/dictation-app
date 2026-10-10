@@ -121,7 +121,7 @@ uv run --with pytest --with opencc-python-reimplemented==0.1.7 pytest bench   # 
   `curl -s "https://openrouter.ai/api/v1/models?output_modalities=all"` (transcription models don't
   show in the default list), then `bench/bench.py run -r 3 -m openrouter:<id>` and `bench/bench.py html`.
   To offer it in the app, add one case to `TranscriptionModel` in `Sources/DictationKit/Transcription.swift`.
-- **Key:** `$OPENROUTER_KEY` by default (`--key-env` to change). The account needs credits, and some
+- **Key:** `$OPENROUTER_API_KEY` by default (`--key-env` to change). The account needs credits, and some
   models (Meta Muse) need the 18+ confirmation in OpenRouter's preferences.
 - **Scoring:** token error rate where a token is one Chinese character or one English word. Speaker
   tags are removed and Traditional is converted to Simplified first (flagged separately).

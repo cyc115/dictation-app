@@ -4,7 +4,7 @@
 #   ./test.sh                 # all tests
 #   ./test.sh --filter Hotkey # subset (passed through to `swift test`)
 #   ./test.sh --perf          # also run the app-level perf check (relaunches the installed app)
-#   ./test.sh --live          # also hit the real OpenRouter API through CloudEngine (needs $OPENROUTER_KEY, ~$0.001)
+#   ./test.sh --live          # also hit the real OpenRouter API through CloudEngine (needs $OPENROUTER_API_KEY, ~$0.001)
 #   RECORD_SNAPSHOTS=1 ./test.sh --filter SnapshotTests   # re-record reference images after a UI change
 set -euo pipefail
 cd "$(dirname "$0")"
