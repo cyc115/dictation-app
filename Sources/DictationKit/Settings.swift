@@ -38,7 +38,11 @@ enum AppearanceMode: String, CaseIterable {
 
 /// User settings, saved in UserDefaults. `onChange` fires after any change.
 final class AppSettings: ObservableObject {
-    static let shared = AppSettings()
+    static let shared: AppSettings = {
+        let secrets = FileSecretStore()
+        secrets.moveFromKeychain(openRouterAccount)  // once, from builds that kept it in the Keychain
+        return AppSettings(secrets: secrets)
+    }()
 
     private enum Key {
         static let hotkey = "hotkey"
@@ -114,19 +118,11 @@ final class AppSettings: ObservableObject {
     private let secrets: SecretStore
     static let openRouterAccount = "openrouter-api-key"
 
-    /// Read from the Keychain once, when a dictation first needs it, then kept: each read can ask
-    /// for the login password.
-    private var cachedKey: String?
-    var openRouterKey: String? {
-        if cachedKey == nil, hasOpenRouterKey { cachedKey = secrets.get(Self.openRouterAccount) }
-        return cachedKey
-    }
+    var openRouterKey: String? { secrets.get(Self.openRouterAccount) }
 
     func setOpenRouterKey(_ key: String?) {
-        let trimmed = key?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        secrets.set(trimmed, for: Self.openRouterAccount)
-        cachedKey = trimmed.isEmpty ? nil : trimmed
-        hasOpenRouterKey = cachedKey != nil
+        secrets.set(key?.trimmingCharacters(in: .whitespacesAndNewlines), for: Self.openRouterAccount)
+        hasOpenRouterKey = openRouterKey != nil
         onChange?()
     }
 
@@ -145,7 +141,7 @@ final class AppSettings: ObservableObject {
 
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard, secrets: SecretStore = KeychainStore(),
+    init(defaults: UserDefaults = .standard, secrets: SecretStore = FileSecretStore(),
          customSetupsFile: URL = DictationSetup.customFile) {
         self.defaults = defaults
         self.secrets = secrets
@@ -164,8 +160,7 @@ final class AppSettings: ObservableObject {
         localLanguage = LocalLanguage(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .english
         keepRecordings = defaults.bool(forKey: Key.keepRecordings)
         backupWhenSlow = defaults.object(forKey: Key.backupWhenSlow) as? Bool ?? true
-        // Not `get`: reading the key at launch asked for the Keychain password before anything needed it.
-        hasOpenRouterKey = secrets.has(Self.openRouterAccount)
+        hasOpenRouterKey = secrets.get(Self.openRouterAccount) != nil
         launchAtLogin = false
         let saved = defaults.string(forKey: Key.model).map { DictationSetup.legacyIDs[$0] ?? $0 }
         reloadSetups(selecting: saved)
@@ -252,7 +247,7 @@ struct SettingsView: View {
                 }
                 if cloud {
                     SettingRow("Cloud API key", settings.hasOpenRouterKey
-                               ? "Saved in your Keychain."
+                               ? "Saved on this Mac, readable only by your user account."
                                : "Required for cloud models.") {
                         Button(settings.hasOpenRouterKey ? "Change…" : "Add Key…") { keyDraft = ""; askForKey = true }
                     }
@@ -396,7 +391,7 @@ private struct APIKeySheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Cloud API key").font(.headline)
-            Text("Cloud models need an API key. It's stored in your Keychain and shared by Cloud Flash and Cloud Big.")
+            Text("Cloud models need an API key. It's saved on this Mac, readable only by your user account, and shared by every cloud setup.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

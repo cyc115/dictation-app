@@ -143,8 +143,8 @@ def test_apple_runs_through_the_app_with_text_trials(monkeypatch):
     from suites import latency
     sent = {}
 
-    def fake_app(trials, pause, timeout, key_env, on_sample, extra, needs_key=True):
-        sent.update(trials=trials, extra=extra, needs_key=needs_key)
+    def fake_app(trials, pause, timeout, key_env, on_sample, extra):
+        sent.update(trials=trials, extra=extra)
         for i, t in enumerate(trials):
             polished = t["text"].replace("嗯", "") if i != 1 else None
             on_sample({"id": t["id"], "transcribe": 0, "raw": t["text"],
@@ -156,7 +156,6 @@ def test_apple_runs_through_the_app_with_text_trials(monkeypatch):
     cases = [c for c in polish.load_cases() if c["id"] in ("zh-short-filler", "mixed-ok")]
     rows = polish.run(["apple"], cases, 1, 1, "", None, 1, 30, lambda row: None, prompt="P", wrap=True)
     assert sent["extra"] == {"instructions": "P", "wrap": True}
-    assert sent["needs_key"] is False, "polish-only: the app needn't touch the Keychain"
     assert all(t["stt"] == "text" and t["polish"] == ["apple"] and t["text"] for t in sent["trials"])
     assert [r["warmup"] for r in rows] == [True, False, False]
     assert rows[1]["error"] == "unavailable" and "check" in rows[2] and rows[2]["cost"] == 0.0
@@ -174,7 +173,7 @@ def test_apple_stops_the_run_when_the_installed_app_is_too_old(monkeypatch):
     from suites import latency
     calls = []
 
-    def old_app(trials, pause, timeout, key_env, on_sample, extra, needs_key=True):
+    def old_app(trials, pause, timeout, key_env, on_sample, extra):
         on_sample({"id": trials[0]["id"], "error": "unknown speech model text"}, 1)
 
     monkeypatch.setattr(latency, "run_in_app", old_app)
@@ -202,3 +201,10 @@ def test_quick_set_is_twenty_main_cases_covering_every_language_and_kind():
     assert sum(len(c["raw"]) > 80 for c in quick) >= 2, "long dictations, for latency"
     holdout = polish.load_cases(polish.CASES.parent / "polish_cases_holdout.json")
     assert not any(c.get("quick") for c in holdout), "the held-out set stays unseen"
+
+
+def test_saved_key_is_read_from_the_apps_secrets_file(tmp_path):
+    secrets = tmp_path / "secrets.json"
+    assert polish.saved_key(secrets) == "", "no file: no key"
+    secrets.write_text(json.dumps({"openrouter-api-key": "sk-or-v1-test"}))
+    assert polish.saved_key(secrets) == "sk-or-v1-test"

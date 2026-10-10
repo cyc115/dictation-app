@@ -195,11 +195,9 @@ def progress(trials: list[dict]):
 
 
 def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | None, on_sample,
-               plan_extra: dict | None = None, needs_key: bool = True) -> list[dict]:
+               plan_extra: dict | None = None) -> list[dict]:
     """Launches the installed app in benchmark mode and collects one sample per trial. `plan_extra`
-    and a trial's "text" are for polish-only runs (suite polish: prompt overrides, no audio).
-    `needs_key=False` keeps the app away from the Keychain, whose password prompt after a rebuild
-    would hold up the start past STARTUP_SECONDS."""
+    and a trial's "text" are for polish-only runs (suite polish: prompt overrides, no audio)."""
     if platform.system() != "Darwin":
         raise SystemExit("the latency suite runs the installed macOS app — run it on your Mac (or try --simulate)")
     if not APP.exists():
@@ -208,8 +206,6 @@ def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | 
     if key_env:
         key = os.environ.get(key_env) or sys.exit(f"${key_env} is not set")
         env += ["--env", f"DICTATIONAPP_PROBE_KEY={key}"]
-    elif not needs_key:
-        env += ["--env", "DICTATIONAPP_PROBE_KEY="]
     with tempfile.TemporaryDirectory() as tmp:
         plan, out = Path(tmp) / "plan.json", Path(tmp) / "out.jsonl"
         plan.write_text(json.dumps({"pause": pause, "timeout": timeout, **(plan_extra or {}), "trials": [
@@ -227,9 +223,8 @@ def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | 
             while len(lines) < len(trials):
                 time.sleep(0.25)
                 if not out.exists() and time.monotonic() - last_change > STARTUP_SECONDS:
-                    raise SystemExit(f"{APP.name} didn't start the benchmark within {STARTUP_SECONDS} s: the installed "
-                                     "build is older than this checkout (run ./build.sh after ./test.sh passes), or it's "
-                                     "waiting on a Keychain password prompt (allow it, then try again).")
+                    raise SystemExit(f"{APP.name} didn't start the benchmark: the installed build is older than this "
+                                     "checkout. Run ./build.sh (after ./test.sh passes), then try again.")
                 fresh = out.read_text().splitlines() if out.exists() else []
                 for i, line in enumerate(fresh[len(lines):], len(lines) + 1):
                     sample = json.loads(line)

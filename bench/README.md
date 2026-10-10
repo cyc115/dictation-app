@@ -96,7 +96,7 @@ bench/suite.py polish report --failures openai/gpt-oss-120b@Groq         # what 
   `openrouter:<id>[@Provider]` pins a host (`@Groq`, `@Cerebras`), else `--sort latency` asks
   OpenRouter to pick. Reasoning is off or at its lowest. `setup:<id>` (e.g. `setup:on-device`, or
   one of yours in `setups.json`) runs a Settings → Model setup's polish exactly as the app does.
-- **Key:** `$OPENROUTER_API_KEY`, else the key saved in the app's Settings (Keychain).
+- **Key:** `$OPENROUTER_API_KEY`, else the key saved in the app's Settings (`secrets.json`).
 - **Prompts:** each model gets the prompt its setup uses in the app (`apple`: On-device's; cloud
   models: Cloud Flash's), or `--prompt-file` (see `polish_prompts/`, versions `v1`–`v3`, identical to
   `PolishPrompt` in `Setups.swift`; a test checks). The transcript goes in `<transcript>` tags, as

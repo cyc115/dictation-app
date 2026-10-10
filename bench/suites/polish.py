@@ -307,7 +307,7 @@ def run_apple(jobs: list, prompt: str, wrap: bool, timeout: float, show, label: 
         rows[i] = row
         show(row)
 
-    latency.run_in_app(trials, 0.3, timeout, None, on_sample, extra, needs_key=False)
+    latency.run_in_app(trials, 0.3, timeout, None, on_sample, extra)
     return [rows.get(i) or {"model": label, "round": jobs[i][0], "warmup": jobs[i][0] == 0, "case": jobs[i][2]["id"],
                             "category": jobs[i][2]["category"], "kind": jobs[i][2]["kind"], "error": "no result"}
             for i in range(len(jobs))]
@@ -396,14 +396,15 @@ def failures_text(result: dict, spec: str) -> str:
 
 # ---------------------------------------------------------------- commands
 
-def saved_key() -> str:
-    """The cloud key the app saved in your Keychain (macOS may ask to allow access once)."""
-    if sys.platform != "darwin":
+SECRETS = Path.home() / "Library/Application Support/DictationApp/secrets.json"
+
+
+def saved_key(secrets: Path = SECRETS) -> str:
+    """The cloud key saved in the app's Settings (FileSecretStore), if any."""
+    try:
+        return json.loads(secrets.read_text()).get("openrouter-api-key", "")
+    except (OSError, ValueError):
         return ""
-    import subprocess
-    out = subprocess.run(["security", "find-generic-password", "-s", "com.mikechen.DictationApp",
-                          "-a", "openrouter-api-key", "-w"], capture_output=True, text=True)
-    return out.stdout.strip() if out.returncode == 0 else ""
 
 
 def key_problem(key: str) -> str | None:

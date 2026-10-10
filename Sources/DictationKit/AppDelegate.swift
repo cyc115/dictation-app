@@ -203,7 +203,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         cloud.archive = archive
         speech.archive = archive
         let engine: DictationEngine
-        let key = setup.usesCloud ? settings.openRouterKey : nil
+        let key = settings.openRouterKey
         if let modelID = setup.openRouterID {
             guard let key, !key.isEmpty else {
                 overlay.showMessage("Add your cloud API key in Settings to use \(setup.title)", hideAfter: 4)

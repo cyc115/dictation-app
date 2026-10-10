@@ -188,26 +188,6 @@ def test_stale_app_build_fails_fast_instead_of_timing_out(monkeypatch, tmp_path)
     assert "open" in launched and launched[-1] == "pkill", "the probe instance is cleaned up"
 
 
-def test_runs_that_need_no_key_keep_the_app_away_from_the_keychain(monkeypatch, tmp_path):
-    import subprocess
-    app = tmp_path / "DictationApp.app"
-    app.mkdir()
-    monkeypatch.setattr(latency, "APP", app)
-    monkeypatch.setattr(latency, "STARTUP_SECONDS", 0.3)
-    monkeypatch.setattr(latency.platform, "system", lambda: "Darwin")
-    opened = []
-    def fake_run(cmd, **kw):
-        if cmd[0] == "open":
-            opened.append(cmd)
-        return subprocess.CompletedProcess(cmd, 1, b"", b"")
-    monkeypatch.setattr(latency.subprocess, "run", fake_run)
-    trial = {"id": "0", "file": "", "stt": "text", "polish": ["apple"], "text": "hi", "audio_seconds": 0}
-    for needs_key, expected in ((False, True), (True, False)):
-        with pytest.raises(SystemExit):
-            latency.run_in_app([trial], 0, 90, None, lambda s, i: None, needs_key=needs_key)
-        assert ("DICTATIONAPP_PROBE_KEY=" in opened[-1]) == expected
-
-
 def test_run_with_no_finished_dictations_saves_nothing(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(latency, "simulate", lambda trials, seed, show: [])
     assert latency.main(["run", "--simulate", "-r", "1", "--clip", "english-01", "-s", "flash",

@@ -63,24 +63,6 @@ final class ModelSettingsTests: XCTestCase {
         s.setOpenRouterKey("")
         XCTAssertFalse(s.hasOpenRouterKey)
     }
-
-    /// Reading a Keychain item can ask for the login password: launching only checks that the key
-    /// exists, and it's read once, when a cloud dictation first needs it.
-    func testKeyIsReadOnceAndNotAtLaunch() {
-        final class Spy: SecretStore {
-            var reads = 0
-            func get(_ account: String) -> String? { reads += 1; return "sk-or-v1-test" }
-            func set(_ value: String?, for account: String) {}
-            func has(_ account: String) -> Bool { true }
-        }
-        let spy = Spy()
-        let s = AppSettings(defaults: makeDefaults(self), secrets: spy, customSetupsFile: noCustomSetups)
-        XCTAssertTrue(s.hasOpenRouterKey)
-        XCTAssertEqual(spy.reads, 0)
-        XCTAssertEqual(s.openRouterKey, "sk-or-v1-test")
-        XCTAssertEqual(s.openRouterKey, "sk-or-v1-test")
-        XCTAssertEqual(spy.reads, 1, "one read per run, not one per dictation")
-    }
 }
 
 final class OpenRouterClientTests: XCTestCase {
@@ -276,31 +258,51 @@ final class CloudEngineTests: XCTestCase {
     }
 }
 
-/// Uses a throwaway service name, never the app's real Keychain item.
-final class KeychainStoreTests: XCTestCase {
-    private let store = KeychainStore(service: "com.mikechen.DictationApp.tests.\(UUID().uuidString)")
+/// Uses throwaway files and Keychain service names, never the app's real ones.
+final class FileSecretStoreTests: XCTestCase {
+    private func mode(_ url: URL) -> Int? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path))?[.posixPermissions] as? Int
+    }
 
-    override func tearDown() { store.set(nil, for: "key") }
+    private func makeStore() -> FileSecretStore {
+        FileSecretStore(file: makeTempURL(self, "secrets-dir").appendingPathComponent("secrets.json"))
+    }
 
-    func testRoundTripWritesRebuildProofACL() {
+    func testOnlyYourUserCanReadTheFile() {
+        let store = makeStore()
         XCTAssertNil(store.get("key"))
         store.set("sk-test", for: "key")
         XCTAssertEqual(store.get("key"), "sk-test")
-        XCTAssertEqual(store.comment("key"), KeychainStore.aclMarker)
+        XCTAssertEqual(mode(store.file), 0o600)
+        XCTAssertEqual(mode(store.file.deletingLastPathComponent()), 0o700)
+        store.set("sk-new", for: "key")
+        XCTAssertEqual(store.get("key"), "sk-new")
+        XCTAssertEqual(mode(store.file), 0o600, "still 0600 after replacing the file")
         store.set(nil, for: "key")
         XCTAssertNil(store.get("key"))
     }
 
-    func testOldItemIsRewrittenOnRead() {
+    func testLoosePermissionsAreTightenedBeforeReading() throws {
+        let store = makeStore()
+        store.set("sk-test", for: "key")
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: store.file.path)
+        XCTAssertEqual(store.get("key"), "sk-test")
+        XCTAssertEqual(mode(store.file), 0o600)
+    }
+
+    func testKeyFromOlderBuildsMovesOutOfTheKeychain() {
         let service = "com.mikechen.DictationApp.tests.\(UUID().uuidString)"
-        let legacy: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                     kSecAttrAccount as String: "key", kSecValueData as String: Data("old".utf8)]
-        XCTAssertEqual(SecItemAdd(legacy as CFDictionary, nil), errSecSuccess)
-        let store = KeychainStore(service: service)
-        defer { store.set(nil, for: "key") }
-        XCTAssertNil(store.comment("key"))
-        XCTAssertEqual(store.get("key"), "old")
-        XCTAssertEqual(store.comment("key"), KeychainStore.aclMarker)
-        XCTAssertEqual(store.get("key"), "old")
+        let item: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+                                   kSecAttrAccount as String: "key"]
+        var add = item
+        add[kSecValueData as String] = Data("sk-old".utf8)
+        XCTAssertEqual(SecItemAdd(add as CFDictionary, nil), errSecSuccess)
+        addTeardownBlock { SecItemDelete(item as CFDictionary) }
+        let store = makeStore()
+        store.moveFromKeychain("key", service: service)
+        XCTAssertEqual(store.get("key"), "sk-old")
+        XCTAssertEqual(SecItemCopyMatching(item as CFDictionary, nil), errSecItemNotFound, "deleted from the Keychain")
+        store.moveFromKeychain("key", service: service)
+        XCTAssertEqual(store.get("key"), "sk-old", "nothing left to move: no-op")
     }
 }

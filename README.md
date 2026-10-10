@@ -41,7 +41,7 @@ Relaunch the app after enabling Accessibility.
   - *Cloud Flash* — text in ~0.5 s after you stop; handles English mixed into Chinese.
   - *Cloud Big* — text in ~2 s; handles English mixed into Chinese.
 
-  Cloud models ask for an API key (stored in the Keychain, shared by both) and send audio when you
+  Cloud models ask for an API key (saved in `~/Library/Application Support/DictationApp/secrets.json`, readable only by your user account; shared by every cloud setup) and send audio when you
   stop. Settings that a model can't use are greyed out and marked *Unavailable*; your choice is kept.
   (Each setup's models and prompt are in `DictationSetup.builtInJSON`, `Sources/DictationKit/Setups.swift`;
   how they compare is in `bench/`.)
