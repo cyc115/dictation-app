@@ -113,7 +113,7 @@ speech model, whose audio already goes to the cloud; On-device speech keeps poli
 ```sh
 git pull && ./test.sh && ./build.sh
 # Apple vs the pick, same cases, same prompt (v3 + tags), timed from your Mac:
-bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq --wrap --prompt-file bench/polish_prompts/v3.txt \
+bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq --prompt-file bench/polish_prompts/v3.txt \
     --cases-file bench/polish_cases.json --cases-file bench/polish_cases_holdout.json -r 2 --parallel 2 --where "my Mac"
 # Apple with the app's current prompt (today's quality):
 bench/suite.py polish run -m apple --cases-file bench/polish_cases.json --cases-file bench/polish_cases_holdout.json --where "my Mac"

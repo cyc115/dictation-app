@@ -67,8 +67,10 @@ def test_model_specs_and_request_body():
     assert pinned["temperature"] == 0 and pinned["messages"][0] == {"role": "system", "content": "P"}
     assert polish.request_body("m", "hi", "P", None, "latency", None)["provider"] == {"sort": "latency"}
     assert "reasoning" not in polish.request_body("m", "hi", "P", None, None, None)
-    wrapped = polish.request_body("m", "hi", "P", None, None, None, wrap=True)
-    assert wrapped["messages"][1]["content"] == "<transcript>\nhi\n</transcript>"
+    wrapped = polish.request_body("m", "hi", "P", None, None, None)
+    assert wrapped["messages"][1]["content"] == "<transcript>\nhi\n</transcript>", "wrapped by default"
+    plain = polish.request_body("m", "hi", "P", None, None, None, wrap=False)
+    assert plain["messages"][1]["content"] == "hi"
 
 
 def test_caller_steps_down_to_the_lowest_reasoning_the_model_accepts():
@@ -137,7 +139,9 @@ def test_apple_runs_through_the_app_with_text_trials(monkeypatch):
     assert [r["warmup"] for r in rows] == [True, False, False]
     assert rows[1]["error"] == "unavailable" and "check" in rows[2] and rows[2]["cost"] == 0.0
     default = polish.run(["apple"], cases[:1], 1, 1, "", None, 1, 30, lambda row: None)
-    assert sent["extra"] == {} and len(default) == 2, "the app's own prompt: no override sent"
+    assert sent["extra"] == {"wrap": True} and len(default) == 2, "the app's own prompt, in tags like the app"
+    polish.run(["apple"], cases[:1], 1, 1, "", None, 1, 30, lambda row: None, wrap=False)
+    assert sent["extra"] == {"wrap": False}, "--no-wrap reaches the app, whose default is to wrap"
 
 
 def test_apple_stops_the_run_when_the_installed_app_is_too_old(monkeypatch):

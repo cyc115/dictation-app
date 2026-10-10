@@ -16,7 +16,7 @@ enum PolishModel {
     func backend(apiKey: String?, onDevice: PolishBackend) -> PolishBackend {
         guard self == .cloud, let key = apiKey, !key.isEmpty else { return onDevice }
         return OpenRouterPolish(model: Self.cloudModel, apiKey: key, instructions: PolishService.cloudInstructions,
-                                wrap: true, provider: Self.cloudProvider)
+                                provider: Self.cloudProvider)
     }
 }
 
@@ -99,8 +99,8 @@ class PolishService {
         do { return (try await polished(text), nil) } catch { return (text, error.localizedDescription) }
     }
 
-    /// The transcript as the model sees it. `wrap` marks it as data, not a request to the model
-    /// (benchmarked with bench/suite.py polish --wrap).
+    /// The transcript as the model sees it. `wrap` (every backend's default) marks it as data, not a
+    /// request to the model: in bench/suite.py polish it stopped models answering what was dictated.
     static func userMessage(_ text: String, wrap: Bool) -> String {
         wrap ? "<transcript>\n\(text)\n</transcript>" : text
     }
@@ -143,13 +143,13 @@ final class OnDevicePolish: PolishBackend {
     /// as context — what polishing phrases while you speak would leave for after you stop. Its
     /// output is just that last part, so it's timed, never pasted.
     let tailWords: Int?
-    /// Benchmark overrides (bench/suite.py polish --prompt-file / --wrap); the app uses the defaults.
+    /// Benchmark overrides (bench/suite.py polish --prompt-file / --no-wrap); the app uses the defaults.
     let customInstructions: String?
     let wrap: Bool
     private var prepared: LanguageModelSession?
     private let lock = NSLock()  // prepare() runs on main, polish() in a Task
 
-    init(tailWords: Int? = nil, instructions: String? = nil, wrap: Bool = false) {
+    init(tailWords: Int? = nil, instructions: String? = nil, wrap: Bool = true) {
         self.tailWords = tailWords
         customInstructions = instructions
         self.wrap = wrap
@@ -190,7 +190,7 @@ final class OnDevicePolish: PolishBackend {
     let tailWords: Int?
     let customInstructions: String?
     let wrap: Bool
-    init(tailWords: Int? = nil, instructions: String? = nil, wrap: Bool = false) {
+    init(tailWords: Int? = nil, instructions: String? = nil, wrap: Bool = true) {
         self.tailWords = tailWords
         customInstructions = instructions
         self.wrap = wrap
@@ -211,7 +211,7 @@ struct OpenRouterPolish: PolishBackend {
     let apiKey: String
     var session: URLSession = .shared
     var instructions = PolishService.instructions
-    var wrap = false
+    var wrap = true
     /// Only this OpenRouter provider (e.g. "Groq", "Cerebras": fast hosts); nil lets OpenRouter route.
     var provider: String?
 

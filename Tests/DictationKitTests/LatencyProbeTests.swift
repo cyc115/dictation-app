@@ -147,16 +147,18 @@ final class LatencyRunnerTests: XCTestCase {
     func testPromptOverridesReachEveryBackend() throws {
         let runner = LatencyRunner()
         runner.instructions = "Only clean up."
-        runner.wrap = true
+        runner.wrap = false
         let apple = try XCTUnwrap(runner.polisher(for: "apple") as? OnDevicePolish)
         XCTAssertEqual(apple.customInstructions, "Only clean up.")
-        XCTAssertTrue(apple.wrap)
+        XCTAssertFalse(apple.wrap)
         let cloud = try XCTUnwrap(runner.polisher(for: "openrouter:m") as? OpenRouterPolish)
         XCTAssertEqual(cloud.instructions, "Only clean up.")
-        XCTAssertTrue(cloud.wrap)
-        let defaults = try XCTUnwrap(LatencyRunner().polisher(for: "openrouter:m") as? OpenRouterPolish)
-        XCTAssertEqual(defaults.instructions, PolishService.instructions, "the app's prompt unless overridden")
-        XCTAssertFalse(defaults.wrap)
+        XCTAssertFalse(cloud.wrap)
+        let defaults = LatencyRunner()
+        let cloudDefault = try XCTUnwrap(defaults.polisher(for: "openrouter:m") as? OpenRouterPolish)
+        XCTAssertEqual(cloudDefault.instructions, PolishService.instructions, "the app's prompt unless overridden")
+        XCTAssertTrue(cloudDefault.wrap, "tags unless turned off")
+        XCTAssertTrue(try XCTUnwrap(defaults.polisher(for: "apple") as? OnDevicePolish).wrap)
     }
 }
 
@@ -173,6 +175,7 @@ final class LatencyProbeTests: XCTestCase {
         XCTAssertEqual(plan.trials.map(\.text), ["hi", nil])
         let old = try JSONDecoder().decode(LatencyPlan.self, from: Data(#"{"pause": 0, "timeout": 5, "trials": []}"#.utf8))
         XCTAssertNil(old.instructions, "plans from the latency suite don't set them")
+        XCTAssertNil(old.wrap, "unset means wrapped, like the app")
     }
 
     /// The plan format bench/suite.py writes; a hung trial times out and the run continues.
@@ -291,6 +294,7 @@ final class OpenRouterPolishTests: XCTestCase {
     func testWrappedTranscriptAndCustomInstructions() throws {
         XCTAssertEqual(PolishService.userMessage("hi", wrap: false), "hi")
         XCTAssertEqual(PolishService.userMessage("hi", wrap: true), "<transcript>\nhi\n</transcript>")
+        XCTAssertTrue(OnDevicePolish().wrap, "on-device polish wraps by default, like cloud polish")
         let request = OpenRouterPolish.request(model: "m", apiKey: "k", text: "t", instructions: "P")
         let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
         XCTAssertEqual((body["messages"] as? [[String: String]])?.first?["content"], "P")

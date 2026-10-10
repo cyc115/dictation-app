@@ -80,7 +80,7 @@ The results and the reasoning behind the cloud polish choice are in `results/pol
 bench/suite.py polish cases                                              # the test set
 bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq --quick     # 20 cases, ≈ 1–2 min
 bench/suite.py polish run -m openai/gpt-oss-120b@Groq -m google/gemini-3.1-flash-lite   # any OpenRouter model
-bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq --wrap \
+bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq \
     --prompt-file bench/polish_prompts/v3.txt -r 2                       # Apple (via the app) vs cloud
 bench/suite.py polish report --failures openai/gpt-oss-120b@Groq         # what one model got wrong
 ```
@@ -96,8 +96,9 @@ bench/suite.py polish report --failures openai/gpt-oss-120b@Groq         # what 
   `openrouter:<id>[@Provider]` pins a host (`@Groq`, `@Cerebras`), else `--sort latency` asks
   OpenRouter to pick. Reasoning is off or at its lowest.
 - **Key:** `$OPENROUTER_API_KEY`, else the key saved in the app's Settings (Keychain).
-- **Prompts:** `--prompt-file` (see `polish_prompts/`), `--wrap` puts the transcript in
-  `<transcript>` tags. The app's cloud polish uses `v3.txt` + tags (a test keeps them identical).
+- **Prompts:** `--prompt-file` (see `polish_prompts/`). The transcript goes in `<transcript>` tags,
+  as the app sends it to every polish model; `--no-wrap` sends it bare, to compare. The app's cloud
+  polish uses `v3.txt` + tags (a test keeps them identical).
 
 ## Speech-to-text accuracy (`suite.py accuracy` = `bench.py`)
 

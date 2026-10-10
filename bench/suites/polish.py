@@ -119,7 +119,7 @@ def user_message(text: str, wrap: bool) -> str:
 
 
 def request_body(model: str, text: str, prompt: str, provider: str | None, sort: str | None,
-                 reasoning: dict | None, wrap: bool = False) -> dict:
+                 reasoning: dict | None, wrap: bool = True) -> dict:
     body = {"model": model, "temperature": 0, "stream": True, "usage": {"include": True},
             "messages": [{"role": "system", "content": prompt},
                          {"role": "user", "content": user_message(text, wrap)}]}
@@ -171,7 +171,7 @@ def stream(body: dict, key: str, timeout: float) -> dict:
 class Caller:
     """Calls one model, remembering the lowest reasoning setting it accepts."""
 
-    def __init__(self, spec: str, key: str, prompt: str, sort: str | None, timeout: float, wrap: bool = False,
+    def __init__(self, spec: str, key: str, prompt: str, sort: str | None, timeout: float, wrap: bool = True,
                  send=stream):
         self.spec, self.key, self.prompt, self.sort, self.timeout = spec, key, prompt, sort, timeout
         self.wrap, self.send = wrap, send
@@ -209,7 +209,7 @@ def plan(specs: list[str], cases: list[dict], rounds: int, seed: int) -> list[tu
 
 
 def run(specs: list[str], cases: list[dict], rounds: int, seed: int, key: str, sort: str | None,
-        parallel: int, timeout: float, show, prompt: str | None = None, wrap: bool = False) -> list[dict]:
+        parallel: int, timeout: float, show, prompt: str | None = None, wrap: bool = True) -> list[dict]:
     """Models run side by side (one request at a time per model, so a model never competes with itself)."""
     prompt = prompt or instructions()
     callers = {s: Caller(s, key, prompt, sort, timeout, wrap) for s in specs if s != "apple"}
@@ -248,8 +248,7 @@ def run_apple(jobs: list, prompt: str, wrap: bool, timeout: float, show) -> list
     trials = [{"id": f"{i:04d}", "file": "", "stt": "text", "polish": ["apple"], "text": case["raw"],
                "audio_seconds": 0} for i, (_, _, case) in enumerate(jobs)]
     extra = {} if prompt == instructions() else {"instructions": prompt}
-    if wrap:
-        extra["wrap"] = True
+    extra["wrap"] = wrap
     rows = {}
 
     def on_sample(sample: dict, _done: int) -> None:
@@ -487,7 +486,8 @@ def main(argv: list[str]) -> int:
     r.add_argument("--parallel", type=int, default=4, help="models run side by side (default 4)")
     r.add_argument("--timeout", type=float, default=30, help="seconds before a request counts as failed")
     r.add_argument("--prompt-file", help="system prompt to try instead of the app's (PolishService.instructions)")
-    r.add_argument("--wrap", action="store_true", help="send the transcript inside <transcript> tags")
+    r.add_argument("--wrap", action=argparse.BooleanOptionalAction, default=True,
+                   help="send the transcript inside <transcript> tags, as the app does (default; --no-wrap to compare)")
     r.add_argument("--seed", type=int, default=1)
     r.add_argument("--key-env", default="OPENROUTER_API_KEY",
                    help="env var with your OpenRouter key (default: the key saved in the app's Settings)")

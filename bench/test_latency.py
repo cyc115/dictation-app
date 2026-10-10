@@ -40,7 +40,7 @@ def test_plan_matches_what_the_app_decodes():
     src = (REPO / "bench/suites/latency.py").read_text()
     assert '("id", "file", "stt", "polish", "text")' in src and '{"pause": pause, "timeout": timeout, **(plan_extra' in src
     polish_src = (REPO / "bench/suites/polish.py").read_text()
-    assert '{"instructions": prompt}' in polish_src and 'extra["wrap"] = True' in polish_src
+    assert '{"instructions": prompt}' in polish_src and 'extra["wrap"] = wrap' in polish_src
 
 
 def test_tail_word_count_matches_the_app():

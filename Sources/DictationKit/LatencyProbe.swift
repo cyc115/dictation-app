@@ -37,7 +37,7 @@ struct LatencyPlan: Decodable {
     let trials: [LatencyTrial]
     /// Polish system prompt to try instead of PolishService.instructions (bench/suite.py polish).
     var instructions: String? = nil
-    /// Send the transcript inside <transcript> tags.
+    /// Send the transcript inside <transcript> tags; nil: yes, as the app does.
     var wrap: Bool? = nil
 }
 
@@ -69,7 +69,7 @@ final class LatencyRunner {
     static let tailWords = 15
     /// Polish prompt overrides from the plan (bench/suite.py polish); nil/false = the app's.
     var instructions: String?
-    var wrap = false
+    var wrap = true
     /// Polish-only trials wait this long after `prepare()`, as if you were speaking, before polishing.
     var speakingTime: TimeInterval = 1.5
     /// Shared by every "+backup" trial, as the app shares one across dictations.
@@ -219,7 +219,7 @@ final class LatencyProbe {
         self.outPath = outPath
         runner.apiKey = apiKey
         runner.instructions = plan.instructions
-        runner.wrap = plan.wrap ?? false
+        runner.wrap = plan.wrap ?? true
     }
 
     func run() {
