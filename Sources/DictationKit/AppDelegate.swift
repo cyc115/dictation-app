@@ -25,16 +25,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkey: HotkeyManager?
     private let speech = SpeechEngine()
     private let cloud = CloudEngine()
-    /// "Backup model when slow" (on by default); one instance so a slow spell carries over.
-    private let backup = AdaptiveBackup()
     /// Engine for the dictation in progress (chosen from Settings when it starts).
     private var engine: DictationEngine?
     private let overlay = OverlayWindow()
     private let injector = TextInjector()
     /// Kept across dictations: it holds the prewarmed session. Replaced when the setup's prompt changes.
     private var onDevicePolish = OnDevicePolish()
-    /// Chosen from Settings when a dictation starts.
-    private var polisher = PolishService()
+    /// This dictation's polish, chosen when it starts; nil when it isn't polished.
+    private var polisher: PolishService?
     /// The polish half of the current dictation's kept-recording JSON (nil unless Keep recordings is on).
     private var note: RecordingNote?
     private var dictating = false
@@ -190,7 +188,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The on-device polisher for this prompt, reusing the kept one (and its prewarmed session) if it matches.
     private func onDevicePolish(instructions: String, wrap: Bool) -> PolishBackend {
-        if onDevicePolish.customInstructions != instructions || onDevicePolish.wrap != wrap {
+        if onDevicePolish.instructions != instructions || onDevicePolish.wrap != wrap {
             onDevicePolish = OnDevicePolish(instructions: instructions, wrap: wrap)
         }
         return onDevicePolish
@@ -211,8 +209,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             cloud.modelID = modelID
-            cloud.backup = settings.effectiveBackup ? backup : nil
-            cloud.backupModelID = setup.backup
+            cloud.backupModelID = settings.effectiveBackup ? setup.backup : nil
             cloud.backupWait = setup.backupWait
             cloud.apiKey = key
             engine = cloud
@@ -222,13 +219,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.engine = engine
         // Load the polish model while you speak instead of after you stop.
-        if settings.polishEnabled && !settings.effectiveStreaming {
-            polisher = PolishService(backend: setup.polishBackend(apiKey: key,
-                                                                  onDevice: onDevicePolish(instructions:wrap:)))
-            polisher.prepare()
-        }
-        let polishes = settings.polishEnabled && !settings.effectiveStreaming
-        note = archive.map { _ in RecordingNote(polishEnabled: polishes, polishModel: polisher.backend.name) }
+        polisher = settings.polishEnabled && !settings.effectiveStreaming
+            ? PolishService(backend: setup.polishBackend(apiKey: key, onDevice: onDevicePolish(instructions:wrap:)))
+            : nil
+        polisher?.prepare()
+        note = archive.map { _ in RecordingNote(polishModel: polisher?.backend.name) }
         cloud.note = note
         speech.note = note
         setDictating(true)
@@ -331,12 +326,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func deliver(_ raw: String, duration: TimeInterval, note: RecordingNote?) {
         guard !raw.isEmpty else { return }
-        if settings.polishEnabled {
+        if let polisher {
             overlay.showProcessing()
             let started = ProcessInfo.processInfo.systemUptime
             Task { [weak self] in
                 guard let self = self else { return }
-                let (polished, error) = await self.polisher.polishReporting(raw)
+                let (polished, error) = await polisher.polishReporting(raw)
                 let seconds = ProcessInfo.processInfo.systemUptime - started
                 await MainActor.run {
                     self.overlay.hide()
@@ -378,8 +373,8 @@ enum Permissions {
             3. Accessibility — System Settings → Privacy & Security → Accessibility → \
                enable DictationApp. Needed for the Fn hotkey and pasting text.
 
-            The mic opens only while you hold Fn — never in the background — and \
-            transcription runs 100% on-device. Nothing leaves your Mac.
+            The mic opens only while you hold Fn — never in the background. With the \
+            On-device model nothing leaves your Mac; cloud models send the audio when you stop.
             """
         alert.addButton(withTitle: "OK")
         alert.runModal()

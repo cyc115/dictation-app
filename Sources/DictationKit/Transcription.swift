@@ -193,11 +193,12 @@ final class CloudEngine: DictationEngine {
     var archive: RecordingArchive?
     /// Set with `archive`, before each dictation: the polish half of its JSON.
     var note: RecordingNote?
-    /// "Backup model when slow"; nil asks only `modelID`.
-    var backup: AdaptiveBackup?
-    /// The model `backup` also asks, and after how long (the setup's `backup` / `backupWait`).
+    /// "Backup model when slow": the model also asked when `modelID` is slow, after `backupWait`
+    /// (the setup's `backup` / `backupWait`); nil asks only `modelID`.
     var backupModelID: String?
     var backupWait: TimeInterval = 2
+    /// When to ask the backup; the app shares one, so a slow spell carries over between dictations.
+    var backup = AdaptiveBackup()
     /// The model whose transcript the last dictation used (the backup, if it answered first).
     private(set) var lastAnsweredBy: String?
 
@@ -247,11 +248,10 @@ final class CloudEngine: DictationEngine {
         let archive = self.archive, note = self.note
         let info = RecordingInfo(date: Date(), model: "openrouter:\(modelID)", transcript: "", seconds: recorder.duration)
         lastAnsweredBy = nil
-        let main = modelID, wait = backupWait
-        let backup = backupModelID == nil ? nil : self.backup
+        let main = modelID, wait = backupWait, policy = backup, backupModel = backupModelID
         race = UploadRace(wav: url, apiKey: apiKey, client: client, main: main,
-                          backup: backupModelID.flatMap { backup?.plan(for: main, backup: $0, wait: wait) }) { [weak self] report in
-            backup?.learn(main, wait: wait, from: report)
+                          backup: backupModel.map { policy.plan(for: main, backup: $0, wait: wait) }) { [weak self] report in
+            if backupModel != nil { policy.learn(main, wait: wait, from: report) }
             var heard = info
             switch report.outcome {
             case .text(let text, let model):
@@ -277,9 +277,9 @@ final class CloudEngine: DictationEngine {
     }
 }
 
-// MARK: - Backup model (experimental)
+// MARK: - Backup model
 
-/// On by default (Settings → Speech model → "Backup model when slow"); off asks the chosen model only. Cloud Flash usually answers in
+/// On by default (Settings → Model → "Backup model when slow"); off asks the chosen model only. Cloud Flash usually answers in
 /// about a second, but in slow spells lasting minutes it takes 3–50 s (bench/results/latency/); Cloud
 /// Big's tail reaches 7 s. This also asks the setup's faster backup (`DictationSetup.backup`:
 /// a smaller sibling for Cloud Flash, Cloud Flash for Cloud Big); the first answer wins.

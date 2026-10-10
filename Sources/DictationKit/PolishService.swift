@@ -36,17 +36,12 @@ class PolishService {
         """
     let backend: PolishBackend
 
-    init(backend: PolishBackend = OnDevicePolish()) { self.backend = backend }
+    init(backend: PolishBackend) { self.backend = backend }
 
     /// Starts loading the model while you're still speaking (call when dictation starts).
     func prepare() { backend.prepare() }
 
-    /// The polished text, or the raw text if polishing fails — you always get your words.
-    func polish(_ text: String) async -> String {
-        await polishReporting(text).text
-    }
-
-    /// Like `polish`, plus why it fell back to the raw text, if it did.
+    /// The polished text, or the raw text if polishing fails (you always get your words), and why.
     func polishReporting(_ text: String) async -> (text: String, error: String?) {
         do { return (try await polished(text), nil) } catch { return (text, error.localizedDescription) }
     }
@@ -95,23 +90,18 @@ final class OnDevicePolish: PolishBackend {
     /// as context — what polishing phrases while you speak would leave for after you stop. Its
     /// output is just that last part, so it's timed, never pasted.
     let tailWords: Int?
-    /// Benchmark overrides (bench/suite.py polish --prompt-file / --no-wrap); the app uses the defaults.
-    let customInstructions: String?
+    let instructions: String
     let wrap: Bool
     private var prepared: LanguageModelSession?
     private let lock = NSLock()  // prepare() runs on main, polish() in a Task
 
-    init(tailWords: Int? = nil, instructions: String? = nil, wrap: Bool = true) {
+    init(instructions: String = DictationSetup.onDevice.promptText, wrap: Bool = true, tailWords: Int? = nil) {
         self.tailWords = tailWords
-        customInstructions = instructions
+        self.instructions = tailWords == nil ? instructions : PolishService.tailInstructions
         self.wrap = wrap
     }
 
     var name: String { "apple:on-device" }
-
-    private var instructions: String {
-        customInstructions ?? (tailWords == nil ? DictationSetup.onDevice.promptText : PolishService.tailInstructions)
-    }
 
     func prepare() {
         guard case .available = SystemLanguageModel.default.availability else { return }
@@ -139,12 +129,10 @@ final class OnDevicePolish: PolishBackend {
 }
 #else
 final class OnDevicePolish: PolishBackend {
-    let tailWords: Int?
-    let customInstructions: String?
+    let instructions: String
     let wrap: Bool
-    init(tailWords: Int? = nil, instructions: String? = nil, wrap: Bool = true) {
-        self.tailWords = tailWords
-        customInstructions = instructions
+    init(instructions: String = DictationSetup.onDevice.promptText, wrap: Bool = true, tailWords: Int? = nil) {
+        self.instructions = instructions
         self.wrap = wrap
     }
 
@@ -183,7 +171,7 @@ struct OpenRouterPolish: PolishBackend {
     }
 
     static func request(model: String, apiKey: String, text: String,
-                        instructions: String = DictationSetup.cloudFlash.promptText, provider: String? = nil) -> URLRequest {
+                        instructions: String, provider: String? = nil) -> URLRequest {
         var request = URLRequest(url: endpoint, timeoutInterval: 60)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")

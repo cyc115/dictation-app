@@ -114,15 +114,15 @@ final class AppSettings: ObservableObject {
     @Published var backupWhenSlow: Bool {
         didSet { defaults.set(backupWhenSlow, forKey: Key.backupWhenSlow); onChange?() }
     }
-    @Published private(set) var hasOpenRouterKey = false
     private let secrets: SecretStore
     static let openRouterAccount = "openrouter-api-key"
 
     var openRouterKey: String? { secrets.get(Self.openRouterAccount) }
+    var hasOpenRouterKey: Bool { openRouterKey != nil }
 
     func setOpenRouterKey(_ key: String?) {
+        objectWillChange.send()
         secrets.set(key?.trimmingCharacters(in: .whitespacesAndNewlines), for: Self.openRouterAccount)
-        hasOpenRouterKey = openRouterKey != nil
         onChange?()
     }
 
@@ -160,7 +160,6 @@ final class AppSettings: ObservableObject {
         localLanguage = LocalLanguage(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .english
         keepRecordings = defaults.bool(forKey: Key.keepRecordings)
         backupWhenSlow = defaults.object(forKey: Key.backupWhenSlow) as? Bool ?? true
-        hasOpenRouterKey = secrets.get(Self.openRouterAccount) != nil
         launchAtLogin = false
         let saved = defaults.string(forKey: Key.model).map { DictationSetup.legacyIDs[$0] ?? $0 }
         reloadSetups(selecting: saved)

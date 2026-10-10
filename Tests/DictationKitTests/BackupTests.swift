@@ -38,8 +38,10 @@ final class CloudBackupTests: XCTestCase {
         let engine = CloudEngine()
         engine.client = client
         engine.modelID = Self.main
-        engine.backup = backup
-        engine.backupModelID = DictationSetup.cloudFlash.backup
+        if let backup {
+            engine.backup = backup
+            engine.backupModelID = DictationSetup.cloudFlash.backup
+        }
         engine.backupWait = backupWait
         XCTAssertTrue(engine.beginRecording())
         for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }  // 1 s
@@ -53,7 +55,7 @@ final class CloudBackupTests: XCTestCase {
     // MARK: Off (the default)
 
     func testOffByDefaultAndThenOnlyTheMainModelIsAsked() {
-        XCTAssertNil(CloudEngine().backup)
+        XCTAssertNil(CloudEngine().backupModelID)
         let client = Client()
         client.scripts[Self.main] = .init(delay: 0.4, result: Client.text("slow but only"))
         client.scripts[Self.backup] = .init(delay: 0, result: Client.text("never asked"))
@@ -128,7 +130,6 @@ final class CloudBackupTests: XCTestCase {
         engine.archive = archive
         engine.client = client
         engine.modelID = Self.main
-        engine.backup = AdaptiveBackup()
         engine.backupWait = 0.05
         engine.backupModelID = Self.backup
         XCTAssertTrue(engine.beginRecording())
@@ -173,7 +174,6 @@ final class CloudBackupTests: XCTestCase {
         let engine = CloudEngine()
         engine.client = client
         engine.modelID = big
-        engine.backup = AdaptiveBackup()
         engine.backupModelID = DictationSetup.cloudBig.backup
         engine.backupWait = 0.2
         XCTAssertTrue(engine.beginRecording())

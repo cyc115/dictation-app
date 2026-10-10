@@ -149,7 +149,7 @@ final class LatencyRunnerTests: XCTestCase {
         runner.instructions = "Only clean up."
         runner.wrap = false
         let apple = try XCTUnwrap(runner.polisher(for: "apple") as? OnDevicePolish)
-        XCTAssertEqual(apple.customInstructions, "Only clean up.")
+        XCTAssertEqual(apple.instructions, "Only clean up.")
         XCTAssertFalse(apple.wrap)
         let cloud = try XCTUnwrap(runner.polisher(for: "openrouter:m") as? OpenRouterPolish)
         XCTAssertEqual(cloud.instructions, "Only clean up.")
@@ -219,10 +219,9 @@ final class LatencyProbeTests: XCTestCase {
 }
 
 final class PolishServiceTests: XCTestCase {
-    func testFallsBackToRawTextWhenPolishFails() async {
+    /// (The app's fallback to the raw text is covered by RecordingTests' polishReporting test.)
+    func testPolishedThrowsForBenchmarks() async {
         let service = PolishService(backend: SlowPolish(delay: 0, fail: true))
-        let text = await service.polish("um so yeah")
-        XCTAssertEqual(text, "um so yeah")
         do {
             _ = try await service.polished("um so yeah")
             XCTFail("polished() must throw so benchmarks see the failure")
@@ -239,7 +238,7 @@ final class PolishServiceTests: XCTestCase {
 
 final class OpenRouterPolishTests: XCTestCase {
     func testRequestSendsInstructionsAndTranscript() throws {
-        let request = OpenRouterPolish.request(model: "anthropic/claude-haiku-5.5", apiKey: "sk-test", text: "um 帮我 build")
+        let request = OpenRouterPolish.request(model: "anthropic/claude-haiku-5.5", apiKey: "sk-test", text: "um 帮我 build", instructions: PolishPrompt.v3)
         XCTAssertEqual(request.url, OpenRouterPolish.endpoint)
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-test")
@@ -248,14 +247,14 @@ final class OpenRouterPolishTests: XCTestCase {
         XCTAssertEqual(body["temperature"] as? Int, 0)
         let messages = try XCTUnwrap(body["messages"] as? [[String: String]])
         XCTAssertEqual(messages.map { $0["role"] }, ["system", "user"])
-        XCTAssertEqual(messages[0]["content"], DictationSetup.cloudFlash.promptText)
+        XCTAssertEqual(messages[0]["content"], PolishPrompt.v3)
         XCTAssertEqual(messages[1]["content"], "um 帮我 build")
         XCTAssertEqual(body["reasoning"] as? [String: Bool], ["enabled": false], "no thinking for a cleanup")
         XCTAssertNil(body["provider"], "OpenRouter routes unless a provider is pinned")
     }
 
     func testPinnedProviderAndLowestReasoningForModelsThatMustThink() throws {
-        let request = OpenRouterPolish.request(model: "openai/gpt-oss-120b", apiKey: "k", text: "t", provider: "Groq")
+        let request = OpenRouterPolish.request(model: "openai/gpt-oss-120b", apiKey: "k", text: "t", instructions: "P", provider: "Groq")
         let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
         XCTAssertEqual(body["reasoning"] as? [String: String], ["effort": "minimal"])
         let provider = try XCTUnwrap(body["provider"] as? [String: Any])

@@ -134,7 +134,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
 
     func testCloudDictationKeepsRawAndPolishedTranscript() throws {
         let archive = RecordingArchive(directory: makeTempURL(self, "Recordings"))
-        let note = RecordingNote(polishEnabled: true, polishModel: "openrouter:openai/gpt-oss-120b@Groq")
+        let note = RecordingNote(polishModel: "openrouter:openai/gpt-oss-120b@Groq")
         cloudDictation(archive: archive, client: CapturingClient(), note: note)
         let kept = try XCTUnwrap(archive.recordings.first)
         var saved = try info(kept)
@@ -157,14 +157,14 @@ final class KeepRecordingsEngineTests: XCTestCase {
 
     func testPolishFinishingBeforeTheRecordingIsKeptIsStillSaved() throws {
         let archive = RecordingArchive(directory: makeTempURL(self, "Recordings"))
-        let note = RecordingNote(polishEnabled: true, polishModel: "apple:on-device")
+        let note = RecordingNote(polishModel: "apple:on-device")
         note.transcribed(seconds: 0.35)  // on-device: noted before the engine keeps it
         note.polished("hello", seconds: 1, error: "Apple Intelligence isn't available on this Mac.")
         let engine = SpeechEngine()
         engine.archive = archive
         engine.note = note
         let recorder = try XCTUnwrap(engine.startRecording())
-        engine.note = RecordingNote(polishEnabled: false, polishModel: nil)  // the next dictation starts first
+        engine.note = RecordingNote(polishModel: nil)  // the next dictation starts first
         for _ in 0..<47 { recorder.append(AudioLevelTests.buffer(amplitude: 0.2)) }
         engine.finishRecording(transcript: "hello")
         let saved = try info(try XCTUnwrap(archive.recordings.first))
@@ -178,7 +178,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
     func testPolishOffIsRecorded() throws {
         let archive = RecordingArchive(directory: makeTempURL(self, "Recordings"))
         cloudDictation(archive: archive, client: CapturingClient(),
-                       note: RecordingNote(polishEnabled: false, polishModel: "apple:on-device"))
+                       note: RecordingNote(polishModel: nil))
         let saved = try info(try XCTUnwrap(archive.recordings.first))
         XCTAssertEqual(saved.polishEnabled, false)
         XCTAssertNil(saved.polishModel, "no model when polish didn't run")

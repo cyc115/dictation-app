@@ -80,46 +80,34 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     let id: String
     let title: String
     /// One line for Settings (default: the models and prompt).
-    var summary: String
-    var speech: String
+    let summary: String
+    let speech: String
     /// "Backup model when slow": an OpenRouter model id also asked when `speech` is slow
     /// (AdaptiveBackup), after `backupWait` seconds. Cloud speech only.
-    var backup: String?
-    var backupWait: TimeInterval
+    let backup: String?
+    let backupWait: TimeInterval
     /// Added to the "Backup model when slow" help, e.g. how the backup is worse.
-    var backupNote: String?
-    var polish: String
+    let backupNote: String?
+    let polish: String
     /// A `PolishPrompt` version or a prompt file path.
-    var prompt: String
+    let prompt: String
     /// Send the transcript inside <transcript> tags (default on).
-    var wrap: Bool
+    let wrap: Bool
 
-    init(id: String, title: String, summary: String? = nil, speech: String, backup: String? = nil,
-         backupWait: TimeInterval = 2, backupNote: String? = nil, polish: String, prompt: String, wrap: Bool = true) {
-        self.id = id
-        self.title = title
-        self.summary = summary ?? "Speech: \(speech). Polish: \(polish), prompt \(prompt)\(wrap ? " + tags" : "")."
-        self.speech = speech
-        self.backup = backup
-        self.backupWait = backupWait
-        self.backupNote = backupNote
-        self.polish = polish
-        self.prompt = prompt
-        self.wrap = wrap
-    }
-
+    /// Setups come from JSON (`builtInJSON`, `customFile`); missing optional fields get their defaults here.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(id: try c.decode(String.self, forKey: .id),
-                  title: try c.decode(String.self, forKey: .title),
-                  summary: try c.decodeIfPresent(String.self, forKey: .summary),
-                  speech: try c.decode(String.self, forKey: .speech),
-                  backup: try c.decodeIfPresent(String.self, forKey: .backup),
-                  backupWait: try c.decodeIfPresent(TimeInterval.self, forKey: .backupWait) ?? 2,
-                  backupNote: try c.decodeIfPresent(String.self, forKey: .backupNote),
-                  polish: try c.decode(String.self, forKey: .polish),
-                  prompt: try c.decode(String.self, forKey: .prompt),
-                  wrap: try c.decodeIfPresent(Bool.self, forKey: .wrap) ?? true)
+        id = try c.decode(String.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        speech = try c.decode(String.self, forKey: .speech)
+        backup = try c.decodeIfPresent(String.self, forKey: .backup)
+        backupWait = try c.decodeIfPresent(TimeInterval.self, forKey: .backupWait) ?? 2
+        backupNote = try c.decodeIfPresent(String.self, forKey: .backupNote)
+        polish = try c.decode(String.self, forKey: .polish)
+        prompt = try c.decode(String.self, forKey: .prompt)
+        wrap = try c.decodeIfPresent(Bool.self, forKey: .wrap) ?? true
+        summary = try c.decodeIfPresent(String.self, forKey: .summary)
+            ?? "Speech: \(speech). Polish: \(polish), prompt \(prompt)\(wrap ? " + tags" : "")."
     }
 
     /// OpenRouter model id of the speech model; nil for on-device.

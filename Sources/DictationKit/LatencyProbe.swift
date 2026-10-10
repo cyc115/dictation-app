@@ -93,7 +93,7 @@ final class LatencyRunner {
     func polisher(for spec: String) -> PolishBackend? {
         if let fake = polishers[spec] { return fake }
         // Without a prompt override, each model gets its setup's prompt, as in the app.
-        if spec == "apple" { return OnDevicePolish(instructions: instructions, wrap: wrap) }
+        if spec == "apple" { return OnDevicePolish(instructions: instructions ?? DictationSetup.onDevice.promptText, wrap: wrap) }
         if spec == "apple-tail" { return OnDevicePolish(tailWords: Self.tailWords) }
         return DictationSetup.polishBackend(spec: spec, apiKey: apiKey,
                                             instructions: instructions ?? DictationSetup.cloudFlash.promptText, wrap: wrap)
@@ -123,10 +123,10 @@ final class LatencyRunner {
             let engine = CloudEngine()
             engine.client = transcriptionClient
             engine.modelID = model
-            engine.backup = withBackup ? backup : nil  // as AppDelegate does with the setting
-            // The backup of the built-in setup with this speech model, as the app would ask it.
+            engine.backup = backup
+            // The backup of the built-in setup with this speech model, as the app asks it with the setting on.
             let setup = DictationSetup.builtIn(speechModel: model)
-            engine.backupModelID = setup?.backup
+            engine.backupModelID = withBackup ? setup?.backup : nil
             engine.backupWait = backupWait ?? setup?.backupWait ?? 2
             engine.apiKey = apiKey
             cloud = engine

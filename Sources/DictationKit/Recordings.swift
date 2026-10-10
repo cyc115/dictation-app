@@ -31,7 +31,7 @@ struct RecordingInfo: Codable, Equatable {
 /// writes the JSON, so it ends up with both.
 final class RecordingNote {
     private let lock = NSLock()
-    let polishEnabled: Bool
+    /// The polish model, or nil when this dictation isn't polished.
     let polishModel: String?
     private var polished: String?
     private var polishError: String?
@@ -39,10 +39,7 @@ final class RecordingNote {
     private var transcribeSeconds: Double?
     private var json: URL?
 
-    init(polishEnabled: Bool, polishModel: String?) {
-        self.polishEnabled = polishEnabled
-        self.polishModel = polishEnabled ? polishModel : nil
-    }
+    init(polishModel: String?) { self.polishModel = polishModel }
 
     /// Records how long the speech model took after you stopped.
     func transcribed(seconds: Double) {
@@ -78,7 +75,7 @@ final class RecordingNote {
     }
 
     private func apply(to info: inout RecordingInfo) {
-        info.polishEnabled = polishEnabled
+        info.polishEnabled = polishModel != nil
         info.polishModel = polishModel
         info.polished = polished
         info.polishError = polishError
