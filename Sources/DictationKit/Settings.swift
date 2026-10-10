@@ -101,7 +101,7 @@ final class AppSettings: ObservableObject {
     @Published var keepRecordings: Bool {
         didSet { defaults.set(keepRecordings, forKey: Key.keepRecordings); onChange?() }
     }
-    /// Also ask a smaller, faster model when Cloud Flash is slow (AdaptiveBackup). On by default:
+    /// Also ask a faster model when the cloud model is slow (AdaptiveBackup). On by default:
     /// in an interleaved run it cut Cloud Flash's p95 from 9.35 s to 1.20 s (bench/README.md).
     @Published var backupWhenSlow: Bool {
         didSet { defaults.set(backupWhenSlow, forKey: Key.backupWhenSlow); onChange?() }
@@ -216,9 +216,7 @@ struct SettingsView: View {
                         Text("Auto-detect").foregroundStyle(.secondary)
                     }
                 }
-                SettingRow("Backup model when slow", settings.transcriptionModel.backupOpenRouterID != nil
-                           ? "If Cloud Flash hasn't answered in 2 seconds, a smaller, faster model is asked too and the first answer is used. After a slow answer, both are asked at once for 5 minutes. The smaller model gets more technical terms wrong."
-                           : "Only works with Cloud Flash.",
+                SettingRow("Backup model when slow", settings.transcriptionModel.backupHelp ?? "Only works with cloud models.",
                            available: settings.transcriptionModel.backupOpenRouterID != nil) {
                     Toggle("Backup model when slow", isOn: Binding(
                         get: { settings.effectiveBackup },

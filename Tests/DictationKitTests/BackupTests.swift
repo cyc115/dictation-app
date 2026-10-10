@@ -162,10 +162,29 @@ final class CloudBackupTests: XCTestCase {
         XCTAssertFalse(shared.inSlowSpell(Self.main), "the main model answered on time: spell over")
     }
 
-    func testOnlyCloudFlashHasABackup() {
+    func testCloudModelsHaveAFasterBackup() {
         XCTAssertEqual(TranscriptionModel.qwenASR.backupOpenRouterID, Self.backup)
-        XCTAssertNil(TranscriptionModel.metaMuse.backupOpenRouterID)
+        XCTAssertEqual(TranscriptionModel.metaMuse.backupOpenRouterID, Self.main, "Cloud Big falls back to Cloud Flash")
         XCTAssertNil(TranscriptionModel.local.backupOpenRouterID)
+    }
+
+    func testSlowCloudBigIsRacedByCloudFlash() throws {
+        let big = try XCTUnwrap(TranscriptionModel.metaMuse.openRouterID)
+        let client = Client()  // Cloud Big never answers
+        client.scripts[Self.main] = .init(delay: 0.05, result: Client.text("帮我 build 一下"))
+        let engine = CloudEngine()
+        engine.client = client
+        engine.modelID = big
+        engine.backup = policy(wait: 0.2)
+        XCTAssertTrue(engine.beginRecording())
+        for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }
+        let done = expectation(description: "stopped")
+        var text: String?
+        engine.stop(completion: { text = $0; done.fulfill() }, failure: { _ in done.fulfill() })
+        wait(for: [done], timeout: 3)
+        XCTAssertEqual(text, "帮我 build 一下")
+        XCTAssertEqual(engine.lastAnsweredBy, Self.main)
+        XCTAssertEqual(client.asked.map(\.model), [big, Self.main], "only Cloud Flash, not its own backup")
     }
 }
 
@@ -174,20 +193,30 @@ final class AdaptiveBackupTests: XCTestCase {
     private var now: TimeInterval = 1000
     private lazy var policy = AdaptiveBackup(clock: { [unowned self] in now })
     private let main = CloudBackupTests.main
+    private let big = TranscriptionModel.metaMuse.openRouterID!
 
     private func report(_ answeredBy: String?, after seconds: TimeInterval, mainFailed: Bool = false) -> UploadRace.Report {
         UploadRace.Report(outcome: answeredBy.map { .text("x", model: $0) } ?? .failed("e"),
                           seconds: seconds, mainFailed: mainFailed)
     }
 
-    func testDefaultsAreTwoSecondsAndFiveMinutes() {
-        XCTAssertEqual(AdaptiveBackup().wait, 2)
+    func testDefaultsAreEachModelsWaitAndFiveMinutes() {
+        XCTAssertEqual(AdaptiveBackup().wait(for: main), 2, "Cloud Flash")
+        XCTAssertEqual(AdaptiveBackup().wait(for: big), 4, "Cloud Big usually takes about 2 s")
         XCTAssertEqual(AdaptiveBackup().spell, 300)
     }
 
     func testModelsWithoutABackupGetNoPlan() {
-        XCTAssertNil(policy.plan(for: "meta/muse-voice-transcribe-1.0"))
         XCTAssertNil(policy.plan(for: "unknown/model"))
+    }
+
+    func testCloudBigWaitsFourSecondsForCloudFlash() {
+        XCTAssertEqual(policy.plan(for: big), UploadRace.Backup(model: main, delay: 4))
+        policy.learn(big, from: report(big, after: 3))  // slower than Cloud Flash's wait, but normal for Cloud Big
+        XCTAssertFalse(policy.inSlowSpell(big))
+        policy.learn(big, from: report(main, after: 4.5))
+        XCTAssertEqual(policy.plan(for: big)?.delay, 0)
+        XCTAssertFalse(policy.inSlowSpell(main), "spells are per model")
     }
 
     func testNormallyWaitsBeforeAskingTheBackup() {

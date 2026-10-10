@@ -56,7 +56,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertNotNil(hosted.element(id: "setting.Recordings folder"))
     }
 
-    func testBackupModelOnlyForCloudFlashOnByDefaultAndPersists() {
+    func testBackupModelForCloudModelsOnByDefaultAndPersists() {
         let defaults = makeDefaults(self)
         let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore())
         XCTAssertTrue(settings.backupWhenSlow, "on by default")
@@ -78,7 +78,12 @@ final class SettingsUITests: XCTestCase {
 
         settings.transcriptionModel = .metaMuse
         hosted.settle()
-        XCTAssertFalse(settings.effectiveBackup, "Cloud Big has no backup")
+        XCTAssertTrue(settings.effectiveBackup, "Cloud Big falls back to Cloud Flash")
+        XCTAssertEqual(hosted.element(id: id)?.object.value(forKey: "accessibilityEnabled") as? Bool, true)
+
+        settings.transcriptionModel = .local
+        hosted.settle()
+        XCTAssertFalse(settings.effectiveBackup)
         XCTAssertEqual(hosted.element(id: id)?.value, "0", "unavailable toggle shows off")
         XCTAssertTrue(settings.backupWhenSlow, "the saved choice is kept")
     }

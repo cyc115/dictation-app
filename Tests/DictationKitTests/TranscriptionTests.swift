@@ -238,8 +238,10 @@ final class CloudEngineTests: XCTestCase {
         let input = AVAudioPCMBuffer(pcmFormat: src.processingFormat, frameCapacity: AVAudioFrameCount(src.length))!
         try src.read(into: input)
         // Every model the app can ask, backups included.
-        let models = TranscriptionModel.allCases.compactMap(\.openRouterID)
-            + TranscriptionModel.allCases.compactMap(\.backupOpenRouterID)
+        var models = TranscriptionModel.allCases.compactMap(\.openRouterID)
+        for backup in TranscriptionModel.allCases.compactMap(\.backupOpenRouterID) where !models.contains(backup) {
+            models.append(backup)
+        }
         for model in models {
             let engine = CloudEngine()
             engine.modelID = model

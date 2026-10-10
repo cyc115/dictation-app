@@ -44,9 +44,29 @@ enum TranscriptionModel: String, CaseIterable {
     /// Apple's models are one language each; cloud models detect English/Chinese themselves.
     var supportsLanguageChoice: Bool { !isCloud }
 
-    /// Smaller, faster model the "Backup model when slow" setting also asks when this
-    /// one is slow (AdaptiveBackup). Cloud Flash only.
-    var backupOpenRouterID: String? { self == .qwenASR ? "qwen/qwen3-asr-0.6b" : nil }
+    /// Faster model the "Backup model when slow" setting also asks when this one is slow
+    /// (AdaptiveBackup): Cloud Flash's smaller sibling for Cloud Flash, Cloud Flash for Cloud Big.
+    var backupOpenRouterID: String? {
+        switch self {
+        case .local: return nil
+        case .qwenASR: return "qwen/qwen3-asr-0.6b"
+        case .metaMuse: return TranscriptionModel.qwenASR.openRouterID
+        }
+    }
+
+    /// How long this model gets before its backup is asked too: past its usual answer time
+    /// (Cloud Flash about 1 s; Cloud Big p50 2.3 s, p90 6.4 s in bench/results/latency/).
+    var backupWait: TimeInterval { self == .metaMuse ? 4 : 2 }
+
+    /// Settings help for "Backup model when slow"; nil when this model has no backup.
+    var backupHelp: String? {
+        let after = "the first answer is used. After a slow answer, both are asked at once for 5 minutes."
+        switch self {
+        case .local: return nil
+        case .qwenASR: return "If Cloud Flash hasn't answered in \(Int(backupWait)) seconds, a smaller, faster model is asked too and \(after) The smaller model gets more technical terms wrong."
+        case .metaMuse: return "If Cloud Big hasn't answered in \(Int(backupWait)) seconds, Cloud Flash is asked too and \(after)"
+        }
+    }
 }
 
 /// Recognition language for the local (Apple) model.
@@ -370,16 +390,19 @@ final class CloudEngine: DictationEngine {
 
 // MARK: - Backup model (experimental)
 
-/// On by default (Settings → Speech model → "Backup model when slow"); off asks Cloud Flash only. Cloud Flash usually answers in
-/// about a second, but in slow spells lasting minutes it takes 3–50 s (bench/results/latency/). This
-/// also asks the model's smaller backup (`TranscriptionModel.backupOpenRouterID`); the first answer wins.
-///  - Normally the backup is asked only once the main model hasn't answered within `wait`, or failed.
+/// On by default (Settings → Speech model → "Backup model when slow"); off asks the chosen model only. Cloud Flash usually answers in
+/// about a second, but in slow spells lasting minutes it takes 3–50 s (bench/results/latency/); Cloud
+/// Big's tail reaches 7 s. This also asks the model's faster backup (`TranscriptionModel.backupOpenRouterID`:
+/// a smaller sibling for Cloud Flash, Cloud Flash for Cloud Big); the first answer wins.
+///  - Normally the backup is asked only once the main model hasn't answered within its wait
+///    (`TranscriptionModel.backupWait`), or failed.
 ///  - After the main model was late, both are asked at once for `spell`: the next answers would
 ///    likely be late too. The main model answering on time ends the spell early.
 /// The backup is less accurate on mixed Chinese/English with technical terms (85% vs 90%, bench/).
 /// The app keeps one instance, so a slow spell carries over between dictations.
 final class AdaptiveBackup {
-    var wait: TimeInterval = 2
+    /// nil: each model's own `TranscriptionModel.backupWait`. Tests and the latency probe set a short one.
+    var wait: TimeInterval?
     var spell: TimeInterval = 5 * 60
     private let clock: () -> TimeInterval
     /// When each main model (OpenRouter id) was last late.
@@ -390,7 +413,11 @@ final class AdaptiveBackup {
     /// The backup to ask in a dictation with `model`, and after how long; nil if it has none.
     func plan(for model: String) -> UploadRace.Backup? {
         guard let backup = TranscriptionModel(rawValue: "openrouter:\(model)")?.backupOpenRouterID else { return nil }
-        return UploadRace.Backup(model: backup, delay: inSlowSpell(model) ? 0 : wait)
+        return UploadRace.Backup(model: backup, delay: inSlowSpell(model) ? 0 : wait(for: model))
+    }
+
+    func wait(for model: String) -> TimeInterval {
+        wait ?? TranscriptionModel(rawValue: "openrouter:\(model)")?.backupWait ?? 2
     }
 
     func inSlowSpell(_ model: String) -> Bool {
@@ -400,12 +427,12 @@ final class AdaptiveBackup {
 
     /// Learns from a finished upload whose main model was `model`.
     func learn(_ model: String, from report: UploadRace.Report) {
-        if report.mainFailed || report.seconds > wait {
+        if report.mainFailed || report.seconds > wait(for: model) {
             lateAt[model] = clock()  // late: start (or extend) a slow spell
         } else if report.answeredBy == model {
             lateAt[model] = nil  // on time: back to normal
         }
-        // Otherwise the backup answered within `wait`, before the main model: nothing learned about it.
+        // Otherwise the backup answered within the wait, before the main model: nothing learned about it.
     }
 }
 
