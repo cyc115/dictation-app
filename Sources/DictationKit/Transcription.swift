@@ -110,29 +110,62 @@ protocol SecretStore: AnyObject {
 }
 
 /// API keys live in the macOS Keychain, never in UserDefaults.
+///
+/// Items are written with a decrypt ACL that doesn't pin the app's cdhash. Without that,
+/// macOS ties the item to the exact build (apps with no Apple team ID get a per-cdhash
+/// partition), so every rebuild asked for the login password again. Our own signed app
+/// reads silently across rebuilds; other apps and the `security` CLI are still prompted.
 final class KeychainStore: SecretStore {
     private let service: String
+    /// Marks items written with the rebuild-proof ACL, so older items get rewritten once.
+    static let aclMarker = "acl:v2"
 
     init(service: String = "com.mikechen.DictationApp") { self.service = service }
 
+    private func base(_ account: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+         kSecAttrAccount as String: account]
+    }
+
     func get(_ account: String) -> String? {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                    kSecAttrAccount as String: account, kSecReturnData as String: true,
-                                    kSecMatchLimit as String: kSecMatchLimitOne]
+        var query = base(account)
+        query[kSecReturnData as String] = true
+        query[kSecReturnAttributes as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess, let data = item as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let attrs = item as? [String: Any], let data = attrs[kSecValueData as String] as? Data,
+              let value = String(data: data, encoding: .utf8) else { return nil }
+        if attrs[kSecAttrComment as String] as? String != Self.aclMarker { set(value, for: account) }
+        return value
+    }
+
+    func comment(_ account: String) -> String? {
+        var query = base(account)
+        query[kSecReturnAttributes as String] = true
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess else { return nil }
+        return (item as? [String: Any])?[kSecAttrComment as String] as? String
     }
 
     func set(_ value: String?, for account: String) {
-        let base: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                   kSecAttrAccount as String: account]
-        SecItemDelete(base as CFDictionary)
+        SecItemDelete(base(account) as CFDictionary)
         guard let value = value, !value.isEmpty else { return }
-        var add = base
+        var add = base(account)
         add[kSecValueData as String] = Data(value.utf8)
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        add[kSecAttrComment as String] = Self.aclMarker
+        if let access = Self.rebuildProofAccess() { add[kSecAttrAccess as String] = access }
         SecItemAdd(add as CFDictionary, nil)
+    }
+
+    /// An access object whose decrypt ACL lists no specific apps (so no cdhash to go stale).
+    private static func rebuildProofAccess() -> SecAccess? {
+        var access: SecAccess?
+        guard SecAccessCreate("DictationApp" as CFString, nil, &access) == errSecSuccess, let access else { return nil }
+        for acl in (SecAccessCopyMatchingACLList(access, kSecACLAuthorizationDecrypt) as? [SecACL]) ?? [] {
+            SecACLSetContents(acl, nil, "DictationApp" as CFString, [])
+        }
+        return access
     }
 }
 

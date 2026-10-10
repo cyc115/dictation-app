@@ -257,3 +257,32 @@ final class CloudEngineTests: XCTestCase {
         }
     }
 }
+
+/// Uses a throwaway service name, never the app's real Keychain item.
+final class KeychainStoreTests: XCTestCase {
+    private let store = KeychainStore(service: "com.mikechen.DictationApp.tests.\(UUID().uuidString)")
+
+    override func tearDown() { store.set(nil, for: "key") }
+
+    func testRoundTripWritesRebuildProofACL() {
+        XCTAssertNil(store.get("key"))
+        store.set("sk-test", for: "key")
+        XCTAssertEqual(store.get("key"), "sk-test")
+        XCTAssertEqual(store.comment("key"), KeychainStore.aclMarker)
+        store.set(nil, for: "key")
+        XCTAssertNil(store.get("key"))
+    }
+
+    func testOldItemIsRewrittenOnRead() {
+        let service = "com.mikechen.DictationApp.tests.\(UUID().uuidString)"
+        let legacy: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+                                     kSecAttrAccount as String: "key", kSecValueData as String: Data("old".utf8)]
+        XCTAssertEqual(SecItemAdd(legacy as CFDictionary, nil), errSecSuccess)
+        let store = KeychainStore(service: service)
+        defer { store.set(nil, for: "key") }
+        XCTAssertNil(store.comment("key"))
+        XCTAssertEqual(store.get("key"), "old")
+        XCTAssertEqual(store.comment("key"), KeychainStore.aclMarker)
+        XCTAssertEqual(store.get("key"), "old")
+    }
+}
