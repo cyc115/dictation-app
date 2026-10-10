@@ -44,7 +44,6 @@ final class AppSettings: ObservableObject {
         static let hotkey = "hotkey"
         static let mode = "activationMode"
         static let polish = "aiPolishEnabled"
-        static let polishModel = "polishModel"
         static let mouse = "mouseButton"
         static let microphone = "microphoneUID"
         static let sounds = "interactionSounds"
@@ -72,9 +71,8 @@ final class AppSettings: ObservableObject {
     @Published var polishEnabled: Bool {
         didSet { defaults.set(polishEnabled, forKey: Key.polish); onChange?() }
     }
-    @Published var polishModel: PolishModel {
-        didSet { defaults.set(polishModel.rawValue, forKey: Key.polishModel); onChange?() }
-    }
+    /// Follows the speech model: on-device with On-device, cloud with Cloud Flash / Cloud Big.
+    var polishModel: PolishModel { transcriptionModel.polishModel }
     /// CoreAudio device UID; empty means the system default input.
     @Published var microphoneUID: String {
         didSet { defaults.set(microphoneUID, forKey: Key.microphone); onChange?() }
@@ -142,9 +140,6 @@ final class AppSettings: ObservableObject {
         hotkey = Hotkey(rawValue: defaults.string(forKey: Key.hotkey) ?? "") ?? .fn
         mode = ActivationMode(rawValue: defaults.string(forKey: Key.mode) ?? "") ?? .hold
         polishEnabled = defaults.bool(forKey: Key.polish)
-        // Cloud by default: on the 20-case quick set it passed 90% vs on-device 40%, at 0.38 s vs 0.91 s
-        // median (bench/results/polish/README.md). Without a cloud key it runs on-device.
-        polishModel = PolishModel(rawValue: defaults.string(forKey: Key.polishModel) ?? "") ?? .cloud
         mouseButton = MouseButton(rawValue: defaults.string(forKey: Key.mouse) ?? "") ?? .off
         microphoneUID = defaults.string(forKey: Key.microphone) ?? ""
         interactionSounds = defaults.object(forKey: Key.sounds) as? Bool ?? true
@@ -324,23 +319,10 @@ struct SettingsView: View {
             Section {
                 SettingRow("AI polish", settings.effectiveStreaming
                            ? "Not used while “Type as you speak” is on — polish needs the whole dictation."
-                           : "Removes filler words and fixes self-corrections.") {
+                           : settings.polishModel == .onDevice
+                           ? "Removes filler words and fixes self-corrections, on this Mac like the speech model: nothing leaves it. Adds about 1 second to a sentence, up to 3 to a long paragraph."
+                           : "Removes filler words and fixes self-corrections with a cloud model, like the speech model. Adds about half a second.") {
                     Toggle("AI polish", isOn: $settings.polishEnabled)
-                }
-                SettingRow("Polish model", settings.polishModel == .onDevice
-                           ? "Runs on this Mac; nothing leaves it. Adds about 1 second to a sentence, up to 3 to a long paragraph. Misses more self-corrections."
-                           : settings.hasOpenRouterKey
-                           ? "Adds about half a second. Sends the transcript text to the cloud; uses your cloud API key."
-                           : "Needs your cloud API key; until you add one, polish runs on this Mac.",
-                           available: settings.polishEnabled && !settings.effectiveStreaming) {
-                    Picker("Polish model", selection: Binding(
-                        get: { settings.polishModel },
-                        set: { model in
-                            settings.polishModel = model
-                            if model == .cloud && !settings.hasOpenRouterKey { keyDraft = ""; askForKey = true }
-                        })) {
-                        ForEach(PolishModel.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }
                 }
             } header: {
                 Label("Cleanup", systemImage: "wand.and.stars")
@@ -366,7 +348,6 @@ struct SettingsView: View {
                         onCancel: {
                             askForKey = false
                             // No key, no cloud model: fall back so dictation keeps working.
-                            // Cloud polish needs no change: without a key it runs on-device.
                             if !settings.hasOpenRouterKey { settings.transcriptionModel = .local }
                         })
         }

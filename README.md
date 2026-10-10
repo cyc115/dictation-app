@@ -53,11 +53,11 @@ Relaunch the app after enabling Accessibility.
   after a slow answer both are asked at once for 5 minutes. Faster in slow spells, but the smaller
   model gets more technical terms wrong. Off, only Cloud Flash is asked.
 - Menu bar 🎙 → **AI polish** toggles LLM cleanup (default: off). It removes fillers and fixes
-  self-corrections without rewriting your meaning. **Settings → Cleanup → Polish model**:
-  - **Cloud** (default): gpt-oss-120b on Groq through OpenRouter, about 0.4 s. It sends the
-    transcript text to the cloud and uses your cloud API key; without a key, polish runs on-device.
-  - **On-device**: Apple's model; nothing leaves your Mac, but it's slower (about 1 s, up to 3 s on
-    long paragraphs) and misses more self-corrections (`bench/results/polish/README.md`).
+  self-corrections without rewriting your meaning. It runs where the speech model runs:
+  - **On-device** speech → Apple's on-device polish: nothing leaves your Mac (about 1 s, up to 3 s
+    on long paragraphs).
+  - **Cloud Flash / Cloud Big** → cloud polish (gpt-oss-120b on Groq through OpenRouter, about
+    0.4 s), which also passed far more of the polish tests (`bench/results/polish/README.md`).
 
 ## Development
 

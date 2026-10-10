@@ -36,6 +36,9 @@ enum TranscriptionModel: String, CaseIterable {
     }
 
     var isCloud: Bool { openRouterID != nil }
+    /// Polish runs where the speech model runs: on-device keeps everything on the Mac; for cloud models
+    /// the cloud polish model is faster and better (bench/results/polish/README.md).
+    var polishModel: PolishModel { isCloud ? .cloud : .onDevice }
     /// Text appears phrase by phrase while you speak (needed for "Type as you speak").
     var supportsStreaming: Bool { !isCloud }
     /// Apple's models are one language each; cloud models detect English/Chinese themselves.

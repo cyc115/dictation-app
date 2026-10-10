@@ -11,8 +11,8 @@ transcript in `<transcript>` tags. On your Mac (20-case quick set, same prompt f
 | **gpt-oss-120b @ Groq** | **90%** | 100% | 83% | 88% | **0.38 s** | 0.54 s | 0.72 s |
 | Apple on-device | 40% | 67% | 0% | 25% | 0.91 s | 1.77 s | 1.90 s |
 
-**Decision:** Cloud is now the default polish model (Settings → Cleanup → Polish model). On-device
-stays available, and polish runs on-device when no cloud key is saved.
+**Decision:** polish runs where the speech model runs. With Cloud Flash or Cloud Big it uses this cloud
+model; with On-device speech it stays on-device, so nothing leaves the Mac.
 
 **Caveats on the Mac run:**
 - The quick set is weighted toward the hard cases.
@@ -92,9 +92,8 @@ By dictation length (p50): gpt-oss-120b @ Groq takes 0.46 s under 20 words and 0
   - It drops "not fifty thousand" from "the budget is fifteen thousand dollars not fifty thousand".
   - It keeps Redis in "用 Redis 做那个 rate limiting 哦不对用 Memcached".
 
-**Privacy:** cloud polish sends the transcript text to OpenRouter and Groq. With a cloud speech model
-your audio already goes to the cloud; with On-device speech, it's the one thing that leaves the Mac.
-Choose On-device polish to keep everything local.
+**Privacy:** cloud polish sends the transcript text to OpenRouter and Groq. It only runs with a cloud
+speech model, whose audio already goes to the cloud; On-device speech keeps polish on-device too.
 
 ## Caveats
 

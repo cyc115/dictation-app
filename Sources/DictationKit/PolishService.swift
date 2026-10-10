@@ -1,12 +1,11 @@
 import Foundation
 
-/// Which model polishes (Settings → Cleanup → Polish model).
-enum PolishModel: String, CaseIterable {
-    // Raw values are stored in settings.
+/// Which model polishes. It follows the speech model (`TranscriptionModel.polishModel`): On-device
+/// speech is polished on-device too, so nothing leaves the Mac; Cloud Flash and Cloud Big are
+/// polished in the cloud, where the audio already went.
+enum PolishModel {
     case onDevice
     case cloud
-
-    var title: String { self == .onDevice ? "On-device" : "Cloud" }
 
     /// Cloud polish, chosen with bench/suite.py polish (bench/results/polish/README.md): the fastest
     /// model that passed ≥ 94% of the test set, on a fast host, with `PolishService.cloudInstructions`.
