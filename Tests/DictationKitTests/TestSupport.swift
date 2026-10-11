@@ -271,7 +271,7 @@ struct AXNode {
 /// to `snapshotScale` too.
 let snapshotScale: CGFloat = 2
 
-func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.01,
+func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.000_5,
                     file: StaticString = #filePath, line: UInt = #line) {
     guard view.window is FixedScaleWindow else {
         return XCTFail("\(name): snapshot a view in an OffscreenWindow/OffscreenPanel (HostedView does this), "
