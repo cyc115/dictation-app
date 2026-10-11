@@ -19,10 +19,50 @@ enum WordDiff {
     }
 }
 
+/// Starts a new correction from Claude Haiku's polish of what you said (with your setup's prompt), so you fix less by hand. Asks
+/// once, when the pencil makes the correction; the answer replaces the app's text only if you haven't
+/// typed yet. Without a cloud API key the correction stays as the app wrote it.
+final class CorrectionSuggester: ObservableObject {
+    static let model = "openrouter:anthropic/claude-haiku-5.5"
+    static let shared = CorrectionSuggester {
+        AppSettings.shared.openRouterKey.flatMap { backend(apiKey: $0, setup: AppSettings.shared.setup) }
+    }
+
+    /// Haiku with the AI polish prompt of the setup chosen in Settings, so it polishes the way the app does.
+    static func backend(apiKey: String, setup: DictationSetup) -> PolishBackend? {
+        apiKey.isEmpty ? nil : DictationSetup.polishBackend(spec: model, apiKey: apiKey, instructions: setup.promptText, wrap: setup.wrap)
+    }
+
+    /// Corrections waiting for Haiku.
+    @Published private(set) var pending: Set<UUID> = []
+    /// Why the last suggestion failed, by correction.
+    @Published private(set) var failed: [UUID: String] = [:]
+    private let backend: () -> PolishBackend?
+
+    init(backend: @escaping () -> PolishBackend?) { self.backend = backend }
+
+    func suggest(for entry: HistoryEntry, in store: HistoryStore) {
+        guard !pending.contains(entry.id), let backend = backend() else { return }
+        let id = entry.id, start = entry.correction ?? entry.text
+        pending.insert(id)
+        failed[id] = nil
+        Task { @MainActor in
+            defer { pending.remove(id) }
+            do {
+                let text = try await PolishService(backend: backend).polished(entry.input)
+                if store.entries.first(where: { $0.id == id })?.correction == start { store.setCorrection(text, for: id) }
+            } catch {
+                failed[id] = error.localizedDescription
+            }
+        }
+    }
+}
+
 /// Dictations you corrected: what the app wrote, and what you wanted. Each one is a test case for
 /// AI polish (`bench/suite.py polish run --corrections`); they live on their History entries.
 struct CorrectionsView: View {
     @ObservedObject var store: HistoryStore
+    @ObservedObject var suggester: CorrectionSuggester = .shared
     /// The correction to put the cursor in when the tab opens (the one just made from History).
     var editing: UUID?
     @State private var search = ""
@@ -50,6 +90,8 @@ struct CorrectionsView: View {
                         LazyVStack(spacing: 12) {
                             ForEach(shown) { entry in
                                 CorrectionCard(entry: entry, focused: $focused,
+                                               suggesting: suggester.pending.contains(entry.id),
+                                               suggestionError: suggester.failed[entry.id],
                                                onChange: { store.setCorrection($0, for: entry.id) },
                                                onDelete: { store.setCorrection("", for: entry.id) })
                                     .id(entry.id)
@@ -90,14 +132,18 @@ struct CorrectionsView: View {
 struct CorrectionCard: View {
     let entry: HistoryEntry
     var focused: FocusState<UUID?>.Binding
+    var suggesting = false
+    var suggestionError: String?
     let onChange: (String) -> Void
     let onDelete: () -> Void
     @State private var draft: String
 
-    init(entry: HistoryEntry, focused: FocusState<UUID?>.Binding,
+    init(entry: HistoryEntry, focused: FocusState<UUID?>.Binding, suggesting: Bool = false, suggestionError: String? = nil,
          onChange: @escaping (String) -> Void, onDelete: @escaping () -> Void) {
         self.entry = entry
         self.focused = focused
+        self.suggesting = suggesting
+        self.suggestionError = suggestionError
         self.onChange = onChange
         self.onDelete = onDelete
         _draft = State(initialValue: entry.correction ?? entry.text)
@@ -136,6 +182,23 @@ struct CorrectionCard: View {
                     .accessibilityLabel("You want")
                     .accessibilityIdentifier("corrections.wanted")
                     .onChange(of: draft) { onChange(draft) }
+                    .onChange(of: entry.correction) {
+                        if let correction = entry.correction, correction != draft { draft = correction }
+                    }
+            }
+            if suggesting {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text("Claude Haiku is polishing a suggestion…")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("corrections.suggesting")
+            } else if let suggestionError {
+                Text("Couldn't get Claude Haiku's suggestion: \(suggestionError)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("corrections.suggestionError")
             }
             if let raw = entry.raw {
                 DisclosureGroup("Before polish") {

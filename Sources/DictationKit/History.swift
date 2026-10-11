@@ -148,6 +148,8 @@ struct HistoryView: View {
     @ObservedObject var store: HistoryStore
     /// Opens a dictation in Corrections (after its pencil makes a correction).
     var onCorrect: (UUID) -> Void = { _ in }
+    /// Prefills a new correction with Claude Haiku's polish (nil: keeps what the app wrote).
+    var suggester: CorrectionSuggester?
     @State private var search = ""
     @State private var confirmClear = false
 
@@ -169,7 +171,10 @@ struct HistoryView: View {
                         Section(group.title) {
                             ForEach(group.entries) { entry in
                                 HistoryRow(entry: entry, onDelete: { store.delete(entry) }, onCorrect: {
-                                    if entry.correction == nil { store.setCorrection(entry.text, for: entry.id) }
+                                    if entry.correction == nil {
+                                        store.setCorrection(entry.text, for: entry.id)
+                                        suggester?.suggest(for: entry, in: store)
+                                    }
                                     onCorrect(entry.id)
                                 })
                             }

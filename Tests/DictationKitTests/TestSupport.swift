@@ -114,6 +114,13 @@ final class FakePolish: PolishBackend {
     }
 }
 
+/// Spins the main run loop until `done` (fails after `timeout`).
+func waitUntil(timeout: TimeInterval = 2, file: StaticString = #filePath, line: UInt = #line, _ done: () -> Bool) {
+    let end = Date().addingTimeInterval(timeout)
+    while !done() && Date() < end { spinRunLoop(0.01) }
+    XCTAssertTrue(done(), "timed out", file: file, line: line)
+}
+
 /// Runs the main run loop briefly so SwiftUI / AppKit can lay out and animate.
 func spinRunLoop(_ seconds: TimeInterval = 0.05) {
     RunLoop.main.run(until: Date().addingTimeInterval(seconds))

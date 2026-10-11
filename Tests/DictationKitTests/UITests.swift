@@ -278,6 +278,60 @@ final class CorrectionsUITests: XCTestCase {
         XCTAssertEqual(changed("Same text.", "Same text."), [])
     }
 
+    func testPencilPrefillsHaikusPolishOfWhatYouSaid() {
+        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        store.add(text: "Can you install Cloud Code?", duration: 2, raw: "can you install cloud code", setup: "cloud-flash", prompt: "v3")
+        let log = EventLog()
+        let polish = FakePolish(delay: 0.5, output: "Can you install Claude Code?", log: log)
+        let suggester = CorrectionSuggester { polish }
+        let hosted = HostedView(HistoryView(store: store, suggester: suggester), size: NSSize(width: 760, height: 400))
+        addTeardownBlock { hosted.close() }
+        hosted.click(hosted.element(id: "history.correct")!)
+        XCTAssertEqual(store.entries[0].correction, "Can you install Cloud Code?", "the app's text until Haiku answers")
+        XCTAssertEqual(suggester.pending, [store.entries[0].id])
+        waitUntil { suggester.pending.isEmpty }
+        XCTAssertEqual(store.entries[0].correction, "Can you install Claude Code?")
+        XCTAssertEqual(store.entries[0].text, "Can you install Cloud Code?", "left side is still what the app wrote")
+
+        hosted.click(hosted.element(id: "history.correct")!)
+        spinRunLoop(0.1)
+        XCTAssertEqual(log.events.filter { $0 == "polish" }.count, 1, "opening an existing correction doesn't ask again")
+    }
+
+    func testHaikuUsesTheChosenSetupsPrompt() throws {
+        let haiku = try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: .cloudBig) as? OpenRouterPolish)
+        XCTAssertEqual(haiku.model, "anthropic/claude-haiku-5.5")
+        XCTAssertEqual(haiku.instructions, DictationSetup.cloudBig.promptText)
+        XCTAssertEqual(haiku.wrap, DictationSetup.cloudBig.wrap)
+        XCTAssertNil(CorrectionSuggester.backend(apiKey: "", setup: .cloudFlash), "no key, no Haiku")
+    }
+
+    func testHaikuDoesNotOverwriteWhatYouTyped() {
+        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        store.add(text: "Cloud Code", duration: 1)
+        let suggester = CorrectionSuggester { FakePolish(delay: 0.2, output: "Claude Code") }
+        store.setCorrection("Cloud Code", for: store.entries[0].id)
+        suggester.suggest(for: store.entries[0], in: store)
+        store.setCorrection("Claude Code, the CLI", for: store.entries[0].id)
+        waitUntil { suggester.pending.isEmpty }
+        XCTAssertEqual(store.entries[0].correction, "Claude Code, the CLI")
+    }
+
+    func testHaikuFailureKeepsTheAppsTextAndSaysWhy() {
+        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        store.add(text: "Cloud Code", duration: 1)
+        let suggester = CorrectionSuggester { FakePolish(error: .failed("No credits.")) }
+        store.setCorrection("Cloud Code", for: store.entries[0].id)
+        suggester.suggest(for: store.entries[0], in: store)
+        waitUntil { suggester.pending.isEmpty }
+        XCTAssertEqual(store.entries[0].correction, "Cloud Code")
+        XCTAssertEqual(suggester.failed[store.entries[0].id], "No credits.")
+
+        let noKey = CorrectionSuggester { nil }
+        noKey.suggest(for: store.entries[0], in: store)
+        XCTAssertTrue(noKey.pending.isEmpty, "no API key: nothing asked")
+    }
+
     func testClearAllSaysCorrectionsGoToo() {
         XCTAssertEqual(HistoryView.clearTitle(corrections: 0), "Delete all dictation history?")
         XCTAssertEqual(HistoryView.clearTitle(corrections: 1), "Delete all dictation history, including 1 correction?")

@@ -88,7 +88,7 @@ struct MainView: View {
             case .history: HistoryView(store: history, onCorrect: { id in
                 selection.editing = id
                 selection.tab = .corrections
-            })
+            }, suggester: .shared)
             case .corrections: CorrectionsView(store: history, editing: selection.editing)
                 .onDisappear { selection.editing = nil }
             case .settings: SettingsView(settings: .shared)
