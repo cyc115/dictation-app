@@ -468,8 +468,17 @@ final class OverlayUITests: XCTestCase {
 /// Visual regression: renders views with fixed data and compares to reference PNGs.
 /// After an intentional UI change: RECORD_SNAPSHOTS=1 swift test --filter SnapshotTests
 final class SnapshotTests: XCTestCase {
-    func testOverlayListening() throws {
+    /// The pill in a window with a fixed scale (`OffscreenPanel`), not one on whichever display the
+    /// mouse is on.
+    private func snapshotOverlay() -> OverlayWindow {
         let overlay = OverlayWindow()
+        overlay.makePanel = { OffscreenPanel(contentRect: $0, styleMask: [.borderless, .nonactivatingPanel],
+                                             backing: .buffered, defer: false) }
+        return overlay
+    }
+
+    func testOverlayListening() throws {
+        let overlay = snapshotOverlay()
         addTeardownBlock { overlay.hide() }
         overlay.showListening(micName: "MacBook Pro Microphone")
         for level in [0.1, 0.3, 0.7, 0.9, 0.6, 0.4, 0.8, 0.5, 0.2, 0.6, 0.9, 0.3, 0.1] as [Float] {
@@ -481,7 +490,7 @@ final class SnapshotTests: XCTestCase {
 
     /// Typical laptop/desk-mic speech (≈ −40 dBFS). This used to render as a nearly flat row.
     func testOverlayListeningQuietSpeech() throws {
-        let overlay = OverlayWindow()
+        let overlay = snapshotOverlay()
         addTeardownBlock { overlay.hide() }
         overlay.showListening(micName: "External Microphone")
         for i in 0..<40 { overlay.setLevel(0.25 * [1.0, 0.6, 1.2, 0.3, 0.9, 1.1, 0.2, 0.8][i % 8]) }
@@ -489,7 +498,7 @@ final class SnapshotTests: XCTestCase {
     }
 
     func testOverlayListeningLongMicName() throws {
-        let overlay = OverlayWindow()
+        let overlay = snapshotOverlay()
         addTeardownBlock { overlay.hide() }
         overlay.showListening(micName: "Steam Streaming Microphone")
         for level in [0.2, 0.5, 0.8, 0.6, 0.9, 0.4, 0.7, 0.3] as [Float] { overlay.setLevel(level) }
@@ -497,7 +506,7 @@ final class SnapshotTests: XCTestCase {
     }
 
     func testOverlayMessage() throws {
-        let overlay = OverlayWindow()
+        let overlay = snapshotOverlay()
         addTeardownBlock { overlay.hide() }
         overlay.showMessage("Speech recognizer unavailable", hideAfter: 10)
         assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-message")

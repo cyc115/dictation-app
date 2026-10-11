@@ -7,6 +7,7 @@ macOS menu-bar dictation app. Swift package: `Sources/DictationKit` (all app cod
 - Before building or committing: `./test.sh` (unit, UI, snapshot and perf-budget tests). Every new feature or fix gets tests in the same change:
   - logic → unit tests with injected `UserDefaults` / file URLs / pasteboards (see `TestSupport.swift`), never the user's real ones;
   - UI → `HostedView` + accessibility identifiers (`.accessibilityIdentifier`), driven with `click(_:)`; add a snapshot for new visual surfaces;
+  - tests fail only on bugs, never on this Mac's setup: snapshots come from a fixed-scale window (`HostedView`, `OffscreenPanel`; `assertSnapshot` refuses others), and views take dates from `\.dateContext` rather than `Date.formatted()`, so display, region, clock, time zone and accent color don't change them;
   - hot paths (audio thread, overlay, history I/O) → an `assertFaster` budget in `PerformanceTests.swift`.
 - Cloud transcription changes: also run `./test.sh --live` (real API, both cloud models). Live and integration tests must exercise the app's real code path (e.g. `CloudEngine.stop()`), not a test-only helper — a helper hid the unfinished-WAV bug that only the real path had.
 - Intentional UI change: `RECORD_SNAPSHOTS=1 ./test.sh --filter SnapshotTests`, then look at the new PNGs in `Tests/DictationKitTests/__Snapshots__/` before committing.

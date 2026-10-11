@@ -15,6 +15,11 @@ class OverlayWindow {
     private static let bottomMargin: CGFloat = 28
 
     private(set) var panel: NSPanel?
+    /// Makes the pill's window. Snapshot tests swap in one with a fixed scale, so the pill renders
+    /// the same whatever display it would open on.
+    var makePanel: (NSRect) -> NSPanel = {
+        NSPanel(contentRect: $0, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+    }
     private let background = NSView()
     let waveform = WaveformView()
     let label = NSTextField(labelWithString: "")
@@ -168,11 +173,7 @@ class OverlayWindow {
     }
 
     private func build() {
-        let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: Self.listeningWidth, height: Self.height),
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered, defer: false
-        )
+        let panel = makePanel(NSRect(x: 0, y: 0, width: Self.listeningWidth, height: Self.height))
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true

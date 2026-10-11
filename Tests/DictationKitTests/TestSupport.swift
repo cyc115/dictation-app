@@ -31,8 +31,11 @@ func makePasteboard(_ test: XCTestCase) -> NSPasteboard {
 
 /// Fixed local date, so rendered text is stable.
 func fixedDate(_ y: Int, _ mo: Int, _ d: Int, _ h: Int, _ mi: Int) -> Date {
-    Calendar.current.date(from: DateComponents(year: y, month: mo, day: d, hour: h, minute: mi))!
+    testDates.calendar.date(from: DateComponents(year: y, month: mo, day: d, hour: h, minute: mi))!
 }
+
+/// Region, clock and time zone for views under test, whatever this Mac is set to.
+let testDates = DateContext(locale: Locale(identifier: "en_US"), timeZone: TimeZone(identifier: "America/Chicago")!)
 
 /// A settings store with throwaway defaults, no saved key and no custom setups.
 func makeSettings(_ test: XCTestCase, defaults: UserDefaults? = nil,
@@ -133,14 +136,19 @@ func spinRunLoop(_ seconds: TimeInterval = 0.05) {
 /// accessibility tree, which tests then query and drive like a user would.
 final class HostedView<Content: View> {
     let window: NSWindow
-    let hostingView: NSHostingView<Content>
+    let hostingView: NSHostingView<AnyView>
 
     init(_ view: Content, size: NSSize, appearance: NSAppearance.Name = .aqua) {
         // SwiftUI only builds its accessibility tree once an assistive client asks for it;
         // this is the same switch VoiceOver/automation tools flip.
         NSApplication.shared.accessibilitySetValue(
             true, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
-        hostingView = NSHostingView(rootView: view)
+        // The Mac's own settings stay out of what's drawn: date format, time zone, accent color.
+        hostingView = NSHostingView(rootView: AnyView(view
+            .environment(\.dateContext, testDates)
+            .environment(\.locale, testDates.locale)
+            .environment(\.timeZone, testDates.timeZone)
+            .accentColor(.blue)))
         hostingView.frame = NSRect(origin: .zero, size: size)
         window = OffscreenWindow(contentRect: NSRect(origin: NSPoint(x: -10_000, y: -10_000), size: size),
                           styleMask: [.titled], backing: .buffered, defer: false)
@@ -199,10 +207,18 @@ final class HostedView<Content: View> {
     func close() { window.close() }
 }
 
+/// A window whose drawing doesn't depend on the display it's on; `assertSnapshot` only takes these.
+protocol FixedScaleWindow: NSWindow {}
+
 /// Stays where it's put (offscreen) instead of being pulled onto a display.
-final class OffscreenWindow: NSWindow {
+final class OffscreenWindow: NSWindow, FixedScaleWindow {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
     /// Snapshots draw text at this scale whatever display the window would be on (see assertSnapshot).
+    override var backingScaleFactor: CGFloat { snapshotScale }
+}
+
+/// The overlay pill's panel for snapshots: same as the app's, at `snapshotScale`.
+final class OffscreenPanel: NSPanel, FixedScaleWindow {
     override var backingScaleFactor: CGFloat { snapshotScale }
 }
 
@@ -257,6 +273,10 @@ let snapshotScale: CGFloat = 2
 
 func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.01,
                     file: StaticString = #filePath, line: UInt = #line) {
+    guard view.window is FixedScaleWindow else {
+        return XCTFail("\(name): snapshot a view in an OffscreenWindow/OffscreenPanel (HostedView does this), "
+                       + "or it changes with the display it's on", file: file, line: line)
+    }
     view.layoutSubtreeIfNeeded()
     guard let rep = snapshotBitmap(of: view) else {
         return XCTFail("could not render \(name)", file: file, line: line)

@@ -145,6 +145,7 @@ final class HistoryStore: ObservableObject {
 // MARK: - View
 
 struct HistoryView: View {
+    @Environment(\.dateContext) private var dates
     @ObservedObject var store: HistoryStore
     /// Opens a dictation in Corrections (after its pencil makes a correction).
     var onCorrect: (UUID) -> Void = { _ in }
@@ -215,13 +216,13 @@ struct HistoryView: View {
     }
 
     private var groups: [(title: String, entries: [HistoryEntry])] {
-        let calendar = Calendar.current
+        let calendar = dates.calendar
         var result: [(title: String, entries: [HistoryEntry])] = []
         for entry in filtered {
             let title: String
             if calendar.isDateInToday(entry.date) { title = "Today" }
             else if calendar.isDateInYesterday(entry.date) { title = "Yesterday" }
-            else { title = entry.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year()) }
+            else { title = dates.string(entry.date, .dateTime.weekday(.wide).month(.abbreviated).day().year()) }
             if result.last?.title == title { result[result.count - 1].entries.append(entry) }
             else { result.append((title, [entry])) }
         }
@@ -236,12 +237,13 @@ struct HistoryRow: View {
     let entry: HistoryEntry
     let onDelete: () -> Void
     var onCorrect: () -> Void = {}
+    @Environment(\.dateContext) private var dates
     @State private var hovering = false
     @State private var copied = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
-            Text(entry.date.formatted(date: .omitted, time: .shortened))
+            Text(dates.string(entry.date, Date.FormatStyle(date: .omitted, time: .shortened)))
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 70, alignment: .leading)
@@ -287,4 +289,29 @@ struct HistoryRow: View {
         copied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
     }
+}
+
+/// What date text depends on: the Mac's region, clock and time zone settings. Views read it from the
+/// environment, so snapshot tests can fix it (`HostedView`) and pass whatever those settings are.
+struct DateContext {
+    var locale: Locale = .autoupdatingCurrent
+    var timeZone: TimeZone = .autoupdatingCurrent
+    /// In `timeZone`, for "Today" / "Yesterday".
+    var calendar: Calendar {
+        var calendar = Calendar.autoupdatingCurrent
+        calendar.locale = locale
+        calendar.timeZone = timeZone
+        return calendar
+    }
+
+    func string(_ date: Date, _ style: Date.FormatStyle) -> String {
+        var style = style.locale(locale)
+        style.timeZone = timeZone
+        style.calendar = calendar
+        return date.formatted(style)
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var dateContext = DateContext()
 }

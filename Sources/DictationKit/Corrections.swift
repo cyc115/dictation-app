@@ -133,6 +133,7 @@ struct CorrectionsView: View {
 }
 
 struct CorrectionCard: View {
+    @Environment(\.dateContext) private var dates
     let entry: HistoryEntry
     var focused: FocusState<UUID?>.Binding
     var suggesting = false
@@ -155,7 +156,7 @@ struct CorrectionCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Text(entry.date.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+                Text(dates.string(entry.date, .dateTime.month(.abbreviated).day().hour().minute()))
                 if let about { Text(about).padding(.horizontal, 8).padding(.vertical, 1).background(.quaternary, in: Capsule()) }
                 Spacer()
                 Button(action: onDelete) { Image(systemName: "trash") }
