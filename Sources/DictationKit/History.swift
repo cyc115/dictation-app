@@ -148,7 +148,7 @@ struct HistoryView: View {
     @ObservedObject var store: HistoryStore
     /// Opens a dictation in Corrections (after its pencil makes a correction).
     var onCorrect: (UUID) -> Void = { _ in }
-    /// Prefills a new correction with Claude Haiku's polish (nil: keeps what the app wrote).
+    /// Prefills a new correction with a cloud model's polish (`CorrectionSuggester`) (nil: keeps what the app wrote).
     var suggester: CorrectionSuggester?
     @State private var search = ""
     @State private var confirmClear = false

@@ -19,21 +19,24 @@ enum WordDiff {
     }
 }
 
-/// Starts a new correction from Claude Haiku's polish of what you said (with your setup's prompt), so you fix less by hand. Asks
+/// Starts a new correction from GPT-6.1 Sol Pro's polish of what you said (with your setup's prompt), so you fix less by hand.
+/// The most accurate polish model benchmarked (100% on bench/suite.py polish, both test sets), but ~3 s
+/// and ~$5 per 1,000: too slow and costly while dictating, fine for an occasional correction. Asks
 /// once, when the pencil makes the correction; the answer replaces the app's text only if you haven't
 /// typed yet. Without a cloud API key the correction stays as the app wrote it.
 final class CorrectionSuggester: ObservableObject {
-    static let model = "openrouter:anthropic/claude-haiku-5.5"
+    static let model = "openrouter:openai/gpt-6.1-sol-pro"
+    static let modelName = "GPT-6.1 Sol Pro"
     static let shared = CorrectionSuggester {
         AppSettings.shared.openRouterKey.flatMap { backend(apiKey: $0, setup: AppSettings.shared.setup) }
     }
 
-    /// Haiku with the AI polish prompt of the setup chosen in Settings, so it polishes the way the app does.
+    /// The model with the AI polish prompt of the setup chosen in Settings, so it polishes the way the app does.
     static func backend(apiKey: String, setup: DictationSetup) -> PolishBackend? {
         apiKey.isEmpty ? nil : DictationSetup.polishBackend(spec: model, apiKey: apiKey, instructions: setup.promptText, wrap: setup.wrap)
     }
 
-    /// Corrections waiting for Haiku.
+    /// Corrections waiting for the model.
     @Published private(set) var pending: Set<UUID> = []
     /// Why the last suggestion failed, by correction.
     @Published private(set) var failed: [UUID: String] = [:]
@@ -189,13 +192,13 @@ struct CorrectionCard: View {
             if suggesting {
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
-                    Text("Claude Haiku is polishing a suggestion…")
+                    Text("\(CorrectionSuggester.modelName) is polishing a suggestion…")
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("corrections.suggesting")
             } else if let suggestionError {
-                Text("Couldn't get Claude Haiku's suggestion: \(suggestionError)")
+                Text("Couldn't get \(CorrectionSuggester.modelName)'s suggestion: \(suggestionError)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("corrections.suggestionError")
