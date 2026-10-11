@@ -55,15 +55,17 @@ final class TabSelection: ObservableObject {
     var editing: UUID?
 }
 
-private struct MainView: View {
+struct MainView: View {
     @ObservedObject var selection: TabSelection
-    @ObservedObject private var history = HistoryStore.shared
+    @ObservedObject var history: HistoryStore = .shared
 
     var body: some View {
         NavigationSplitView {
             List(MainTab.allCases, selection: Binding(get: { selection.tab }, set: { if let t = $0 { selection.tab = t } })) { tab in
-                Label(tab.title, systemImage: tab.icon).tag(tab)
+                // .tag last: List matches rows to the selection by the outermost view's tag.
+                Label(tab.title, systemImage: tab.icon)
                     .badge(tab == .corrections ? history.corrections.count : 0)
+                    .tag(tab)
             }
             .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 240)
             .safeAreaInset(edge: .bottom) {

@@ -492,3 +492,20 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "corrections")
     }
 }
+
+/// The sidebar picks tabs by each row's `.tag`. A modifier after the tag (the Corrections badge)
+/// hid it from the List: no row was ever highlighted and clicking the sidebar did nothing.
+/// (Synthetic clicks don't reach List rows here, so this checks the highlight the tags drive.)
+final class SidebarTests: XCTestCase {
+    func testTheCurrentTabsRowIsSelected() {
+        for tab in MainTab.allCases {
+            let selection = TabSelection()
+            selection.tab = tab
+            let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+            let hosted = HostedView(MainView(selection: selection, history: history), size: NSSize(width: 860, height: 620))
+            let sidebar = hosted.elements { $0.object is NSTableView }.first?.object as? NSTableView
+            XCTAssertEqual(sidebar?.numberOfRows, MainTab.allCases.count)
+            XCTAssertEqual(sidebar?.selectedRow, MainTab.allCases.firstIndex(of: tab), "\(tab.title) row highlighted")
+        }
+    }
+}
