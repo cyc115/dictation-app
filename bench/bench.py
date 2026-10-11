@@ -43,7 +43,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -51,9 +50,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-CASES = ROOT / "cases.json"
-AUDIO = ROOT / "audio"
+import harness
+from harness import AUDIO, CASES, ROOT, error_rate, tokens, wav_seconds  # noqa: F401 (tests use bench.*)
+
 # Your own recordings (import-recordings): git-ignored, like audio/rec-*.wav — your voice stays local.
 RECORDED = ROOT / "recorded.json"
 APP_RECORDINGS = Path.home() / "Library/Application Support/DictationApp/Recordings"
@@ -64,8 +63,7 @@ CATEGORIES = ["mixed", "chinese", "english"]
 
 # ---------------------------------------------------------------- scoring
 
-_CJK = re.compile(r"[㐀-鿿豈-﫿]")
-_TOKEN = re.compile(r"[㐀-鿿豈-﫿]|[a-z0-9]+(?:'[a-z]+)?")
+_CJK = harness.CJK
 
 
 _TAG = re.compile(r"<\|[^|>]*\|>")
@@ -85,29 +83,6 @@ def normalize(text: str) -> tuple[str, bool]:
     text = _TAG.sub("", text or "")
     simplified = to_simplified(text)
     return simplified, simplified != text
-
-
-def tokens(text: str) -> list[str]:
-    """Each CJK character is a token; each run of latin letters/digits is a token."""
-    text = unicodedata.normalize("NFKC", text).lower()
-    return _TOKEN.findall(text)
-
-
-def edit_distance(a: list[str], b: list[str]) -> int:
-    prev = list(range(len(b) + 1))
-    for i, x in enumerate(a, 1):
-        cur = [i]
-        for j, y in enumerate(b, 1):
-            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (x != y)))
-        prev = cur
-    return prev[-1]
-
-
-def error_rate(reference: str, hypothesis: str) -> float:
-    ref = tokens(reference)
-    if not ref:
-        return 0.0 if not tokens(hypothesis) else 1.0
-    return edit_distance(ref, tokens(hypothesis)) / len(ref)
 
 
 def english_recall(reference: str, hypothesis: str) -> float | None:
@@ -151,10 +126,6 @@ def to_wav(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["afconvert", "-f", "WAVE", "-d", "LEI16@16000", "-c", "1", str(src), str(dst)],
                    check=True, capture_output=True)
-
-
-def wav_seconds(path: Path) -> float:
-    return max(path.stat().st_size - 44, 0) / (16000 * 2)
 
 
 BABBLE_LINES = [

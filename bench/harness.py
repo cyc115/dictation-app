@@ -9,6 +9,7 @@ import random
 import re
 import statistics
 import subprocess
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -130,3 +131,32 @@ def load_cases() -> list[dict]:
 def wav_seconds(path: Path) -> float:
     """Duration of a 16 kHz mono 16-bit WAV (bench/audio's format)."""
     return max(path.stat().st_size - 44, 0) / (16000 * 2)
+
+
+# ---------------------------------------------------------------- scoring
+
+CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]")
+_TOKEN = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]|[a-z0-9]+(?:'[a-z]+)?")
+
+
+def tokens(text: str) -> list[str]:
+    """Each CJK character is a token; each run of latin letters/digits is a token."""
+    return _TOKEN.findall(unicodedata.normalize("NFKC", text or "").lower())
+
+
+def edit_distance(a: list[str], b: list[str]) -> int:
+    prev = list(range(len(b) + 1))
+    for i, x in enumerate(a, 1):
+        cur = [i]
+        for j, y in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (x != y)))
+        prev = cur
+    return prev[-1]
+
+
+def error_rate(reference: str, hypothesis: str) -> float:
+    """Token edit distance over the reference's length (1 for anything heard against an empty one)."""
+    ref = tokens(reference)
+    if not ref:
+        return 0.0 if not tokens(hypothesis) else 1.0
+    return edit_distance(ref, tokens(hypothesis)) / len(ref)

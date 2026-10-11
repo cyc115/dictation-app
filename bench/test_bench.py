@@ -1,10 +1,7 @@
 """Tests for the benchmark's scoring. Run: uv run --with pytest pytest bench"""
-import importlib.util
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("bench", Path(__file__).with_name("bench.py"))
-bench = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(bench)
+import bench
 
 
 def test_tokens_split_chinese_chars_and_english_words():

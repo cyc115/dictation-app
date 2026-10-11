@@ -39,7 +39,6 @@ import re
 import statistics
 import sys
 import time
-import unicodedata
 import urllib.error
 import urllib.request
 from datetime import datetime
@@ -58,8 +57,7 @@ MAX_ERROR = 0.25  # words off from the expected text, as a share of its words
 # Lowest reasoning settings to try, in order, for models that can't turn it off.
 REASONING_FALLBACKS = [{"enabled": False}, {"effort": "minimal"}, {"effort": "low"}]
 
-_CJK = re.compile(r"[㐀-鿿豈-﫿]")
-_TOKEN = re.compile(r"[㐀-鿿豈-﫿]|[a-z0-9]+(?:'[a-z]+)?")
+_CJK = harness.CJK
 
 
 # ---------------------------------------------------------------- the app's prompt and the cases
@@ -119,19 +117,7 @@ def load_cases(path: Path = CASES) -> list[dict]:
 
 # ---------------------------------------------------------------- scoring
 
-def tokens(text: str) -> list[str]:
-    return _TOKEN.findall(unicodedata.normalize("NFKC", text or "").lower())
-
-
-def error_rate(expected: str, actual: str) -> float:
-    ref, hyp = tokens(expected), tokens(actual)
-    prev = list(range(len(hyp) + 1))
-    for i, x in enumerate(ref, 1):
-        cur = [i]
-        for j, y in enumerate(hyp, 1):
-            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (x != y)))
-        prev = cur
-    return prev[-1] / max(len(ref), 1)
+tokens, error_rate = harness.tokens, harness.error_rate
 
 
 def contains(text: str, phrase: str) -> bool:
