@@ -118,6 +118,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     let polishBackup: String?
     let polishBackupWait: TimeInterval
     /// Cloud polish only: seconds before you get the raw transcript instead of waiting for polish.
+    /// Default 6: with a backup, the slowest polish in bench/suite.py latency was 2.7 s (7.1 s without).
     let polishDeadline: TimeInterval
     /// A `PolishPrompt` version or a prompt file path.
     let prompt: String
@@ -136,7 +137,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
         polish = try c.decode(String.self, forKey: .polish)
         polishBackup = try c.decodeIfPresent(String.self, forKey: .polishBackup)
         polishBackupWait = try c.decodeIfPresent(TimeInterval.self, forKey: .polishBackupWait) ?? 0.8
-        polishDeadline = try c.decodeIfPresent(TimeInterval.self, forKey: .polishDeadline) ?? 3
+        polishDeadline = try c.decodeIfPresent(TimeInterval.self, forKey: .polishDeadline) ?? 6
         prompt = try c.decode(String.self, forKey: .prompt)
         wrap = try c.decodeIfPresent(Bool.self, forKey: .wrap) ?? true
         summary = try c.decodeIfPresent(String.self, forKey: .summary)

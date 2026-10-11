@@ -48,7 +48,7 @@ Relaunch the app after enabling Accessibility.
     more misheard terms (Claude Code, JSON…) at about the same speed. If DeepSeek hasn't answered in
     0.8 s it's asked again on a second host, and the first answer wins.
 
-  Cloud polish never holds up your text: after 3 s (or if the polish model fails) you get what you
+  Cloud polish never holds up your text: after 6 s (or if the polish model fails) you get what you
   said, unpolished.
 
   Cloud models ask for an API key (saved in `~/Library/Application Support/DictationApp/secrets.json`, readable only by your user account; shared by every cloud setup) and send audio when you
@@ -75,7 +75,7 @@ Relaunch the app after enabling Accessibility.
   (an OpenRouter model also asked when the speech model is slow) and `backupWait` (seconds, default 2);
   for cloud polish, `polishBackup` (`openrouter:…`, also asked when polish is slow or fails),
   `polishBackupWait` (seconds, default 0.8) and `polishDeadline` (seconds before you get the raw
-  text, default 3); `wrap` (transcript in `<transcript>` tags, default true). Benchmark one with
+  text, default 6); `wrap` (transcript in `<transcript>` tags, default true). Benchmark one with
   `bench/suite.py polish run -m setup:<id>` (quality) or
   `bench/suite.py latency run -P setup:<id> --setups-file <file>` (wait, backup included).
 - **Type as you speak** (Settings → Output, off by default): each phrase is typed into the focused app as soon as you pause, instead of one paste at the end.

@@ -166,7 +166,7 @@ final class PolishFallbackTests: XCTestCase {
         XCTAssertEqual((service.backend as? OpenRouterPolish)?.provider, "Together,DeepInfra")
         XCTAssertEqual((service.backup as? OpenRouterPolish)?.provider, "DeepInfra,Together")
         XCTAssertEqual(service.backupAfter, 0.8)
-        XCTAssertEqual(service.deadline, 3)
+        XCTAssertEqual(service.deadline, 6)
         XCTAssertNil(runner.polisher(for: "setup:nope"))
     }
 }

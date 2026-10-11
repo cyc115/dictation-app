@@ -36,10 +36,10 @@ final class SetupTests: XCTestCase {
         let backup = try XCTUnwrap(cloud.backup as? OpenRouterPolish)
         XCTAssertEqual(backup.instructions, PolishPrompt.v4, "the backup uses the setup's prompt")
         XCTAssertEqual(cloud.backupAfter, 0.8)
-        XCTAssertEqual(cloud.deadline, 3)
+        XCTAssertEqual(cloud.deadline, 6)
         let flash = DictationSetup.cloudFlash.polishService(apiKey: "sk-test", onDevice: onDevice)
         XCTAssertNil(flash.backup)
-        XCTAssertEqual(flash.deadline, 3, "every cloud polish gives up at the deadline")
+        XCTAssertEqual(flash.deadline, 6, "every cloud polish gives up at the deadline")
         for (setup, key) in [(DictationSetup.onDevice, "sk-test"), (DictationSetup.cloudFlashDeepSeek, "")] {
             let local = setup.polishService(apiKey: key, onDevice: onDevice)
             XCTAssertTrue(local.backend is FakePolish)
