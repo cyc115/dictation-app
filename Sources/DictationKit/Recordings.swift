@@ -1,5 +1,5 @@
 import AppKit
-import Foundation
+import AVFoundation
 
 /// What the app heard for one kept recording (the JSON next to its WAV).
 struct RecordingInfo: Codable, Equatable {
@@ -81,6 +81,47 @@ final class RecordingNote {
         info.polishError = polishError
         info.polishSeconds = polishSeconds
         info.transcribeSeconds = transcribeSeconds
+    }
+}
+
+/// One dictation's audio: a 16 kHz WAV in the temp folder until it's kept in the archive ("Keep
+/// recordings") with what was heard, or deleted.
+final class DictationRecording {
+    /// Shorter than this isn't speech (a tap of the key): never uploaded or kept.
+    static let minimumSeconds: TimeInterval = 0.3
+    private let recorder: WAVRecorder
+    private let archive: RecordingArchive?
+    /// The polish half of its JSON, as it was when this recording started (the next dictation may
+    /// set a new one before this one is kept).
+    private let note: RecordingNote?
+
+    init?(archive: RecordingArchive?, note: RecordingNote?) {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-\(UUID().uuidString).wav")
+        guard let recorder = try? WAVRecorder(url: url) else { return nil }
+        self.recorder = recorder
+        self.archive = archive
+        self.note = note
+    }
+
+    var url: URL { recorder.url }
+    var duration: TimeInterval { recorder.duration }
+    var isSpeech: Bool { duration >= Self.minimumSeconds }
+
+    /// From the mic tap's thread (or a test).
+    func append(_ buffer: AVAudioPCMBuffer) { recorder.append(buffer) }
+
+    /// Closes the WAV so it can be read (uploaded).
+    func finish() { recorder.finish() }
+
+    /// Keeps it with what was heard when recordings are kept and it's speech; else deletes it.
+    func done(_ info: RecordingInfo) {
+        recorder.finish()
+        if let archive, isSpeech { archive.keep(wav: url, info: info, note: note) } else { discard() }
+    }
+
+    func discard() {
+        recorder.finish()
+        try? FileManager.default.removeItem(at: url)
     }
 }
 

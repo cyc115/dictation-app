@@ -3,7 +3,7 @@ import XCTest
 @testable import DictationKit
 
 /// The bars should move a lot for normal (often quiet) speech, but stay flat in silence.
-/// Mic level is 0…1 for −50…−10 dBFS (SpeechEngine.level): 0.25 ≈ −40 dB, typical for a
+/// Mic level is 0…1 for −50…−10 dBFS (MicCapture.level): 0.25 ≈ −40 dB, typical for a
 /// laptop or desk mic at normal speaking distance.
 final class WaveformTests: XCTestCase {
     private func push(_ w: WaveformView, _ levels: [Float]) { levels.forEach(w.push) }

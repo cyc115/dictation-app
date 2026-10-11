@@ -186,54 +186,43 @@ final class CloudEngine: DictationEngine {
     private(set) var lastAnsweredBy: String?
 
     let mic = MicCapture()
-    private var recorder: WAVRecorder?
+    private var recording: DictationRecording?
     private var race: UploadRace?
     private let lock = NSLock()
 
     /// Starts a new recording file. Called by `start`; tests call it directly with `record(_:)`
     /// to run the real stop/upload path without a microphone.
     func beginRecording() -> Bool {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-\(UUID().uuidString).wav")
-        guard let recorder = try? WAVRecorder(url: url) else { return false }
-        lock.lock(); self.recorder = recorder; lock.unlock()
+        guard let recording = DictationRecording(archive: archive, note: note) else { return false }
+        lock.lock(); self.recording = recording; lock.unlock()
         return true
     }
 
     /// Appends audio to the current recording (from the mic tap's thread, or a test).
     func record(_ buffer: AVAudioPCMBuffer) {
-        lock.lock(); recorder?.append(buffer); lock.unlock()
+        lock.lock(); recording?.append(buffer); lock.unlock()
     }
 
     func start(inputUID: String, onLevel: @escaping (Float) -> Void,
                onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
         guard beginRecording() else { return onError("Couldn't create a recording file.") }
-        do {
-            try mic.start(inputUID: inputUID, onBuffer: { [weak self] buffer in
-                guard let self = self else { return }
-                self.record(buffer)
-                let level = SpeechEngine.level(of: buffer)
-                DispatchQueue.main.async { onLevel(level) }
-            }, onError: onError)
-        } catch {
-            onError("could not open microphone: \(error.localizedDescription)")
-        }
+        mic.start(inputUID: inputUID, onBuffer: { [weak self] in self?.record($0) }, onLevel: onLevel, onError: onError)
     }
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
         mic.stop()
-        lock.lock(); let recorder = self.recorder; self.recorder = nil; lock.unlock()
+        lock.lock(); let recording = self.recording; self.recording = nil; lock.unlock()
         if mic.heardOnlySilence {  // don't upload it: models make up text from silence
-            if let url = recorder?.url { try? FileManager.default.removeItem(at: url) }
+            recording?.discard()
             return failure(MicCapture.silenceMessage)
         }
-        guard let recorder = recorder, recorder.duration >= 0.3 else {
-            if let url = recorder?.url { try? FileManager.default.removeItem(at: url) }
+        guard let recording, recording.isSpeech else {
+            recording?.discard()
             return completion("")  // too short to be speech
         }
-        recorder.finish()
-        let url = recorder.url
-        let archive = self.archive, note = self.note
-        let info = RecordingInfo(date: Date(), model: "openrouter:\(modelID)", transcript: "", seconds: recorder.duration)
+        recording.finish()
+        let url = recording.url
+        let info = RecordingInfo(date: Date(), model: "openrouter:\(modelID)", transcript: "", seconds: recording.duration)
         lastAnsweredBy = nil
         let main = modelID, wait = backupWait, policy = backup, backupModel = backupModelID
         race = UploadRace(wav: url, apiKey: apiKey, client: client, main: main,
@@ -252,15 +241,15 @@ final class CloudEngine: DictationEngine {
             }
             // After the text is delivered, so keeping it adds nothing to your wait. Failed uploads
             // are kept too: they're the cases a benchmark most needs.
-            if let archive = archive { archive.keep(wav: url, info: heard, note: note) } else { try? FileManager.default.removeItem(at: url) }
+            recording.done(heard)
         }
         race?.start()
     }
 
     func cancel() {
         mic.stop()
-        lock.lock(); let url = recorder?.url; recorder = nil; lock.unlock()
-        if let url = url { try? FileManager.default.removeItem(at: url) }
+        lock.lock(); let recording = self.recording; self.recording = nil; lock.unlock()
+        recording?.discard()
     }
 }
 

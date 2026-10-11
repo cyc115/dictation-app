@@ -10,7 +10,7 @@ final class PerformanceTests: XCTestCase {
     func testMicLevelPerBuffer() {
         let buffer = AudioLevelTests.buffer(amplitude: 0.2)
         assertFaster(than: 0.000_5, iterations: 2_000, "mic level per 1024-frame buffer") {
-            _ = SpeechEngine.level(of: buffer)
+            _ = MicCapture.level(of: buffer)
         }
     }
 
@@ -93,7 +93,7 @@ final class PerformanceTests: XCTestCase {
     func testMicLevelMetrics() {
         let buffer = AudioLevelTests.buffer(amplitude: 0.2)
         measure(metrics: [XCTClockMetric(), XCTCPUMetric()]) {
-            for _ in 0..<1_000 { _ = SpeechEngine.level(of: buffer) }
+            for _ in 0..<1_000 { _ = MicCapture.level(of: buffer) }
         }
     }
 }

@@ -273,21 +273,21 @@ final class AudioLevelTests: XCTestCase {
     }
 
     func testSilenceIsZero() {
-        XCTAssertEqual(SpeechEngine.level(of: Self.buffer(amplitude: 0)), 0)
+        XCTAssertEqual(MicCapture.level(of: Self.buffer(amplitude: 0)), 0)
     }
 
     func testLoudSpeechIsFull() {
-        XCTAssertEqual(SpeechEngine.level(of: Self.buffer(amplitude: 0.5)), 1)
+        XCTAssertEqual(MicCapture.level(of: Self.buffer(amplitude: 0.5)), 1)
     }
 
     func testQuietSpeechIsLowButVisible() {
-        let level = SpeechEngine.level(of: Self.buffer(amplitude: 0.01))  // ≈ -43 dBFS
+        let level = MicCapture.level(of: Self.buffer(amplitude: 0.01))  // ≈ -43 dBFS
         XCTAssertGreaterThan(level, 0.1)
         XCTAssertLessThan(level, 0.3)
     }
 
     func testLevelRisesWithVolume() {
-        let levels = [0.003, 0.01, 0.03, 0.1].map { SpeechEngine.level(of: Self.buffer(amplitude: Float($0))) }
+        let levels = [0.003, 0.01, 0.03, 0.1].map { MicCapture.level(of: Self.buffer(amplitude: Float($0))) }
         XCTAssertEqual(levels, levels.sorted())
         XCTAssertEqual(Set(levels).count, levels.count)
     }

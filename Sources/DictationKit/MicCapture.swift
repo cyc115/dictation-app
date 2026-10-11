@@ -59,6 +59,34 @@ final class MicCapture {
         return false
     }
 
+    /// `start` for a dictation: also reports each buffer's level (0…1) on the main queue, and a mic
+    /// that won't open through `onError`. False if it didn't open.
+    @discardableResult
+    func start(inputUID: String, onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
+               onLevel: @escaping (Float) -> Void, onError: @escaping (String) -> Void) -> Bool {
+        do {
+            try start(inputUID: inputUID, onBuffer: { buffer in
+                onBuffer(buffer)
+                let level = Self.level(of: buffer)
+                DispatchQueue.main.async { onLevel(level) }
+            }, onError: onError)
+            return true
+        } catch {
+            onError("could not open microphone: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// RMS of the first channel mapped from -50…-10 dBFS onto 0…1. Runs on the audio thread for
+    /// every buffer, so it uses Accelerate (vDSP) rather than a Swift loop.
+    static func level(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
+        var rms: Float = 0
+        vDSP_rmsqv(samples, 1, &rms, vDSP_Length(buffer.frameLength))
+        let db = 20 * log10(max(rms, 1e-6))
+        return min(max((db + 50) / 40, 0), 1)
+    }
+
     /// Opens the mic. `inputUID` picks a microphone by CoreAudio UID; empty uses the system default.
     /// `onBuffer` runs on the audio thread; `onError` on the main queue, if a restart fails.
     func start(inputUID: String, onBuffer: @escaping (AVAudioPCMBuffer) -> Void,

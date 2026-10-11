@@ -1,4 +1,3 @@
-import Accelerate
 import AVFoundation
 import Speech
 
@@ -31,9 +30,7 @@ class SpeechEngine {
     var archive: RecordingArchive?
     /// Set with `archive`, before each dictation: the polish half of its JSON.
     var note: RecordingNote?
-    private var recorder: WAVRecorder?
-    /// `note` as it was when this recording started (the next dictation may set a new one first).
-    private var recorderNote: RecordingNote?
+    private var recording: DictationRecording?
 
     /// Starts listening on the microphone.
     /// - `inputUID` picks a microphone by CoreAudio UID; empty or missing uses the system default.
@@ -44,18 +41,13 @@ class SpeechEngine {
                onUtterance: ((String) -> Void)? = nil, onError: @escaping (String) -> Void) {
         guard let (recognizer, request, id) = prepare(onError: onError) else { return }
 
-        let recorder = startRecording()
-        do {
-            try mic.start(inputUID: inputUID, onBuffer: { [weak self] buffer in
-                self?.request?.append(buffer)
-                recorder?.append(buffer)
-                let level = Self.level(of: buffer)
-                DispatchQueue.main.async { onLevel(level) }
-            }, onError: onError)
-        } catch {
+        let recording = startRecording()
+        guard mic.start(inputUID: inputUID, onBuffer: { [weak self] buffer in
+            self?.request?.append(buffer)
+            recording?.append(buffer)
+        }, onLevel: onLevel, onError: onError) else {
             self.request = nil
             finishRecording(transcript: nil)
-            onError("could not open microphone: \(error.localizedDescription)")
             return
         }
         recognize(recognizer, request, id: id, onUtterance: onUtterance, onError: onError)
@@ -175,27 +167,20 @@ class SpeechEngine {
     }
 
     /// Opens a WAV for this dictation when recordings are kept (the mic tap appends to it).
-    func startRecording() -> WAVRecorder? {
+    func startRecording() -> DictationRecording? {
         finishRecording(transcript: nil)
         guard archive != nil else { return nil }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-\(UUID().uuidString).wav")
-        recorder = try? WAVRecorder(url: url)
-        recorderNote = note
-        return recorder
+        recording = DictationRecording(archive: archive, note: note)
+        return recording
     }
 
-    /// Closes the WAV and keeps it with what was heard, or deletes it (cancelled, failed, a tap of the key).
+    /// Keeps the WAV with what was heard, or deletes it (nil: cancelled or failed).
     func finishRecording(transcript text: String?) {
-        guard let recorder = recorder else { return }
-        self.recorder = nil
-        recorder.finish()
-        if let archive = archive, let text = text, recorder.duration >= 0.3 {
-            archive.keep(wav: recorder.url, info: RecordingInfo(date: Date(), model: "apple:\(localeIdentifier)",
-                                                                transcript: text, seconds: recorder.duration),
-                         note: recorderNote)
-        } else {
-            try? FileManager.default.removeItem(at: recorder.url)
-        }
+        guard let recording else { return }
+        self.recording = nil
+        guard let text else { return recording.discard() }
+        recording.done(RecordingInfo(date: Date(), model: "apple:\(localeIdentifier)", transcript: text,
+                                     seconds: recording.duration))
     }
 
     /// Ends the current session and hands the transcript to the pending stop() caller.
@@ -209,15 +194,5 @@ class SpeechEngine {
         let text = transcript.text
         handler(text)
         finishRecording(transcript: text)  // after the text is delivered: no file I/O in your wait
-    }
-
-    /// RMS of the first channel mapped from -50…-10 dBFS onto 0…1. Runs on the audio thread for
-    /// every buffer, so it uses Accelerate (vDSP) rather than a Swift loop.
-    static func level(of buffer: AVAudioPCMBuffer) -> Float {
-        guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
-        var rms: Float = 0
-        vDSP_rmsqv(samples, 1, &rms, vDSP_Length(buffer.frameLength))
-        let db = 20 * log10(max(rms, 1e-6))
-        return min(max((db + 50) / 40, 0), 1)
     }
 }
