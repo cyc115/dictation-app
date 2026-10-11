@@ -35,8 +35,6 @@ bench/suite.py latency run -P none -P apple \
     -P openrouter:anthropic/claude-haiku-5.5 -P openrouter:google/gemini-3.8-flash   # compare polish models
 bench/suite.py latency report --by-length --markdown  # latest result again; Markdown for notes/PRs
 bench/suite.py latency polish-cost                    # polish time vs words read / written (no new run)
-bench/suite.py latency run -s flash+backup -P apple -P apple-tail \
-    --clip long-english-01 --clip long-mixed-01 -r 8   # whole-text polish vs only the last 15 words
 bench/suite.py latency run --simulate                 # fake timings: try the report without a Mac/key
 ```
 

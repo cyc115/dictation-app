@@ -21,9 +21,7 @@ struct LatencyTrial: Decodable, Equatable {
     /// "apple:<locale>", "openrouter:<model id>", or "openrouter:<model id>+backup" for the
     /// "Backup model when slow" setting on (the app's default).
     let stt: String
-    /// Polish backends to time on this trial's transcript, in order: "apple", "apple-tail" (only the
-    /// last `LatencyRunner.tailWords` words rewritten, the rest as context) or
-    /// "openrouter:<model id>[@<Provider>]".
+    /// Polish backends to time on this trial's transcript, in order: "apple" or "openrouter:<model id>[@<Provider>]".
     let polish: [String]
     /// Polish-only trial (bench/suite.py polish): this is the transcript; `file` and `stt` are unused.
     var text: String? = nil
@@ -65,8 +63,6 @@ final class LatencyRunner {
     var transcriptionClient: TranscriptionClient = OpenRouterClient()
     /// Polish backends by spec, overriding the real ones (tests).
     var polishers: [String: PolishBackend] = [:]
-    /// "apple-tail": the newest phrase a chunked polish would still have to write after you stop.
-    static let tailWords = 15
     /// Polish prompt overrides from the plan (bench/suite.py polish); nil/false = the app's.
     var instructions: String?
     var wrap = true
@@ -94,7 +90,6 @@ final class LatencyRunner {
         if let fake = polishers[spec] { return fake }
         // Without a prompt override, each model gets its setup's prompt, as in the app.
         if spec == "apple" { return OnDevicePolish(instructions: instructions ?? DictationSetup.onDevice.promptText, wrap: wrap) }
-        if spec == "apple-tail" { return OnDevicePolish(tailWords: Self.tailWords) }
         return DictationSetup.polishBackend(spec: spec, apiKey: apiKey,
                                             instructions: instructions ?? DictationSetup.cloudFlash.promptText, wrap: wrap)
     }

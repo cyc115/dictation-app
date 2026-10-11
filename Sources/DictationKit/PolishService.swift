@@ -30,11 +30,6 @@ enum PolishError: LocalizedError {
 /// model and prompt (`DictationSetup.polishBackend`): on-device for On-device, so nothing leaves
 /// the Mac; a cloud model for Cloud Flash and Cloud Big, where the audio already went.
 class PolishService {
-    /// For `OnDevicePolish(tailWords:)`: rewrite only the newest part, the rest is context.
-    static let tailInstructions = PolishPrompt.v1 + """
-         The user message has the earlier, already-written part and then the newest part. \
-        Output only the cleaned-up newest part; never repeat the earlier part.
-        """
     let backend: PolishBackend
 
     init(backend: PolishBackend) { self.backend = backend }
@@ -58,45 +53,20 @@ class PolishService {
         let cleaned = try await backend.polish(text).trimmingCharacters(in: .whitespacesAndNewlines)
         return cleaned.isEmpty ? text : cleaned
     }
-
-    private static let word = try! NSRegularExpression(
-        pattern: "[\\u3400-\\u9fff\\uf900-\\ufaff]|[A-Za-z0-9]+(?:'[A-Za-z]+)?")
-
-    /// `text` split before its last `words` words (a Chinese character or an English word each);
-    /// nil when it has no more than that, so there's no earlier part.
-    static func splitTail(_ text: String, words: Int) -> (context: String, tail: String)? {
-        let matches = word.matches(in: text, range: NSRange(text.startIndex..., in: text))
-        guard words > 0, matches.count > words,
-              let cut = Range(matches[matches.count - words].range, in: text)?.lowerBound else { return nil }
-        return (text[..<cut].trimmingCharacters(in: .whitespaces), String(text[cut...]))
-    }
-
-    /// The prompt that rewrites only the last `words` words, with the rest as read-only context;
-    /// just `text` when it's that short.
-    static func tailPrompt(_ text: String, words: Int) -> String {
-        guard let (context, tail) = splitTail(text, words: words) else { return text }
-        return "Earlier part (already written):\n\(context)\n\nNewest part (clean up and output only this):\n\(tail)"
-    }
 }
-
 
 /// Apple's on-device model (Apple Intelligence). Polish took ~2.4 s typical when the session was
 /// created after you stopped (bench/results/latency/BASELINE-pre-optimization.md), so `prepare()`
 /// creates and prewarms the next dictation's session while you speak. Each dictation gets a fresh
 /// session: a reused one would carry earlier dictations in its context.
 final class OnDevicePolish: PolishBackend {
-    /// Benchmark-only ("apple-tail" in bench/): rewrite only the last `tailWords` words with the rest
-    /// as context — what polishing phrases while you speak would leave for after you stop. Its
-    /// output is just that last part, so it's timed, never pasted.
-    let tailWords: Int?
     let instructions: String
     let wrap: Bool
     private var prepared: LanguageModelSession?
     private let lock = NSLock()  // prepare() runs on main, polish() in a Task
 
-    init(instructions: String = DictationSetup.onDevice.promptText, wrap: Bool = true, tailWords: Int? = nil) {
-        self.tailWords = tailWords
-        self.instructions = tailWords == nil ? instructions : PolishService.tailInstructions
+    init(instructions: String = DictationSetup.onDevice.promptText, wrap: Bool = true) {
+        self.instructions = instructions
         self.wrap = wrap
     }
 
@@ -122,8 +92,7 @@ final class OnDevicePolish: PolishBackend {
             throw PolishError.unavailable("Apple Intelligence isn't available on this Mac.")
         }
         let session = takePrepared() ?? LanguageModelSession(instructions: instructions)
-        let prompt = tailWords.map { PolishService.tailPrompt(text, words: $0) } ?? PolishService.userMessage(text, wrap: wrap)
-        return try await session.respond(to: prompt).content
+        return try await session.respond(to: PolishService.userMessage(text, wrap: wrap)).content
     }
 }
 

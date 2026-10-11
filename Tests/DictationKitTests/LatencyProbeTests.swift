@@ -123,9 +123,7 @@ final class LatencyRunnerTests: XCTestCase {
     func testRealBackendsForSpecs() throws {
         let runner = LatencyRunner()
         runner.apiKey = "k"
-        XCTAssertNil(try XCTUnwrap(runner.polisher(for: "apple") as? OnDevicePolish).tailWords)
-        XCTAssertEqual(try XCTUnwrap(runner.polisher(for: "apple-tail") as? OnDevicePolish).tailWords,
-                       LatencyRunner.tailWords)
+        XCTAssertNotNil(runner.polisher(for: "apple") as? OnDevicePolish)
         let cloud = runner.polisher(for: "openrouter:anthropic/claude-haiku-5.5") as? OpenRouterPolish
         XCTAssertEqual(cloud?.model, "anthropic/claude-haiku-5.5")
         XCTAssertEqual(cloud?.apiKey, "k")
