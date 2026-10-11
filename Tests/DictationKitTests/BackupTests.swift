@@ -135,6 +135,45 @@ final class CloudBackupTests: XCTestCase {
         XCTAssertFalse(shared.inSlowSpell(Self.main), "the main model answered on time: spell over")
     }
 
+    /// The bug that sent 43% of real dictations to the backup: in a spell the faster backup always
+    /// won, so the main model never got to show it was on time again.
+    func testInASpellTheMainModelAnsweringWithinTheWaitEndsItEvenWhenTheBackupWins() {
+        let shared = AdaptiveBackup()
+        shared.learn(Self.main, onTime: false)
+        let client = Client()
+        client.scripts[Self.main] = Client.Script(delay: 0.12, result: Client.text("from 1.7b"))
+        client.scripts[Self.backup] = Client.Script(delay: 0.02, result: Client.text("from 0.6b"))
+        let r = dictate(client, backup: shared, backupWait: 0.3)
+        XCTAssertEqual(r.text, "from 0.6b", "the first answer is still used")
+        XCTAssertTrue(shared.inSlowSpell(Self.main), "not judged yet: the main model is still answering")
+        spinRunLoop(0.2)
+        XCTAssertFalse(shared.inSlowSpell(Self.main), "the main model answered within its wait: spell over")
+    }
+
+    func testInASpellTheMainModelMissingTheWaitKeepsIt() {
+        let shared = AdaptiveBackup()
+        shared.learn(Self.main, onTime: false)
+        let client = Client()  // the main model never answers
+        client.scripts[Self.backup] = Client.Script(delay: 0.02, result: Client.text("from 0.6b"))
+        _ = dictate(client, backup: shared, backupWait: 0.1)
+        spinRunLoop(0.2)
+        XCTAssertTrue(shared.inSlowSpell(Self.main))
+    }
+
+    func testASlowBackupAnswerDoesNotCountAgainstAnOnTimeMainModel() {
+        let shared = AdaptiveBackup()
+        let client = Client()
+        client.scripts[Self.main] = Client.Script(delay: 0, result: Client.error("HTTP 500"))
+        client.scripts[Self.backup] = Client.Script(delay: 0.05, result: Client.text("ok"))
+        _ = dictate(client, backup: shared, backupWait: 1)
+        XCTAssertTrue(shared.inSlowSpell(Self.main), "a failed main model counts as late however fast")
+        let next = Client()
+        next.scripts[Self.main] = Client.Script(delay: 0.05, result: Client.text("on time"))
+        next.scripts[Self.backup] = Client.Script(delay: 0.5, result: Client.text("slow backup"))
+        XCTAssertEqual(dictate(next, backup: shared, backupWait: 0.3).text, "on time")
+        XCTAssertFalse(shared.inSlowSpell(Self.main))
+    }
+
     func testUseSetsUpEachCloudSetupWithItsFasterBackup() {
         let engine = CloudEngine()
         engine.use(.cloudBig, apiKey: "k", backupWhenSlow: true)
@@ -184,14 +223,7 @@ final class AdaptiveBackupTests: XCTestCase {
         return policy.plan(for: model, backup: backup, wait: setup.backupWait)
     }
 
-    private func learn(_ model: String, from report: UploadRace.Report, policy: AdaptiveBackup? = nil) {
-        (policy ?? self.policy).learn(model, wait: DictationSetup.builtIn(speechModel: model)!.backupWait, from: report)
-    }
-
-    private func report(_ answeredBy: String?, after seconds: TimeInterval, mainFailed: Bool = false) -> UploadRace.Report {
-        UploadRace.Report(outcome: answeredBy.map { .text("x", model: $0) } ?? .failed("e"),
-                          seconds: seconds, mainFailed: mainFailed)
-    }
+    private func learn(_ model: String, onTime: Bool) { policy.learn(model, onTime: onTime) }
 
     func testSpellsLastFiveMinutesAndModelsWithoutABackupGetNoPlan() {
         XCTAssertEqual(AdaptiveBackup().spell, 300)
@@ -200,21 +232,19 @@ final class AdaptiveBackupTests: XCTestCase {
 
     func testCloudBigWaitsFourSecondsForCloudFlash() {
         XCTAssertEqual(plan(big), UploadRace.Backup(model: main, delay: 4))
-        learn(big, from: report(big, after: 3))  // slower than Cloud Flash's wait, but normal for Cloud Big
-        XCTAssertFalse(policy.inSlowSpell(big))
-        learn(big, from: report(main, after: 4.5))
+        learn(big, onTime: false)
         XCTAssertEqual(plan(big)?.delay, 0)
         XCTAssertFalse(policy.inSlowSpell(main), "spells are per model")
     }
 
     func testNormallyWaitsBeforeAskingTheBackup() {
         XCTAssertEqual(plan(main), UploadRace.Backup(model: CloudBackupTests.backup, delay: 2))
-        learn(main, from: report(main, after: 0.8))
+        learn(main, onTime: true)
         XCTAssertEqual(plan(main)?.delay, 2)
     }
 
     func testLateMainAnswerStartsASpellThatExpires() {
-        learn(main, from: report(main, after: 2.5))  // main won, but after the wait
+        learn(main, onTime: false)
         XCTAssertEqual(plan(main)?.delay, 0)
         now += 299
         XCTAssertEqual(plan(main)?.delay, 0)
@@ -222,35 +252,17 @@ final class AdaptiveBackupTests: XCTestCase {
         XCTAssertEqual(plan(main)?.delay, 2, "back to normal after 5 minutes")
     }
 
-    func testBackupWinningAfterTheWaitAndFailuresCountAsLate() {
-        learn(main, from: report(CloudBackupTests.backup, after: 2.6))
-        XCTAssertTrue(policy.inSlowSpell(main))
-        let other = AdaptiveBackup(clock: { 0 })
-        learn(main, from: report(CloudBackupTests.backup, after: 0.4, mainFailed: true), policy: other)
-        XCTAssertTrue(other.inSlowSpell(main), "a failed main model counts as late however fast")
-    }
-
     func testEachLateAnswerExtendsTheSpell() {
-        learn(main, from: report(CloudBackupTests.backup, after: 3))
+        learn(main, onTime: false)
         now += 200
-        learn(main, from: report(CloudBackupTests.backup, after: 2.2))
+        learn(main, onTime: false)
         now += 200
         XCTAssertTrue(policy.inSlowSpell(main), "5 minutes from the latest late answer")
     }
 
-    func testDuringASpellAQuickBackupAnswerTellsNothingAboutTheMainModel() {
-        learn(main, from: report(main, after: 4))
-        let before = policy.inSlowSpell(main)
-        now += 100
-        learn(main, from: report(CloudBackupTests.backup, after: 0.5))
-        XCTAssertTrue(before && policy.inSlowSpell(main))
-        now += 201
-        XCTAssertFalse(policy.inSlowSpell(main), "not extended by the backup's quick answer")
-    }
-
     func testOnTimeMainAnswerEndsTheSpellEarly() {
-        learn(main, from: report(main, after: 4))
-        learn(main, from: report(main, after: 0.6))
+        learn(main, onTime: false)
+        learn(main, onTime: true)
         XCTAssertFalse(policy.inSlowSpell(main))
         XCTAssertEqual(plan(main)?.delay, 2)
     }
