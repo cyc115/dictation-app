@@ -36,6 +36,19 @@ enum AppearanceMode: String, CaseIterable {
     }
 }
 
+/// Recognition language for the local (Apple) model.
+enum LocalLanguage: String, CaseIterable {
+    case english = "en-US"
+    case mandarin = "zh-CN"
+
+    var title: String {
+        switch self {
+        case .english: return "English"
+        case .mandarin: return "中文（普通话）"
+        }
+    }
+}
+
 /// User settings, saved in UserDefaults. `onChange` fires after any change.
 final class AppSettings: ObservableObject {
     static let shared: AppSettings = {

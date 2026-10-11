@@ -3,13 +3,13 @@ import XCTest
 
 /// Per model: answer after `delay` seconds with `result`; a model without a script never answers.
 final class ScriptedTranscriptionClient: TranscriptionClient {
-    struct Script { var delay: TimeInterval; var result: Result<TranscriptionResult, Error> }
+    struct Script { var delay: TimeInterval; var result: Result<String, Error> }
     var scripts: [String: Script] = [:]
     private(set) var asked: [(model: String, at: TimeInterval)] = []
     let started = ProcessInfo.processInfo.systemUptime
 
     func transcribe(wav: URL, model: String, apiKey: String,
-                    completion: @escaping (Result<TranscriptionResult, Error>) -> Void) -> URLSessionTask? {
+                    completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
         XCTAssertTrue(FileManager.default.fileExists(atPath: wav.path), "the WAV is still there for \(model)")
         asked.append((model, ProcessInfo.processInfo.systemUptime - started))
         if let script = scripts[model] {
@@ -18,11 +18,11 @@ final class ScriptedTranscriptionClient: TranscriptionClient {
         return nil
     }
 
-    static func text(_ t: String) -> Result<TranscriptionResult, Error> {
-        .success(TranscriptionResult(text: t, audioSeconds: nil, cost: nil))
+    static func text(_ t: String) -> Result<String, Error> {
+        .success(t)
     }
 
-    static func error(_ message: String) -> Result<TranscriptionResult, Error> {
+    static func error(_ message: String) -> Result<String, Error> {
         .failure(TranscriptionError.message(message))
     }
 }

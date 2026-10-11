@@ -1,19 +1,6 @@
 import AVFoundation
 import Foundation
 
-/// Recognition language for the local (Apple) model.
-enum LocalLanguage: String, CaseIterable {
-    case english = "en-US"
-    case mandarin = "zh-CN"
-
-    var title: String {
-        switch self {
-        case .english: return "English"
-        case .mandarin: return "中文（普通话）"
-        }
-    }
-}
-
 // MARK: - Engine interface
 
 /// A dictation backend: records while active, then produces the transcript.
@@ -98,17 +85,11 @@ final class WAVRecorder {
 
 // MARK: - OpenRouter
 
-struct TranscriptionResult: Equatable {
-    let text: String
-    let audioSeconds: Double?
-    let cost: Double?
-}
-
 /// Uploads a finished WAV for transcription (OpenRouterClient; a fake in tests).
 protocol TranscriptionClient {
     @discardableResult
     func transcribe(wav: URL, model: String, apiKey: String,
-                    completion: @escaping (Result<TranscriptionResult, Error>) -> Void) -> URLSessionTask?
+                    completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask?
 }
 
 /// Minimal client for OpenRouter's speech-to-text endpoint (multipart WAV upload).
@@ -120,7 +101,7 @@ final class OpenRouterClient: TranscriptionClient {
 
     @discardableResult
     func transcribe(wav: URL, model: String, apiKey: String,
-                    completion: @escaping (Result<TranscriptionResult, Error>) -> Void) -> URLSessionTask? {
+                    completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
         guard let audio = try? Data(contentsOf: wav) else {
             completion(.failure(TranscriptionError.message("Couldn't read the recording.")))
             return nil
@@ -132,7 +113,7 @@ final class OpenRouterClient: TranscriptionClient {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue("DictationApp", forHTTPHeaderField: "X-Title")
         let task = session.uploadTask(with: request, from: body) { data, response, error in
-            let result: Result<TranscriptionResult, Error>
+            let result: Result<String, Error>
             if let error = error {
                 result = .failure(TranscriptionError.message("Network error: \(error.localizedDescription)"))
             } else {
@@ -155,12 +136,10 @@ final class OpenRouterClient: TranscriptionClient {
         return (body, boundary)
     }
 
-    static func parse(data: Data, status: Int) -> Result<TranscriptionResult, Error> {
+    static func parse(data: Data, status: Int) -> Result<String, Error> {
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         if (200..<300).contains(status), let text = json?["text"] as? String {
-            let usage = json?["usage"] as? [String: Any]
-            return .success(TranscriptionResult(text: cleanup(text), audioSeconds: usage?["seconds"] as? Double,
-                                                cost: usage?["cost"] as? Double))
+            return .success(cleanup(text))
         }
         let apiMessage = (json?["error"] as? [String: Any])?["message"] as? String
         switch status {
@@ -401,8 +380,8 @@ final class UploadRace {
             pending -= 1
             guard !finished else { return }  // the loser, or cancelled after the winner answered
             switch result {
-            case .success(let r):
-                finish(.text(r.text, model: model))
+            case .success(let text):
+                finish(.text(text, model: model))
             case .failure(let error):
                 firstError = firstError ?? error.localizedDescription
                 if model == main { mainFailed = true }

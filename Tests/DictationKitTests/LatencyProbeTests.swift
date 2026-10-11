@@ -8,11 +8,11 @@ final class SlowTranscriptionClient: TranscriptionClient {
     init(delay: TimeInterval) { self.delay = delay }
 
     func transcribe(wav: URL, model: String, apiKey: String,
-                    completion: @escaping (Result<TranscriptionResult, Error>) -> Void) -> URLSessionTask? {
+                    completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
         guard model != "hang" else { return nil }
         let text = self.text
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            completion(.success(TranscriptionResult(text: text, audioSeconds: nil, cost: nil)))
+            completion(.success(text))
         }
         return nil
     }

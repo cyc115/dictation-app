@@ -69,7 +69,7 @@ final class OpenRouterClientTests: XCTestCase {
     func testParsesTranscript() throws {
         let data = Data(#"{"text":"帮我build一个","usage":{"seconds":3.7,"cost":0.000185}}"#.utf8)
         let r = try OpenRouterClient.parse(data: data, status: 200).get()
-        XCTAssertEqual(r, TranscriptionResult(text: "帮我build一个", audioSeconds: 3.7, cost: 0.000185))
+        XCTAssertEqual(r, "帮我build一个")
     }
 
     func testErrorsNeverNameTheService() {
@@ -155,9 +155,9 @@ final class CloudEngineTests: XCTestCase {
     final class FakeClient: TranscriptionClient {
         var uploaded: Data?
         var model: String?
-        var result: Result<TranscriptionResult, Error> = .success(TranscriptionResult(text: "ok", audioSeconds: nil, cost: nil))
+        var result: Result<String, Error> = .success("ok")
         func transcribe(wav: URL, model: String, apiKey: String,
-                        completion: @escaping (Result<TranscriptionResult, Error>) -> Void) -> URLSessionTask? {
+                        completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
             uploaded = try? Data(contentsOf: wav)  // read exactly when a real upload would
             self.model = model
             DispatchQueue.main.async { completion(self.result) }

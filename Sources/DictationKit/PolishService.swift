@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 
 /// A model that cleans up a dictated transcript.
 protocol PolishBackend {
@@ -78,8 +79,6 @@ class PolishService {
     }
 }
 
-#if canImport(FoundationModels)
-import FoundationModels
 
 /// Apple's on-device model (Apple Intelligence). Polish took ~2.4 s typical when the session was
 /// created after you stopped (bench/results/latency/BASELINE-pre-optimization.md), so `prepare()`
@@ -127,21 +126,6 @@ final class OnDevicePolish: PolishBackend {
         return try await session.respond(to: prompt).content
     }
 }
-#else
-final class OnDevicePolish: PolishBackend {
-    let instructions: String
-    let wrap: Bool
-    init(instructions: String = DictationSetup.onDevice.promptText, wrap: Bool = true, tailWords: Int? = nil) {
-        self.instructions = instructions
-        self.wrap = wrap
-    }
-
-    var name: String { "apple:on-device" }
-    func polish(_ text: String) async throws -> String {
-        throw PolishError.unavailable("Apple Intelligence isn't available on this Mac.")
-    }
-}
-#endif
 
 /// A cloud LLM through OpenRouter's chat completions API: the cloud setups' polish, and any
 /// OpenRouter model in benchmarks.

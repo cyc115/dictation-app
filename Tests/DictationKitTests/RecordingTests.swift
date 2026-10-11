@@ -51,10 +51,10 @@ final class RecordingArchiveTests: XCTestCase {
 final class KeepRecordingsEngineTests: XCTestCase {
     /// Answers with `result` and remembers which file it was given.
     final class CapturingClient: TranscriptionClient {
-        var result: Result<TranscriptionResult, Error> = .success(TranscriptionResult(text: "帮我 build 一下", audioSeconds: nil, cost: nil))
+        var result: Result<String, Error> = .success("帮我 build 一下")
         var uploaded: URL?
         func transcribe(wav: URL, model: String, apiKey: String,
-                        completion: @escaping (Result<TranscriptionResult, Error>) -> Void) -> URLSessionTask? {
+                        completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
             uploaded = wav
             let result = self.result
             DispatchQueue.main.async { completion(result) }

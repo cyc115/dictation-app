@@ -46,10 +46,10 @@ final class LoggingClient: TranscriptionClient {
     let log: EventLog
     init(log: EventLog) { self.log = log }
     func transcribe(wav: URL, model: String, apiKey: String,
-                    completion: @escaping (Result<TranscriptionResult, Error>) -> Void) -> URLSessionTask? {
+                    completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
         log.add("upload")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            completion(.success(TranscriptionResult(text: "hello", audioSeconds: nil, cost: nil)))
+            completion(.success("hello"))
         }
         return nil
     }
