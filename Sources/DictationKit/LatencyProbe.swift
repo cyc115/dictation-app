@@ -26,9 +26,6 @@ struct LatencyTrial: Decodable, Equatable {
     let polish: [String]
     /// Polish-only trial (bench/suite.py polish): this is the transcript; `file` and `stt` are unused.
     var text: String? = nil
-    /// On-device only: play the clip at real-time pace, like a mic (nil: yes). The accuracy suite
-    /// feeds clips as fast as possible.
-    var realTime: Bool? = nil
 }
 
 struct LatencyPlan: Decodable {
@@ -154,8 +151,7 @@ final class LatencyRunner {
             speech.localeIdentifier = String(trial.stt.dropFirst("apple:".count))
             var error: String?
             sample.utterances = []
-            speech.startFile(url, realTime: trial.realTime ?? true,
-                             onUtterance: { sample.utterances?.append($0) }, onError: { error = $0 }, onEnd: {
+            speech.startFile(url, onUtterance: { sample.utterances?.append($0) }, onError: { error = $0 }, onEnd: {
                 let started = clock()
                 speech.stop { raw in finish(raw, started, error) }
             })

@@ -53,10 +53,12 @@ class SpeechEngine {
         recognize(recognizer, request, id: id, onUtterance: onUtterance, onError: onError)
     }
 
-    /// Same pipeline as `start`, fed from an audio file instead of the mic (for end-to-end tests
-    /// and benchmarks). Real-time pace by default, like a mic; `realTime: false` feeds it as fast
-    /// as possible. Calls `onEnd` on the main queue when the file is used up.
-    func startFile(_ url: URL, realTime: Bool = true, onUtterance: ((String) -> Void)? = nil,
+    /// Same pipeline as `start`, fed from an audio file at real-time pace like a mic (for end-to-end
+    /// tests and benchmarks). Calls `onEnd` on the main queue when the file is used up.
+    ///
+    /// Faster than real time would cut transcripts short: `stop()` finishes once the recognizer has
+    /// gone quiet, before it has caught up with audio it was handed all at once.
+    func startFile(_ url: URL, onUtterance: ((String) -> Void)? = nil,
                    onError: @escaping (String) -> Void, onEnd: @escaping () -> Void) {
         // Always signal the end, even on failure, so callers (benchmarks) never hang.
         guard let file = try? AVAudioFile(forReading: url) else {
@@ -66,13 +68,19 @@ class SpeechEngine {
         guard let (recognizer, request, id) = prepare(onError: onError) else { return DispatchQueue.main.async(execute: onEnd) }
         recognize(recognizer, request, id: id, onUtterance: onUtterance, onError: onError)
         let format = file.processingFormat
+        let clock = self.clock
         DispatchQueue.global(qos: .userInitiated).async {
             let chunk: AVAudioFrameCount = 1024
+            let started = clock()
+            var fed: TimeInterval = 0
             while file.framePosition < file.length {
                 guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk),
                       (try? file.read(into: buffer, frameCount: chunk)) != nil, buffer.frameLength > 0 else { break }
                 request.append(buffer)
-                if realTime { Thread.sleep(forTimeInterval: Double(buffer.frameLength) / format.sampleRate) }
+                // Paced by the clock, not a sleep per buffer: on a busy Mac each sleep overshoots.
+                fed += Double(buffer.frameLength) / format.sampleRate
+                let ahead = fed - (clock() - started)
+                if ahead > 0 { Thread.sleep(forTimeInterval: ahead) }
             }
             DispatchQueue.main.async(execute: onEnd)
         }

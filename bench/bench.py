@@ -348,16 +348,16 @@ def run_apple_once(locale: str, cases: list[dict]) -> list[dict]:
         sys.exit(f"{APP} not found — run ./build.sh first")
     with tempfile.TemporaryDirectory() as tmp:
         plan, out = Path(tmp) / "plan.json", Path(tmp) / "out.jsonl"
-        # The app's latency probe (LatencyProbe.swift), clips fed as fast as possible.
+        # The app's latency probe (LatencyProbe.swift); clips play at real-time pace, like the mic.
         plan.write_text(json.dumps({"pause": 0, "timeout": 60, "trials": [
-            {"id": c["id"], "file": str(AUDIO / f"{c['id']}.wav"), "stt": f"apple:{locale}", "polish": [],
-             "realTime": False} for c in cases]}))
+            {"id": c["id"], "file": str(AUDIO / f"{c['id']}.wav"), "stt": f"apple:{locale}", "polish": []}
+            for c in cases]}))
         was_running = subprocess.run(["pgrep", "-x", "DictationApp"], capture_output=True).returncode == 0
         subprocess.run(["pkill", "-x", "DictationApp"], capture_output=True)
         time.sleep(0.5)
         subprocess.run(["open", "-n", "--env", f"DICTATIONAPP_LATENCY_PLAN={plan}",
                         "--env", f"DICTATIONAPP_LATENCY_OUT={out}", str(APP)], check=True)
-        deadline = time.monotonic() + 30 + 15 * len(cases)
+        deadline = time.monotonic() + 30 + sum(wav_seconds(AUDIO / f"{c['id']}.wav") + 5 for c in cases)
         lines: list[str] = []
         while time.monotonic() < deadline:
             lines = out.read_text().splitlines() if out.exists() else []

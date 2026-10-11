@@ -30,11 +30,11 @@ cat > "$DIR/plan.json" <<JSON
 {"pause": 0, "timeout": 60, "trials": [{"id": "e2e", "file": "$DIR/speech.aiff", "stt": "apple:en-US", "polish": []}]}
 JSON
 open -n --env "DICTATIONAPP_LATENCY_PLAN=$DIR/plan.json" --env "DICTATIONAPP_LATENCY_OUT=$DIR/out.jsonl" "$APP"
-for _ in {1..90}; do [[ -s "$DIR/out.jsonl" ]] && break; sleep 1; done
+for _ in {1..120}; do [[ -s "$DIR/out.jsonl" ]] && break; sleep 1; done
 (( was_running )) && open "$APP"
 
 (( SHOW_LOG )) && cat "$DIR/out.jsonl"
-field() { /usr/bin/python3 -c 'import json,sys; r=json.loads(open(sys.argv[1]).readline()); v=r.get(sys.argv[2]); print("".join(v) if isinstance(v, list) else len(v) if sys.argv[3:] else v or "")' "$DIR/out.jsonl" "$@" 2>/dev/null || true; }
+field() { /usr/bin/python3 -c 'import json,sys; r=json.loads(open(sys.argv[1]).readline()); v=r.get(sys.argv[2]); print(len(v or []) if sys.argv[3:] else "".join(v) if isinstance(v, list) else v or "")' "$DIR/out.jsonl" "$@" 2>/dev/null || true; }
 final=$(field raw)
 [[ -n "$final" ]] || { echo "❌ no final transcript"; cat "$DIR/out.jsonl" 2>/dev/null; exit 1; }
 echo "transcript: $final"
