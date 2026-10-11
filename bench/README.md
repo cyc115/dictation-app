@@ -1,6 +1,8 @@
 # Benchmarks
 
 One entry point, one suite per question. Results land in `results/<suite>/` (accuracy: `results/`).
+Only the latest run per suite (per model for accuracy) and runs a write-up cites are kept in the
+tree; older ones are in git history.
 
 ```sh
 bench/suite.py list
