@@ -27,8 +27,6 @@ class SpeechEngine {
     private var lastResultAt: TimeInterval = 0
     private var stoppedAt: TimeInterval = 0
     private let clock: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
-    /// Debug hook: every raw recognizer result (used by Diagnostics).
-    var onResult: ((SFSpeechRecognitionResult) -> Void)?
     /// Set while "Keep recordings" is on: mic dictations are also written to WAV and kept here.
     var archive: RecordingArchive?
     /// Set with `archive`, before each dictation: the polish half of its JSON.
@@ -118,7 +116,6 @@ class SpeechEngine {
             let stopping = self.finishHandler != nil
             if let result = result {
                 self.lastResultAt = self.clock()
-                self.onResult?(result)
                 // Metadata marks the last result of an utterance (the recognizer restarts after it).
                 let ended = result.speechRecognitionMetadata != nil || result.isFinal
                 if let chunk = self.transcript.update(result.bestTranscription.formattedString, utteranceEnded: ended) {

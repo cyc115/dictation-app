@@ -1,7 +1,8 @@
 import AVFoundation
 import Foundation
 
-// Turnaround benchmark (bench/suite.py latency). Times dictations through the app's real code
+// Turnaround benchmark (bench/suite.py latency), also used for on-device accuracy (bench/suite.py
+// accuracy) and scripts/e2e-speech.sh. Times dictations through the app's real code
 // paths, the same steps `AppDelegate.stopDictation` → `deliver` chains:
 //   transcribe: stop pressed → raw transcript (cloud: `CloudEngine.stop()` finishes the WAV and
 //               uploads it; on-device: `SpeechEngine.stop()` waits for the final result)
@@ -25,6 +26,9 @@ struct LatencyTrial: Decodable, Equatable {
     let polish: [String]
     /// Polish-only trial (bench/suite.py polish): this is the transcript; `file` and `stt` are unused.
     var text: String? = nil
+    /// On-device only: play the clip at real-time pace, like a mic (nil: yes). The accuracy suite
+    /// feeds clips as fast as possible.
+    var realTime: Bool? = nil
 }
 
 struct LatencyPlan: Decodable {
@@ -55,6 +59,8 @@ struct LatencySample: Encodable, Equatable {
     var polish: [Polish] = []
     /// Cloud only: the model whose transcript was used ("openrouter:<id>"), the backup if it won.
     var answeredBy: String?
+    /// On-device only: each finished utterance as "type as you speak" would type it (scripts/e2e-speech.sh).
+    var utterances: [String]?
 }
 
 /// Runs trials one at a time and reports each one's sample on the main queue.
@@ -145,7 +151,9 @@ final class LatencyRunner {
             let speech = self.speech
             speech.localeIdentifier = String(trial.stt.dropFirst("apple:".count))
             var error: String?
-            speech.startFile(url, realTime: true, onError: { error = $0 }, onEnd: {
+            sample.utterances = []
+            speech.startFile(url, realTime: trial.realTime ?? true,
+                             onUtterance: { sample.utterances?.append($0) }, onError: { error = $0 }, onEnd: {
                 let started = clock()
                 speech.stop { raw in finish(raw, started, error) }
             })

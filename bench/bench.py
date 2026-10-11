@@ -376,14 +376,16 @@ def run_apple_once(locale: str, cases: list[dict]) -> list[dict]:
     if not APP.exists():
         sys.exit(f"{APP} not found — run ./build.sh first")
     with tempfile.TemporaryDirectory() as tmp:
-        listing, out = Path(tmp) / "list.txt", Path(tmp) / "out.jsonl"
-        listing.write_text("\n".join(str(AUDIO / f"{c['id']}.wav") for c in cases) + "\n")
+        plan, out = Path(tmp) / "plan.json", Path(tmp) / "out.jsonl"
+        # The app's latency probe (LatencyProbe.swift), clips fed as fast as possible.
+        plan.write_text(json.dumps({"pause": 0, "timeout": 60, "trials": [
+            {"id": c["id"], "file": str(AUDIO / f"{c['id']}.wav"), "stt": f"apple:{locale}", "polish": [],
+             "realTime": False} for c in cases]}))
         was_running = subprocess.run(["pgrep", "-x", "DictationApp"], capture_output=True).returncode == 0
         subprocess.run(["pkill", "-x", "DictationApp"], capture_output=True)
         time.sleep(0.5)
-        subprocess.run(["open", "-n", "--env", f"DICTATIONAPP_PROBE_LIST={listing}",
-                        "--env", f"DICTATIONAPP_PROBE_OUT={out}", "--env", f"DICTATIONAPP_PROBE_LOCALE={locale}",
-                        str(APP)], check=True)
+        subprocess.run(["open", "-n", "--env", f"DICTATIONAPP_LATENCY_PLAN={plan}",
+                        "--env", f"DICTATIONAPP_LATENCY_OUT={out}", str(APP)], check=True)
         deadline = time.monotonic() + 30 + 15 * len(cases)
         lines: list[str] = []
         while time.monotonic() < deadline:
@@ -395,15 +397,14 @@ def run_apple_once(locale: str, cases: list[dict]) -> list[dict]:
         if was_running:
             time.sleep(0.5)
             subprocess.run(["open", str(APP)])
-    rows = [json.loads(l) for l in lines]
-    by_file = {r["file"]: r for r in rows}
+    by_id = {r["id"]: r for r in map(json.loads, lines)}
     results = []
     for c in cases:
-        r = by_file.get(str(AUDIO / f"{c['id']}.wav"))
+        r = by_id.get(c["id"])
         if r is None:
             results.append({"text": "", "latency": None, "cost": 0.0, "error": "no result (timed out)"})
         else:
-            results.append({"text": r["text"], "latency": r["latency"], "cost": 0.0, "error": r.get("error")})
+            results.append({"text": r["raw"], "latency": r.get("transcribe"), "cost": 0.0, "error": r.get("error")})
         print(f"  · {c['id']:<12} {results[-1]['text'] or results[-1]['error']}", flush=True)
     return results
 

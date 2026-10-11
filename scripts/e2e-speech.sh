@@ -3,7 +3,7 @@
 # through the installed app's real recognition pipeline, and checks nothing was dropped.
 #
 #   scripts/e2e-speech.sh          # run the check (needs ./build.sh first; ~30 s)
-#   scripts/e2e-speech.sh --log    # also print the recognizer log
+#   scripts/e2e-speech.sh --log    # also print the app's result line
 #
 # Exits 1 if any part of the dictation is missing from the final transcript.
 set -euo pipefail
@@ -25,13 +25,18 @@ say -o "$DIR/speech.aiff" "This is the first part of a long dictation about the 
 was_running=0; pgrep -x DictationApp >/dev/null && was_running=1
 pkill -x DictationApp 2>/dev/null || true
 sleep 0.5
-open -n --env "DICTATIONAPP_PROBE_FILE=$DIR/speech.aiff" --env "DICTATIONAPP_PROBE_LOG=$DIR/log.txt" "$APP"
-for _ in {1..60}; do grep -q "FINAL:" "$DIR/log.txt" 2>/dev/null && break; sleep 1; done
+# One on-device dictation through the app's latency probe (LatencyProbe.swift), at real-time pace.
+cat > "$DIR/plan.json" <<JSON
+{"pause": 0, "timeout": 60, "trials": [{"id": "e2e", "file": "$DIR/speech.aiff", "stt": "apple:en-US", "polish": []}]}
+JSON
+open -n --env "DICTATIONAPP_LATENCY_PLAN=$DIR/plan.json" --env "DICTATIONAPP_LATENCY_OUT=$DIR/out.jsonl" "$APP"
+for _ in {1..90}; do [[ -s "$DIR/out.jsonl" ]] && break; sleep 1; done
 (( was_running )) && open "$APP"
 
-(( SHOW_LOG )) && cat "$DIR/log.txt"
-final=$(grep "FINAL:" "$DIR/log.txt" | sed 's/.*FINAL: //' || true)
-[[ -n "$final" ]] || { echo "❌ no final transcript (log below)"; cat "$DIR/log.txt"; exit 1; }
+(( SHOW_LOG )) && cat "$DIR/out.jsonl"
+field() { /usr/bin/python3 -c 'import json,sys; r=json.loads(open(sys.argv[1]).readline()); v=r.get(sys.argv[2]); print("".join(v) if isinstance(v, list) else len(v) if sys.argv[3:] else v or "")' "$DIR/out.jsonl" "$@" 2>/dev/null || true; }
+final=$(field raw)
+[[ -n "$final" ]] || { echo "❌ no final transcript"; cat "$DIR/out.jsonl" 2>/dev/null; exit 1; }
 echo "transcript: $final"
 missing=()
 for phrase in "first part" "settings page" "second part" "history window" "third part" "app icon" "fourth part" "everything up"; do
@@ -45,8 +50,8 @@ echo "✅ all 4 parts of the dictation kept"
 
 # Streaming mode types each finished utterance as it happens, then the rest at stop; check
 # the streamed pieces add up to exactly the final transcript (nothing doubled or lost).
-streamed=$(grep 'UTTERANCE: "' "$DIR/log.txt" | sed 's/.*UTTERANCE: "//; s/"$//' | tr -d '\n')
-utterances=$(grep -c 'UTTERANCE: "' "$DIR/log.txt" || true)
+streamed=$(field utterances)
+utterances=$(field utterances count)
 if [[ "$final" != "$streamed"* ]]; then
   echo "❌ streamed text is not a prefix of the final transcript"
   echo "   streamed: $streamed"
