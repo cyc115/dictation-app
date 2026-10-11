@@ -5,7 +5,8 @@ Mockup: https://claude.ai/artifact/MH8xe55ZnjYwztgHtc79Dz
 ## Goal
 
 When a dictation comes out wrong, you fix it once in the app. The fix is kept as a test case:
-the speech model's raw text, what the app wrote, and what you wanted. `bench/suite.py polish run`
+the speech model's raw text, what the app wrote, and what you wanted, all on the dictation's
+entry in `history.json`. `bench/suite.py polish run`
 can then test any setup or prompt against your own dictations.
 
 Step 1 (this spec) only collects the data. Step 2, adding corrections to the polish prompt so the
@@ -23,47 +24,35 @@ app learns from them, comes later, once step 1 data shows it helps.
   - left: what the app wrote, read-only, the words you changed highlighted orange;
   - right: what you want, editable, saved as you type;
   - "Before polish" disclosure with the raw text, when known.
-  - Footer: "Corrections are saved in corrections.json" — the file name shows it in Finder.
-- **Clear All** in History keeps corrections; the dialog says "Your corrections are kept."
+  - Footer: "Corrections are saved in history.json" — the file name shows it in Finder.
+- **Clear All** in History deletes corrections too; when there are any, the dialog says how many
+  ("Delete all dictation history, including 3 corrections?").
 
 ## Data
 
-`HistoryEntry` gains three optional fields, filled from now on (older entries decode without them):
+Everything stays in `history.json`. `HistoryEntry` gains optional fields (older entries decode
+without them; nil fields aren't written):
 
 | field | what |
 |---|---|
 | `raw` | text before polish; nil when polish didn't run (then it equals `text`) |
 | `setup` | setup id, e.g. `cloud-flash` |
 | `prompt` | prompt version used for polish, e.g. `v3`; nil when not polished |
+| `correction` | what you wanted; nil = no correction |
 
-`~/Library/Application Support/DictationApp/corrections.json`, same folder and style as
-`history.json`, in the polish bench's case format so `--cases-file` reads it as is:
-
-```json
-{"about": "Your corrections (DictationApp › Corrections).",
- "cases": [{
-   "id": "<history entry id>",
-   "date": "2026-10-08T03:18:00Z",
-   "raw": "can you install cloud code so i can …",
-   "output": "Can you install Cloud Code so I can …",
-   "expected": "Can you install Claude Code so I can …",
-   "setup": "cloud-flash", "prompt": "v3",
-   "must": [], "must_not": []
- }]}
-```
-
-- `raw` falls back to `output` for entries saved before this change (the bench then tests
-  whether polish leaves your text as you want it).
-- `id` is the history entry's id: one correction per dictation, and how History knows to show the check.
-- Corrections are their own store (`CorrectionStore`), not part of `HistoryStore`, so history
-  retention and Clear All never touch them.
-- Setting `expected` equal to `output` is allowed (a "this was right" case).
+- A dictation has a correction when `correction` is set. Emptying the right side removes it
+  (empty is saved as nil). One correction per dictation, by construction.
+- The Corrections tab is `HistoryStore.entries` filtered to those with a correction; no second store.
+- Keep history (7 / 30 days) never prunes an entry with a correction: it's kept until you delete it.
+  With Keep history off nothing is saved, so there's nothing to correct (the pencil isn't shown).
+- `correction` equal to `text` is allowed (a "this was right" case).
 
 ## Bench
 
-`bench/suite.py polish run --cases-file ~/Library/Application\ Support/DictationApp/corrections.json`
-works with no other change, if case loading tolerates the extra fields and empty `must` lists.
-A test covers that. Add a `--corrections` shortcut for that path. README gets a line.
+`bench/suite.py polish run --corrections` reads `history.json` and turns each corrected entry into
+a case: `raw` (falling back to `text` for entries saved before this change), `expected` =
+`correction`, id = the entry id, no `must`/`must_not`. Optional path argument for another file.
+README gets a line.
 
 ## Not in step 1
 
@@ -73,10 +62,10 @@ A test covers that. Add a `--corrections` shortcut for that path. README gets a 
 
 ## Tests
 
-- `CorrectionStore`: add, edit, delete, reload from an injected file URL; one per history id;
-  survives `HistoryStore.clear()`.
+- `HistoryStore`: set, edit, clear (empty → nil) a correction; reload from an injected file URL;
+  pruning keeps corrected entries.
 - `HistoryEntry` decodes old JSON without the new fields; `deliver` records raw, setup, prompt.
 - UI (`HostedView`): pencil on a history row creates a correction and switches to the tab; check
   shown afterwards; editing the right side saves.
 - Snapshots for the Corrections tab and the History row with the new button.
-- Bench: a `corrections.json` loads as cases and scores.
+- Bench: a `history.json` with corrections loads as cases and scores.
