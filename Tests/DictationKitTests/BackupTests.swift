@@ -1,36 +1,10 @@
 import XCTest
 @testable import DictationKit
 
-/// Per model: answer after `delay` seconds with `result`; a model without a script never answers.
-final class ScriptedTranscriptionClient: TranscriptionClient {
-    struct Script { var delay: TimeInterval; var result: Result<String, Error> }
-    var scripts: [String: Script] = [:]
-    private(set) var asked: [(model: String, at: TimeInterval)] = []
-    let started = ProcessInfo.processInfo.systemUptime
-
-    func transcribe(wav: URL, model: String, apiKey: String,
-                    completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
-        XCTAssertTrue(FileManager.default.fileExists(atPath: wav.path), "the WAV is still there for \(model)")
-        asked.append((model, ProcessInfo.processInfo.systemUptime - started))
-        if let script = scripts[model] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + script.delay) { completion(script.result) }
-        }
-        return nil
-    }
-
-    static func text(_ t: String) -> Result<String, Error> {
-        .success(t)
-    }
-
-    static func error(_ message: String) -> Result<String, Error> {
-        .failure(TranscriptionError.message(message))
-    }
-}
-
 /// "Backup model when slow": Cloud Flash's slow tail (p95 28 s in the latency
 /// baseline) comes in spells. Runs the real CloudEngine.stop() → UploadRace path with a scripted client.
 final class CloudBackupTests: XCTestCase {
-    typealias Client = ScriptedTranscriptionClient
+    typealias Client = FakeTranscriptionClient
     static let main = "qwen/qwen3-asr-1.7b"
     static let backup = "qwen/qwen3-asr-0.6b"
 
@@ -57,8 +31,8 @@ final class CloudBackupTests: XCTestCase {
     func testOffByDefaultAndThenOnlyTheMainModelIsAsked() {
         XCTAssertNil(CloudEngine().backupModelID)
         let client = Client()
-        client.scripts[Self.main] = .init(delay: 0.4, result: Client.text("slow but only"))
-        client.scripts[Self.backup] = .init(delay: 0, result: Client.text("never asked"))
+        client.scripts[Self.main] = Client.Script(delay: 0.4, result: Client.text("slow but only"))
+        client.scripts[Self.backup] = Client.Script(delay: 0, result: Client.text("never asked"))
         let r = dictate(client, backup: nil)
         XCTAssertEqual(r.text, "slow but only")
         XCTAssertEqual(client.asked.map(\.model), [Self.main])
@@ -66,8 +40,8 @@ final class CloudBackupTests: XCTestCase {
 
     func testOffAFailureIsReportedWithoutAskingTheBackup() {
         let client = Client()
-        client.scripts[Self.main] = .init(delay: 0, result: Client.error("HTTP 500"))
-        client.scripts[Self.backup] = .init(delay: 0, result: Client.text("never asked"))
+        client.scripts[Self.main] = Client.Script(delay: 0, result: Client.error("HTTP 500"))
+        client.scripts[Self.backup] = Client.Script(delay: 0, result: Client.text("never asked"))
         let r = dictate(client, backup: nil)
         XCTAssertEqual(r.error, "HTTP 500")
         XCTAssertEqual(client.asked.map(\.model), [Self.main])
@@ -77,7 +51,7 @@ final class CloudBackupTests: XCTestCase {
 
     func testFastAnswerNeverAsksTheBackup() {
         let client = Client()
-        client.scripts[Self.main] = .init(delay: 0.05, result: Client.text("帮我 build 一下"))
+        client.scripts[Self.main] = Client.Script(delay: 0.05, result: Client.text("帮我 build 一下"))
         let r = dictate(client, backup: AdaptiveBackup())
         XCTAssertEqual(r.text, "帮我 build 一下")
         XCTAssertEqual(r.engine.lastAnsweredBy, Self.main)
@@ -87,7 +61,7 @@ final class CloudBackupTests: XCTestCase {
 
     func testSlowAnswerIsRacedByTheBackupAfterTheWait() throws {
         let client = Client()  // the main model never answers
-        client.scripts[Self.backup] = .init(delay: 0.05, result: Client.text("帮我 build 一下"))
+        client.scripts[Self.backup] = Client.Script(delay: 0.05, result: Client.text("帮我 build 一下"))
         let r = dictate(client, backup: AdaptiveBackup(), backupWait: 0.2)
         XCTAssertEqual(r.text, "帮我 build 一下")
         XCTAssertEqual(r.engine.lastAnsweredBy, Self.backup)
@@ -97,8 +71,8 @@ final class CloudBackupTests: XCTestCase {
 
     func testMainStillWinsIfItAnswersFirstAfterTheBackupStarted() {
         let client = Client()
-        client.scripts[Self.main] = .init(delay: 0.3, result: Client.text("from 1.7b"))
-        client.scripts[Self.backup] = .init(delay: 1.0, result: Client.text("from 0.6b"))
+        client.scripts[Self.main] = Client.Script(delay: 0.3, result: Client.text("from 1.7b"))
+        client.scripts[Self.backup] = Client.Script(delay: 1.0, result: Client.text("from 0.6b"))
         let r = dictate(client, backup: AdaptiveBackup(), backupWait: 0.1)
         XCTAssertEqual(r.text, "from 1.7b")
         XCTAssertEqual(r.engine.lastAnsweredBy, Self.main)
@@ -106,8 +80,8 @@ final class CloudBackupTests: XCTestCase {
 
     func testFailureAsksTheBackupRightAway() throws {
         let client = Client()
-        client.scripts[Self.main] = .init(delay: 0, result: Client.error("Provider error"))
-        client.scripts[Self.backup] = .init(delay: 0, result: Client.text("ok"))
+        client.scripts[Self.main] = Client.Script(delay: 0, result: Client.error("Provider error"))
+        client.scripts[Self.backup] = Client.Script(delay: 0, result: Client.text("ok"))
         let r = dictate(client, backup: AdaptiveBackup(), backupWait: 5)
         XCTAssertEqual(r.text, "ok")
         XCTAssertLessThan(try XCTUnwrap(client.asked.last).at, 1, "didn't wait out the 5 s")
@@ -115,8 +89,8 @@ final class CloudBackupTests: XCTestCase {
 
     func testBothFailingReportsTheFirstError() {
         let client = Client()
-        client.scripts[Self.main] = .init(delay: 0, result: Client.error("The cloud account is out of credits."))
-        client.scripts[Self.backup] = .init(delay: 0.05, result: Client.error("other"))
+        client.scripts[Self.main] = Client.Script(delay: 0, result: Client.error("The cloud account is out of credits."))
+        client.scripts[Self.backup] = Client.Script(delay: 0.05, result: Client.error("other"))
         let r = dictate(client, backup: AdaptiveBackup())
         XCTAssertNil(r.text)
         XCTAssertEqual(r.error, "The cloud account is out of credits.")
@@ -124,7 +98,7 @@ final class CloudBackupTests: XCTestCase {
 
     func testBackupAnswerIsArchivedUnderTheModelThatHeardIt() throws {
         let client = Client()
-        client.scripts[Self.backup] = .init(delay: 0, result: Client.text("hi"))
+        client.scripts[Self.backup] = Client.Script(delay: 0, result: Client.text("hi"))
         let engine = CloudEngine()
         let archive = RecordingArchive(directory: makeTempURL(self, "Recordings"))
         engine.archive = archive
@@ -147,13 +121,13 @@ final class CloudBackupTests: XCTestCase {
     func testAfterASlowAnswerTheNextDictationAsksBothAtOnce() throws {
         let shared = AdaptiveBackup()
         let slow = Client()
-        slow.scripts[Self.backup] = .init(delay: 0.05, result: Client.text("first"))
+        slow.scripts[Self.backup] = Client.Script(delay: 0.05, result: Client.text("first"))
         _ = dictate(slow, backup: shared)
         XCTAssertTrue(shared.inSlowSpell(Self.main))
 
         let next = Client()
-        next.scripts[Self.main] = .init(delay: 0.1, result: Client.text("second"))
-        next.scripts[Self.backup] = .init(delay: 0.5, result: Client.text("late"))
+        next.scripts[Self.main] = Client.Script(delay: 0.1, result: Client.text("second"))
+        next.scripts[Self.backup] = Client.Script(delay: 0.5, result: Client.text("late"))
         let r = dictate(next, backup: shared)
         XCTAssertEqual(next.asked.map(\.model), [Self.main, Self.backup])
         XCTAssertLessThan(next.asked[1].at - next.asked[0].at, 0.05, "no wait during a slow spell")
@@ -180,7 +154,7 @@ final class CloudBackupTests: XCTestCase {
     func testSlowCloudBigIsRacedByCloudFlash() throws {
         let big = try XCTUnwrap(DictationSetup.cloudBig.openRouterID)
         let client = Client()  // Cloud Big never answers
-        client.scripts[Self.main] = .init(delay: 0.05, result: Client.text("帮我 build 一下"))
+        client.scripts[Self.main] = Client.Script(delay: 0.05, result: Client.text("帮我 build 一下"))
         let engine = CloudEngine()
         engine.client = client
         engine.use(.cloudBig, apiKey: "k", backupWhenSlow: true)

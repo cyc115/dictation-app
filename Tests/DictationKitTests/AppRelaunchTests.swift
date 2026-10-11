@@ -46,7 +46,7 @@ final class MicSilenceTests: XCTestCase {
     /// The real stop path: a silent recording is never uploaded.
     func testCloudEngineReportsSilenceInsteadOfUploading() {
         let engine = CloudEngine()
-        let client = ScriptedTranscriptionClient()
+        let client = FakeTranscriptionClient()
         engine.client = client
         engine.modelID = CloudBackupTests.main
         XCTAssertTrue(engine.beginRecording())

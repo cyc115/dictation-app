@@ -49,20 +49,7 @@ final class RecordingArchiveTests: XCTestCase {
 }
 
 final class KeepRecordingsEngineTests: XCTestCase {
-    /// Answers with `result` and remembers which file it was given.
-    final class CapturingClient: TranscriptionClient {
-        var result: Result<String, Error> = .success("帮我 build 一下")
-        var uploaded: URL?
-        func transcribe(wav: URL, model: String, apiKey: String,
-                        completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
-            uploaded = wav
-            let result = self.result
-            DispatchQueue.main.async { completion(result) }
-            return nil
-        }
-    }
-
-    private func cloudDictation(archive: RecordingArchive?, client: CapturingClient, note: RecordingNote? = nil) {
+    private func cloudDictation(archive: RecordingArchive?, client: FakeTranscriptionClient, note: RecordingNote? = nil) {
         let engine = CloudEngine()
         engine.client = client
         engine.modelID = "qwen/qwen3-asr-1.7b"
@@ -77,7 +64,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
 
     func testCloudDictationIsKeptWithItsTranscript() throws {
         let archive = RecordingArchive(directory: makeTempURL(self, "Recordings"))
-        let client = CapturingClient()
+        let client = FakeTranscriptionClient(text: "帮我 build 一下")
         cloudDictation(archive: archive, client: client)
         let kept = try XCTUnwrap(archive.recordings.first)
         XCTAssertFalse(FileManager.default.fileExists(atPath: try XCTUnwrap(client.uploaded).path))
@@ -89,8 +76,8 @@ final class KeepRecordingsEngineTests: XCTestCase {
 
     func testFailedCloudDictationIsKeptWithTheError() throws {
         let archive = RecordingArchive(directory: makeTempURL(self, "Recordings"))
-        let client = CapturingClient()
-        client.result = .failure(TranscriptionError.message("Provider could not process the audio input"))
+        let client = FakeTranscriptionClient(text: "帮我 build 一下")
+        client.answer = .init(result: FakeTranscriptionClient.error("Provider could not process the audio input"))
         cloudDictation(archive: archive, client: client)
         let kept = try XCTUnwrap(archive.recordings.first)
         let json = try String(contentsOf: kept.deletingPathExtension().appendingPathExtension("json"), encoding: .utf8)
@@ -98,7 +85,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
     }
 
     func testCloudRecordingIsDeletedWhenNotKeeping() throws {
-        let client = CapturingClient()
+        let client = FakeTranscriptionClient(text: "帮我 build 一下")
         cloudDictation(archive: nil, client: client)
         XCTAssertFalse(FileManager.default.fileExists(atPath: try XCTUnwrap(client.uploaded).path))
     }
@@ -135,7 +122,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
     func testCloudDictationKeepsRawAndPolishedTranscript() throws {
         let archive = RecordingArchive(directory: makeTempURL(self, "Recordings"))
         let note = RecordingNote(polishModel: "openrouter:openai/gpt-oss-120b@Groq")
-        cloudDictation(archive: archive, client: CapturingClient(), note: note)
+        cloudDictation(archive: archive, client: FakeTranscriptionClient(text: "帮我 build 一下"), note: note)
         let kept = try XCTUnwrap(archive.recordings.first)
         var saved = try info(kept)
         XCTAssertEqual(saved.transcript, "帮我 build 一下")
@@ -177,7 +164,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
 
     func testPolishOffIsRecorded() throws {
         let archive = RecordingArchive(directory: makeTempURL(self, "Recordings"))
-        cloudDictation(archive: archive, client: CapturingClient(),
+        cloudDictation(archive: archive, client: FakeTranscriptionClient(text: "帮我 build 一下"),
                        note: RecordingNote(polishModel: nil))
         let saved = try info(try XCTUnwrap(archive.recordings.first))
         XCTAssertEqual(saved.polishEnabled, false)
@@ -194,27 +181,8 @@ final class KeepRecordingsEngineTests: XCTestCase {
 
     func testKeepRecordingsIsOffByDefaultAndPersists() {
         let defaults = makeDefaults(self)
-        XCTAssertFalse(AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).keepRecordings)
-        AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).keepRecordings = true
-        XCTAssertTrue(AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).keepRecordings)
-    }
-}
-
-/// What kept recordings say about polish: which model, and why it fell back to the raw text.
-final class PolishReportTests: XCTestCase {
-    struct FailingPolish: PolishBackend {
-        func polish(_ text: String) async throws -> String { throw PolishError.failed("HTTP 429") }
-    }
-
-    func testReportsWhyPolishFellBack() async {
-        let (text, error) = await PolishService(backend: FailingPolish()).polishReporting("um hello")
-        XCTAssertEqual(text, "um hello", "you still get your words")
-        XCTAssertEqual(error, "HTTP 429")
-    }
-
-    func testModelNames() {
-        let onDevice: (String, Bool) -> PolishBackend = { OnDevicePolish(instructions: $0, wrap: $1) }
-        XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: "k", onDevice: onDevice).name, "openrouter:openai/gpt-oss-120b@Groq")
-        XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: nil, onDevice: onDevice).name, "apple:on-device")
+        XCTAssertFalse(makeSettings(self, defaults: defaults).keepRecordings)
+        makeSettings(self, defaults: defaults).keepRecordings = true
+        XCTAssertTrue(makeSettings(self, defaults: defaults).keepRecordings)
     }
 }

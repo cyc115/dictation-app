@@ -78,3 +78,34 @@ final class MicCaptureTests: XCTestCase {
         engine.cancel()
     }
 }
+
+final class AudioLevelTests: XCTestCase {
+    static func buffer(amplitude: Float, frames: Int = 1024) -> AVAudioPCMBuffer {
+        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames))!
+        buffer.frameLength = AVAudioFrameCount(frames)
+        let samples = buffer.floatChannelData![0]
+        for i in 0..<frames { samples[i] = amplitude * sin(Float(i) * 2 * .pi * 440 / 48_000) }
+        return buffer
+    }
+
+    func testSilenceIsZero() {
+        XCTAssertEqual(MicCapture.level(of: Self.buffer(amplitude: 0)), 0)
+    }
+
+    func testLoudSpeechIsFull() {
+        XCTAssertEqual(MicCapture.level(of: Self.buffer(amplitude: 0.5)), 1)
+    }
+
+    func testQuietSpeechIsLowButVisible() {
+        let level = MicCapture.level(of: Self.buffer(amplitude: 0.01))  // ≈ -43 dBFS
+        XCTAssertGreaterThan(level, 0.1)
+        XCTAssertLessThan(level, 0.3)
+    }
+
+    func testLevelRisesWithVolume() {
+        let levels = [0.003, 0.01, 0.03, 0.1].map { MicCapture.level(of: Self.buffer(amplitude: Float($0))) }
+        XCTAssertEqual(levels, levels.sorted())
+        XCTAssertEqual(Set(levels).count, levels.count)
+    }
+}

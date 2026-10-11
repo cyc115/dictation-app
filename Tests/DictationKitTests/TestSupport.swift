@@ -34,6 +34,86 @@ func fixedDate(_ y: Int, _ mo: Int, _ d: Int, _ h: Int, _ mi: Int) -> Date {
     Calendar.current.date(from: DateComponents(year: y, month: mo, day: d, hour: h, minute: mi))!
 }
 
+/// A settings store with throwaway defaults, no saved key and no custom setups.
+func makeSettings(_ test: XCTestCase, defaults: UserDefaults? = nil,
+                  secrets: SecretStore = InMemorySecretStore()) -> AppSettings {
+    AppSettings(defaults: defaults ?? makeDefaults(test), secrets: secrets, customSetupsFile: noCustomSetups)
+}
+
+// MARK: - Fakes for the network and models
+
+/// Records what happened, in order, across the fakes.
+final class EventLog {
+    private(set) var events: [String] = []
+    private let lock = NSLock()
+    func add(_ event: String) { lock.lock(); events.append(event); lock.unlock() }
+}
+
+/// Stands in for OpenRouter's transcription endpoint. Each model answers per its script (or
+/// `answer`), on the main queue after the script's delay; with neither, it never answers.
+final class FakeTranscriptionClient: TranscriptionClient {
+    struct Script {
+        var delay: TimeInterval = 0
+        /// nil: never answers.
+        var result: Result<String, Error>?
+        static let never = Script(result: nil)
+    }
+    var scripts: [String: Script] = [:]
+    /// For models without a script.
+    var answer: Script?
+    var log: EventLog?
+    private(set) var asked: [(model: String, at: TimeInterval)] = []
+    /// The last upload: its file, and the bytes it held at that moment (as a real upload reads them).
+    private(set) var uploaded: URL?
+    private(set) var uploadedData: Data?
+    private let started = ProcessInfo.processInfo.systemUptime
+
+    init(answer: Script? = nil) { self.answer = answer }
+    convenience init(text: String, delay: TimeInterval = 0) {
+        self.init(answer: Script(delay: delay, result: .success(text)))
+    }
+
+    func transcribe(wav: URL, model: String, apiKey: String,
+                    completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
+        XCTAssertTrue(FileManager.default.fileExists(atPath: wav.path), "the WAV is still there for \(model)")
+        asked.append((model, ProcessInfo.processInfo.systemUptime - started))
+        uploaded = wav
+        uploadedData = try? Data(contentsOf: wav)
+        log?.add("upload")
+        if let script = scripts[model] ?? answer, let result = script.result {
+            DispatchQueue.main.asyncAfter(deadline: .now() + script.delay) { completion(result) }
+        }
+        return nil
+    }
+
+    static func text(_ t: String) -> Result<String, Error> { .success(t) }
+    static func error(_ message: String) -> Result<String, Error> { .failure(TranscriptionError.message(message)) }
+}
+
+/// A polish model: after `delay`, `output` (default: the text plus "。"), or `error`.
+final class FakePolish: PolishBackend {
+    let delay: TimeInterval
+    let output: String?
+    let error: PolishError?
+    let log: EventLog?
+
+    init(delay: TimeInterval = 0, output: String? = nil, error: PolishError? = nil, log: EventLog? = nil) {
+        self.delay = delay
+        self.output = output
+        self.error = error
+        self.log = log
+    }
+
+    func prepare() { log?.add("prepare") }
+
+    func polish(_ text: String) async throws -> String {
+        log?.add("polish")
+        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        if let error { throw error }
+        return output ?? text + "。"
+    }
+}
+
 /// Runs the main run loop briefly so SwiftUI / AppKit can lay out and animate.
 func spinRunLoop(_ seconds: TimeInterval = 0.05) {
     RunLoop.main.run(until: Date().addingTimeInterval(seconds))

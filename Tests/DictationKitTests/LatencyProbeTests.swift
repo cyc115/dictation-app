@@ -1,35 +1,6 @@
 import XCTest
 @testable import DictationKit
 
-/// Answers after a fixed delay, like a network round trip. Model "hang" never answers.
-final class SlowTranscriptionClient: TranscriptionClient {
-    let delay: TimeInterval
-    var text = "帮我 build 一个"
-    init(delay: TimeInterval) { self.delay = delay }
-
-    func transcribe(wav: URL, model: String, apiKey: String,
-                    completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
-        guard model != "hang" else { return nil }
-        let text = self.text
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            completion(.success(text))
-        }
-        return nil
-    }
-}
-
-struct SlowPolish: PolishBackend {
-    let delay: TimeInterval
-    var output: String?
-    var fail = false
-
-    func polish(_ text: String) async throws -> String {
-        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-        if fail { throw PolishError.unavailable("model unavailable") }
-        return output ?? text + "。"
-    }
-}
-
 /// The turnaround benchmark's in-app side: real CloudEngine stop → upload path and
 /// PolishService, with fakes standing in for the network.
 final class LatencyRunnerTests: XCTestCase {
@@ -46,8 +17,8 @@ final class LatencyRunnerTests: XCTestCase {
 
     func testTimesTranscriptionThenEachPolishBackend() throws {
         let runner = LatencyRunner()
-        runner.transcriptionClient = SlowTranscriptionClient(delay: 0.2)
-        runner.polishers = ["apple": SlowPolish(delay: 0.1), "openrouter:fast": SlowPolish(delay: 0.02)]
+        runner.transcriptionClient = FakeTranscriptionClient(text: "帮我 build 一个", delay: 0.2)
+        runner.polishers = ["apple": FakePolish(delay: 0.1), "openrouter:fast": FakePolish(delay: 0.02)]
         let trial = LatencyTrial(id: "t1", file: Self.clip, stt: "openrouter:qwen/qwen3-asr-1.7b",
                                  polish: ["apple", "openrouter:fast"])
         let sample = try XCTUnwrap(run(runner, trial))
@@ -65,8 +36,8 @@ final class LatencyRunnerTests: XCTestCase {
 
     func testPolishFailureIsReportedNotHiddenBehindTheRawText() throws {
         let runner = LatencyRunner()
-        runner.transcriptionClient = SlowTranscriptionClient(delay: 0)
-        runner.polishers = ["apple": SlowPolish(delay: 0, fail: true)]
+        runner.transcriptionClient = FakeTranscriptionClient(text: "帮我 build 一个", delay: 0)
+        runner.polishers = ["apple": FakePolish(delay: 0, error: .unavailable("model unavailable"))]
         let sample = try XCTUnwrap(run(runner, LatencyTrial(id: "t", file: Self.clip, stt: "openrouter:m", polish: ["apple"])))
         XCTAssertNotNil(sample.transcribe)
         XCTAssertNil(sample.polish[0].seconds, "a failed polish must not count as a fast one")
@@ -75,10 +46,9 @@ final class LatencyRunnerTests: XCTestCase {
 
     func testEmptyTranscriptIsAnErrorAndSkipsPolish() throws {
         let runner = LatencyRunner()
-        let client = SlowTranscriptionClient(delay: 0)
-        client.text = ""
+        let client = FakeTranscriptionClient(text: "")
         runner.transcriptionClient = client
-        runner.polishers = ["apple": SlowPolish(delay: 0)]
+        runner.polishers = ["apple": FakePolish()]
         let sample = try XCTUnwrap(run(runner, LatencyTrial(id: "t", file: Self.clip, stt: "openrouter:m", polish: ["apple"])))
         XCTAssertEqual(sample.error, "empty transcript")
         XCTAssertNil(sample.polish[0].seconds)
@@ -86,7 +56,7 @@ final class LatencyRunnerTests: XCTestCase {
 
     func testUnknownModelsAndMissingFilesFailFast() throws {
         let runner = LatencyRunner()
-        runner.transcriptionClient = SlowTranscriptionClient(delay: 0)
+        runner.transcriptionClient = FakeTranscriptionClient(text: "帮我 build 一个", delay: 0)
         var sample = try XCTUnwrap(run(runner, LatencyTrial(id: "a", file: Self.clip, stt: "whisper:x", polish: [])))
         XCTAssertEqual(sample.error, "unknown speech model whisper:x")
         sample = try XCTUnwrap(run(runner, LatencyTrial(id: "b", file: "/nonexistent.wav", stt: "openrouter:m", polish: [])))
@@ -98,8 +68,8 @@ final class LatencyRunnerTests: XCTestCase {
     func testBackupSuffixTurnsOnTheBackupAsTheSettingDoes() throws {
         let runner = LatencyRunner()
         runner.backupWait = 0.1
-        let client = ScriptedTranscriptionClient()  // the main model never answers
-        client.scripts["qwen/qwen3-asr-0.6b"] = .init(delay: 0, result: ScriptedTranscriptionClient.text("backup"))
+        let client = FakeTranscriptionClient()  // the main model never answers
+        client.scripts["qwen/qwen3-asr-0.6b"] = FakeTranscriptionClient.Script(delay: 0, result: FakeTranscriptionClient.text("backup"))
         runner.transcriptionClient = client
         let sample = try XCTUnwrap(run(runner, LatencyTrial(id: "on", file: Self.clip,
                                                             stt: "openrouter:qwen/qwen3-asr-1.7b+backup", polish: [])))
@@ -111,8 +81,8 @@ final class LatencyRunnerTests: XCTestCase {
     func testWithoutTheSuffixOnlyTheMainModelIsAsked() throws {
         let runner = LatencyRunner()
         runner.backupWait = 0.1
-        let client = ScriptedTranscriptionClient()
-        client.scripts["qwen/qwen3-asr-1.7b"] = .init(delay: 0.3, result: ScriptedTranscriptionClient.text("main"))
+        let client = FakeTranscriptionClient()
+        client.scripts["qwen/qwen3-asr-1.7b"] = FakeTranscriptionClient.Script(delay: 0.3, result: FakeTranscriptionClient.text("main"))
         runner.transcriptionClient = client
         let sample = try XCTUnwrap(run(runner, LatencyTrial(id: "off", file: Self.clip,
                                                             stt: "openrouter:qwen/qwen3-asr-1.7b", polish: [])))
@@ -133,7 +103,7 @@ final class LatencyRunnerTests: XCTestCase {
     func testTextTrialSkipsTranscriptionAndPolishesTheText() throws {
         let runner = LatencyRunner()
         runner.speakingTime = 0
-        runner.polishers = ["apple": SlowPolish(delay: 0.01)]
+        runner.polishers = ["apple": FakePolish(delay: 0.01)]
         let trial = LatencyTrial(id: "t", file: "", stt: "text", polish: ["apple"], text: "嗯帮我 merge 一下")
         let sample = try XCTUnwrap(run(runner, trial))
         XCTAssertNil(sample.error)
@@ -157,6 +127,23 @@ final class LatencyRunnerTests: XCTestCase {
         XCTAssertEqual(cloudDefault.instructions, DictationSetup.cloudFlash.promptText, "the setup's prompt unless overridden")
         XCTAssertTrue(cloudDefault.wrap, "tags unless turned off")
         XCTAssertTrue(try XCTUnwrap(defaults.polisher(for: "apple") as? OnDevicePolish).wrap)
+    }
+
+    /// The benchmark times polish the way the app now runs it: the model is prepared when
+    /// dictation starts, before the transcript exists.
+    func testBenchmarkPreparesPolishWhenDictationStarts() {
+        let log = EventLog()
+        let runner = LatencyRunner()
+        let client = FakeTranscriptionClient(text: "hello", delay: 0.05)
+        client.log = log
+        runner.transcriptionClient = client
+        runner.polishers = ["apple": FakePolish(log: log)]
+        let done = expectation(description: "trial")
+        runner.run(LatencyTrial(id: "t", file: LatencyRunnerTests.clip, stt: "openrouter:m", polish: ["apple"])) { _ in
+            done.fulfill()
+        }
+        wait(for: [done], timeout: 5)
+        XCTAssertEqual(log.events, ["prepare", "upload", "polish"])
     }
 }
 
@@ -188,8 +175,10 @@ final class LatencyProbeTests: XCTestCase {
             ]}
             """.write(to: plan, atomically: true, encoding: .utf8)
         let probe = try XCTUnwrap(LatencyProbe(planPath: plan.path, outPath: out.path, apiKey: "k"))
-        probe.runner.transcriptionClient = SlowTranscriptionClient(delay: 0.05)
-        probe.runner.polishers = ["apple": SlowPolish(delay: 0.01)]
+        let client = FakeTranscriptionClient(text: "帮我 build 一个", delay: 0.05)
+        client.scripts["hang"] = .never
+        probe.runner.transcriptionClient = client
+        probe.runner.polishers = ["apple": FakePolish(delay: 0.01)]
         let finished = expectation(description: "finished")
         probe.onFinish = { finished.fulfill() }
         probe.run()
@@ -216,70 +205,3 @@ final class LatencyProbeTests: XCTestCase {
     }
 }
 
-final class PolishServiceTests: XCTestCase {
-    /// (The app's fallback to the raw text is covered by RecordingTests' polishReporting test.)
-    func testPolishedThrowsForBenchmarks() async {
-        let service = PolishService(backend: SlowPolish(delay: 0, fail: true))
-        do {
-            _ = try await service.polished("um so yeah")
-            XCTFail("polished() must throw so benchmarks see the failure")
-        } catch {}
-    }
-
-    func testEmptyModelOutputKeepsRawTextAndTrimsWhitespace() async throws {
-        let empty = try await PolishService(backend: SlowPolish(delay: 0, output: "  \n")).polished("hello")
-        XCTAssertEqual(empty, "hello")
-        let trimmed = try await PolishService(backend: SlowPolish(delay: 0, output: " Hello.\n")).polished("um hello")
-        XCTAssertEqual(trimmed, "Hello.")
-    }
-}
-
-final class OpenRouterPolishTests: XCTestCase {
-    func testRequestSendsInstructionsAndTranscript() throws {
-        let request = OpenRouterPolish.request(model: "anthropic/claude-haiku-5.5", apiKey: "sk-test", text: "um 帮我 build", instructions: PolishPrompt.v3)
-        XCTAssertEqual(request.url, OpenRouterPolish.endpoint)
-        XCTAssertEqual(request.httpMethod, "POST")
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-test")
-        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
-        XCTAssertEqual(body["model"] as? String, "anthropic/claude-haiku-5.5")
-        XCTAssertEqual(body["temperature"] as? Int, 0)
-        let messages = try XCTUnwrap(body["messages"] as? [[String: String]])
-        XCTAssertEqual(messages.map { $0["role"] }, ["system", "user"])
-        XCTAssertEqual(messages[0]["content"], PolishPrompt.v3)
-        XCTAssertEqual(messages[1]["content"], "um 帮我 build")
-        XCTAssertEqual(body["reasoning"] as? [String: Bool], ["enabled": false], "no thinking for a cleanup")
-        XCTAssertNil(body["provider"], "OpenRouter routes unless a provider is pinned")
-    }
-
-    func testPinnedProviderAndLowestReasoningForModelsThatMustThink() throws {
-        let request = OpenRouterPolish.request(model: "openai/gpt-oss-120b", apiKey: "k", text: "t", instructions: "P", provider: "Groq")
-        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
-        XCTAssertEqual(body["reasoning"] as? [String: String], ["effort": "minimal"])
-        let provider = try XCTUnwrap(body["provider"] as? [String: Any])
-        XCTAssertEqual(provider["order"] as? [String], ["Groq"])
-        XCTAssertEqual(provider["allow_fallbacks"] as? Bool, false)
-        let pinned = try XCTUnwrap(LatencyRunner().polisher(for: "openrouter:qwen/qwen3.8-27b@Cerebras") as? OpenRouterPolish)
-        XCTAssertEqual(pinned.model, "qwen/qwen3.8-27b")
-        XCTAssertEqual(pinned.provider, "Cerebras")
-    }
-
-    func testWrappedTranscriptAndCustomInstructions() throws {
-        XCTAssertEqual(PolishService.userMessage("hi", wrap: false), "hi")
-        XCTAssertEqual(PolishService.userMessage("hi", wrap: true), "<transcript>\nhi\n</transcript>")
-        XCTAssertTrue(OnDevicePolish().wrap, "on-device polish wraps by default, like cloud polish")
-        let request = OpenRouterPolish.request(model: "m", apiKey: "k", text: "t", instructions: "P")
-        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
-        XCTAssertEqual((body["messages"] as? [[String: String]])?.first?["content"], "P")
-    }
-
-    func testParsesReplyAndErrors() {
-        let ok = Data(#"{"choices":[{"message":{"role":"assistant","content":"帮我 build。"}}]}"#.utf8)
-        XCTAssertEqual(try OpenRouterPolish.parse(data: ok, status: 200).get(), "帮我 build。")
-        guard case .failure(let e) = OpenRouterPolish.parse(data: Data(#"{"error":{"message":"No endpoints found"}}"#.utf8), status: 404)
-        else { return XCTFail("expected failure") }
-        XCTAssertEqual(e.localizedDescription, "No endpoints found")
-        guard case .failure(let e2) = OpenRouterPolish.parse(data: Data("oops".utf8), status: 500)
-        else { return XCTFail("expected failure") }
-        XCTAssertTrue(e2.localizedDescription.contains("HTTP 500"))
-    }
-}

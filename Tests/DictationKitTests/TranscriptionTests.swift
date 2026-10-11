@@ -2,69 +2,6 @@ import AVFoundation
 import XCTest
 @testable import DictationKit
 
-final class TranscriptionModelTests: XCTestCase {
-    func testCapabilities() {
-        XCTAssertFalse(DictationSetup.onDevice.isCloud)
-        XCTAssertTrue(DictationSetup.onDevice.supportsStreaming)
-        XCTAssertTrue(DictationSetup.onDevice.supportsLanguageChoice)
-        XCTAssertEqual(DictationSetup.cloudBig.openRouterID, "meta/muse-voice-transcribe-1.0")
-        XCTAssertFalse(DictationSetup.cloudBig.supportsStreaming)
-        XCTAssertFalse(DictationSetup.cloudBig.supportsLanguageChoice)
-        XCTAssertEqual(DictationSetup.cloudFlash.openRouterID, "qwen/qwen3-asr-1.7b")
-        for model in DictationSetup.builtIns where model.isCloud {
-            XCTAssertFalse(model.supportsStreaming, "\(model) is batch")
-            XCTAssertFalse(model.supportsLanguageChoice, "\(model) detects the language")
-        }
-        XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash", "Cloud Big"])
-        XCTAssertEqual(DictationSetup.cloudFlash.title, "Cloud Flash")
-        XCTAssertEqual(DictationSetup.cloudBig.title, "Cloud Big")
-    }
-
-    func testQwenPersists() {
-        let defaults = makeDefaults(self)
-        AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).setup = .cloudFlash
-        XCTAssertEqual(AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups).setup, .cloudFlash)
-    }
-}
-
-final class ModelSettingsTests: XCTestCase {
-    func testDefaultsAndPersistence() {
-        let defaults = makeDefaults(self)
-        let s = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
-        XCTAssertEqual(s.setup, .onDevice)
-        XCTAssertEqual(s.localLanguage, .english)
-        s.setup = .cloudBig
-        s.localLanguage = .mandarin
-        let r = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
-        XCTAssertEqual(r.setup, .cloudBig)
-        XCTAssertEqual(r.localLanguage, .mandarin)
-    }
-
-    func testStreamingDisabledForCloudButRemembered() {
-        let s = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
-        s.streamWhileSpeaking = true
-        XCTAssertTrue(s.effectiveStreaming)
-        s.setup = .cloudBig
-        XCTAssertFalse(s.effectiveStreaming, "batch model can't stream")
-        XCTAssertTrue(s.streamWhileSpeaking, "the saved preference survives")
-        s.setup = .onDevice
-        XCTAssertTrue(s.effectiveStreaming, "and comes back with the local model")
-    }
-
-    func testAPIKeyGoesToSecretStoreNotDefaults() {
-        let defaults = makeDefaults(self)
-        let secrets = InMemorySecretStore()
-        let s = AppSettings(defaults: defaults, secrets: secrets, customSetupsFile: noCustomSetups)
-        XCTAssertFalse(s.hasOpenRouterKey)
-        s.setOpenRouterKey("  sk-or-v1-test  ")
-        XCTAssertTrue(s.hasOpenRouterKey)
-        XCTAssertEqual(secrets.get(AppSettings.openRouterAccount), "sk-or-v1-test")
-        XCTAssertFalse(defaults.dictionaryRepresentation().values.contains { "\($0)".contains("sk-or") })
-        s.setOpenRouterKey("")
-        XCTAssertFalse(s.hasOpenRouterKey)
-    }
-}
-
 final class OpenRouterClientTests: XCTestCase {
     func testParsesTranscript() throws {
         let data = Data(#"{"text":"帮我build一个","usage":{"seconds":3.7,"cost":0.000185}}"#.utf8)
@@ -152,24 +89,9 @@ final class WAVRecorderTests: XCTestCase {
 /// the moment of upload. Regression for "Provider could not process the audio input": the
 /// file was uploaded unfinished (header declaring 0 bytes), which Qwen rejects.
 final class CloudEngineTests: XCTestCase {
-    final class FakeClient: TranscriptionClient {
-        var uploaded: Data?
-        var model: String?
-        var result: Result<String, Error> = .success("ok")
-        func transcribe(wav: URL, model: String, apiKey: String,
-                        completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
-            uploaded = try? Data(contentsOf: wav)  // read exactly when a real upload would
-            self.model = model
-            DispatchQueue.main.async { completion(self.result) }
-            return nil
-        }
-    }
-
     private func feedSpeech(_ engine: CloudEngine, seconds: Double) {
-        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
         for _ in 0..<Int(seconds * 48_000 / 1024) {
             engine.record(AudioLevelTests.buffer(amplitude: 0.2))  // 48 kHz mono, 1024 frames
-            _ = format
         }
     }
 
@@ -179,7 +101,7 @@ final class CloudEngineTests: XCTestCase {
 
     func testUploadedWAVIsCompleteAndWellFormed() throws {
         let engine = CloudEngine()
-        let fake = FakeClient()
+        let fake = FakeTranscriptionClient(text: "ok")
         engine.client = fake
         engine.modelID = "qwen/qwen3-asr-1.7b"
         XCTAssertTrue(engine.beginRecording())
@@ -190,8 +112,8 @@ final class CloudEngineTests: XCTestCase {
         wait(for: [done], timeout: 2)
 
         XCTAssertEqual(text, "ok")
-        XCTAssertEqual(fake.model, "qwen/qwen3-asr-1.7b")
-        let wav = try XCTUnwrap(fake.uploaded)
+        XCTAssertEqual(fake.asked.map(\.model), ["qwen/qwen3-asr-1.7b"])
+        let wav = try XCTUnwrap(fake.uploadedData)
         XCTAssertEqual(String(decoding: wav.prefix(4), as: UTF8.self), "RIFF")
         XCTAssertEqual(String(decoding: wav[8..<12], as: UTF8.self), "WAVE")
         XCTAssertEqual(u32(wav, 4), wav.count - 8, "RIFF size must match the uploaded file")
@@ -204,7 +126,7 @@ final class CloudEngineTests: XCTestCase {
 
     func testTooShortRecordingSkipsUpload() {
         let engine = CloudEngine()
-        let fake = FakeClient()
+        let fake = FakeTranscriptionClient(text: "ok")
         engine.client = fake
         XCTAssertTrue(engine.beginRecording())
         feedSpeech(engine, seconds: 0.1)
@@ -216,8 +138,8 @@ final class CloudEngineTests: XCTestCase {
 
     func testUploadErrorReachesFailure() {
         let engine = CloudEngine()
-        let fake = FakeClient()
-        fake.result = .failure(TranscriptionError.message("Provider could not process the audio input"))
+        let fake = FakeTranscriptionClient(text: "ok")
+        fake.answer = .init(result: FakeTranscriptionClient.error("Provider could not process the audio input"))
         engine.client = fake
         XCTAssertTrue(engine.beginRecording())
         feedSpeech(engine, seconds: 1)

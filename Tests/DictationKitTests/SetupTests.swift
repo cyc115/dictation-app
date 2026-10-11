@@ -36,16 +36,16 @@ final class SetupTests: XCTestCase {
 
     func testCloudPolishNeedsAKeyElseOnDeviceWithTheSetupsPrompt() throws {
         var asked: (String, Bool)?
-        let onDevice: (String, Bool) -> PolishBackend = { asked = ($0, $1); return SlowPolish(delay: 0) }
+        let onDevice: (String, Bool) -> PolishBackend = { asked = ($0, $1); return FakePolish() }
         let cloud = try XCTUnwrap(DictationSetup.cloudFlash.polishBackend(apiKey: "sk-test", onDevice: onDevice) as? OpenRouterPolish)
         XCTAssertEqual(cloud.model, "openai/gpt-oss-120b")
         XCTAssertEqual(cloud.provider, "Groq")
         XCTAssertEqual(cloud.instructions, PolishPrompt.v3)
         XCTAssertTrue(cloud.wrap, "the transcript goes in <transcript> tags, as benchmarked")
         XCTAssertNil(asked)
-        XCTAssertTrue(DictationSetup.cloudFlash.polishBackend(apiKey: nil, onDevice: onDevice) is SlowPolish, "no key: on-device")
-        XCTAssertTrue(DictationSetup.cloudFlash.polishBackend(apiKey: "", onDevice: onDevice) is SlowPolish)
-        XCTAssertTrue(DictationSetup.onDevice.polishBackend(apiKey: "sk-test", onDevice: onDevice) is SlowPolish)
+        XCTAssertTrue(DictationSetup.cloudFlash.polishBackend(apiKey: nil, onDevice: onDevice) is FakePolish, "no key: on-device")
+        XCTAssertTrue(DictationSetup.cloudFlash.polishBackend(apiKey: "", onDevice: onDevice) is FakePolish)
+        XCTAssertTrue(DictationSetup.onDevice.polishBackend(apiKey: "sk-test", onDevice: onDevice) is FakePolish)
         XCTAssertEqual(asked?.0, PolishPrompt.v3)
         XCTAssertEqual(asked?.1, true)
     }
@@ -117,5 +117,15 @@ final class SetupTests: XCTestCase {
         settings.reloadSetups()
         XCTAssertEqual(settings.setup, .onDevice, "a removed setup falls back to On-device")
         XCTAssertNotNil(settings.setupsError)
+    }
+
+    func testCapabilities() {
+        XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash", "Cloud Big"])
+        XCTAssertTrue(DictationSetup.onDevice.supportsStreaming)
+        XCTAssertTrue(DictationSetup.onDevice.supportsLanguageChoice)
+        for setup in DictationSetup.builtIns where setup.isCloud {
+            XCTAssertFalse(setup.supportsStreaming, "\(setup.id) is batch")
+            XCTAssertFalse(setup.supportsLanguageChoice, "\(setup.id) detects the language")
+        }
     }
 }
