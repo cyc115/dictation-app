@@ -320,7 +320,7 @@ def summarize(rows: list[dict]) -> dict:
         firsts = [r["first"] for r in ok if r.get("first") is not None]
         costs = [r["cost"] for r in ok if r.get("cost") is not None]
         by_kind = {}
-        for kind in ("filler", "correction", "trap", "clean"):
+        for kind in ("filler", "correction", "trap", "clean", "term"):
             k = [r for r in ok if r["kind"] == kind]
             by_kind[kind] = round(sum(r["check"]["passed"] for r in k) / len(k), 3) if k else None
         by_cat = {}
@@ -357,17 +357,17 @@ def report_text(result: dict, markdown: bool = False) -> str:
     for spec, v in ranked:
         sec = v["seconds"]
         rows.append([spec.replace("openrouter:", ""), _pct(v["passed"]), _pct(v["by_kind"]["trap"]),
-                     _pct(v["by_kind"]["correction"]), _pct(v["by_category"]["mixed"]),
+                     _pct(v["by_kind"]["correction"]), _pct(v["by_kind"].get("term")), _pct(v["by_category"]["mixed"]),
                      f"{v['word_error']:.2f}" if v["word_error"] is not None else "—",
                      harness.seconds(sec["p50"]), harness.seconds(sec["p90"]), harness.seconds(sec["max"]),
                      harness.seconds(v["first_p50"]), v["errors"] or "",
                      f"${v['cost_per_1000']:.3f}" if v["cost_per_1000"] is not None else "—",
                      ",".join(v["providers"])[:24]])
-    table = harness.table(["model", "pass", "traps", "fixes", "mixed", "word err", "p50 s", "p90 s", "worst s",
+    table = harness.table(["model", "pass", "traps", "fixes", "terms", "mixed", "word err", "p50 s", "p90 s", "worst s",
                            "1st tok", "errors", "per 1k", "served by"], rows, markdown)
     notes = ["pass = every check holds and the words are within 25% of the expected text. traps = didn't answer,",
-             "write or translate what was dictated. fixes = self-corrections resolved. mixed = Chinese with English",
-             "terms. word err = mean share of words off. per 1k = cost of 1,000 polishes. Seconds: one request,",
+             "write or translate what was dictated. fixes = self-corrections resolved. terms = misheard terms fixed",
+             "from context (hard sets). mixed = Chinese with English terms. word err = mean share of words off. per 1k = cost of 1,000 polishes. Seconds: one request,",
              "stop of streaming = what the app waits for; 1st tok = first text."]
     return "\n".join([head, "", table, "", *notes])
 

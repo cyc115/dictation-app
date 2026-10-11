@@ -58,6 +58,10 @@ final class OpenRouterPolishTests: XCTestCase {
         let provider = try XCTUnwrap(body["provider"] as? [String: Any])
         XCTAssertEqual(provider["order"] as? [String], ["Groq"])
         XCTAssertEqual(provider["allow_fallbacks"] as? Bool, false)
+        for model in ["openai/gpt-5-mini", "openai/gpt-6.1-sol-pro", CorrectionSuggester.model.replacingOccurrences(of: "openrouter:", with: "")] {
+            XCTAssertEqual(OpenRouterPolish.reasoning(for: model) as? [String: String], ["effort": "minimal"],
+                           "\(model) rejects reasoning off (\"Reasoning is mandatory\")")
+        }
         let pinned = try XCTUnwrap(LatencyRunner().polisher(for: "openrouter:qwen/qwen3.8-27b@Cerebras") as? OpenRouterPolish)
         XCTAssertEqual(pinned.model, "qwen/qwen3.8-27b")
         XCTAssertEqual(pinned.provider, "Cerebras")

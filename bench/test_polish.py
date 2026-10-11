@@ -41,18 +41,24 @@ def test_custom_setups_and_prompt_files(tmp_path, monkeypatch):
     assert polish.resolve("setup:on-device")[0] == "apple", "built-ins are still there"
 
 
+SETS = ["polish_cases.json", "polish_cases_holdout.json", "polish_cases_hard.json", "polish_cases_hard_holdout.json"]
+
+
+def all_cases():
+    return [c for name in SETS for c in polish.load_cases(polish.CASES.parent / name)]
+
+
 def test_every_expected_output_passes_its_own_checks():
-    holdout = polish.load_cases(polish.CASES.parent / "polish_cases_holdout.json")
-    for case in polish.load_cases() + holdout:
+    for case in all_cases():
         assert polish.check(case, case["expected"])["passed"], case["id"]
         assert not polish.check(case, case["raw"])["passed"] or case["kind"] in ("trap", "clean"), case["id"]
 
 
 def test_cases_are_well_formed():
-    cases = polish.load_cases() + polish.load_cases(polish.CASES.parent / "polish_cases_holdout.json")
+    cases = all_cases()
     assert len({c["id"] for c in cases}) == len(cases)
     for c in cases:
-        assert c["category"] in ("english", "chinese", "mixed") and c["kind"] in ("filler", "correction", "trap", "clean")
+        assert c["category"] in ("english", "chinese", "mixed") and c["kind"] in ("filler", "correction", "trap", "clean", "term")
         assert c["raw"] and c["expected"] and isinstance(c["must"], list) and isinstance(c["must_not"], list)
 
 
@@ -227,3 +233,12 @@ def test_corrections_in_history_json_are_cases(tmp_path):
     assert cases[1]["raw"] == "Saved before raw was kept.", "no raw: what the app wrote stands in"
     assert polish.check(cases[0], "Can you install Claude Code?")["passed"]
     assert not polish.check(cases[0], "Sure, here's how to install Claude Code: …")["passed"]
+
+
+def test_hard_sets_are_thirty_and_twenty_and_expect_simplified_chinese():
+    hard = polish.load_cases(polish.CASES.parent / "polish_cases_hard.json")
+    holdout = polish.load_cases(polish.CASES.parent / "polish_cases_hard_holdout.json")
+    assert (len(hard), len(holdout)) == (30, 20)
+    traditional = set("們這個說們覺測試實對還麼")
+    for c in hard + holdout:
+        assert not traditional & set(c["expected"]), f"{c['id']}: the speaker never writes Traditional characters"

@@ -118,9 +118,10 @@ struct OpenRouterPolish: PolishBackend {
     }
 
     /// Thinking adds seconds and nothing to a cleanup: off where the model allows it, else the lowest
-    /// effort (gpt-oss and gpt-5 models can't turn it off). Same settings as bench/suite.py polish.
+    /// effort (gpt-oss, gpt-5 and gpt-6 models can't turn it off). Same settings as bench/suite.py polish.
+    static let mustThink = ["openai/gpt-oss", "openai/gpt-5", "openai/gpt-6"]
     static func reasoning(for model: String) -> [String: Any] {
-        model.hasPrefix("openai/gpt-oss") || model.hasPrefix("openai/gpt-5") ? ["effort": "minimal"] : ["enabled": false]
+        mustThink.contains { model.hasPrefix($0) } ? ["effort": "minimal"] : ["enabled": false]
     }
 
     static func request(model: String, apiKey: String, text: String,
