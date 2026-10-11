@@ -11,6 +11,8 @@
   bench/suite.py accuracy run -m …        # speech-to-text accuracy and cost (= bench/bench.py)
   bench/suite.py <suite> --help
 
+Tab completion (zsh): source bench/completion.zsh from your .zshrc.
+
 Results land in bench/results/<suite>/. To add a suite, write bench/suites/<name>.py with NAME,
 HELP and main(argv) (bench/harness.py has percentiles, scheduling, result files and tables) and
 list it in bench/suites/__init__.py.
@@ -26,6 +28,9 @@ from suites import SUITES  # noqa: E402
 
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["__complete"]:  # tab completion (bench/completion.zsh)
+        import completion
+        return completion.main(argv[1:])
     if not argv or argv[0] in ("-h", "--help", "list"):
         print(__doc__)
         for suite in SUITES.values():

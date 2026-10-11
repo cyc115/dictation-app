@@ -10,8 +10,11 @@ bench/suite.py latency run        # how long after you press stop until text is 
 bench/suite.py accuracy run -m …  # how right the transcript is, and what it costs (= bench/bench.py)
 ```
 
-Adding a suite: write `suites/<name>.py` with `NAME`, `HELP` and `main(argv)`, list it in
-`suites/__init__.py`. `harness.py` has the shared parts: percentiles, interleaved scheduling,
+Tab completion (zsh): `source bench/completion.zsh` in your `.zshrc`. It completes suites, options
+(with their help), models and setups, case ids, prompt and case files, and result files.
+
+Adding a suite: write `suites/<name>.py` with `NAME`, `HELP`, `main(argv)` and `parser()` (for tab
+completion), list it in `suites/__init__.py`. `harness.py` has the shared parts: percentiles, interleaved scheduling,
 run metadata (commit, Mac model, macOS), result files and tables.
 Tests: `uv run --with pytest --with opencc-python-reimplemented==0.1.7 pytest bench`.
 

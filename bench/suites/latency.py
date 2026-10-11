@@ -571,7 +571,7 @@ def cmd_report(args) -> int:
     return 0
 
 
-def main(argv: list[str]) -> int:
+def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="suite.py latency", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -611,6 +611,11 @@ def main(argv: list[str]) -> int:
     pc.add_argument("-P", "--polish", default="apple", metavar="MODEL", help="polish model (default: apple)")
     pc.add_argument("--markdown", action="store_true")
     pc.set_defaults(func=cmd_polish_cost)
+    return p
+
+
+def main(argv: list[str]) -> int:
+    p = parser()
     args = p.parse_args(argv)
     if getattr(args, "rounds", 1) < 1:
         p.error("--rounds must be at least 1")

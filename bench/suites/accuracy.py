@@ -8,3 +8,8 @@ HELP = "speech-to-text accuracy, cost and single-shot wait per model (= bench/be
 def main(argv: list[str]) -> int:
     import bench  # bench/bench.py (bench/ is on sys.path, as for every suite)
     return bench.main(argv or ["--help"])
+
+
+def parser():
+    import bench
+    return bench.parser()

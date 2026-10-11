@@ -551,7 +551,7 @@ def cmd_report(args) -> int:
     return 0
 
 
-def main(argv=None) -> int:
+def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("synth", help="generate TTS audio for cases (skips existing)")
@@ -601,7 +601,11 @@ def main(argv=None) -> int:
     ls = sub.add_parser("list", help="list cases")
     ls.add_argument("-c", "--category", action="append", choices=CATEGORIES)
     ls.set_defaults(func=cmd_list)
-    args = p.parse_args(argv)
+    return p
+
+
+def main(argv=None) -> int:
+    args = parser().parse_args(argv)
     return args.func(args)
 
 

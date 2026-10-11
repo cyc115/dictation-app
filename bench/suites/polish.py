@@ -510,7 +510,7 @@ def cmd_cases(args) -> int:
     return 0
 
 
-def main(argv: list[str]) -> int:
+def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="suite.py polish", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -550,5 +550,10 @@ def main(argv: list[str]) -> int:
     c = sub.add_parser("cases", help="list the test set")
     c.add_argument("--quick", action="store_true", help="only the 20 quick cases")
     c.set_defaults(func=cmd_cases)
+    return p
+
+
+def main(argv: list[str]) -> int:
+    p = parser()
     args = p.parse_args(argv)
     return args.func(args)
