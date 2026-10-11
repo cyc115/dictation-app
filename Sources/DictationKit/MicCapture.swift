@@ -1,3 +1,4 @@
+import Accelerate
 import AVFoundation
 import os
 
@@ -20,8 +21,43 @@ final class MicCapture {
     private var observer: NSObjectProtocol?
     private var onBuffer: ((AVAudioPCMBuffer) -> Void)?
     private var onError: ((String) -> Void)?
+    /// (buffers seen, any non-zero sample) for this dictation; written on the audio thread.
+    private let signal = OSAllocatedUnfairLock(initialState: (buffers: 0, heard: false))
+
+    /// Buffers (~0.5 s at 48 kHz) before all-zero audio counts as silence: some devices start with a few.
+    static let silenceBuffers = 24
+    /// Shown when a dictation's audio was nothing but exact zeros (see `heardOnlySilence`).
+    static let silenceMessage = "The microphone sent only silence. Check it isn't muted, or quit and reopen DictationApp."
 
     deinit { stop() }
+
+    /// True when this dictation's mic delivered audio but every sample was exactly zero. A real
+    /// mic always has some noise; pure zeros mean macOS cut the app off (e.g. microphone access
+    /// revoked after its files were replaced while running) or the input is muted digitally.
+    var heardOnlySilence: Bool {
+        signal.withLock { $0.buffers >= Self.silenceBuffers && !$0.heard }
+    }
+
+    /// Every tap buffer goes through here (tests call it directly): checks for signal, then hands it on.
+    func received(_ buffer: AVAudioPCMBuffer, to onBuffer: ((AVAudioPCMBuffer) -> Void)?) {
+        let needsCheck = signal.withLock { state -> Bool in
+            state.buffers += 1
+            return !state.heard
+        }
+        if needsCheck, Self.hasSignal(buffer) { signal.withLock { $0.heard = true } }
+        onBuffer?(buffer)
+    }
+
+    /// Any non-zero sample in any channel.
+    static func hasSignal(_ buffer: AVAudioPCMBuffer) -> Bool {
+        guard let channels = buffer.floatChannelData, buffer.frameLength > 0 else { return false }
+        for c in 0..<Int(buffer.format.channelCount) {
+            var peak: Float = 0
+            vDSP_maxmgv(channels[c], 1, &peak, vDSP_Length(buffer.frameLength))
+            if peak > 0 { return true }
+        }
+        return false
+    }
 
     /// Opens the mic. `inputUID` picks a microphone by CoreAudio UID; empty uses the system default.
     /// `onBuffer` runs on the audio thread; `onError` on the main queue, if a restart fails.
@@ -36,6 +72,7 @@ final class MicCapture {
         self.onBuffer = onBuffer
         self.onError = onError
         restarts = 0
+        signal.withLock { $0 = (0, false) }
         observer = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
         ) { [weak self, weak engine] _ in
@@ -89,7 +126,9 @@ final class MicCapture {
         Self.log.info("start: \(format.sampleRate, privacy: .public) Hz, \(format.channelCount, privacy: .public) ch")
         input.removeTap(onBus: 0)
         let onBuffer = self.onBuffer
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in onBuffer?(buffer) }
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
+            self?.received(buffer, to: onBuffer)
+        }
         engine.prepare()
         do {
             try startEngine(engine)

@@ -45,11 +45,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let settings = AppSettings.shared
     private let mainWindow = MainWindowController()
     private let muter = OutputMuter()
+    /// Stopped dictations whose text hasn't been delivered yet (one can start before the last is polished).
+    private var finishing = 0
+    private let relaunch = AppRelaunch()
+    private var bundleWatcher: BundleWatcher?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if Diagnostics.runIfRequested() { return }
         muter.restore()  // undo a mute left behind if the app quit mid-dictation
         defer { signalReady() }
+        watchForNewBuild()
         applyAppearanceAndDock()
         buildMenu()
         installEditMenu()
@@ -184,6 +189,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         button.contentTintColor = dictating ? .systemRed : nil
     }
 
+    /// Relaunch into a build installed while this one runs (it would lose the mic otherwise).
+    private func watchForNewBuild() {
+        guard Bundle.main.bundleURL.pathExtension == "app", let executable = Bundle.main.executableURL else { return }
+        relaunch.isBusy = { [weak self] in self.map { $0.dictating || $0.finishing > 0 } ?? false }
+        bundleWatcher = BundleWatcher(executable: executable) { [weak self] in self?.relaunch.updateInstalled() }
+        bundleWatcher?.start()
+    }
+
+    /// A stopped dictation is done (delivered, empty or failed).
+    private func finished() {
+        finishing = max(finishing - 1, 0)
+        relaunch.relaunchIfIdle()
+    }
+
     private func setDictating(_ value: Bool) {
         dictating = value
         updateStatusIcon()
@@ -294,7 +313,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         streaming = nil
         let note = self.note
         let stoppedAt = ProcessInfo.processInfo.systemUptime
-        guard let engine = engine else { return overlay.hideUnlessMessage() }
+        guard let engine = engine else {
+            overlay.hideUnlessMessage()
+            return relaunch.relaunchIfIdle()
+        }
+        finishing += 1
         // Cloud models transcribe after you stop: keep the pill up ("working") until text arrives.
         let batch = engine.isBatch
         if batch { overlay.showProcessing() } else { overlay.hideUnlessMessage() }
@@ -307,12 +330,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 // Already typed as you spoke; finish the tail. No polish: it needs the whole text.
                 output.finish(fullText: raw)
                 if !raw.isEmpty { HistoryStore.shared.add(text: raw, duration: duration) }
+                self?.finished()
             } else {
                 self?.deliver(raw, duration: duration, note: note)
             }
         }, failure: { [weak self] message in
             note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
             self?.overlay.showMessage(message, hideAfter: 5)
+            self?.finished()
         })
     }
 
@@ -326,10 +351,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         overlay.hide()
         muter.restore()
         if settings.interactionSounds { InteractionSound.cancel.play() }
+        relaunch.relaunchIfIdle()
     }
 
     private func deliver(_ raw: String, duration: TimeInterval, note: RecordingNote?) {
-        guard !raw.isEmpty else { return }
+        guard !raw.isEmpty else { return finished() }
         let setup = dictationSetup  // a new dictation may start before polish finishes
         if let polisher {
             overlay.showProcessing()
@@ -345,11 +371,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     self.injector.inject(polished)
                     // After typing it, so saving it adds nothing to your wait.
                     note?.polished(polished, seconds: seconds, error: error)
+                    self.finished()
                 }
             }
         } else {
             HistoryStore.shared.add(text: raw, duration: duration, setup: setup.id)
             injector.inject(raw)
+            finished()
         }
     }
 }

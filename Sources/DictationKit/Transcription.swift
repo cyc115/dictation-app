@@ -30,6 +30,10 @@ protocol DictationEngine: AnyObject {
 extension SpeechEngine: DictationEngine {
     var isBatch: Bool { false }
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
+        if mic.heardOnlySilence {
+            cancel()
+            return failure(MicCapture.silenceMessage)
+        }
         stop(completion: completion)
     }
 }
@@ -239,6 +243,10 @@ final class CloudEngine: DictationEngine {
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
         mic.stop()
         lock.lock(); let recorder = self.recorder; self.recorder = nil; lock.unlock()
+        if mic.heardOnlySilence {  // don't upload it: models make up text from silence
+            if let url = recorder?.url { try? FileManager.default.removeItem(at: url) }
+            return failure(MicCapture.silenceMessage)
+        }
         guard let recorder = recorder, recorder.duration >= 0.3 else {
             if let url = recorder?.url { try? FileManager.default.removeItem(at: url) }
             return completion("")  // too short to be speech

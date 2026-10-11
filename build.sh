@@ -2,7 +2,8 @@
 # Build, install, and (re)launch DictationApp:  ./build.sh
 # Quits any running copy first, so it's safe to run after every change.
 #   ./build.sh --keep-running   installs without quitting the running copy, so a dictation
-#                               in progress isn't cut off; the new build runs next time you open it.
+#                               in progress isn't cut off; the app relaunches into the new build
+#                               once it's idle (AppRelaunch: a replaced copy loses the microphone).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -68,7 +69,8 @@ ensure_signing_identity
 security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
 codesign --force --deep --keychain "$KEYCHAIN" --sign "$SIGN_ID" "$APP"
 
-# A running copy keeps running from the old files, which stay alive until it quits.
+# A running copy keeps running from the old files, but macOS revokes its microphone access once
+# they're replaced, so it watches for this swap and relaunches itself when no dictation is running.
 swap_in() {
   local old="/Applications/.DictationApp-old-$$.app"
   [[ -d "$INSTALLED" ]] && mv "$INSTALLED" "$old"

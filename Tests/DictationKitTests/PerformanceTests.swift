@@ -16,6 +16,14 @@ final class PerformanceTests: XCTestCase {
 
     /// With "Keep recordings" on, the mic tap also converts each buffer to 16 kHz and writes it
     /// (on-device and cloud alike); a buffer arrives every 21 ms.
+    /// Worst case: a silent buffer is scanned in full on every tap until a sample is non-zero.
+    func testSilenceCheckPerBuffer() {
+        let silent = AudioLevelTests.buffer(amplitude: 0)
+        assertFaster(than: 0.000_2, iterations: 2_000, "mic silence check per 1024-frame buffer") {
+            _ = MicCapture.hasSignal(silent)
+        }
+    }
+
     func testRecordingPerBuffer() throws {
         let recorder = try WAVRecorder(url: makeTempURL(self, "rec.wav"))
         let buffer = AudioLevelTests.buffer(amplitude: 0.2)
