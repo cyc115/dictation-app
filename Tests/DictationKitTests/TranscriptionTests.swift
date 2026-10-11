@@ -258,7 +258,7 @@ final class CloudEngineTests: XCTestCase {
     }
 }
 
-/// Uses throwaway files and Keychain service names, never the app's real ones.
+/// Uses throwaway files, never the app's real one.
 final class FileSecretStoreTests: XCTestCase {
     private func mode(_ url: URL) -> Int? {
         (try? FileManager.default.attributesOfItem(atPath: url.path))?[.posixPermissions] as? Int
@@ -288,21 +288,5 @@ final class FileSecretStoreTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: store.file.path)
         XCTAssertEqual(store.get("key"), "sk-test")
         XCTAssertEqual(mode(store.file), 0o600)
-    }
-
-    func testKeyFromOlderBuildsMovesOutOfTheKeychain() {
-        let service = "com.mikechen.DictationApp.tests.\(UUID().uuidString)"
-        let item: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                   kSecAttrAccount as String: "key"]
-        var add = item
-        add[kSecValueData as String] = Data("sk-old".utf8)
-        XCTAssertEqual(SecItemAdd(add as CFDictionary, nil), errSecSuccess)
-        addTeardownBlock { SecItemDelete(item as CFDictionary) }
-        let store = makeStore()
-        store.moveFromKeychain("key", service: service)
-        XCTAssertEqual(store.get("key"), "sk-old")
-        XCTAssertEqual(SecItemCopyMatching(item as CFDictionary, nil), errSecItemNotFound, "deleted from the Keychain")
-        store.moveFromKeychain("key", service: service)
-        XCTAssertEqual(store.get("key"), "sk-old", "nothing left to move: no-op")
     }
 }

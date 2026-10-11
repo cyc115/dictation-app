@@ -193,11 +193,6 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     static let cloudFlash = builtIns[1]
     static let cloudBig = builtIns[2]
 
-    /// Settings saved before setups existed stored the speech model; these are the setups they became.
-    static let legacyIDs = ["local": "on-device",
-                            "openrouter:qwen/qwen3-asr-1.7b": "cloud-flash",
-                            "openrouter:meta/muse-voice-transcribe-1.0": "cloud-big"]
-
     /// The built-in setup with this OpenRouter speech model, for benchmarks that name only the model.
     static func builtIn(speechModel id: String) -> DictationSetup? {
         builtIns.first { $0.openRouterID == id }

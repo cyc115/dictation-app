@@ -1,5 +1,4 @@
 import Foundation
-import Security
 
 /// Where the cloud API key is saved.
 protocol SecretStore: AnyObject {
@@ -54,20 +53,6 @@ final class FileSecretStore: SecretStore {
         }
     }
 
-    /// Moves a key saved in the Keychain by older builds into this file, then deletes it there.
-    /// Reading it asks for your password one last time; only done when the file doesn't have it.
-    func moveFromKeychain(_ account: String, service: String = "com.mikechen.DictationApp") {
-        let item: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                   kSecAttrAccount as String: account]
-        guard get(account) == nil, SecItemCopyMatching(item as CFDictionary, nil) == errSecSuccess else { return }
-        var query = item
-        query[kSecReturnData as String] = true
-        var data: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &data) == errSecSuccess,
-              let value = (data as? Data).flatMap({ String(data: $0, encoding: .utf8) }), !value.isEmpty else { return }
-        set(value, for: account)
-        if get(account) == value { SecItemDelete(item as CFDictionary) }
-    }
 }
 
 final class InMemorySecretStore: SecretStore {

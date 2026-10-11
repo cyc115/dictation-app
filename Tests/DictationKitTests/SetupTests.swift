@@ -118,14 +118,4 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(settings.setup, .onDevice, "a removed setup falls back to On-device")
         XCTAssertNotNil(settings.setupsError)
     }
-
-    func testSettingsSavedBeforeSetupsKeepTheirChoice() {
-        for (old, new) in DictationSetup.legacyIDs {
-            let defaults = makeDefaults(self)
-            defaults.set(old, forKey: "transcriptionModel")
-            let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: noCustomSetups)
-            XCTAssertEqual(settings.setup.id, new)
-            XCTAssertEqual(defaults.string(forKey: "transcriptionModel"), new, "saved under the new id")
-        }
-    }
 }

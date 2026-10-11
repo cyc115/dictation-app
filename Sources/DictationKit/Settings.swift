@@ -51,11 +51,7 @@ enum LocalLanguage: String, CaseIterable {
 
 /// User settings, saved in UserDefaults. `onChange` fires after any change.
 final class AppSettings: ObservableObject {
-    static let shared: AppSettings = {
-        let secrets = FileSecretStore()
-        secrets.moveFromKeychain(openRouterAccount)  // once, from builds that kept it in the Keychain
-        return AppSettings(secrets: secrets)
-    }()
+    static let shared = AppSettings(secrets: FileSecretStore())
 
     private enum Key {
         static let hotkey = "hotkey"
@@ -68,7 +64,7 @@ final class AppSettings: ObservableObject {
         static let appearance = "appearance"
         static let dock = "showInDock"
         static let streaming = "streamWhileSpeaking"
-        static let model = "transcriptionModel"  // the setup's id (before setups: the speech model)
+        static let model = "transcriptionModel"  // the setup's id
         static let language = "localLanguage"
         static let keepRecordings = "keepRecordings"
         static let backupWhenSlow = "backupWhenSlow"
@@ -174,7 +170,7 @@ final class AppSettings: ObservableObject {
         keepRecordings = defaults.bool(forKey: Key.keepRecordings)
         backupWhenSlow = defaults.object(forKey: Key.backupWhenSlow) as? Bool ?? true
         launchAtLogin = false
-        let saved = defaults.string(forKey: Key.model).map { DictationSetup.legacyIDs[$0] ?? $0 }
+        let saved = defaults.string(forKey: Key.model)
         reloadSetups(selecting: saved)
         refreshLoginItem()
     }
