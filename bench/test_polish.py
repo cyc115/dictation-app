@@ -8,7 +8,7 @@ from suites import polish
 
 def test_prompt_versions_match_their_benchmark_files():
     """The app sends exactly the prompts that were benchmarked (PolishPrompt in Setups.swift)."""
-    for version in ("v1", "v2", "v3"):
+    for version in ("v1", "v2", "v3", "v4"):
         benchmarked = (polish.CASES.parent / f"polish_prompts/{version}.txt").read_text().strip()
         assert polish.prompt_text(version) == benchmarked, version
     v1 = polish.prompt_text("v1")

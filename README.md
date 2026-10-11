@@ -44,6 +44,8 @@ Relaunch the app after enabling Accessibility.
   - *On-device* — runs on your Mac, English or 中文 (one at a time); polished on-device too.
   - *Cloud Flash* — text in ~0.5 s after you stop; handles English mixed into Chinese.
   - *Cloud Big* — text in ~2 s; handles English mixed into Chinese.
+  - *Cloud Flash + DeepSeek* — Cloud Flash's speech, polished by DeepSeek V4.1 Flash, which fixes
+    more misheard terms (Claude Code, JSON…) at about the same speed.
 
   Cloud models ask for an API key (saved in `~/Library/Application Support/DictationApp/secrets.json`, readable only by your user account; shared by every cloud setup) and send audio when you
   stop. Settings that a model can't use are greyed out and marked *Unavailable*; your choice is kept.
@@ -83,6 +85,7 @@ Relaunch the app after enabling Accessibility.
     on long paragraphs).
   - **Cloud Flash / Cloud Big** → cloud polish (gpt-oss-120b on Groq through OpenRouter, about
     0.4 s), which also passed far more of the polish tests (`bench/results/polish/README.md`).
+    Cloud setups use prompt v4, which also fixes misheard terms from the topic.
 
 ## Development
 

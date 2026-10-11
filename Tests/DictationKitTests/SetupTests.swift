@@ -9,10 +9,10 @@ final class SetupTests: XCTestCase {
         return url
     }
 
-    func testBuiltInsUseV3WithTags() {
-        XCTAssertEqual(DictationSetup.builtIns.map(\.id), ["on-device", "cloud-flash", "cloud-big"])
+    func testBuiltInsUseTheirPromptsWithTags() {
+        XCTAssertEqual(DictationSetup.builtIns.map(\.id), ["on-device", "cloud-flash", "cloud-big", "cloud-flash-deepseek"])
         for setup in DictationSetup.builtIns {
-            XCTAssertEqual(setup.prompt, "v3", setup.id)
+            XCTAssertEqual(setup.prompt, setup.polishesOnDevice ? "v3" : "v4", "\(setup.id): v4 is tuned for cloud models")
             XCTAssertTrue(setup.wrap, setup.id)
             XCTAssertNoThrow(try setup.validate(), setup.id)
         }
@@ -21,6 +21,10 @@ final class SetupTests: XCTestCase {
         XCTAssertFalse(DictationSetup.onDevice.usesCloud)
         XCTAssertEqual(DictationSetup.cloudFlash.polish, "openrouter:openai/gpt-oss-120b@Groq")
         XCTAssertEqual(DictationSetup.cloudBig.polish, DictationSetup.cloudFlash.polish, "Cloud Big polishes like Cloud Flash")
+        let deepSeek = DictationSetup.cloudFlashDeepSeek
+        XCTAssertEqual(deepSeek.speech, DictationSetup.cloudFlash.speech, "same speech as Cloud Flash; only polish differs")
+        XCTAssertEqual(deepSeek.backup, DictationSetup.cloudFlash.backup)
+        XCTAssertEqual(deepSeek.polish, "openrouter:deepseek/deepseek-v4.1-flash@Together")
     }
 
     func testPromptsByVersionOrFile() throws {
@@ -40,7 +44,7 @@ final class SetupTests: XCTestCase {
         let cloud = try XCTUnwrap(DictationSetup.cloudFlash.polishBackend(apiKey: "sk-test", onDevice: onDevice) as? OpenRouterPolish)
         XCTAssertEqual(cloud.model, "openai/gpt-oss-120b")
         XCTAssertEqual(cloud.provider, "Groq")
-        XCTAssertEqual(cloud.instructions, PolishPrompt.v3)
+        XCTAssertEqual(cloud.instructions, PolishPrompt.v4)
         XCTAssertTrue(cloud.wrap, "the transcript goes in <transcript> tags, as benchmarked")
         XCTAssertNil(asked)
         XCTAssertTrue(DictationSetup.cloudFlash.polishBackend(apiKey: nil, onDevice: onDevice) is FakePolish, "no key: on-device")
@@ -103,8 +107,8 @@ final class SetupTests: XCTestCase {
             """)
         let defaults = makeDefaults(self)
         let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: url)
-        XCTAssertEqual(settings.setups.map(\.title), ["On-device", "Cloud Flash", "Cloud Big", "Try"])
-        settings.setup = settings.setups[3]
+        XCTAssertEqual(settings.setups.map(\.title), DictationSetup.builtIns.map(\.title) + ["Try"])
+        settings.setup = settings.setups.last!
         XCTAssertEqual(AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: url).setup.id, "try",
                        "a custom choice is remembered")
 
@@ -120,7 +124,7 @@ final class SetupTests: XCTestCase {
     }
 
     func testCapabilities() {
-        XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash", "Cloud Big"])
+        XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash", "Cloud Big", "Cloud Flash + DeepSeek"])
         XCTAssertTrue(DictationSetup.onDevice.supportsStreaming)
         XCTAssertTrue(DictationSetup.onDevice.supportsLanguageChoice)
         for setup in DictationSetup.builtIns where setup.isCloud {
