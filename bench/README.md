@@ -86,20 +86,23 @@ bench/suite.py polish run -m openai/gpt-oss-120b@Groq -m google/gemini-3.1-flash
 bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq \
     --prompt-file bench/polish_prompts/v3.txt -r 2                       # Apple (via the app) vs cloud
 bench/suite.py polish report --failures openai/gpt-oss-120b@Groq         # what one model got wrong
-bench/suite.py polish run -m setup:cloud-flash --cases-file bench/polish_cases_hard.json   # the hard set
+bench/suite.py polish run -m setup:cloud-flash --cases-file bench/polish_cases_holdout.json   # held-out set
 ```
 
-- **Cases** (`polish_cases.json`; `polish_cases_holdout.json` for prompts tuned on the first set):
-  fillers, self-corrections, already-clean text, and traps — dictations that ask or instruct, which
-  a polish model must clean up, not carry out. The first sets got too easy (94–100%), so
-  `polish_cases_hard.json` (30) and `polish_cases_hard_holdout.json` (20) come from real dictations:
+- **Cases:** one main set, `polish_cases.json` (54), and one held-out set, `polish_cases_holdout.json`
+  (34), for checking a prompt tuned on the main set. Each mixes the hand-written cases — fillers,
+  self-corrections, already-clean text, and traps (dictations that ask or instruct, which a polish
+  model must clean up, not carry out) — with hard ones from real dictations (ids `hard-…`, `hhard-…`):
   long Chinese stammers, cut-up sentences, Traditional characters from the speech model, noise words,
   spoken numbers, and misheard terms that context makes clear (kind `term`, the "terms" column:
-  "cloud code" → Claude Code). Oct 11: 17–37% (hard), 35–40% (hard holdout) for GPT-OSS, Haiku 5.5
-  and GPT-6.1 Sol Pro. A pass needs every check to hold and the words within
-  25% of the expected cleanup.
+  "cloud code" → Claude Code). On Oct 11 the hard sets were merged in and the 12 cases every model
+  passed (≥95% over every run) were dropped; results before that name the old files. A pass needs
+  every check to hold and the words within 25% of the expected cleanup.
+- **Report:** each column is explained under the table; in a terminal, cells are green, yellow or
+  red against fixed bars (e.g. pass ≥ 90% green, < 70% red) so a run reads at a glance. `NO_COLOR=1`
+  turns it off; `--markdown` marks cells with 🟢🟡🔴.
 - **Quick set** (`--quick`): 20 of the main cases, mostly the ones models disagreed on (17–86% pass
-  across the first study), over every language and kind, three of them long. For a fast check; use the
+  across the first study), over every language and kind (one misheard term), three of them long. For a fast check; use the
   full set (and the held-out one) before changing a default.
 - **Models:** `apple` runs Apple's model inside the installed app (Mac only, after `./build.sh`);
   `openrouter:<id>[@Provider]` pins a host (`@Groq`, `@Cerebras`), else `--sort latency` asks

@@ -103,15 +103,31 @@ def seconds(x: float | None) -> str:
     return "—" if x is None else f"{x:.2f}"
 
 
-def table(headers: list[str], rows: list[list], markdown: bool = False) -> str:
-    """Plain-text (or Markdown) table; the first column is left-aligned, the rest right-aligned."""
+GRADE_ANSI = {"good": "\033[32m", "ok": "\033[33m", "bad": "\033[31m"}
+GRADE_DOT = {"good": "🟢 ", "ok": "🟡 ", "bad": "🔴 "}
+
+
+def table(headers: list[str], rows: list[list], markdown: bool = False,
+          grades: list[list[str | None]] | None = None, color: bool = False) -> str:
+    """Plain-text (or Markdown) table; the first column is left-aligned, the rest right-aligned.
+    `grades` (same shape as rows: "good", "ok", "bad" or None) colours cells: ANSI when `color`,
+    a dot in Markdown."""
     cells = [[str(c) for c in headers]] + [[str(c) for c in row] for row in rows]
+    grade = lambda r, i: grades[r - 1][i] if grades and r > 0 else None
     if markdown:
+        body = [[GRADE_DOT.get(grade(r, i), "") + c for i, c in enumerate(row)] for r, row in enumerate(cells) if r > 0]
         lines = ["| " + " | ".join(cells[0]) + " |", "|" + "|".join([":--"] + ["--:"] * (len(headers) - 1)) + "|"]
-        return "\n".join(lines + ["| " + " | ".join(r) + " |" for r in cells[1:]])
+        return "\n".join(lines + ["| " + " | ".join(r) + " |" for r in body])
     widths = [max(len(r[i]) for r in cells) for i in range(len(headers))]
-    fmt = lambda r: "  ".join(c.ljust(widths[0]) if i == 0 else c.rjust(widths[i]) for i, c in enumerate(r))
-    return "\n".join([fmt(cells[0]), "  ".join("-" * w for w in widths)] + [fmt(r) for r in cells[1:]])
+
+    def fmt(r: int) -> str:
+        out = []
+        for i, c in enumerate(cells[r]):
+            c = c.ljust(widths[0]) if i == 0 else c.rjust(widths[i])
+            g = grade(r, i) if color else None
+            out.append(f"{GRADE_ANSI[g]}{c}\033[0m" if g else c)
+        return "  ".join(out)
+    return "\n".join([fmt(0), "  ".join("-" * w for w in widths)] + [fmt(r) for r in range(1, len(cells))])
 
 
 # ---------------------------------------------------------------- cases & audio (shared with bench.py)

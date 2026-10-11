@@ -43,7 +43,7 @@ def test_custom_setups_and_prompt_files(tmp_path, monkeypatch):
     assert polish.resolve("setup:on-device")[0] == "apple", "built-ins are still there"
 
 
-SETS = ["polish_cases.json", "polish_cases_holdout.json", "polish_cases_hard.json", "polish_cases_hard_holdout.json"]
+SETS = ["polish_cases.json", "polish_cases_holdout.json"]
 
 
 def all_cases():
@@ -198,13 +198,13 @@ def test_a_rejected_key_stops_the_run_before_any_polish(monkeypatch, capsys):
     monkeypatch.setattr(polish, "key_problem", lambda key: "HTTP 401: User not found.")
     monkeypatch.setattr(polish, "run", lambda *a, **k: pytest.fail("ran with a rejected key"))
     with pytest.raises(SystemExit, match=r"rejected \$OPENROUTER_API_KEY .*unset OPENROUTER_API_KEY"):
-        polish.main(["run", "-m", "openai/gpt-oss-120b@Groq", "--case", "en-clean"])
+        polish.main(["run", "-m", "openai/gpt-oss-120b@Groq", "--case", "en-numbers"])
 
 
 def test_quick_set_is_twenty_main_cases_covering_every_language_and_kind():
     quick = [c for c in polish.load_cases() if c.get("quick")]
     assert len(quick) == 20
-    for field, values in (("category", ("english", "chinese", "mixed")), ("kind", ("filler", "correction", "trap", "clean"))):
+    for field, values in (("category", ("english", "chinese", "mixed")), ("kind", ("filler", "correction", "trap", "clean", "term"))):
         assert {c[field] for c in quick} == set(values), field
     assert sum(c["category"] == "mixed" for c in quick) >= 6, "mixed speech is the main use"
     assert sum(len(c["raw"]) > 80 for c in quick) >= 2, "long dictations, for latency"
@@ -238,10 +238,47 @@ def test_corrections_in_history_json_are_cases(tmp_path):
     assert not polish.check(cases[0], "Sure, here's how to install Claude Code: …")["passed"]
 
 
-def test_hard_sets_are_thirty_and_twenty_and_expect_simplified_chinese():
-    hard = polish.load_cases(polish.CASES.parent / "polish_cases_hard.json")
-    holdout = polish.load_cases(polish.CASES.parent / "polish_cases_hard_holdout.json")
-    assert (len(hard), len(holdout)) == (30, 20)
+def test_one_main_set_and_one_holdout_with_the_hard_cases_merged_in():
+    main = polish.load_cases()
+    holdout = polish.load_cases(polish.CASES.parent / "polish_cases_holdout.json")
+    assert (len(main), len(holdout)) == (54, 34)
+    assert sum(c["id"].startswith("hard-") for c in main) == 27, "the hard set, minus what every model passed"
+    assert sum(c["id"].startswith("hhard-") for c in holdout) == 20
+    assert not {c["id"] for c in main} & {c["id"] for c in holdout}
+    assert not {"en-clean", "en-short-filler", "hard-en-trap-why-prompt"} & {c["id"] for c in main}, "too easy: dropped"
     traditional = set("們這個說們覺測試實對還麼")
-    for c in hard + holdout:
+    for c in main + holdout:
+        if "hard-" not in c["id"]:
+            continue
         assert not traditional & set(c["expected"]), f"{c['id']}: the speaker never writes Traditional characters"
+
+
+def test_report_explains_every_column_and_grades_cells():
+    result = {"run_at": "t", "env": {}, "config": {"cases": ["a"], "rounds": 1, "wrap": True},
+              "summary": {"m": {"passed": 0.95, "by_kind": {"trap": 0.5, "correction": 0.8, "term": None},
+                                "by_category": {"mixed": 1.0}, "word_error": 0.04,
+                                "seconds": {"p50": 0.4, "p90": 1.5, "max": 6.0}, "first_p50": 0.2,
+                                "errors": 2, "cost_per_1000": 0.05, "providers": ["Groq"]}}}
+    plain = polish.report_text(result)
+    assert "\033[" not in plain, "no colour unless asked (pipes, files)"
+    legend = plain.split("\n\n")[-1].splitlines()
+    assert [line.split()[0] for line in legend] == ["model", "pass", "traps", "fixes", "terms", "mixed", "word",
+                                                    "p50", "p90", "worst", "1st", "errors", "per", "served"]
+    assert any(line.startswith("pass") and "green ≥ 90%, red < 70%" in line for line in legend)
+    coloured = polish.report_text(result, color=True)
+    assert "\033[32m" in coloured and "\033[31m" in coloured and "\033[33m" in coloured
+    assert [len(l) for l in plain.splitlines()[2:4]] == [len(l) for l in
+            __import__("re").sub(r"\033\[\d+m", "", coloured).splitlines()[2:4]], "colour doesn't shift columns"
+    assert polish.grade(0.5, (0.90, 0.70)) == "bad" and polish.grade(0.8, (0.90, 0.70)) == "ok"
+    assert polish.grade(0.4, (0.5, 1.0)) == "good" and polish.grade(1.2, (0.5, 1.0)) == "bad"
+    assert polish.grade(0, (0, 1)) == "good" and polish.grade(2, (0, 1)) == "bad"
+    assert polish.grade(None, (0.9, 0.7)) is None
+    md = polish.report_text(result, markdown=True)
+    assert "🟢 95%" in md and "| pass | every check holds" in md
+
+
+def test_failures_of_a_result_from_before_the_merge_still_find_their_cases():
+    result = {"config": {"cases_files": ["polish_cases_hard.json"]},
+              "trials": [{"model": "m", "warmup": False, "case": "hard-en-term-claude-code", "text": "x",
+                          "check": {"passed": False, "missing": ["Claude Code"], "kept": [], "error": 1.0}}]}
+    assert "hard-en-term-claude-code" in polish.failures_text(result, "m")

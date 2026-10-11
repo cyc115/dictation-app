@@ -342,11 +342,60 @@ def summarize(rows: list[dict]) -> dict:
     return out
 
 
+def _color() -> bool:
+    """Colour the report on a terminal, unless NO_COLOR is set (no-color.org)."""
+    return sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+
 def _pct(x) -> str:
     return "—" if x is None else f"{100 * x:.0f}%"
 
 
-def report_text(result: dict, markdown: bool = False) -> str:
+# The report's columns: (header, what it means, (good, bad) bar). Higher is better for
+# percentages; lower for the rest. Between the two bars a cell is "ok" (yellow).
+COLUMNS = [
+    ("model",     "the polish model, or setup:<id> = an app setup's polish model, prompt and tags", None),
+    ("pass",      "every check holds and the words are within 25% of the expected text", (0.90, 0.70)),
+    ("traps",     "didn't answer, write or translate what was dictated", (0.90, 0.70)),
+    ("fixes",     "self-corrections resolved (\"3 pm, no wait, 4 pm\" → 4 pm)", (0.90, 0.70)),
+    ("terms",     "misheard terms fixed from context (\"cloud code\" → Claude Code)", (0.70, 0.40)),
+    ("mixed",     "Chinese with English terms", (0.90, 0.70)),
+    ("word err",  "mean share of words that differ from the expected text", (0.05, 0.15)),
+    ("p50 s",     "median seconds until the whole answer has streamed: what the app waits for", (0.5, 1.0)),
+    ("p90 s",     "9 in 10 polishes are done by then", (1.0, 2.0)),
+    ("worst s",   "the slowest polish", (2.0, 5.0)),
+    ("1st tok",   "median seconds to the first text", (0.3, 0.6)),
+    ("errors",    "requests that failed or timed out", (0, 1)),
+    ("per 1k",    "cost of 1,000 polishes", (0.10, 0.30)),
+    ("served by", "the host OpenRouter used", None),
+]
+
+
+def grade(value, bars) -> str | None:
+    """"good", "ok" or "bad" against a column's (good, bad) bars; None when there's nothing to grade."""
+    if value is None or bars is None:
+        return None
+    good, bad = bars
+    if good > bad:  # higher is better
+        return "good" if value >= good else "bad" if value < bad else "ok"
+    return "good" if value <= good else "bad" if value >= bad else "ok"
+
+
+def _bar_text(header: str, bars) -> str:
+    good, bad = bars
+    show = (lambda x: f"{100 * x:.0f}%") if good > bad else (lambda x: f"${x:.2f}") if header == "per 1k" else \
+        (lambda x: f"{x:g}") if header in ("word err", "errors") else (lambda x: f"{x:g} s")
+    if header == "errors":
+        return "green 0, red any"
+    return f"green {'≥' if good > bad else '≤'} {show(good)}, red {'<' if good > bad else '≥'} {show(bad)}"
+
+
+def legend() -> list[str]:
+    width = max(len(h) for h, _, _ in COLUMNS)
+    return [f"{h:<{width}}  {meaning}" + (f"  [{_bar_text(h, bars)}]" if bars else "") for h, meaning, bars in COLUMNS]
+
+
+def report_text(result: dict, markdown: bool = False, color: bool = False) -> str:
     s = result["summary"]
     env = result.get("env", {})
     head = (f"{result['run_at']}  commit {env.get('commit', '?')}  {len(result['config']['cases'])} cases × "
@@ -354,28 +403,33 @@ def report_text(result: dict, markdown: bool = False) -> str:
             + (f", sort={result['config']['sort']}" if result["config"].get("sort") else "")
             + f", prompt: {result['config'].get('prompt', 'app')}" + (" + <transcript> tags" if result["config"].get("wrap") else ""))
     ranked = sorted(s.items(), key=lambda kv: (-(kv[1]["passed"] or 0), kv[1]["seconds"]["p50"] or 99))
-    rows = []
+    rows, grades = [], []
     for spec, v in ranked:
         sec = v["seconds"]
-        rows.append([spec.replace("openrouter:", ""), _pct(v["passed"]), _pct(v["by_kind"]["trap"]),
-                     _pct(v["by_kind"]["correction"]), _pct(v["by_kind"].get("term")), _pct(v["by_category"]["mixed"]),
+        values = [None, v["passed"], v["by_kind"]["trap"], v["by_kind"]["correction"], v["by_kind"].get("term"),
+                  v["by_category"]["mixed"], v["word_error"], sec["p50"], sec["p90"], sec["max"], v["first_p50"],
+                  v["errors"], v["cost_per_1000"], None]
+        rows.append([spec.replace("openrouter:", ""), *(_pct(x) for x in values[1:6]),
                      f"{v['word_error']:.2f}" if v["word_error"] is not None else "—",
                      harness.seconds(sec["p50"]), harness.seconds(sec["p90"]), harness.seconds(sec["max"]),
                      harness.seconds(v["first_p50"]), v["errors"] or "",
                      f"${v['cost_per_1000']:.3f}" if v["cost_per_1000"] is not None else "—",
                      ",".join(v["providers"])[:24]])
-    table = harness.table(["model", "pass", "traps", "fixes", "terms", "mixed", "word err", "p50 s", "p90 s", "worst s",
-                           "1st tok", "errors", "per 1k", "served by"], rows, markdown)
-    notes = ["pass = every check holds and the words are within 25% of the expected text. traps = didn't answer,",
-             "write or translate what was dictated. fixes = self-corrections resolved. terms = misheard terms fixed",
-             "from context (hard sets). mixed = Chinese with English terms. word err = mean share of words off. per 1k = cost of 1,000 polishes. Seconds: one request,",
-             "stop of streaming = what the app waits for; 1st tok = first text."]
+        grades.append([grade(x, bars) for x, (_, _, bars) in zip(values, COLUMNS)])
+    table = harness.table([h for h, _, _ in COLUMNS], rows, markdown, grades, color)
+    notes = legend()
+    if markdown:
+        notes = ["| column | meaning |", "|:--|:--|"] + [f"| {h} | {m}" + (f" ({_bar_text(h, b)})" if b else "") + " |"
+                                                       for h, m, b in COLUMNS]
     return "\n".join([head, "", table, "", *notes])
 
 
 def failures_text(result: dict, spec: str) -> str:
     files = result["config"].get("cases_files") or [result["config"].get("cases_file", CASES.name)]
-    cases = {c["id"]: c for f in files for c in load_cases(harness.ROOT / f)}
+    # Results from before the hard sets were merged name files that are gone; their cases live on
+    # in today's sets (or git history), so look ids up in every set there is.
+    known = [harness.ROOT / f for f in files if (harness.ROOT / f).exists()] + sorted(harness.ROOT.glob("polish_cases*.json"))
+    cases = {c["id"]: c for f in reversed(known) for c in load_cases(f)}
     lines = []
     for r in result["trials"]:
         if r["model"] != spec or r["warmup"]:
@@ -485,7 +539,7 @@ def cmd_run(args) -> int:
     path = harness.save_result(NAME, args.label or f"{len(specs)}-models", result,
                                Path(args.out) if args.out else None)
     print(f"\n    saved {path}\n")
-    print(report_text(result))
+    print(report_text(result, color=_color()))
     return 0
 
 
@@ -499,7 +553,7 @@ def cmd_report(args) -> int:
         spec = args.failures if args.failures.startswith("openrouter:") else f"openrouter:{args.failures}"
         print(failures_text(result, spec))
     else:
-        print(report_text(result, markdown=args.markdown))
+        print(report_text(result, markdown=args.markdown, color=_color()))
     return 0
 
 
