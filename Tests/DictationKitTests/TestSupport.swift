@@ -202,6 +202,8 @@ final class HostedView<Content: View> {
 /// Stays where it's put (offscreen) instead of being pulled onto a display.
 final class OffscreenWindow: NSWindow {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
+    /// Snapshots draw text at this scale whatever display the window would be on (see assertSnapshot).
+    override var backingScaleFactor: CGFloat { snapshotScale }
 }
 
 /// One accessibility element. SwiftUI's nodes are plain Objective-C objects that don't
@@ -247,7 +249,12 @@ struct AXNode {
 /// Views render into an sRGB bitmap at a fixed 2× scale, not at the scale and color profile of the
 /// display the window happens to be on: the overlay pill opens on the screen with the mouse, so the
 /// same test used to produce different pixels from run to run (1× vs 2×, and grays shifted by the
-/// display's profile).
+/// display's profile). The bitmap's scale alone isn't enough: SwiftUI rasterizes text at its
+/// window's backingScaleFactor, so references recorded with an external 1× monitor attached had
+/// blurry text that a laptop screen (2×) didn't match. Test windows (`OffscreenWindow`) are pinned
+/// to `snapshotScale` too.
+let snapshotScale: CGFloat = 2
+
 func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.01,
                     file: StaticString = #filePath, line: UInt = #line) {
     view.layoutSubtreeIfNeeded()
@@ -289,7 +296,7 @@ func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.0
 }
 
 /// `view` drawn into an sRGB bitmap at 2× its size in points.
-func snapshotBitmap(of view: NSView, scale: CGFloat = 2) -> NSBitmapImageRep? {
+func snapshotBitmap(of view: NSView, scale: CGFloat = snapshotScale) -> NSBitmapImageRep? {
     let size = view.bounds.size
     guard size.width > 0, size.height > 0,
           let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int((size.width * scale).rounded()),
