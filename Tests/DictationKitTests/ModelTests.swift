@@ -95,6 +95,63 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.entries.map(\.text), ["recent"])
     }
 
+    func testRawSetupAndPromptAreKept() {
+        let url = makeTempURL(self), defaults = makeDefaults(self)
+        let store = HistoryStore(fileURL: url, defaults: defaults)
+        store.add(text: "Send it tomorrow.", duration: 1, raw: "um send it tomorrow", setup: "cloud-flash", prompt: "v3")
+        store.add(text: "unpolished", duration: 1, raw: "unpolished", setup: "on-device")
+        let reloaded = HistoryStore(fileURL: url, defaults: defaults).entries
+        XCTAssertEqual(reloaded[1].raw, "um send it tomorrow")
+        XCTAssertEqual(reloaded[1].setup, "cloud-flash")
+        XCTAssertEqual(reloaded[1].prompt, "v3")
+        XCTAssertNil(reloaded[0].raw, "same as the text: not stored twice")
+        XCTAssertEqual(reloaded[0].input, "unpolished")
+        XCTAssertNil(reloaded[0].prompt)
+    }
+
+    func testOldEntriesDecodeWithoutTheNewFields() throws {
+        let url = makeTempURL(self)
+        try Data(#"[{"id":"7F1D7C55-0000-4000-8000-000000000001","date":"2026-10-07T07:00:00Z","text":"old","duration":1}]"#.utf8).write(to: url)
+        let entry = try XCTUnwrap(HistoryStore(fileURL: url, defaults: makeDefaults(self)).entries.first)
+        XCTAssertEqual(entry.text, "old")
+        XCTAssertNil(entry.raw); XCTAssertNil(entry.setup); XCTAssertNil(entry.correction)
+        XCTAssertEqual(entry.input, "old", "no raw: the text stands in for it")
+    }
+
+    func testCorrectionsAreSavedEditedAndRemovedWhenEmptied() {
+        let url = makeTempURL(self), defaults = makeDefaults(self)
+        let store = HistoryStore(fileURL: url, defaults: defaults)
+        store.add(text: "Cloud Code", duration: 1); store.add(text: "fine", duration: 1)
+        let id = store.entries[1].id
+        store.setCorrection("Claude Code", for: id)
+        XCTAssertEqual(store.corrections.map(\.id), [id])
+        XCTAssertEqual(HistoryStore(fileURL: url, defaults: defaults).corrections.first?.correction, "Claude Code", "saved")
+        store.setCorrection("Claude Code, please", for: id)
+        XCTAssertEqual(store.corrections.first?.correction, "Claude Code, please")
+        XCTAssertEqual(HistoryStore(fileURL: url, defaults: defaults).corrections.first?.correction, "Claude Code",
+                       "an edit is written once typing pauses")
+        spinRunLoop(0.6)
+        XCTAssertEqual(HistoryStore(fileURL: url, defaults: defaults).corrections.first?.correction, "Claude Code, please")
+        store.setCorrection("Claude Code, now", for: id)
+        store.flush()
+        XCTAssertEqual(HistoryStore(fileURL: url, defaults: defaults).corrections.first?.correction, "Claude Code, now",
+                       "flushed at quit")
+        store.setCorrection("  \n", for: id)
+        XCTAssertTrue(store.corrections.isEmpty, "emptied: no correction")
+        XCTAssertNil(HistoryStore(fileURL: url, defaults: defaults).entries[1].correction)
+    }
+
+    func testRetentionNeverPrunesCorrections() throws {
+        let url = makeTempURL(self), defaults = makeDefaults(self)
+        var old = HistoryEntry(date: Date().addingTimeInterval(-10 * 86_400), text: "old", duration: 1)
+        old.correction = "old, fixed"
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode([old]).write(to: url)
+        defaults.set(HistoryRetention.days7.rawValue, forKey: "historyRetention")
+        XCTAssertEqual(HistoryStore(fileURL: url, defaults: defaults).entries.map(\.text), ["old"])
+    }
+
     func testCorruptFileStartsEmpty() throws {
         let url = makeTempURL(self)
         try Data("not json".utf8).write(to: url)

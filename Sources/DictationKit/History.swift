@@ -7,6 +7,16 @@ struct HistoryEntry: Codable, Identifiable, Equatable {
     var date: Date
     var text: String
     var duration: TimeInterval
+    /// What the speech model heard, before polish; nil when it's the same as `text`.
+    var raw: String?
+    /// The setup's id (Settings → Model) and, when polished, its prompt version.
+    var setup: String?
+    var prompt: String?
+    /// What you wanted instead (Corrections); nil = not corrected.
+    var correction: String?
+
+    /// What polish was given: a test case's input.
+    var input: String { raw ?? text }
 }
 
 /// How long history is kept on this Mac.
@@ -44,7 +54,7 @@ final class HistoryStore: ObservableObject {
         }
     }
 
-    private let fileURL: URL
+    let fileURL: URL
     private let defaults: UserDefaults
 
     static let defaultFileURL: URL = {
@@ -66,10 +76,40 @@ final class HistoryStore: ObservableObject {
         prune()
     }
 
-    func add(text: String, duration: TimeInterval) {
+    func add(text: String, duration: TimeInterval, raw: String? = nil, setup: String? = nil, prompt: String? = nil) {
         guard retention != .off, !text.isEmpty else { return }
-        entries.insert(HistoryEntry(date: Date(), text: text, duration: duration), at: 0)
+        entries.insert(HistoryEntry(date: Date(), text: text, duration: duration, raw: raw == text ? nil : raw,
+                                    setup: setup, prompt: prompt), at: 0)
         save()
+    }
+
+    /// Dictations you corrected, newest first.
+    var corrections: [HistoryEntry] { entries.filter { $0.correction != nil } }
+
+    /// Saves what you wanted instead; empty removes the correction. Called on every keystroke, so an
+    /// edit is written once typing pauses (a 5k-entry history takes ~15 ms to save); adding or
+    /// removing one is written at once.
+    func setCorrection(_ text: String, for id: UUID) {
+        guard let i = entries.firstIndex(where: { $0.id == id }) else { return }
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
+        guard entries[i].correction != value else { return }
+        let edit = entries[i].correction != nil && value != nil
+        entries[i].correction = value
+        if edit { saveSoon() } else { save() }
+    }
+
+    /// Writes an edit that's waiting for typing to pause (at quit).
+    func flush() {
+        if pendingSave != nil { save() }
+    }
+
+    private var pendingSave: DispatchWorkItem?
+
+    private func saveSoon() {
+        pendingSave?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.save() }
+        pendingSave = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
     }
 
     func delete(_ entry: HistoryEntry) {
@@ -85,7 +125,7 @@ final class HistoryStore: ObservableObject {
     private func prune() {
         guard let maxAge = retention.maxAge else { return }
         let cutoff = Date().addingTimeInterval(-maxAge)
-        let kept = entries.filter { $0.date > cutoff }
+        let kept = entries.filter { $0.date > cutoff || $0.correction != nil }  // corrections are kept until you delete them
         if kept.count != entries.count {
             entries = kept
             save()
@@ -93,6 +133,8 @@ final class HistoryStore: ObservableObject {
     }
 
     private func save() {
+        pendingSave?.cancel()
+        pendingSave = nil
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         guard let data = try? encoder.encode(entries) else { return }
@@ -104,6 +146,8 @@ final class HistoryStore: ObservableObject {
 
 struct HistoryView: View {
     @ObservedObject var store: HistoryStore
+    /// Opens a dictation in Corrections (after its pencil makes a correction).
+    var onCorrect: (UUID) -> Void = { _ in }
     @State private var search = ""
     @State private var confirmClear = false
 
@@ -124,7 +168,10 @@ struct HistoryView: View {
                     ForEach(groups, id: \.title) { group in
                         Section(group.title) {
                             ForEach(group.entries) { entry in
-                                HistoryRow(entry: entry, onDelete: { store.delete(entry) })
+                                HistoryRow(entry: entry, onDelete: { store.delete(entry) }, onCorrect: {
+                                    if entry.correction == nil { store.setCorrection(entry.text, for: entry.id) }
+                                    onCorrect(entry.id)
+                                })
                             }
                         }
                     }
@@ -143,9 +190,17 @@ struct HistoryView: View {
             Spacer()
             Button("Clear All…") { confirmClear = true }
                 .disabled(store.entries.isEmpty)
-                .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
+                .confirmationDialog(Self.clearTitle(corrections: store.corrections.count), isPresented: $confirmClear) {
                     Button("Delete All", role: .destructive) { store.clear() }
                 }
+        }
+    }
+
+    static func clearTitle(corrections: Int) -> String {
+        switch corrections {
+        case 0: return "Delete all dictation history?"
+        case 1: return "Delete all dictation history, including 1 correction?"
+        case let n: return "Delete all dictation history, including \(n) corrections?"
         }
     }
 
@@ -175,6 +230,7 @@ struct HistoryRow: View {
 
     let entry: HistoryEntry
     let onDelete: () -> Void
+    var onCorrect: () -> Void = {}
     @State private var hovering = false
     @State private var copied = false
 
@@ -187,6 +243,16 @@ struct HistoryRow: View {
             Text(entry.text)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: onCorrect) {
+                Image(systemName: entry.correction == nil ? "pencil" : "pencil.circle.fill")
+                    .frame(width: 16, height: 16)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(entry.correction == nil ? Color.secondary : Color.accentColor)
+            .help(entry.correction == nil ? "Correct this dictation" : "Corrected — open in Corrections")
+            .accessibilityLabel(entry.correction == nil ? "Correct this dictation" : "Open correction")
+            .accessibilityIdentifier("history.correct")
+            .opacity(hovering || entry.correction != nil ? 1 : 0.3)
             Button(action: copy) {
                 Image(systemName: copied ? "checkmark" : "doc.on.doc")
                     .frame(width: 16, height: 16)

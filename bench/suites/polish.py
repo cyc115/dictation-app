@@ -6,6 +6,7 @@
   bench/suite.py polish cases [--quick]                    # the test set (--quick: the 20-case subset)
   bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq --quick   # a fast comparison
   bench/suite.py polish run -m setup:on-device -m setup:cloud-flash --quick  # the app's setups, as shipped
+  bench/suite.py polish run -m setup:cloud-flash --corrections             # on the dictations you corrected
 
 Each case (polish_cases.json) is a raw transcript as the speech models write it, the cleanup the app's
 instructions ask for, and checks: words that must survive (names, technical terms, the corrected
@@ -51,6 +52,7 @@ HELP = "AI polish models: quality on tricky dictations, wait and cost, with the 
 CASES = harness.ROOT / "polish_cases.json"
 SWIFT = harness.ROOT.parent / "Sources/DictationKit/Setups.swift"
 CUSTOM_SETUPS = Path.home() / "Library/Application Support/DictationApp/setups.json"
+HISTORY = Path.home() / "Library/Application Support/DictationApp/history.json"  # your Corrections
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MAX_ERROR = 0.25  # words off from the expected text, as a share of its words
 # Lowest reasoning settings to try, in order, for models that can't turn it off.
@@ -104,7 +106,15 @@ def resolve(spec: str, prompt: str | None = None, wrap: bool = True) -> tuple[st
 
 
 def load_cases(path: Path = CASES) -> list[dict]:
-    return json.loads(path.read_text())["cases"]
+    """A test set, or the app's history.json: each dictation you corrected (Corrections tab) is a case —
+    what polish was given (the speech model's text; the polished text for entries saved before the app
+    kept it) and what you wanted, with no word checks."""
+    data = json.loads(path.read_text())
+    if isinstance(data, dict):
+        return data["cases"]
+    return [{"id": f"correction-{e['id'][:8].lower()}", "category": "correction", "kind": e.get("setup") or "correction",
+             "raw": e.get("raw") or e["text"], "expected": e["correction"], "must": [], "must_not": []}
+            for e in data if e.get("correction")]
 
 
 # ---------------------------------------------------------------- scoring
@@ -440,8 +450,11 @@ def read_specs(args) -> list[str]:
 
 def cmd_run(args) -> int:
     specs = read_specs(args)
-    files = [Path(f) for f in args.cases_file] if args.cases_file else [CASES]
+    files = [Path(f).expanduser() for f in args.cases_file or []] + ([Path(args.corrections).expanduser()] if args.corrections else [])
+    files = files or [CASES]
     cases = [c for f in files for c in load_cases(f)]
+    if not cases:
+        raise SystemExit("no cases: correct a dictation in the app's Corrections tab first" if args.corrections else "no cases")
     if args.quick:
         cases = [c for c in cases if c.get("quick")]
     if args.case:
@@ -476,7 +489,8 @@ def cmd_run(args) -> int:
     result = {"suite": NAME, "run_at": started.isoformat(timespec="seconds"), "env": harness.environment(),
               "config": {"models": specs, "cases": [c["id"] for c in cases], "rounds": args.rounds, "seed": args.seed,
                          "sort": args.sort, "parallel": args.parallel, "where": args.where,
-                         "cases_files": [f.name for f in files],
+                         "cases_files": [f.name if f.resolve().parent == harness.ROOT.resolve() else str(f.resolve())
+                                         for f in files],
                          "prompt": "app" if not args.prompt_file else Path(args.prompt_file).name,
                          "instructions": prompt, "wrap": args.wrap,
                          "setups": {s: setups()[s[len("setup:"):]] for s in specs if s.startswith("setup:")}},
@@ -524,6 +538,8 @@ def main(argv: list[str]) -> int:
                    help="only the 20 quick cases: the ones models disagreed on, over every language and kind")
     r.add_argument("--cases-file", action="append", help="test set (default polish_cases.json; polish_cases_holdout.json checks a "
                                         "prompt on dictations it wasn't tuned on)")
+    r.add_argument("--corrections", nargs="?", const=str(HISTORY), metavar="HISTORY_JSON",
+                   help="your Corrections from the app (its history.json) as the test set")
     r.add_argument("--sort", choices=["latency", "throughput", "price"],
                    help="ask OpenRouter to route to the provider best at this (unpinned models)")
     r.add_argument("--parallel", type=int, default=4, help="models run side by side (default 4)")

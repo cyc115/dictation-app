@@ -33,6 +33,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var onDevicePolish = OnDevicePolish()
     /// This dictation's polish, chosen when it starts; nil when it isn't polished.
     private var polisher: PolishService?
+    /// This dictation's setup, saved with it in History.
+    private var dictationSetup = DictationSetup.onDevice
     /// The polish half of the current dictation's kept-recording JSON (nil unless Keep recordings is on).
     private var note: RecordingNote?
     private var dictating = false
@@ -142,6 +144,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         muter.restore()
+        HistoryStore.shared.flush()
     }
 
     /// Menu-bar apps have no main menu, so ⌘C / ⌘A / ⌘F wouldn't work in the window without this.
@@ -218,6 +221,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             engine = speech
         }
         self.engine = engine
+        dictationSetup = setup
         // Load the polish model while you speak instead of after you stop.
         polisher = settings.polishEnabled && !settings.effectiveStreaming
             ? PolishService(backend: setup.polishBackend(apiKey: key, onDevice: onDevicePolish(instructions:wrap:)))
@@ -326,6 +330,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func deliver(_ raw: String, duration: TimeInterval, note: RecordingNote?) {
         guard !raw.isEmpty else { return }
+        let setup = dictationSetup  // a new dictation may start before polish finishes
         if let polisher {
             overlay.showProcessing()
             let started = ProcessInfo.processInfo.systemUptime
@@ -335,14 +340,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let seconds = ProcessInfo.processInfo.systemUptime - started
                 await MainActor.run {
                     self.overlay.hide()
-                    HistoryStore.shared.add(text: polished, duration: duration)
+                    HistoryStore.shared.add(text: polished, duration: duration, raw: raw,
+                                            setup: setup.id, prompt: setup.prompt)
                     self.injector.inject(polished)
                     // After typing it, so saving it adds nothing to your wait.
                     note?.polished(polished, seconds: seconds, error: error)
                 }
             }
         } else {
-            HistoryStore.shared.add(text: raw, duration: duration)
+            HistoryStore.shared.add(text: raw, duration: duration, setup: setup.id)
             injector.inject(raw)
         }
     }

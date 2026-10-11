@@ -72,6 +72,13 @@ final class PerformanceTests: XCTestCase {
         assertFaster(than: 0.25, iterations: 5, "add one entry to 5k history (includes save)") {
             store.add(text: sentence, duration: 6)
         }
+        // Runs on every keystroke in Corrections, so it must not stall typing.
+        let id = store.entries[2_500].id
+        var n = 0
+        assertFaster(than: 0.004, iterations: 20, "edit a correction in 5k history") {
+            n += 1
+            store.setCorrection("fixed \(n)", for: id)
+        }
     }
 
     /// Also report XCTest's own metrics (visible in the test log; no pass/fail outside Xcode).

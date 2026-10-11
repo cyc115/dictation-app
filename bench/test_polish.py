@@ -208,3 +208,22 @@ def test_saved_key_is_read_from_the_apps_secrets_file(tmp_path):
     assert polish.saved_key(secrets) == "", "no file: no key"
     secrets.write_text(json.dumps({"openrouter-api-key": "sk-or-v1-test"}))
     assert polish.saved_key(secrets) == "sk-or-v1-test"
+
+
+def test_corrections_in_history_json_are_cases(tmp_path):
+    history = tmp_path / "history.json"
+    history.write_text(json.dumps([
+        {"id": "AB12CD34-0000-4000-8000-000000000001", "date": "2026-10-08T03:18:00Z", "duration": 2,
+         "text": "Can you install Cloud Code?", "raw": "can you install cloud code", "setup": "cloud-flash",
+         "prompt": "v3", "correction": "Can you install Claude Code?"},
+        {"id": "AB12CD34-0000-4000-8000-000000000002", "date": "2026-10-07T03:18:00Z", "duration": 1,
+         "text": "Not corrected."},
+        {"id": "EF56AB78-0000-4000-8000-000000000003", "date": "2026-10-06T03:18:00Z", "duration": 1,
+         "text": "Saved before raw was kept.", "correction": "Saved before raw was kept!"},
+    ]))
+    cases = polish.load_cases(history)
+    assert [c["id"] for c in cases] == ["correction-ab12cd34", "correction-ef56ab78"]
+    assert cases[0]["raw"] == "can you install cloud code" and cases[0]["expected"] == "Can you install Claude Code?"
+    assert cases[1]["raw"] == "Saved before raw was kept.", "no raw: what the app wrote stands in"
+    assert polish.check(cases[0], "Can you install Claude Code?")["passed"]
+    assert not polish.check(cases[0], "Sure, here's how to install Claude Code: …")["passed"]

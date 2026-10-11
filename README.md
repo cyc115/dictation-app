@@ -34,6 +34,10 @@ Relaunch the app after enabling Accessibility.
 - Menu bar 🎙 → **Insights…**: words dictated, time saved (vs. typing at 40 WPM), average WPM, total dictation time.
 - Menu bar 🎙 → **History…** (⌘Y): past dictations by day, searchable; hover a row to copy it.
   Kept on this Mac only (`~/Library/Application Support/DictationApp/history.json`); choose how long to keep it.
+- **Corrections:** in History, click the pencil beside a dictation that came out wrong and type what you
+  wanted. Each correction keeps the speech model's text, what the app wrote and your fix on that History
+  entry, kept until you delete it. `bench/suite.py polish run -m setup:cloud-flash --corrections` tests a
+  setup or prompt on them.
 - Click ✕ (or press **Esc**) to throw the dictation away, ✓ to stop and paste.
 - **Model** (Settings → Model) picks a *setup*: the speech model, the AI polish model and the polish
   prompt, together:
