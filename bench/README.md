@@ -83,11 +83,17 @@ bench/suite.py polish run -m openai/gpt-oss-120b@Groq -m google/gemini-3.1-flash
 bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq \
     --prompt-file bench/polish_prompts/v3.txt -r 2                       # Apple (via the app) vs cloud
 bench/suite.py polish report --failures openai/gpt-oss-120b@Groq         # what one model got wrong
+bench/suite.py polish run -m setup:cloud-flash --cases-file bench/polish_cases_hard.json   # the hard set
 ```
 
 - **Cases** (`polish_cases.json`; `polish_cases_holdout.json` for prompts tuned on the first set):
   fillers, self-corrections, already-clean text, and traps — dictations that ask or instruct, which
-  a polish model must clean up, not carry out. A pass needs every check to hold and the words within
+  a polish model must clean up, not carry out. The first sets got too easy (94–100%), so
+  `polish_cases_hard.json` (30) and `polish_cases_hard_holdout.json` (20) come from real dictations:
+  long Chinese stammers, cut-up sentences, Traditional characters from the speech model, noise words,
+  spoken numbers, and misheard terms that context makes clear (kind `term`, the "terms" column:
+  "cloud code" → Claude Code). Oct 11: 17–37% (hard), 35–40% (hard holdout) for GPT-OSS, Haiku 5.5
+  and GPT-6.1 Sol Pro. A pass needs every check to hold and the words within
   25% of the expected cleanup.
 - **Quick set** (`--quick`): 20 of the main cases, mostly the ones models disagreed on (17–86% pass
   across the first study), over every language and kind, three of them long. For a fast check; use the

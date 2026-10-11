@@ -121,10 +121,11 @@ tokens, error_rate = harness.tokens, harness.error_rate
 
 
 def contains(text: str, phrase: str) -> bool:
-    """Chinese: substring. Latin: whole words, case-insensitive (so "um" doesn't match "umbrella")."""
+    """Chinese: substring. Latin: whole words, case-insensitive (so "um" doesn't match "umbrella"); a
+    Chinese character next to it is a boundary ("的latency哪个" has "latency")."""
     if _CJK.search(phrase) or not re.search(r"\w", phrase):
         return phrase in text
-    return re.search(rf"(?<![\w']){re.escape(phrase)}(?![\w'])", text, re.I) is not None
+    return re.search(rf"(?<![A-Za-z0-9_']){re.escape(phrase)}(?![A-Za-z0-9_'])", text, re.I) is not None
 
 
 def check(case: dict, output: str) -> dict:

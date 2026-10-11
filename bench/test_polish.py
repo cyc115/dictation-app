@@ -66,6 +66,7 @@ def test_latin_checks_match_whole_words_and_chinese_matches_substrings():
     assert polish.contains("Um, send it", "um") and not polish.contains("an umbrella", "um")
     assert polish.contains("I'll be there", "I'll") and not polish.contains("Bill", "I'll")
     assert polish.contains("把文件发给李娜。", "李娜") and polish.contains("cost $2 a month", "$2")
+    assert polish.contains("它的latency哪个更高", "latency") and not polish.contains("它的latency哪个", "late")
 
 
 def test_check_reports_what_went_wrong():
