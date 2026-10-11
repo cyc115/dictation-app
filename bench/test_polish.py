@@ -18,12 +18,14 @@ def test_prompt_versions_match_their_benchmark_files():
 
 def test_reads_the_apps_setups_and_their_prompts(tmp_path):
     built_in = polish.setups(tmp_path / "none.json")
-    assert list(built_in) == ["on-device", "cloud-flash", "cloud-big"]
-    assert all(s["prompt"] == "v3" and s["wrap"] for s in built_in.values())
+    assert list(built_in) == ["on-device", "cloud-flash", "cloud-big", "cloud-flash-deepseek"]
+    assert all(s["prompt"] == ("v3" if s["polish"] == "apple" else "v4") and s["wrap"] for s in built_in.values())
     assert polish.resolve("setup:on-device", "ignored", False) == ("apple", polish.prompt_text("v3"), True)
     assert polish.resolve("setup:cloud-big")[0] == "openrouter:openai/gpt-oss-120b@Groq"
-    assert polish.app_prompt("apple") == polish.app_prompt("openrouter:x") == polish.prompt_text("v3")
-    assert polish.resolve("openrouter:m") == ("openrouter:m", polish.prompt_text("v3"), True)
+    assert polish.app_prompt("apple") == polish.prompt_text("v3")
+    assert polish.app_prompt("openrouter:x") == polish.prompt_text("v4")
+    assert polish.resolve("openrouter:m") == ("openrouter:m", polish.prompt_text("v4"), True)
+    assert polish.request_body("m", "t", "P", "Together,DeepInfra", None, None)["provider"]["order"] == ["Together", "DeepInfra"]
     assert polish.resolve("openrouter:m", "P", False) == ("openrouter:m", "P", False)
     with pytest.raises(SystemExit, match="unknown setup"):
         polish.resolve("setup:nope")

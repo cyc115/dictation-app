@@ -238,7 +238,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         dictationSetup = setup
         // Load the polish model while you speak instead of after you stop.
         polisher = settings.polishEnabled && !settings.effectiveStreaming
-            ? PolishService(backend: setup.polishBackend(apiKey: key, onDevice: onDevicePolish(instructions:wrap:)))
+            ? setup.polishService(apiKey: key, onDevice: onDevicePolish(instructions:wrap:))
             : nil
         polisher?.prepare()
         note = archive.map { _ in RecordingNote(polishModel: polisher?.backend.name) }

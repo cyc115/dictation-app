@@ -24,7 +24,28 @@ final class SetupTests: XCTestCase {
         let deepSeek = DictationSetup.cloudFlashDeepSeek
         XCTAssertEqual(deepSeek.speech, DictationSetup.cloudFlash.speech, "same speech as Cloud Flash; only polish differs")
         XCTAssertEqual(deepSeek.backup, DictationSetup.cloudFlash.backup)
-        XCTAssertEqual(deepSeek.polish, "openrouter:deepseek/deepseek-v4.1-flash@Together")
+        XCTAssertEqual(deepSeek.polish, "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra")
+        XCTAssertEqual(deepSeek.polishBackup, "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together",
+                       "the same model on another host: a backup answer is as good")
+    }
+
+    func testCloudPolishGetsTheBackupAndDeadlineOnDeviceWaits() throws {
+        let onDevice: (String, Bool) -> PolishBackend = { _, _ in FakePolish() }
+        let cloud = DictationSetup.cloudFlashDeepSeek.polishService(apiKey: "sk-test", onDevice: onDevice)
+        XCTAssertTrue(cloud.backend is OpenRouterPolish)
+        let backup = try XCTUnwrap(cloud.backup as? OpenRouterPolish)
+        XCTAssertEqual(backup.instructions, PolishPrompt.v4, "the backup uses the setup's prompt")
+        XCTAssertEqual(cloud.backupAfter, 0.8)
+        XCTAssertEqual(cloud.deadline, 3)
+        let flash = DictationSetup.cloudFlash.polishService(apiKey: "sk-test", onDevice: onDevice)
+        XCTAssertNil(flash.backup)
+        XCTAssertEqual(flash.deadline, 3, "every cloud polish gives up at the deadline")
+        for (setup, key) in [(DictationSetup.onDevice, "sk-test"), (DictationSetup.cloudFlashDeepSeek, "")] {
+            let local = setup.polishService(apiKey: key, onDevice: onDevice)
+            XCTAssertTrue(local.backend is FakePolish)
+            XCTAssertNil(local.backup, setup.id)
+            XCTAssertNil(local.deadline, "\(setup.id): on-device is slow but there")
+        }
     }
 
     func testPromptsByVersionOrFile() throws {
@@ -84,14 +105,16 @@ final class SetupTests: XCTestCase {
               {"id": "cloud-flash", "title": "Clash", "speech": "apple", "polish": "apple", "prompt": "v1"},
               {"id": "bad-prompt", "title": "Bad", "speech": "apple", "polish": "apple", "prompt": "v9"},
               {"id": "bad-speech", "title": "Bad", "speech": "whisper", "polish": "apple", "prompt": "v1"},
-              {"id": "bad-backup", "title": "Bad", "speech": "apple", "backup": "m", "polish": "apple", "prompt": "v1"}
+              {"id": "bad-backup", "title": "Bad", "speech": "apple", "backup": "m", "polish": "apple", "prompt": "v1"},
+              {"id": "bad-polish-backup", "title": "Bad", "speech": "apple", "polish": "apple", "polishBackup": "openrouter:m", "prompt": "v1"}
             ]}
             """)
         let loaded = DictationSetup.loadCustom(from: url)
         XCTAssertEqual(loaded.setups.map(\.id), ["ok"])
         let error = try XCTUnwrap(loaded.error)
         for part in ["cloud-flash: id already used", "unknown prompt \"v9\"", "bad-speech: speech must be",
-                     "bad-backup: a backup only works with cloud speech"] {
+                     "bad-backup: a backup only works with cloud speech",
+                     "bad-polish-backup: a polish backup only works with cloud polish"] {
             XCTAssertTrue(error.contains(part), error)
         }
         XCTAssertEqual(DictationSetup.loadCustom(from: try writeSetups("{nope")).error, "setups.json: not valid JSON")

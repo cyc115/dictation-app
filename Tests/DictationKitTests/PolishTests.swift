@@ -62,7 +62,7 @@ final class OpenRouterPolishTests: XCTestCase {
             XCTAssertEqual(OpenRouterPolish.reasoning(for: model) as? [String: String], ["effort": "minimal"],
                            "\(model) rejects reasoning off (\"Reasoning is mandatory\")")
         }
-        let pinned = try XCTUnwrap(LatencyRunner().polisher(for: "openrouter:qwen/qwen3.8-27b@Cerebras") as? OpenRouterPolish)
+        let pinned = try XCTUnwrap(LatencyRunner().polisher(for: "openrouter:qwen/qwen3.8-27b@Cerebras")?.backend as? OpenRouterPolish)
         XCTAssertEqual(pinned.model, "qwen/qwen3.8-27b")
         XCTAssertEqual(pinned.provider, "Cerebras")
     }
@@ -85,5 +85,88 @@ final class OpenRouterPolishTests: XCTestCase {
         guard case .failure(let e2) = OpenRouterPolish.parse(data: Data("oops".utf8), status: 500)
         else { return XCTFail("expected failure") }
         XCTAssertTrue(e2.localizedDescription.contains("HTTP 500"))
+    }
+}
+
+/// Cloud polish's fallback: a backup when the main model is late or fails, and a deadline after
+/// which you get your raw words.
+final class PolishFallbackTests: XCTestCase {
+    private func fake(_ name: String, delay: TimeInterval = 0, error: PolishError? = nil, log: EventLog? = nil) -> FakePolish {
+        let polish = FakePolish(delay: delay, output: name, error: error, log: log)
+        polish.name = name
+        return polish
+    }
+
+    func testMainOnTimeNeverAsksTheBackup() async throws {
+        let log = EventLog()
+        let service = PolishService(backend: fake("main", delay: 0.01), backup: fake("backup", log: log), backupAfter: 0.3)
+        let answer = try await service.answer("hi")
+        XCTAssertEqual(answer.text, "main")
+        XCTAssertEqual(answer.model, "main")
+        XCTAssertTrue(log.events.isEmpty, "the backup costs nothing when the main model is on time")
+    }
+
+    func testLateMainAsksTheBackupAndTheFirstAnswerWins() async throws {
+        let service = PolishService(backend: fake("main", delay: 2), backup: fake("backup", delay: 0.05), backupAfter: 0.1)
+        let started = Date()
+        let answer = try await service.answer("hi")
+        XCTAssertEqual(answer.text, "backup")
+        XCTAssertEqual(answer.model, "backup")
+        XCTAssertLessThan(Date().timeIntervalSince(started), 1, "the slow main request is cancelled, not waited for")
+    }
+
+    func testFailedMainAsksTheBackupAtOnce() async throws {
+        let service = PolishService(backend: fake("main", error: .failed("host down")), backup: fake("backup"), backupAfter: 5)
+        let started = Date()
+        let answer = try await service.answer("hi")
+        XCTAssertEqual(answer.text, "backup")
+        XCTAssertLessThan(Date().timeIntervalSince(started), 1, "no waiting out the delay after a failure")
+    }
+
+    func testBothFailingReportsTheFirstErrorAndKeepsYourWords() async {
+        let service = PolishService(backend: fake("main", error: .failed("main down")),
+                                    backup: fake("backup", delay: 0.05, error: .failed("backup down")), backupAfter: 0.1)
+        let result = await service.polishReporting("my words")
+        XCTAssertEqual(result.text, "my words")
+        XCTAssertEqual(result.error, "main down")
+    }
+
+    func testDeadlineGivesYourWordsInsteadOfWaiting() async {
+        let service = PolishService(backend: fake("main", delay: 5), backup: fake("backup", delay: 5), backupAfter: 0.05, deadline: 0.2)
+        let started = Date()
+        let result = await service.polishReporting("my words")
+        XCTAssertEqual(result.text, "my words")
+        XCTAssertEqual(result.error, "No answer within 0.2 s.")
+        XCTAssertLessThan(Date().timeIntervalSince(started), 1)
+    }
+
+    func testNoBackupOrDeadlineJustWaits() async throws {
+        let answer = try await PolishService(backend: fake("main", delay: 0.2)).answer("hi")
+        XCTAssertEqual(answer.text, "main", "on-device: slow, but no deadline cuts it off")
+    }
+
+    func testPrepareWarmsBoth() {
+        let log = EventLog()
+        PolishService(backend: FakePolish(log: log), backup: FakePolish(log: log)).prepare()
+        XCTAssertEqual(log.events, ["prepare", "prepare"])
+    }
+
+    func testProviderListFallsBackInOrder() throws {
+        let request = OpenRouterPolish.request(model: "m", apiKey: "k", text: "t", instructions: "P", provider: "Together,DeepInfra")
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        let provider = try XCTUnwrap(body["provider"] as? [String: Any])
+        XCTAssertEqual(provider["order"] as? [String], ["Together", "DeepInfra"])
+        XCTAssertEqual(provider["allow_fallbacks"] as? Bool, false, "only the hosts named")
+    }
+
+    func testLatencyProbeRunsASetupsPolishAsTheAppDoes() throws {
+        let runner = LatencyRunner()
+        runner.apiKey = "sk-test"
+        let service = try XCTUnwrap(runner.polisher(for: "setup:cloud-flash-deepseek"))
+        XCTAssertEqual((service.backend as? OpenRouterPolish)?.provider, "Together,DeepInfra")
+        XCTAssertEqual((service.backup as? OpenRouterPolish)?.provider, "DeepInfra,Together")
+        XCTAssertEqual(service.backupAfter, 0.8)
+        XCTAssertEqual(service.deadline, 3)
+        XCTAssertNil(runner.polisher(for: "setup:nope"))
     }
 }

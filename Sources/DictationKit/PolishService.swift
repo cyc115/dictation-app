@@ -27,17 +27,35 @@ enum PolishError: LocalizedError {
 }
 
 /// Optional LLM cleanup of the transcript. OFF by default (menu bar toggle). The setup picks the
-/// model and prompt (`DictationSetup.polishBackend`): on-device for On-device, so nothing leaves
-/// the Mac; a cloud model for Cloud Flash and Cloud Big, where the audio already went.
+/// model and prompt (`DictationSetup.polishService`): on-device for On-device, so nothing leaves
+/// the Mac; a cloud model for the cloud setups, where the audio already went.
+///
+/// Cloud polish usually answers in well under a second but now and then takes 5 s or more, or the
+/// host is down. So, as speech does (`UploadRace`), a cloud setup can also ask a `backup` once the
+/// main model is `backupAfter` seconds late or fails, and gives up at `deadline`: you get your raw
+/// words then rather than waiting.
 class PolishService {
     let backend: PolishBackend
+    let backup: PolishBackend?
+    let backupAfter: TimeInterval
+    /// Seconds before polishing gives up; nil waits (on-device: it's slow, but it's there).
+    let deadline: TimeInterval?
 
-    init(backend: PolishBackend) { self.backend = backend }
+    init(backend: PolishBackend, backup: PolishBackend? = nil, backupAfter: TimeInterval = 0, deadline: TimeInterval? = nil) {
+        self.backend = backend
+        self.backup = backup
+        self.backupAfter = backupAfter
+        self.deadline = deadline
+    }
 
     /// Starts loading the model while you're still speaking (call when dictation starts).
-    func prepare() { backend.prepare() }
+    func prepare() {
+        backend.prepare()
+        backup?.prepare()
+    }
 
-    /// The polished text, or the raw text if polishing fails (you always get your words), and why.
+    /// The polished text, or the raw text if polishing fails or runs out of time (you always get
+    /// your words), and why.
     func polishReporting(_ text: String) async -> (text: String, error: String?) {
         do { return (try await polished(text), nil) } catch { return (text, error.localizedDescription) }
     }
@@ -49,9 +67,17 @@ class PolishService {
     }
 
     /// The polished text; throws instead of falling back, so benchmarks see failures.
-    func polished(_ text: String) async throws -> String {
-        let cleaned = try await backend.polish(text).trimmingCharacters(in: .whitespacesAndNewlines)
-        return cleaned.isEmpty ? text : cleaned
+    func polished(_ text: String) async throws -> String { try await answer(text).text }
+
+    /// The polished text and the name of the model that gave it (the backup's, if it answered first).
+    func answer(_ text: String) async throws -> (text: String, model: String) {
+        let backend = backend, backup = backup
+        let (reply, byBackup) = try await FirstAnswer.race(
+            main: { try await backend.polish(text) },
+            backup: backup.map { backup in { try await backup.polish(text) } },
+            backupAfter: backupAfter, deadline: deadline)
+        let cleaned = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (cleaned.isEmpty ? text : cleaned, (byBackup ? backup ?? backend : backend).name)
     }
 }
 
@@ -105,7 +131,8 @@ struct OpenRouterPolish: PolishBackend {
     var session: URLSession = .shared
     var instructions = DictationSetup.cloudFlash.promptText
     var wrap = true
-    /// Only this OpenRouter provider (e.g. "Groq", "Cerebras": fast hosts); nil lets OpenRouter route.
+    /// Only these OpenRouter providers, in order, comma-separated ("Together,DeepInfra": the second
+    /// if the first fails); nil lets OpenRouter route.
     var provider: String?
 
     var name: String { "openrouter:\(model)" + (provider.map { "@\($0)" } ?? "") }
@@ -135,7 +162,9 @@ struct OpenRouterPolish: PolishBackend {
             ["role": "system", "content": instructions],
             ["role": "user", "content": text],
         ]]
-        if let provider = provider { body["provider"] = ["order": [provider], "allow_fallbacks": false] }
+        if let provider = provider {
+            body["provider"] = ["order": provider.split(separator: ",").map(String.init), "allow_fallbacks": false]
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         return request
     }

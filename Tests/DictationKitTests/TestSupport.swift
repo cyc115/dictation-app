@@ -96,6 +96,7 @@ final class FakePolish: PolishBackend {
     let output: String?
     let error: PolishError?
     let log: EventLog?
+    var name = "FakePolish"
 
     init(delay: TimeInterval = 0, output: String? = nil, error: PolishError? = nil, log: EventLog? = nil) {
         self.delay = delay

@@ -113,6 +113,12 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     /// Added to the "Backup model when slow" help, e.g. how the backup is worse.
     let backupNote: String?
     let polish: String
+    /// Cloud polish only (`PolishService`): a model also asked when `polish` hasn't answered in
+    /// `polishBackupWait` seconds, or failed; the first answer wins.
+    let polishBackup: String?
+    let polishBackupWait: TimeInterval
+    /// Cloud polish only: seconds before you get the raw transcript instead of waiting for polish.
+    let polishDeadline: TimeInterval
     /// A `PolishPrompt` version or a prompt file path.
     let prompt: String
     /// Send the transcript inside <transcript> tags (default on).
@@ -128,6 +134,9 @@ struct DictationSetup: Codable, Hashable, Identifiable {
         backupWait = try c.decodeIfPresent(TimeInterval.self, forKey: .backupWait) ?? 2
         backupNote = try c.decodeIfPresent(String.self, forKey: .backupNote)
         polish = try c.decode(String.self, forKey: .polish)
+        polishBackup = try c.decodeIfPresent(String.self, forKey: .polishBackup)
+        polishBackupWait = try c.decodeIfPresent(TimeInterval.self, forKey: .polishBackupWait) ?? 0.8
+        polishDeadline = try c.decodeIfPresent(TimeInterval.self, forKey: .polishDeadline) ?? 3
         prompt = try c.decode(String.self, forKey: .prompt)
         wrap = try c.decodeIfPresent(Bool.self, forKey: .wrap) ?? true
         summary = try c.decodeIfPresent(String.self, forKey: .summary)
@@ -169,7 +178,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
         return backend
     }
 
-    /// "openrouter:<id>[@Provider]" as an `OpenRouterPolish`, as bench/suite.py polish runs it; nil otherwise.
+    /// "openrouter:<id>[@Provider[,Provider…]]" as an `OpenRouterPolish`, as bench/suite.py polish runs it; nil otherwise.
     static func polishBackend(spec: String, apiKey: String, instructions: String, wrap: Bool) -> PolishBackend? {
         guard spec.hasPrefix("openrouter:") else { return nil }
         let parts = spec.dropFirst("openrouter:".count).split(separator: "@", maxSplits: 1).map(String.init)
@@ -186,6 +195,12 @@ struct DictationSetup: Codable, Hashable, Identifiable {
         if backup != nil && !isCloud { throw SetupError("\(id): a backup only works with cloud speech") }
         if polish != "apple" && !(polish.hasPrefix("openrouter:") && polish.count > "openrouter:".count) {
             throw SetupError("\(id): polish must be \"apple\" or \"openrouter:<model id>[@Provider]\"")
+        }
+        if let polishBackup {
+            if polishesOnDevice { throw SetupError("\(id): a polish backup only works with cloud polish") }
+            if !(polishBackup.hasPrefix("openrouter:") && polishBackup.count > "openrouter:".count) {
+                throw SetupError("\(id): polishBackup must be \"openrouter:<model id>[@Provider]\"")
+            }
         }
         _ = try PolishPrompt.text(for: prompt)
     }
@@ -213,7 +228,9 @@ struct DictationSetup: Codable, Hashable, Identifiable {
            "summary": "Cloud Flash, polished by DeepSeek V4.1 Flash: fixes more misheard terms, about as fast. Audio is sent to the cloud when you stop.",
            "speech": "openrouter:qwen/qwen3-asr-1.7b",
            "backup": "qwen/qwen3-asr-0.6b", "backupWait": 2, "backupNote": "The smaller model gets more technical terms wrong.",
-           "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together", "prompt": "v4", "wrap": true}
+           "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
+           "polishBackup": "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together", "polishBackupWait": 0.8,
+           "prompt": "v4", "wrap": true}
         ]
         """
 
@@ -222,6 +239,14 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     static let cloudFlash = builtIns[1]
     static let cloudBig = builtIns[2]
     static let cloudFlashDeepSeek = builtIns[3]
+
+    /// What polishes a dictation, with the backup and deadline when it's the cloud model.
+    func polishService(apiKey: String?, onDevice: (String, Bool) -> PolishBackend) -> PolishService {
+        let main = polishBackend(apiKey: apiKey, onDevice: onDevice)
+        guard !polishesOnDevice, let key = apiKey, !key.isEmpty else { return PolishService(backend: main) }
+        let backup = polishBackup.flatMap { Self.polishBackend(spec: $0, apiKey: key, instructions: promptText, wrap: wrap) }
+        return PolishService(backend: main, backup: backup, backupAfter: polishBackupWait, deadline: polishDeadline)
+    }
 
     /// The built-in setup with this OpenRouter speech model, for benchmarks that name only the model.
     static func builtIn(speechModel id: String) -> DictationSetup? {

@@ -158,7 +158,7 @@ def request_body(model: str, text: str, prompt: str, provider: str | None, sort:
             "messages": [{"role": "system", "content": prompt},
                          {"role": "user", "content": user_message(text, wrap)}]}
     if provider:
-        body["provider"] = {"order": [provider], "allow_fallbacks": False}
+        body["provider"] = {"order": provider.split(","), "allow_fallbacks": False}
     elif sort:
         body["provider"] = {"sort": sort}
     if reasoning is not None:

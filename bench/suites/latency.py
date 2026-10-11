@@ -71,7 +71,7 @@ BACKUP = "+backup"
 LENGTH_BUCKETS = [(0, 5, "< 5 s"), (5, 10, "5–10 s"), (10, float("inf"), "≥ 10 s")]
 
 _STT_SPEC = re.compile(r"^(apple:[A-Za-z]{2,3}(-[A-Za-z0-9]+)*|openrouter:\S+)$")
-_POLISH_SPEC = re.compile(r"^(none|apple|openrouter:\S+)$")
+_POLISH_SPEC = re.compile(r"^(none|apple|openrouter:\S+|setup:\S+)$")
 
 
 # ---------------------------------------------------------------- models & clips
@@ -85,7 +85,7 @@ def resolve_stt(name: str) -> str:
 
 def check_polish(spec: str) -> str:
     if not _POLISH_SPEC.match(spec):
-        raise SystemExit(f"unknown polish model {spec!r}: use none, apple or openrouter:<id>")
+        raise SystemExit(f"unknown polish model {spec!r}: use none, apple, openrouter:<id>[@Provider] or setup:<id>")
     return spec
 
 

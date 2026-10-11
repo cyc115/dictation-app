@@ -93,8 +93,8 @@ final class LatencyRunnerTests: XCTestCase {
     func testRealBackendsForSpecs() throws {
         let runner = LatencyRunner()
         runner.apiKey = "k"
-        XCTAssertNotNil(runner.polisher(for: "apple") as? OnDevicePolish)
-        let cloud = runner.polisher(for: "openrouter:anthropic/claude-haiku-5.5") as? OpenRouterPolish
+        XCTAssertNotNil(runner.polisher(for: "apple")?.backend as? OnDevicePolish)
+        let cloud = runner.polisher(for: "openrouter:anthropic/claude-haiku-5.5")?.backend as? OpenRouterPolish
         XCTAssertEqual(cloud?.model, "anthropic/claude-haiku-5.5")
         XCTAssertEqual(cloud?.apiKey, "k")
         XCTAssertNil(runner.polisher(for: "none"))
@@ -116,17 +116,17 @@ final class LatencyRunnerTests: XCTestCase {
         let runner = LatencyRunner()
         runner.instructions = "Only clean up."
         runner.wrap = false
-        let apple = try XCTUnwrap(runner.polisher(for: "apple") as? OnDevicePolish)
+        let apple = try XCTUnwrap(runner.polisher(for: "apple")?.backend as? OnDevicePolish)
         XCTAssertEqual(apple.instructions, "Only clean up.")
         XCTAssertFalse(apple.wrap)
-        let cloud = try XCTUnwrap(runner.polisher(for: "openrouter:m") as? OpenRouterPolish)
+        let cloud = try XCTUnwrap(runner.polisher(for: "openrouter:m")?.backend as? OpenRouterPolish)
         XCTAssertEqual(cloud.instructions, "Only clean up.")
         XCTAssertFalse(cloud.wrap)
         let defaults = LatencyRunner()
-        let cloudDefault = try XCTUnwrap(defaults.polisher(for: "openrouter:m") as? OpenRouterPolish)
+        let cloudDefault = try XCTUnwrap(defaults.polisher(for: "openrouter:m")?.backend as? OpenRouterPolish)
         XCTAssertEqual(cloudDefault.instructions, DictationSetup.cloudFlash.promptText, "the setup's prompt unless overridden")
         XCTAssertTrue(cloudDefault.wrap, "tags unless turned off")
-        XCTAssertTrue(try XCTUnwrap(defaults.polisher(for: "apple") as? OnDevicePolish).wrap)
+        XCTAssertTrue(try XCTUnwrap(defaults.polisher(for: "apple")?.backend as? OnDevicePolish).wrap)
     }
 
     /// The benchmark times polish the way the app now runs it: the model is prepared when

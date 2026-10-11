@@ -22,7 +22,8 @@ struct LatencyTrial: Decodable, Equatable {
     /// "apple:<locale>", "openrouter:<model id>", or "openrouter:<model id>+backup" for the
     /// "Backup model when slow" setting on (the app's default).
     let stt: String
-    /// Polish backends to time on this trial's transcript, in order: "apple" or "openrouter:<model id>[@<Provider>]".
+    /// Polish to time on this trial's transcript, in order: "apple", "openrouter:<model id>[@<Provider>]",
+    /// or "setup:<id>" (that setup's polish as the app runs it: backup and deadline included).
     let polish: [String]
     /// Polish-only trial (bench/suite.py polish): this is the transcript; `file` and `stt` are unused.
     var text: String? = nil
@@ -47,6 +48,8 @@ struct LatencySample: Encodable, Equatable {
         var seconds: Double?
         var text = ""
         var error: String?
+        /// The model whose text was used (`setup:` polish: the backup's, if it answered first).
+        var answeredBy: String?
     }
 
     let id: String
@@ -89,12 +92,20 @@ final class LatencyRunner {
         }
     }
 
-    func polisher(for spec: String) -> PolishBackend? {
-        if let fake = polishers[spec] { return fake }
+    func polisher(for spec: String) -> PolishService? {
+        if let fake = polishers[spec] { return PolishService(backend: fake) }
+        if spec.hasPrefix("setup:") {
+            let id = spec.dropFirst("setup:".count)
+            let setup = (DictationSetup.builtIns + DictationSetup.loadCustom().setups).first { $0.id == id }
+            return setup?.polishService(apiKey: apiKey, onDevice: { OnDevicePolish(instructions: $0, wrap: $1) })
+        }
         // Without a prompt override, each model gets its setup's prompt, as in the app.
-        if spec == "apple" { return OnDevicePolish(instructions: instructions ?? DictationSetup.onDevice.promptText, wrap: wrap) }
+        if spec == "apple" {
+            return PolishService(backend: OnDevicePolish(instructions: instructions ?? DictationSetup.onDevice.promptText, wrap: wrap))
+        }
         return DictationSetup.polishBackend(spec: spec, apiKey: apiKey,
                                             instructions: instructions ?? DictationSetup.cloudFlash.promptText, wrap: wrap)
+            .map { PolishService(backend: $0) }
     }
 
     /// Plays the clip into the engine like the mic would, then times `stop()` → transcript.
@@ -162,7 +173,7 @@ final class LatencyRunner {
     }
 
     /// Times each polish backend on the transcript, one after another.
-    private func polish(_ sample: LatencySample, with specs: [String], backends: [PolishBackend?],
+    private func polish(_ sample: LatencySample, with specs: [String], backends: [PolishService?],
                         completion: @escaping (LatencySample) -> Void) {
         guard !specs.isEmpty else { return completion(sample) }
         let clock = self.clock
@@ -175,7 +186,7 @@ final class LatencyRunner {
                 } else if let backend = backend {
                     let started = clock()
                     do {
-                        result.text = try await PolishService(backend: backend).polished(sample.raw)
+                        (result.text, result.answeredBy) = try await backend.answer(sample.raw)
                         result.seconds = clock() - started
                     } catch {
                         result.error = error.localizedDescription
