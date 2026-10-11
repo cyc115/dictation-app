@@ -3,6 +3,7 @@
 macOS menu-bar dictation app. Swift package: `Sources/DictationKit` (all app code), `Sources/DictationApp` (entry point), `Tests/DictationKitTests`.
 
 ## Workflow
+- Before implementing a feature or fix, look for refactoring that makes it cleaner and easier to maintain (split out a testable piece, delete a workaround the change makes unnecessary) and do it as part of the change. If a change to app *behavior* would be simpler to maintain long term, don't just make it — propose it to the user with the trade-off and let them decide.
 - Before building or committing: `./test.sh` (unit, UI, snapshot and perf-budget tests). Every new feature or fix gets tests in the same change:
   - logic → unit tests with injected `UserDefaults` / file URLs / pasteboards (see `TestSupport.swift`), never the user's real ones;
   - UI → `HostedView` + accessibility identifiers (`.accessibilityIdentifier`), driven with `click(_:)`; add a snapshot for new visual surfaces;

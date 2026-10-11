@@ -2,23 +2,24 @@ import Accelerate
 import AVFoundation
 import os
 
-/// The microphone for one dictation: a fresh `AVAudioEngine` (so a newly chosen or reconnected mic
-/// is picked up), the tap, and recovery when CoreAudio stops it.
+/// The microphone for one dictation: a fresh input (`HALInput`, so a newly chosen or reconnected mic
+/// is picked up) on the chosen device, and recovery when CoreAudio stops it.
 ///
-/// CoreAudio often reconfigures the input unit just after start (~60–90 ms in on a USB headset).
-/// Usually AVAudioEngine only posts `AVAudioEngineConfigurationChange`, but sometimes it stops itself
-/// first — silently, so the whole dictation recorded nothing and the waveform stayed flat until the
-/// next press. On that notice this re-installs the tap with the input's current format and restarts.
+/// CoreAudio can stop the input just after start (seen on a USB headset ~60–90 ms in), silently, so
+/// the whole dictation recorded nothing and the waveform stayed flat until the next press. When the
+/// input reports it stopped, this opens it again.
 final class MicCapture {
     static let log = Logger(subsystem: "com.mikechen.DictationApp", category: "mic")
     /// Restarts allowed per dictation, so a device that keeps reconfiguring can't loop forever.
     static let maxRestarts = 3
 
-    private(set) var engine: AVAudioEngine?
+    private(set) var input: MicInput?
     private(set) var restarts = 0
-    /// Tests swap this out to run without a microphone.
-    var startEngine: (AVAudioEngine) throws -> Void = { try $0.start() }
-    private var observer: NSObjectProtocol?
+    /// Opens a device: `deliver` gets its audio, `stopped` is called (main queue) if it stops on its
+    /// own. Tests swap this out to run without a microphone.
+    var openInput: (_ device: AudioDeviceID, _ deliver: @escaping (AVAudioPCMBuffer) -> Void,
+                    _ stopped: @escaping () -> Void) throws -> MicInput = { try HALInput(device: $0, deliver: $1, stopped: $2) }
+    private var inputUID = ""
     private var onBuffer: ((AVAudioPCMBuffer) -> Void)?
     private var onError: ((String) -> Void)?
     /// (buffers seen, any non-zero sample) for this dictation; written on the audio thread.
@@ -87,28 +88,19 @@ final class MicCapture {
         return min(max((db + 50) / 40, 0), 1)
     }
 
-    /// Opens the mic. `inputUID` picks a microphone by CoreAudio UID; empty uses the system default.
-    /// `onBuffer` runs on the audio thread; `onError` on the main queue, if a restart fails.
+    /// Opens the mic. `inputUID` picks a microphone by CoreAudio UID; empty, or one that isn't
+    /// connected, uses the system default. `onBuffer` runs off the main queue; `onError` on the main
+    /// queue, if the mic stops and can't be reopened.
     func start(inputUID: String, onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
                onError: @escaping (String) -> Void) throws {
         stop()
-        let engine = AVAudioEngine()
-        if !inputUID.isEmpty, !AudioDevices.route(engine, toInputUID: inputUID) {
-            Self.log.error("could not route to input \(inputUID, privacy: .public); using the default")
-        }
-        self.engine = engine
+        self.inputUID = inputUID
         self.onBuffer = onBuffer
         self.onError = onError
         restarts = 0
         signal.withLock { $0 = (0, false) }
-        observer = NotificationCenter.default.addObserver(
-            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
-        ) { [weak self, weak engine] _ in
-            guard let self = self, let engine = engine, engine === self.engine else { return }
-            self.configurationChanged()
-        }
         do {
-            try run(engine)
+            input = try open()
         } catch {
             stop()
             throw error
@@ -116,53 +108,49 @@ final class MicCapture {
     }
 
     func stop() {
-        if let observer = observer { NotificationCenter.default.removeObserver(observer) }
-        observer = nil
-        if let engine = engine {
-            engine.stop()
-            engine.inputNode.removeTap(onBus: 0)
-        }
-        engine = nil
+        input?.stop()
+        input = nil
         onBuffer = nil
         onError = nil
     }
 
-    /// Main queue. Restarts only if CoreAudio stopped the engine; a running one is fine as it is.
-    func configurationChanged() {
-        guard let engine = engine else { return }
-        Self.log.info("configuration changed, running=\(engine.isRunning, privacy: .public)")
-        guard !engine.isRunning else { return }
+    /// Main queue: the input stopped without being asked. Reopens it, up to `maxRestarts` times.
+    func inputStopped(_ stoppedInput: MicInput) {
+        guard let current = input, current === stoppedInput else { return }  // a late notice from an old one
+        current.stop()
         guard restarts < Self.maxRestarts else {
-            Self.log.error("engine stopped again after \(self.restarts, privacy: .public) restarts; giving up")
+            Self.log.error("mic stopped again after \(self.restarts, privacy: .public) restarts; giving up")
+            input = nil
             onError?("The microphone stopped. Try again.")
             return
         }
         restarts += 1
         do {
-            try run(engine)
-            Self.log.info("engine restarted (\(self.restarts, privacy: .public))")
+            input = try open()
+            Self.log.info("mic restarted (\(self.restarts, privacy: .public))")
         } catch {
             Self.log.error("restart failed: \(error.localizedDescription, privacy: .public)")
+            input = nil
             onError?("could not reopen microphone: \(error.localizedDescription)")
         }
     }
 
-    /// (Re)installs the tap with the input's current format and starts the engine.
-    private func run(_ engine: AVAudioEngine) throws {
-        let input = engine.inputNode
-        let format = input.outputFormat(forBus: 0)
-        Self.log.info("start: \(format.sampleRate, privacy: .public) Hz, \(format.channelCount, privacy: .public) ch")
-        input.removeTap(onBus: 0)
+    /// The chosen mic (or the default), with its audio going to `received`.
+    private func open() throws -> MicInput {
+        if !inputUID.isEmpty, !AudioDevices.inputDevices().contains(where: { $0.uid == inputUID }) {
+            Self.log.error("input \(self.inputUID, privacy: .public) isn't connected; using the default")
+        }
+        guard let device = AudioDevices.inputDevice(uid: inputUID) else {
+            throw TranscriptionError.message("no microphone is connected")
+        }
         let onBuffer = self.onBuffer
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            self?.received(buffer, to: onBuffer)
-        }
-        engine.prepare()
-        do {
-            try startEngine(engine)
-        } catch {
-            input.removeTap(onBus: 0)
-            throw error
-        }
+        var opened: MicInput?
+        let input = try openInput(device, { [weak self] buffer in self?.received(buffer, to: onBuffer) }, { [weak self] in
+            guard let self, let opened else { return }
+            self.inputStopped(opened)
+        })
+        opened = input
+        Self.log.info("start: device \(device, privacy: .public)")
+        return input
     }
 }

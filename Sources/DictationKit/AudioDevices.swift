@@ -9,7 +9,7 @@ struct AudioInputDevice: Hashable {
     let name: String
 }
 
-/// CoreAudio helpers: list microphones, route AVAudioEngine to one, read/write output mute and volume.
+/// CoreAudio helpers: list microphones, pick the one to record from, read/write output mute and volume.
 enum AudioDevices {
     static func inputDevices() -> [AudioInputDevice] {
         var address = globalAddress(kAudioHardwarePropertyDevices)
@@ -26,15 +26,11 @@ enum AudioDevices {
         }
     }
 
-    /// Points the engine's input at the device with `uid`. Returns false (engine keeps the
-    /// system default) if the device is gone. Call before reading the input format.
-    @discardableResult
-    static func route(_ engine: AVAudioEngine, toInputUID uid: String) -> Bool {
-        guard let device = inputDevices().first(where: { $0.uid == uid }),
-              let unit = engine.inputNode.audioUnit else { return false }
-        var id = device.id
-        return AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
-                                    &id, UInt32(MemoryLayout<AudioDeviceID>.size)) == noErr
+    /// The microphone a dictation records from: the one with `uid` if it's connected, else the
+    /// system default input. Nil if there's no input at all.
+    static func inputDevice(uid: String) -> AudioDeviceID? {
+        if !uid.isEmpty, let device = inputDevices().first(where: { $0.uid == uid }) { return device.id }
+        return defaultInputDevice()
     }
 
     // MARK: Output (for mute-while-dictating)

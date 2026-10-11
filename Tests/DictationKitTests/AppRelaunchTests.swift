@@ -29,7 +29,7 @@ final class MicSilenceTests: XCTestCase {
 
     func testEachDictationStartsOver() throws {
         let mic = MicCapture()
-        mic.startEngine = { _ in }
+        mic.openInput = { device, _, stopped in MicCaptureTests.FakeInput(device: device, stopped: stopped) }
         feed(mic, amplitude: 0, count: 30)
         try mic.start(inputUID: "", onBuffer: { _ in }, onError: { XCTFail($0) })
         XCTAssertFalse(mic.heardOnlySilence)

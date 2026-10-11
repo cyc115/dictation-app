@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import XCTest
 @testable import DictationKit
 
@@ -12,6 +13,18 @@ final class PerformanceTests: XCTestCase {
         assertFaster(than: 0.000_5, iterations: 2_000, "mic level per 1024-frame buffer") {
             _ = MicCapture.level(of: buffer)
         }
+    }
+
+    /// HALInput's render callback cuts each CoreAudio I/O cycle (often 512 frames) into ~21 ms chunks
+    /// on the real-time audio thread; overrunning it drops audio.
+    func testMicChunkingPerIOCycle() {
+        var chunker = AudioChunker(format: AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!)
+        let samples = [Float](repeating: 0.1, count: 512)
+        var chunks = 0
+        assertFaster(than: 0.000_2, iterations: 2_000, "mic chunking per 512-frame I/O cycle") {
+            samples.withUnsafeBufferPointer { chunker.append($0.baseAddress!, 512) { _ in chunks += 1 } }
+        }
+        XCTAssertGreaterThan(chunks, 0)
     }
 
     /// With "Keep recordings" on, the mic tap also converts each buffer to 16 kHz and writes it
