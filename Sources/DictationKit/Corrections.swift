@@ -221,7 +221,7 @@ struct CorrectionCard: View {
     /// "Cloud Flash · prompt v3".
     private var about: String? {
         guard let id = entry.setup else { return nil }
-        let title = DictationSetup.builtIns.first { $0.id == id }?.title ?? id
+        let title = DictationSetup.builtIns.first { $0.id == DictationSetup.currentID(id) }?.title ?? id
         return entry.prompt.map { "\(title) · prompt \(URL(fileURLWithPath: $0).lastPathComponent)" } ?? title
     }
 

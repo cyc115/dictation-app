@@ -170,7 +170,7 @@ final class AppSettings: ObservableObject {
         keepRecordings = defaults.bool(forKey: Key.keepRecordings)
         backupWhenSlow = defaults.object(forKey: Key.backupWhenSlow) as? Bool ?? true
         launchAtLogin = false
-        let saved = defaults.string(forKey: Key.model)
+        let saved = defaults.string(forKey: Key.model).map(DictationSetup.currentID)
         reloadSetups(selecting: saved)
         refreshLoginItem()
     }

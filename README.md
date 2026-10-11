@@ -87,13 +87,15 @@ Relaunch the app after enabling Accessibility.
   Cloud Flash after 4 s); after a slow answer both are asked at once for 5 minutes. Faster in slow
   spells, but the smaller model gets more technical terms wrong. Off, only the chosen model is asked.
 - Menu bar 🎙 → **AI polish** toggles LLM cleanup (default: off). It removes fillers and fixes
-  self-corrections without rewriting your meaning. The setup picks the polish model; every
-  built-in setup uses the v3 prompt with the transcript in `<transcript>` tags:
+  self-corrections without rewriting your meaning. The setup picks the polish model and prompt;
+  the transcript always goes in `<transcript>` tags:
   - **On-device** → Apple's on-device polish: nothing leaves your Mac (about 1 s, up to 3 s
     on long paragraphs).
-  - **Cloud Flash / Cloud Big** → cloud polish (gpt-oss-120b on Groq through OpenRouter, about
-    0.4 s), which also passed far more of the polish tests (`bench/results/polish/README.md`).
-    Cloud setups use prompt v4, which also fixes misheard terms from the topic.
+  - **Cloud Flash / Cloud Big** → cloud polish: DeepSeek V4.1 Flash through OpenRouter (on
+    Together; the same model on DeepInfra if Together is 0.8 s late or fails), about 0.35 s, with
+    prompt v4, which also fixes misheard terms from the topic. It replaced gpt-oss-120b on Oct 11,
+    2026 after beating it on every column of the hard polish set (70% vs 57% pass, terms 50% vs
+    19%, p50 0.35 s vs 0.71 s, cheaper); see `bench/results/polish/README.md`.
 
 ## Development
 

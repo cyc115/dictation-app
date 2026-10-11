@@ -220,16 +220,13 @@ struct DictationSetup: Codable, Hashable, Identifiable {
            "summary": "Fastest cloud model — text in about half a second. Handles English mixed into Chinese. Audio is sent to the cloud when you stop.",
            "speech": "openrouter:qwen/qwen3-asr-1.7b",
            "backup": "qwen/qwen3-asr-0.6b", "backupWait": 2, "backupNote": "The smaller model gets more technical terms wrong.",
-           "polish": "openrouter:openai/gpt-oss-120b@Groq", "prompt": "v4", "wrap": true},
+           "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
+           "polishBackup": "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together", "polishBackupWait": 0.8,
+           "prompt": "v4", "wrap": true},
           {"id": "cloud-big", "title": "Cloud Big",
            "summary": "Larger cloud model — text in about two seconds. Handles English mixed into Chinese. Audio is sent to the cloud when you stop.",
            "speech": "openrouter:meta/muse-voice-transcribe-1.0",
            "backup": "qwen/qwen3-asr-1.7b", "backupWait": 4,
-           "polish": "openrouter:openai/gpt-oss-120b@Groq", "prompt": "v4", "wrap": true},
-          {"id": "cloud-flash-deepseek", "title": "Cloud Flash + DeepSeek",
-           "summary": "Cloud Flash, polished by DeepSeek V4.1 Flash: fixes more misheard terms, about as fast. Audio is sent to the cloud when you stop.",
-           "speech": "openrouter:qwen/qwen3-asr-1.7b",
-           "backup": "qwen/qwen3-asr-0.6b", "backupWait": 2, "backupNote": "The smaller model gets more technical terms wrong.",
            "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
            "polishBackup": "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together", "polishBackupWait": 0.8,
            "prompt": "v4", "wrap": true}
@@ -240,7 +237,14 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     static let onDevice = builtIns[0]
     static let cloudFlash = builtIns[1]
     static let cloudBig = builtIns[2]
-    static let cloudFlashDeepSeek = builtIns[3]
+
+    /// Built-in ids that are gone, and the setup that took their place (a saved choice moves there).
+    /// "Cloud Flash + DeepSeek" became Cloud Flash when DeepSeek beat gpt-oss on the hard polish
+    /// cases (Oct 11, 2026: 70% vs 57%, and faster).
+    static let replaced = ["cloud-flash-deepseek": "cloud-flash"]
+
+    /// The setup id to use for a saved or recorded one.
+    static func currentID(_ id: String) -> String { replaced[id] ?? id }
 
     /// What polishes a dictation, with the backup and deadline when it's the cloud model.
     func polishService(apiKey: String?, onDevice: (String, Bool) -> PolishBackend) -> PolishService {

@@ -10,7 +10,7 @@ final class SetupTests: XCTestCase {
     }
 
     func testBuiltInsUseTheirPromptsWithTags() {
-        XCTAssertEqual(DictationSetup.builtIns.map(\.id), ["on-device", "cloud-flash", "cloud-big", "cloud-flash-deepseek"])
+        XCTAssertEqual(DictationSetup.builtIns.map(\.id), ["on-device", "cloud-flash", "cloud-big"])
         for setup in DictationSetup.builtIns {
             XCTAssertEqual(setup.prompt, setup.polishesOnDevice ? "v3" : "v4", "\(setup.id): v4 is tuned for cloud models")
             XCTAssertTrue(setup.wrap, setup.id)
@@ -19,28 +19,30 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(DictationSetup.onDevice.speech, "apple")
         XCTAssertTrue(DictationSetup.onDevice.polishesOnDevice, "nothing leaves the Mac")
         XCTAssertFalse(DictationSetup.onDevice.usesCloud)
-        XCTAssertEqual(DictationSetup.cloudFlash.polish, "openrouter:openai/gpt-oss-120b@Groq")
-        XCTAssertEqual(DictationSetup.cloudBig.polish, DictationSetup.cloudFlash.polish, "Cloud Big polishes like Cloud Flash")
-        let deepSeek = DictationSetup.cloudFlashDeepSeek
-        XCTAssertEqual(deepSeek.speech, DictationSetup.cloudFlash.speech, "same speech as Cloud Flash; only polish differs")
-        XCTAssertEqual(deepSeek.backup, DictationSetup.cloudFlash.backup)
-        XCTAssertEqual(deepSeek.polish, "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra")
-        XCTAssertEqual(deepSeek.polishBackup, "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together",
+        let flash = DictationSetup.cloudFlash
+        XCTAssertEqual(flash.polish, "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra")
+        XCTAssertEqual(flash.polishBackup, "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together",
                        "the same model on another host: a backup answer is as good")
+        for setup in [DictationSetup.cloudBig] {
+            XCTAssertEqual(setup.polish, flash.polish, "\(setup.id) polishes like Cloud Flash")
+            XCTAssertEqual(setup.polishBackup, flash.polishBackup, setup.id)
+            XCTAssertEqual(setup.polishBackupWait, flash.polishBackupWait, setup.id)
+        }
+        XCTAssertFalse(DictationSetup.builtIns.contains { $0.polish.contains("gpt-oss") }, "DeepSeek beat it on every column")
     }
 
     func testCloudPolishGetsTheBackupAndDeadlineOnDeviceWaits() throws {
         let onDevice: (String, Bool) -> PolishBackend = { _, _ in FakePolish() }
-        let cloud = DictationSetup.cloudFlashDeepSeek.polishService(apiKey: "sk-test", onDevice: onDevice)
+        let cloud = DictationSetup.cloudFlash.polishService(apiKey: "sk-test", onDevice: onDevice)
         XCTAssertTrue(cloud.backend is OpenRouterPolish)
         let backup = try XCTUnwrap(cloud.backup as? OpenRouterPolish)
         XCTAssertEqual(backup.instructions, PolishPrompt.v4, "the backup uses the setup's prompt")
         XCTAssertEqual(cloud.backupAfter, 0.8)
         XCTAssertEqual(cloud.deadline, 6)
-        let flash = DictationSetup.cloudFlash.polishService(apiKey: "sk-test", onDevice: onDevice)
-        XCTAssertNil(flash.backup)
-        XCTAssertEqual(flash.deadline, 6, "every cloud polish gives up at the deadline")
-        for (setup, key) in [(DictationSetup.onDevice, "sk-test"), (DictationSetup.cloudFlashDeepSeek, "")] {
+        let big = DictationSetup.cloudBig.polishService(apiKey: "sk-test", onDevice: onDevice)
+        XCTAssertNotNil(big.backup)
+        XCTAssertEqual(big.deadline, 6, "every cloud polish gives up at the deadline")
+        for (setup, key) in [(DictationSetup.onDevice, "sk-test"), (DictationSetup.cloudFlash, "")] {
             let local = setup.polishService(apiKey: key, onDevice: onDevice)
             XCTAssertTrue(local.backend is FakePolish)
             XCTAssertNil(local.backup, setup.id)
@@ -63,8 +65,8 @@ final class SetupTests: XCTestCase {
         var asked: (String, Bool)?
         let onDevice: (String, Bool) -> PolishBackend = { asked = ($0, $1); return FakePolish() }
         let cloud = try XCTUnwrap(DictationSetup.cloudFlash.polishBackend(apiKey: "sk-test", onDevice: onDevice) as? OpenRouterPolish)
-        XCTAssertEqual(cloud.model, "openai/gpt-oss-120b")
-        XCTAssertEqual(cloud.provider, "Groq")
+        XCTAssertEqual(cloud.model, "deepseek/deepseek-v4.1-flash")
+        XCTAssertEqual(cloud.provider, "Together,DeepInfra")
         XCTAssertEqual(cloud.instructions, PolishPrompt.v4)
         XCTAssertTrue(cloud.wrap, "the transcript goes in <transcript> tags, as benchmarked")
         XCTAssertNil(asked)
@@ -146,8 +148,17 @@ final class SetupTests: XCTestCase {
         XCTAssertNotNil(settings.setupsError)
     }
 
+    func testAChoiceOfTheOldDeepSeekSetupMovesToCloudFlash() {
+        let defaults = makeDefaults(self)
+        defaults.set("cloud-flash-deepseek", forKey: "transcriptionModel")
+        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: makeTempURL(self, "none.json"))
+        XCTAssertEqual(settings.setup, .cloudFlash, "it became Cloud Flash, not On-device")
+        XCTAssertEqual(defaults.string(forKey: "transcriptionModel"), "cloud-flash", "saved under the new id")
+        XCTAssertEqual(DictationSetup.currentID("cloud-big"), "cloud-big")
+    }
+
     func testCapabilities() {
-        XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash", "Cloud Big", "Cloud Flash + DeepSeek"])
+        XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash", "Cloud Big"])
         XCTAssertTrue(DictationSetup.onDevice.supportsStreaming)
         XCTAssertTrue(DictationSetup.onDevice.supportsLanguageChoice)
         for setup in DictationSetup.builtIns where setup.isCloud {

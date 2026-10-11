@@ -37,8 +37,9 @@ def test_options_with_their_help_and_used_ones_dropped():
 
 def test_option_values():
     models = values(["polish", "run", "-m", ""])[1]
-    assert {"apple", "setup:cloud-flash", "setup:cloud-flash-deepseek",
-            "openrouter:openai/gpt-oss-120b@Groq"} <= set(models)
+    assert {"apple", "setup:cloud-flash", "setup:cloud-big",
+            "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
+            "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together"} <= set(models)
     assert "none" in values(["latency", "run", "-P", ""])[1]
     assert "flash+backup" in values(["latency", "run", "--stt", ""])[1]
     assert values(["polish", "run", "--sort", ""]) == ("values", ["latency", "throughput", "price"])
@@ -77,6 +78,6 @@ words=({BENCH / 'suite.py'} polish run --out ""); CURRENT=5; _dictation_bench_su
 words=({BENCH / 'suite.py'} polish run -r ""); CURRENT=5; _dictation_bench_suite
 """
     out = subprocess.run(["zsh", "-f", "-c", script], capture_output=True, text=True, check=True).stdout
-    assert r"setup\:cloud-flash:Cloud Flash: openrouter:openai/gpt-oss-120b@Groq, prompt v4" in out.splitlines()
+    assert r"setup\:cloud-flash:Cloud Flash: openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra, prompt v4" in out.splitlines()
     assert "FILES -/" in out
     assert "MESSAGE -r times each case is polished per model (default 1)" in out

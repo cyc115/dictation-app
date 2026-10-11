@@ -1,5 +1,11 @@
 # AI polish research — 2026-10-09/10
 
+> **Update 2026-10-11:** the cloud setups now polish with **DeepSeek V4.1 Flash** (Together, with
+> DeepInfra as backup), not gpt-oss-120b. On the merged hard set (54 cases, prompt v4,
+> `20261011-162131_v4-deepseek-vs-gptoss.json`) it won every column: pass 70% vs 57%, traps 82% vs
+> 73%, self-corrections 78% vs 67%, misheard terms 50% vs 19%, p50 0.35 s vs 0.71 s, p90 1.21 s vs
+> 2.03 s, $0.064 vs $0.116 per 1,000. The study below is how gpt-oss was first chosen.
+
 **Question:** is there a cheap cloud model that polishes much faster than Apple's on-device model, at
 the same or better quality?
 

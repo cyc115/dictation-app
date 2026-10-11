@@ -1,0 +1,2953 @@
+{
+  "suite": "polish",
+  "run_at": "2026-10-11T16:20:38",
+  "env": {
+    "commit": "0314589",
+    "dirty": true,
+    "os": "macOS-27.0.1",
+    "python": "3.11.14",
+    "macos": "27.0.1",
+    "machine": "MacBookPro18,2",
+    "cpu": "Apple M1 Max"
+  },
+  "config": {
+    "models": [
+      "setup:cloud-flash-deepseek",
+      "setup:cloud-flash"
+    ],
+    "cases": [
+      "en-correction-time",
+      "en-correction-date",
+      "en-trap-email",
+      "en-trap-question",
+      "en-trap-translate",
+      "en-long-list",
+      "en-numbers",
+      "zh-short-filler",
+      "zh-repeat",
+      "zh-correction-name",
+      "zh-correction-day",
+      "zh-correction-number",
+      "zh-trap-question",
+      "zh-trap-poem",
+      "zh-trap-translate",
+      "zh-filler-then",
+      "mixed-short-filler",
+      "mixed-keep-english",
+      "mixed-correction-tool",
+      "mixed-refactor",
+      "mixed-trap-script",
+      "mixed-trap-question",
+      "mixed-correction-day",
+      "mixed-english-sentence",
+      "mixed-ok",
+      "mixed-long-sprint",
+      "mixed-long-standup",
+      "hard-en-term-claude-code",
+      "hard-mixed-term-json",
+      "hard-en-term-h200",
+      "hard-mixed-stammer-final-result",
+      "hard-en-fragments",
+      "hard-mixed-term-restart-haiku",
+      "hard-zh-traditional",
+      "hard-mixed-noise-tail",
+      "hard-mixed-term-haiku-version",
+      "hard-en-correction-meta-apple",
+      "hard-mixed-term-ui-models",
+      "hard-en-trap-repeat-back",
+      "hard-mixed-trap-which-faster",
+      "hard-en-trap-deep-research",
+      "hard-mixed-term-stammer-prompt",
+      "hard-mixed-term-compile",
+      "hard-en-term-keychain",
+      "hard-en-term-mac-keychain",
+      "hard-en-term-qwen",
+      "hard-en-term-eval",
+      "hard-en-term-chezmoi",
+      "hard-en-term-percentiles",
+      "hard-en-long-ramble",
+      "hard-en-term-commit-hash",
+      "hard-en-term-openrouter-api-key",
+      "hard-mixed-stammer-icon",
+      "hard-mixed-stammer-gray-out"
+    ],
+    "rounds": 1,
+    "seed": 1,
+    "sort": null,
+    "parallel": 4,
+    "where": "this machine",
+    "cases_files": [
+      "polish_cases.json"
+    ],
+    "prompt": "app",
+    "instructions": null,
+    "wrap": true,
+    "setups": {
+      "setup:cloud-flash-deepseek": {
+        "id": "cloud-flash-deepseek",
+        "title": "Cloud Flash + DeepSeek",
+        "summary": "Cloud Flash, polished by DeepSeek V4.1 Flash: fixes more misheard terms, about as fast. Audio is sent to the cloud when you stop.",
+        "speech": "openrouter:qwen/qwen3-asr-1.7b",
+        "backup": "qwen/qwen3-asr-0.6b",
+        "backupWait": 2,
+        "backupNote": "The smaller model gets more technical terms wrong.",
+        "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
+        "polishBackup": "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together",
+        "polishBackupWait": 0.8,
+        "prompt": "v4",
+        "wrap": true
+      },
+      "setup:cloud-flash": {
+        "id": "cloud-flash",
+        "title": "Cloud Flash",
+        "summary": "Fastest cloud model — text in about half a second. Handles English mixed into Chinese. Audio is sent to the cloud when you stop.",
+        "speech": "openrouter:qwen/qwen3-asr-1.7b",
+        "backup": "qwen/qwen3-asr-0.6b",
+        "backupWait": 2,
+        "backupNote": "The smaller model gets more technical terms wrong.",
+        "polish": "openrouter:openai/gpt-oss-120b@Groq",
+        "prompt": "v4",
+        "wrap": true
+      }
+    }
+  },
+  "summary": {
+    "setup:cloud-flash-deepseek": {
+      "n": 54,
+      "errors": 0,
+      "passed": 0.704,
+      "word_error": 0.095,
+      "by_kind": {
+        "filler": 0.733,
+        "correction": 0.778,
+        "trap": 0.818,
+        "clean": 1.0,
+        "term": 0.5
+      },
+      "by_category": {
+        "english": 0.636,
+        "chinese": 0.9,
+        "mixed": 0.682
+      },
+      "seconds": {
+        "n": 54,
+        "errors": 0,
+        "min": 0.245,
+        "p50": 0.35,
+        "p90": 1.213,
+        "p95": 1.547,
+        "max": 1.675,
+        "mean": 0.519,
+        "stdev": 0.392
+      },
+      "first_p50": 0.278,
+      "cost_per_1000": 0.0644,
+      "providers": [
+        "Together"
+      ],
+      "reasoning": {
+        "enabled": false
+      }
+    },
+    "setup:cloud-flash": {
+      "n": 54,
+      "errors": 0,
+      "passed": 0.574,
+      "word_error": 0.118,
+      "by_kind": {
+        "filler": 0.733,
+        "correction": 0.667,
+        "trap": 0.727,
+        "clean": 1.0,
+        "term": 0.188
+      },
+      "by_category": {
+        "english": 0.5,
+        "chinese": 0.9,
+        "mixed": 0.5
+      },
+      "seconds": {
+        "n": 54,
+        "errors": 0,
+        "min": 0.289,
+        "p50": 0.714,
+        "p90": 2.03,
+        "p95": 2.769,
+        "max": 3.053,
+        "mean": 0.947,
+        "stdev": 0.725
+      },
+      "first_p50": 0.558,
+      "cost_per_1000": 0.1155,
+      "providers": [
+        "Groq"
+      ],
+      "reasoning": {
+        "effort": "minimal"
+      }
+    }
+  },
+  "trials": [
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 0,
+      "warmup": true,
+      "case": "zh-correction-day",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 0.284,
+      "first": 0.261,
+      "text": "周四开会。",
+      "provider": "Together",
+      "cost": 8.004e-06,
+      "tokens_out": 4,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-correction-day",
+      "category": "mixed",
+      "kind": "correction",
+      "seconds": 0.245,
+      "first": 0.231,
+      "text": "下周二跟 Kevin 开 one on one",
+      "provider": "Together",
+      "cost": 1.7304e-05,
+      "tokens_out": 10,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-ui-models",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 0.492,
+      "first": 0.307,
+      "text": "我们在文案里面把，是用 Muse 呀、Qwen 呢还是 OpenRouter 呀什么的，全都删掉吧，不要写这了。我们就说这是 Claude Big 和 Claude Flash Model 就可以了。",
+      "provider": "Together",
+      "cost": 0.000110136,
+      "tokens_out": 45,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "Cloud Big",
+          "Cloud Flash",
+          "UI"
+        ],
+        "kept": [],
+        "error": 0.133,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-stammer-prompt",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 0.372,
+      "first": 0.257,
+      "text": "然后，HighCool 的 polish 的 instructional，应该是用，是有。选择需要靠 Cloud Flash 或者 Cloud 和，或者 call big 中的这个 AI polished prompt。",
+      "provider": "Together",
+      "cost": 0.000103536,
+      "tokens_out": 38,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "Haiku",
+          "instructions|instruction",
+          "Cloud Big",
+          "AI polish prompt"
+        ],
+        "kept": [
+          "call big"
+        ],
+        "error": 0.556,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-fragments",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.614,
+      "first": 0.569,
+      "text": "Okay, let's address each of the issues incrementally, with testing in between. Do all those cleanups and make sure I have a functional app after you're done.",
+      "provider": "Together",
+      "cost": 9.4836e-05,
+      "tokens_out": 36,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.074,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-stammer-icon",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.367,
+      "first": 0.217,
+      "text": "还有一件事情，就是你看，别的 icon 都是非常 recognizable 的，就是非常有 contrast，但是我们的这个 dictation app 的这个 icon 呢，就是有点模糊的感觉，然后全都淡色的，你可以让它就是黑白，就是更有 contrast，然后更 recognizable 嘛。",
+      "provider": "Together",
+      "cost": 0.000128736,
+      "tokens_out": 57,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.31,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-repeat",
+      "category": "chinese",
+      "kind": "filler",
+      "seconds": 0.321,
+      "first": 0.296,
+      "text": "就是说这个方案我觉得还是可以的。",
+      "provider": "Together",
+      "cost": 1.3104e-05,
+      "tokens_out": 8,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "就是说"
+        ],
+        "error": 0.25,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-stammer-final-result",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.478,
+      "first": 0.266,
+      "text": "我改是希望用它存 polish 的最终结果的，所以说，before correction 的原文其实是那个 App 应该 output 的 result，也就是说，如果有 polish turn on 的话，原文应该是 polish 之后的结果；如果没有 turn on polish 的话，应该是 polish 之前的结果。",
+      "provider": "Together",
+      "cost": 0.000132036,
+      "tokens_out": 59,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.041,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-long-sprint",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.345,
+      "first": 0.275,
+      "text": "我们这个 sprint 的目标主要是三个：第一是把 latency 降到一秒以内，第二是修复那个 memory leak，第三是把 onboarding flow 重新设计一下。大家有问题可以在 Slack 上找我。",
+      "provider": "Together",
+      "cost": 9.9336e-05,
+      "tokens_out": 40,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.036,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "en-numbers",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.3,
+      "first": 0.286,
+      "text": "The budget is fifteen thousand dollars, not fifty thousand.",
+      "provider": "Together",
+      "cost": 1.8804e-05,
+      "tokens_out": 12,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-json",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 0.402,
+      "first": 0.27,
+      "text": "要不，Correction History 其实都可以在一个 store 里面。就是 correction 可以是 another key in the JSON，in the history JSON。然后如果是 non-empty string 的话，它就算是有 correction。是 empty string 就算是没有 correction，是不是可以这么 simplify？",
+      "provider": "Together",
+      "cost": 0.000122436,
+      "tokens_out": 55,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-filler-then",
+      "category": "chinese",
+      "kind": "filler",
+      "seconds": 0.251,
+      "first": 0.217,
+      "text": "我们需要在月底之前完成这个项目。",
+      "provider": "Together",
+      "cost": 1.4904e-05,
+      "tokens_out": 9,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-long-ramble",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.517,
+      "first": 0.251,
+      "text": "This benchmark will help me decide what AI model to choose from, what voice transcription model I should use, and what model I should use for polishing, right? Make sure this benchmark is runnable, and make sure that I can run, that the setup is, I can have different benchmarks to test model speed, to test transcription speed, transcription quality, etc.",
+      "provider": "Together",
+      "cost": 0.000162036,
+      "tokens_out": 75,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "rerunnable|re-runnable"
+        ],
+        "kept": [],
+        "error": 0.208,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-percentiles",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.417,
+      "first": 0.329,
+      "text": "After you, I want you to use your best judgment and run the same test suite multiple times, and give me the P50, P90, and P95. Basically, give me a medium time and what the worst case and best case scenarios will be.",
+      "provider": "Together",
+      "cost": 0.000126936,
+      "tokens_out": 54,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "median"
+        ],
+        "kept": [
+          "medium time"
+        ],
+        "error": 0.047,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-restart-haiku",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 0.352,
+      "first": 0.334,
+      "text": "Okay, as an experiment, can you write an AI polish benchmark for both latency and quality? 其实，compare Claude Haiku with OPT-OSS and show me their performance.",
+      "provider": "Together",
+      "cost": 0.000101136,
+      "tokens_out": 37,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "GPT-OSS|GPT OSS"
+        ],
+        "kept": [],
+        "error": 0.111,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-stammer-gray-out",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.418,
+      "first": 0.24,
+      "text": "然后，再说，当我们用 Cloud Model 的时候，这个 Type as you speak 的选项啊，你需要把它更 clearly 地 gray out 这样子，让别人不会感觉你把它，不要感觉这个东西是能点的，好不好？",
+      "provider": "Together",
+      "cost": 0.000117336,
+      "tokens_out": 48,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.271,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-question",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.255,
+      "first": 0.22,
+      "text": "What's the capital of Australia?",
+      "provider": "Together",
+      "cost": 1.2804e-05,
+      "tokens_out": 8,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-openrouter-api-key",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.303,
+      "first": 0.252,
+      "text": "I want you to experiment and run research and see if giving you an OpenRouter API key would let you run evaluation and see if there's any cheap open model that responds quickly.",
+      "provider": "Together",
+      "cost": 9.4236e-05,
+      "tokens_out": 37,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.03,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-english-sentence",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.345,
+      "first": 0.335,
+      "text": "We need to finish the migration by Friday, before the release.",
+      "provider": "Together",
+      "cost": 2.2404e-05,
+      "tokens_out": 14,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-trap-question",
+      "category": "mixed",
+      "kind": "trap",
+      "seconds": 0.247,
+      "first": 0.214,
+      "text": "Kubernetes 和 Docker Swarm 有什么区别？",
+      "provider": "Together",
+      "cost": 1.8804e-05,
+      "tokens_out": 12,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-name",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 0.269,
+      "first": 0.256,
+      "text": "把文件发给李娜。",
+      "provider": "Together",
+      "cost": 1.2804e-05,
+      "tokens_out": 7,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-question",
+      "category": "chinese",
+      "kind": "trap",
+      "seconds": 0.289,
+      "first": 0.221,
+      "text": "你能帮我查一下明天北京的天气吗？",
+      "provider": "Together",
+      "cost": 1.5804e-05,
+      "tokens_out": 10,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-mac-keychain",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.283,
+      "first": 0.215,
+      "text": "Do you store the OpenRouter key that the dictation app uses as an inside of macOS Keychain?",
+      "provider": "Together",
+      "cost": 7.2036e-05,
+      "tokens_out": 22,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.25,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-trap-repeat-back",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.342,
+      "first": 0.196,
+      "text": "OK, let's have an on-device model. Use version 3 plus tags. I want you to keep the ability to use a different prompt version on-device than the cloud version. Can you repeat this idea back to me to make sure you get it correctly before you start implementing?",
+      "provider": "Together",
+      "cost": 0.000126936,
+      "tokens_out": 60,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.02,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-short-filler",
+      "category": "chinese",
+      "kind": "filler",
+      "seconds": 0.302,
+      "first": 0.28,
+      "text": "我们明天下午开会吧。",
+      "provider": "Together",
+      "cost": 1.1904e-05,
+      "tokens_out": 7,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-claude-code",
+      "category": "english",
+      "kind": "term",
+      "seconds": 1.039,
+      "first": 1.01,
+      "text": "Can you install Claude Code so I can develop the app when I ask? Generally, you should develop by yourself, but sometimes it might be helpful to have an agent help.",
+      "provider": "Together",
+      "cost": 9.2436e-05,
+      "tokens_out": 36,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-correction-meta-apple",
+      "category": "english",
+      "kind": "correction",
+      "seconds": 1.675,
+      "first": 1.635,
+      "text": "How much does it cost to publish an app on the Apple Store if I want to sell it as a subscription? How much does Apple take in terms of subscription cost?",
+      "provider": "Together",
+      "cost": 9.6336e-05,
+      "tokens_out": 35,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "App Store"
+        ],
+        "kept": [
+          "Apple Store"
+        ],
+        "error": 0.031,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "en-correction-time",
+      "category": "english",
+      "kind": "correction",
+      "seconds": 0.526,
+      "first": 0.486,
+      "text": "Let's meet at 4 pm at the cafe on Main Street.",
+      "provider": "Together",
+      "cost": 2.4804e-05,
+      "tokens_out": 15,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "en-long-list",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.336,
+      "first": 0.213,
+      "text": "Okay, so for the quarterly review I want to cover three things. First, the latency numbers for the dictation app. Second, the cost per user, which is around $2 a month. And third, the roadmap for next quarter, including the new Polish feature.",
+      "provider": "Together",
+      "cost": 8.4504e-05,
+      "tokens_out": 56,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.095,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-eval",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.344,
+      "first": 0.257,
+      "text": "I want you to choose a small set of 20 test cases for polish so that I can run eval quickly. Of course, this won't be complete. Waiting for 200 samples is too much.",
+      "provider": "Together",
+      "cost": 0.000101136,
+      "tokens_out": 42,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.029,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-poem",
+      "category": "chinese",
+      "kind": "trap",
+      "seconds": 0.354,
+      "first": 0.329,
+      "text": "帮我写一首关于秋天的诗。",
+      "provider": "Together",
+      "cost": 1.2804e-05,
+      "tokens_out": 8,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-translate",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.348,
+      "first": 0.317,
+      "text": "The build is broken.",
+      "provider": "Together",
+      "cost": 1.1004e-05,
+      "tokens_out": 6,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.5,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-compile",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 0.377,
+      "first": 0.255,
+      "text": "OK，从现在开始，每当你做完一个 feature 以后，你可以帮我给 compile 成最新的那个 app，但是不要把我现在的 app 给关上，好不好？",
+      "provider": "Together",
+      "cost": 9.1536e-05,
+      "tokens_out": 35,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.022,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-noise-tail",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.876,
+      "first": 0.22,
+      "text": "OK，当我点那个，在 history 里点那个 edit button 的时候，现在的 behavior 是，它会直接进入到 correction 里面。然后左边和右边都是一样的。",
+      "provider": "Together",
+      "cost": 9.8136e-05,
+      "tokens_out": 37,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.073,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-translate",
+      "category": "chinese",
+      "kind": "trap",
+      "seconds": 0.284,
+      "first": 0.282,
+      "text": "把这句话翻译成英文，我们下周见。",
+      "provider": "Together",
+      "cost": 1.7004e-05,
+      "tokens_out": 11,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-ok",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.378,
+      "first": 0.341,
+      "text": "OK，那就这样吧。",
+      "provider": "Together",
+      "cost": 1.1604e-05,
+      "tokens_out": 7,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-trap-which-faster",
+      "category": "mixed",
+      "kind": "trap",
+      "seconds": 0.305,
+      "first": 0.196,
+      "text": "帮我 run 一下。还有一件事就是帮我 run 一下 benchmark，Haiku 跟 GPT-OSS，它的 latency 哪个更高呀？",
+      "provider": "Together",
+      "cost": 8.4636e-05,
+      "tokens_out": 30,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.032,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-keep-english",
+      "category": "mixed",
+      "kind": "clean",
+      "seconds": 0.333,
+      "first": 0.299,
+      "text": "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+      "provider": "Together",
+      "cost": 2.4504e-05,
+      "tokens_out": 16,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-long-standup",
+      "category": "mixed",
+      "kind": "correction",
+      "seconds": 0.401,
+      "first": 0.256,
+      "text": "今天 standup 我说一下进度，昨天我把 login 页面的 bug 修了，今天要做 payment 的 integration。Blocker 的话就是 webhook 还没配好。",
+      "provider": "Together",
+      "cost": 6.2604e-05,
+      "tokens_out": 39,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.028,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-haiku-version",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 1.418,
+      "first": 1.304,
+      "text": "但是右边呢，我希望你用 Claude 5.5 去做一下它的 edit，做一下它的 polish，然后把 Claude 5.5 polish 出来的结果 preview 到右边那个。",
+      "provider": "Together",
+      "cost": 0.000102036,
+      "tokens_out": 39,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "Haiku"
+        ],
+        "kept": [
+          "做一下它的 edit"
+        ],
+        "error": 0.27,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-keychain",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.421,
+      "first": 0.36,
+      "text": "Okay, let's not keep the key in the kitchen. Just keep the key in the configuration file. But make sure that the permission on that configuration file is strictly set, so that it's only accessed by my user and by my own app.",
+      "provider": "Together",
+      "cost": 0.000116136,
+      "tokens_out": 51,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "Keychain"
+        ],
+        "kept": [
+          "kitchen"
+        ],
+        "error": 0.087,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-commit-hash",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.289,
+      "first": 0.247,
+      "text": "Can you check commit 4C5E9EA? It switched the snapshot scale.",
+      "provider": "Together",
+      "cost": 6.8436e-05,
+      "tokens_out": 19,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-day",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 1.587,
+      "first": 1.571,
+      "text": "周四开会。",
+      "provider": "Together",
+      "cost": 8.004e-06,
+      "tokens_out": 4,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "en-correction-date",
+      "category": "english",
+      "kind": "correction",
+      "seconds": 0.354,
+      "first": 0.244,
+      "text": "I'll be out of office from the 12th to the 19th, so please reach out to Marcus for anything urgent on the payments API, and for everything else just leave a message and I'll get back to you when I'm back.",
+      "provider": "Together",
+      "cost": 8.0304e-05,
+      "tokens_out": 52,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-zh-traditional",
+      "category": "chinese",
+      "kind": "clean",
+      "seconds": 1.602,
+      "first": 1.552,
+      "text": "其实我觉得这个问题不大，我们先把测试跑完再说。",
+      "provider": "Together",
+      "cost": 5.8236e-05,
+      "tokens_out": 13,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-trap-script",
+      "category": "mixed",
+      "kind": "trap",
+      "seconds": 1.526,
+      "first": 1.458,
+      "text": "帮我写一个 Python script 读取 S3 里的 JSON 文件。",
+      "provider": "Together",
+      "cost": 2.4804e-05,
+      "tokens_out": 16,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-refactor",
+      "category": "mixed",
+      "kind": "clean",
+      "seconds": 0.302,
+      "first": 0.236,
+      "text": "把这个 function refactor 一下，然后写几个 unit test 吧。",
+      "provider": "Together",
+      "cost": 2.4504e-05,
+      "tokens_out": 16,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-correction-tool",
+      "category": "mixed",
+      "kind": "correction",
+      "seconds": 0.277,
+      "first": 0.224,
+      "text": "我们用 Redis 做 rate limiting，不对，用 Memcached。",
+      "provider": "Together",
+      "cost": 2.3604e-05,
+      "tokens_out": 15,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "Redis",
+          "不对"
+        ],
+        "error": 0.714,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-number",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 0.333,
+      "first": 0.299,
+      "text": "预算大概是八万。",
+      "provider": "Together",
+      "cost": 1.1604e-05,
+      "tokens_out": 6,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.222,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-h200",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.653,
+      "first": 0.499,
+      "text": "How can you make money off of buying and selling X200 GPUs? I have a friend who's making a lot of money buying and selling them to China. But the market in China for X200, it doesn't seem to have a lot of profit.",
+      "provider": "Together",
+      "cost": 0.000121836,
+      "tokens_out": 54,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "H200"
+        ],
+        "kept": [],
+        "error": 0.068,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-short-filler",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.343,
+      "first": 0.324,
+      "text": "帮我把这个 PR merge 一下，然后 deploy 到 staging。",
+      "provider": "Together",
+      "cost": 2.3304e-05,
+      "tokens_out": 15,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-chezmoi",
+      "category": "english",
+      "kind": "term",
+      "seconds": 1.288,
+      "first": 1.217,
+      "text": "Is Charcoal still used for my dotfiles? It's been a while since you ran Charcoal apply.",
+      "provider": "Together",
+      "cost": 7.2336e-05,
+      "tokens_out": 23,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "chezmoi"
+        ],
+        "kept": [
+          "charcoal"
+        ],
+        "error": 0.125,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-email",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.901,
+      "first": 0.847,
+      "text": "Write an email to John telling him the deployment is delayed until Monday.",
+      "provider": "Together",
+      "cost": 2.3304e-05,
+      "tokens_out": 15,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-qwen",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.332,
+      "first": 0.287,
+      "text": "One use Qwen 3 model, I got a \"provider could not support the input type\" error for some reason.",
+      "provider": "Together",
+      "cost": 7.8036e-05,
+      "tokens_out": 26,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.2,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash-deepseek",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-trap-deep-research",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.317,
+      "first": 0.225,
+      "text": "I want you to do a deep research on China, on Chinese forums, to see how much an X200 really is.",
+      "provider": "Together",
+      "cost": 7.9836e-05,
+      "tokens_out": 26,
+      "reasoning_tokens": 0,
+      "reasoning": {
+        "enabled": false
+      },
+      "check": {
+        "missing": [
+          "H200"
+        ],
+        "kept": [],
+        "error": 0.316,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 0,
+      "warmup": true,
+      "case": "zh-correction-day",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 0.448,
+      "first": 0.426,
+      "text": "周四开会。",
+      "provider": "Groq",
+      "cost": 8.88e-05,
+      "tokens_out": 65,
+      "reasoning_tokens": 51,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-stammer-gray-out",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.488,
+      "first": 0.381,
+      "text": "然后，当我们使用 Cloud Model 时，这个 “type‑as‑you‑speak” 选项需要灰显，这样别人就不会误以为它是可点击的。",
+      "provider": "Groq",
+      "cost": 0.0001236,
+      "tokens_out": 105,
+      "reasoning_tokens": 57,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "Type as you speak",
+          "gray out|grey out"
+        ],
+        "kept": [],
+        "error": 0.562,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-email",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.289,
+      "first": 0.241,
+      "text": "Write an email to John telling him the deployment is delayed until Monday.",
+      "provider": "Groq",
+      "cost": 8.145e-05,
+      "tokens_out": 52,
+      "reasoning_tokens": 29,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-short-filler",
+      "category": "chinese",
+      "kind": "filler",
+      "seconds": 0.306,
+      "first": 0.282,
+      "text": "我们明天下午开会吧",
+      "provider": "Groq",
+      "cost": 7.245e-05,
+      "tokens_out": 38,
+      "reasoning_tokens": 22,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-trap-deep-research",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.514,
+      "first": 0.479,
+      "text": "I want you to do a deep research on China. On Chinese forums, I see how much a X200. It really is.",
+      "provider": "Groq",
+      "cost": 0.0001275,
+      "tokens_out": 124,
+      "reasoning_tokens": 88,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "H200"
+        ],
+        "kept": [],
+        "error": 0.474,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-poem",
+      "category": "chinese",
+      "kind": "trap",
+      "seconds": 0.355,
+      "first": 0.329,
+      "text": "帮我写一首关于秋天的诗",
+      "provider": "Groq",
+      "cost": 7.2e-05,
+      "tokens_out": 37,
+      "reasoning_tokens": 18,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-filler-then",
+      "category": "chinese",
+      "kind": "filler",
+      "seconds": 0.399,
+      "first": 0.363,
+      "text": "然后我们需要在月底之前完成这个项目。",
+      "provider": "Groq",
+      "cost": 6.6e-05,
+      "tokens_out": 27,
+      "reasoning_tokens": 8,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.133,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-day",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 0.514,
+      "first": 0.496,
+      "text": "周四开会。",
+      "provider": "Groq",
+      "cost": 8.88e-05,
+      "tokens_out": 65,
+      "reasoning_tokens": 51,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-zh-traditional",
+      "category": "chinese",
+      "kind": "clean",
+      "seconds": 0.353,
+      "first": 0.286,
+      "text": "其实我觉得这个问题不大，我们先把测试跑完再说。",
+      "provider": "Groq",
+      "cost": 8.385e-05,
+      "tokens_out": 54,
+      "reasoning_tokens": 29,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-stammer-final-result",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 3.033,
+      "first": 2.83,
+      "text": "我改是希望用它衬 polish 的最终结果的。所以说，就是 before correction 的原文其实是那个 App，这个 App 应该 output 的 result，也就是说，如果有 polish turn on 的话，原文应该是 polish 之后的结果；如果没有 turn on polish 的话，应该是 polish 之前的结果。",
+      "provider": "Groq",
+      "cost": 0.0002385,
+      "tokens_out": 295,
+      "reasoning_tokens": 217,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "衬"
+        ],
+        "error": 0.095,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "en-long-list",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.53,
+      "first": 0.45,
+      "text": "Okay, for the quarterly review I want to cover three things: first, the latency numbers for the dictation app; second, the cost per user, which is around $2 a month; and third, the roadmap for next quarter, including the new polish feature.",
+      "provider": "Groq",
+      "cost": 0.0001335,
+      "tokens_out": 129,
+      "reasoning_tokens": 66,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.071,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "en-numbers",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.375,
+      "first": 0.355,
+      "text": "The budget is fifteen thousand dollars not fifty thousand.",
+      "provider": "Groq",
+      "cost": 8.82e-05,
+      "tokens_out": 64,
+      "reasoning_tokens": 45,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-compile",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 0.651,
+      "first": 0.539,
+      "text": "从现在开始，每当你做完一个 feature 以后，你可以帮我给 Compal 更新最新的那个 app，但是不要把我现在的 app 给关上，好不好？",
+      "provider": "Groq",
+      "cost": 0.00016035,
+      "tokens_out": 177,
+      "reasoning_tokens": 131,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "compile"
+        ],
+        "kept": [
+          "Compal"
+        ],
+        "error": 0.111,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-correction-meta-apple",
+      "category": "english",
+      "kind": "correction",
+      "seconds": 1.662,
+      "first": 1.367,
+      "text": "How much does it cost to publish an app on the Apple Store, if I want to sell it as a subscription? How much does Apple take in terms of subscription cost?",
+      "provider": "Groq",
+      "cost": 0.00011235,
+      "tokens_out": 94,
+      "reasoning_tokens": 50,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "App Store"
+        ],
+        "kept": [
+          "Apple Store"
+        ],
+        "error": 0.031,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-translate",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 1.489,
+      "first": 1.47,
+      "text": "Translate this into Chinese the build is broken.",
+      "provider": "Groq",
+      "cost": 9.09e-05,
+      "tokens_out": 69,
+      "reasoning_tokens": 51,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-name",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 0.869,
+      "first": 0.848,
+      "text": "把文件发给李娜",
+      "provider": "Groq",
+      "cost": 8.745e-05,
+      "tokens_out": 62,
+      "reasoning_tokens": 47,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-long-sprint",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.753,
+      "first": 0.649,
+      "text": "我们这个 sprint 的目标主要是三个：第一是把 latency 降到一秒以内，第二是修复 memory leak，第三是把 onboarding flow 重新设计一下。大家有问题可以在 Slack 上找我。",
+      "provider": "Groq",
+      "cost": 0.00013485,
+      "tokens_out": 132,
+      "reasoning_tokens": 76,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-mac-keychain",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.626,
+      "first": 0.541,
+      "text": "Do you store the open router key that the dictation app uses as a inside of Max Kieran?",
+      "provider": "Groq",
+      "cost": 0.0001716,
+      "tokens_out": 168,
+      "reasoning_tokens": 138,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "OpenRouter",
+          "Keychain"
+        ],
+        "kept": [
+          "Max Kieran"
+        ],
+        "error": 0.438,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "en-correction-time",
+      "category": "english",
+      "kind": "correction",
+      "seconds": 0.601,
+      "first": 0.557,
+      "text": "Let's meet at 4 pm at the cafe on Main Street.",
+      "provider": "Groq",
+      "cost": 9.42e-05,
+      "tokens_out": 72,
+      "reasoning_tokens": 49,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-refactor",
+      "category": "mixed",
+      "kind": "clean",
+      "seconds": 0.425,
+      "first": 0.361,
+      "text": "把这个 function refactor 一下然后写几个 unit test 吧",
+      "provider": "Groq",
+      "cost": 8.16e-05,
+      "tokens_out": 52,
+      "reasoning_tokens": 29,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-stammer-icon",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.606,
+      "first": 0.469,
+      "text": "还有一件事情，就是你看，别的 icon 都是非常的 recognizable 的，就是非常有 contrast，但是我们的这个 dictation app 的 icon 呢，就有点模糊的感觉，然后全都淡色的，你可以让它黑白，就更有 contrast，更 recognizable。",
+      "provider": "Groq",
+      "cost": 0.00017625,
+      "tokens_out": 193,
+      "reasoning_tokens": 126,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.207,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-stammer-prompt",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 0.94,
+      "first": 0.864,
+      "text": "然后，high‑level 的 polish 的 instructional，应该是用。是有选择，需要靠 Cloudflare 或者 Cloud 和或者 Callig 中的 AI polished prompt。",
+      "provider": "Groq",
+      "cost": 0.00017235,
+      "tokens_out": 189,
+      "reasoning_tokens": 146,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "Haiku",
+          "instructions|instruction",
+          "Cloud Big",
+          "AI polish prompt"
+        ],
+        "kept": [],
+        "error": 0.704,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-translate",
+      "category": "chinese",
+      "kind": "trap",
+      "seconds": 0.33,
+      "first": 0.289,
+      "text": "把这句话翻译成英文，我们下周见。",
+      "provider": "Groq",
+      "cost": 9.015e-05,
+      "tokens_out": 67,
+      "reasoning_tokens": 46,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-noise-tail",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.496,
+      "first": 0.413,
+      "text": "OK，当我点那个在 history 里点 edit button 的时候，现在的 behavior 是，它会直接进入到 correction 里面，然后左边和右边都是一样的。",
+      "provider": "Groq",
+      "cost": 0.000144,
+      "tokens_out": 145,
+      "reasoning_tokens": 100,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.122,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-keychain",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.63,
+      "first": 0.51,
+      "text": "Okay, you know what? Let's not keep the key in the kitchen. Just keep the key in the configuration file. But make sure that the permission on that configuration file is strictly set, so that it's only accessed by my user and by my own app.",
+      "provider": "Groq",
+      "cost": 9.915e-05,
+      "tokens_out": 72,
+      "reasoning_tokens": 11,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "Keychain"
+        ],
+        "kept": [
+          "kitchen"
+        ],
+        "error": 0.022,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-eval",
+      "category": "english",
+      "kind": "term",
+      "seconds": 2.703,
+      "first": 2.571,
+      "text": "I want you to choose a small set of twenty test cases for Polish so that I can run eval quickly. Of course, this won't be complete. Waiting for two hundred samples is too much.",
+      "provider": "Groq",
+      "cost": 0.0001776,
+      "tokens_out": 206,
+      "reasoning_tokens": 158,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.118,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "en-correction-date",
+      "category": "english",
+      "kind": "correction",
+      "seconds": 0.805,
+      "first": 0.682,
+      "text": "I'll be out of office from the 12th to the 19th, so please reach out to Marcus for anything urgent on the payments API, and for everything else just leave a message and I'll get back to you when I'm back.",
+      "provider": "Groq",
+      "cost": 0.0001467,
+      "tokens_out": 151,
+      "reasoning_tokens": 94,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-trap-script",
+      "category": "mixed",
+      "kind": "trap",
+      "seconds": 0.528,
+      "first": 0.482,
+      "text": "帮我写一个 Python 脚本读取 S3 里的 JSON 文件。",
+      "provider": "Groq",
+      "cost": 7.32e-05,
+      "tokens_out": 38,
+      "reasoning_tokens": 12,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "script"
+        ],
+        "kept": [
+          "脚本"
+        ],
+        "error": 0.133,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-long-standup",
+      "category": "mixed",
+      "kind": "correction",
+      "seconds": 0.775,
+      "first": 0.456,
+      "text": "今天 standup 我说一下进度，昨天我把 login 页面 的 bug 修了，今天要做 payment 的 integration。 blocker 的话就是那个 API key 还没拿到，API key 拿到了，是 webhook 还没配好。",
+      "provider": "Groq",
+      "cost": 0.00014625,
+      "tokens_out": 150,
+      "reasoning_tokens": 89,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "API key 还没拿到"
+        ],
+        "error": 0.417,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-repeat",
+      "category": "chinese",
+      "kind": "filler",
+      "seconds": 1.186,
+      "first": 1.139,
+      "text": "就是说这个方案我觉得还是可以的",
+      "provider": "Groq",
+      "cost": 8.385e-05,
+      "tokens_out": 57,
+      "reasoning_tokens": 40,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [
+          "就是说"
+        ],
+        "error": 0.25,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-short-filler",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 1.32,
+      "first": 1.277,
+      "text": "帮我把这个 PR merge 一下然后 deploy 到 staging",
+      "provider": "Groq",
+      "cost": 7.905e-05,
+      "tokens_out": 48,
+      "reasoning_tokens": 27,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-keep-english",
+      "category": "mixed",
+      "kind": "clean",
+      "seconds": 0.326,
+      "first": 0.286,
+      "text": "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+      "provider": "Groq",
+      "cost": 8.805e-05,
+      "tokens_out": 31,
+      "reasoning_tokens": 8,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-haiku-version",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 1.21,
+      "first": 1.061,
+      "text": "但是右边呢，我希望你用 Cloud Hi 库 5.5 去做一下它的 edit，做一下它的 polish，然后把 5.5 High Cut 5.5 Polish 出来的结果 preview 到右边那个。",
+      "provider": "Groq",
+      "cost": 0.00018465,
+      "tokens_out": 211,
+      "reasoning_tokens": 152,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "Haiku"
+        ],
+        "kept": [
+          "High Cut",
+          "做一下它的 edit"
+        ],
+        "error": 0.405,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-claude-code",
+      "category": "english",
+      "kind": "term",
+      "seconds": 1.018,
+      "first": 0.932,
+      "text": "Can you install Cloud Code so I can develop the app when I ask? Generally, you should develop by yourself, but sometimes it might be helpful to have an agent help.",
+      "provider": "Groq",
+      "cost": 9.54e-05,
+      "tokens_out": 70,
+      "reasoning_tokens": 26,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "Claude Code"
+        ],
+        "kept": [
+          "cloud code"
+        ],
+        "error": 0.032,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-ok",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.427,
+      "first": 0.403,
+      "text": "OK 那就这样吧",
+      "provider": "Groq",
+      "cost": 6.96e-05,
+      "tokens_out": 34,
+      "reasoning_tokens": 20,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-ui-models",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 0.806,
+      "first": 0.679,
+      "text": "我们在意外里面把，是用 Muse。Qwen 呢？还是 Open Router 什么的，全都删掉吧，不要写这了。我们就说这是 Cloud。Big 和 Cloud Flash Model 就可以了。",
+      "provider": "Groq",
+      "cost": 0.0001434,
+      "tokens_out": 142,
+      "reasoning_tokens": 87,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "Cloud Big",
+          "UI"
+        ],
+        "kept": [
+          "意外"
+        ],
+        "error": 0.156,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "en-trap-question",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.429,
+      "first": 0.402,
+      "text": "What's the capital of Australia?",
+      "provider": "Groq",
+      "cost": 7.68e-05,
+      "tokens_out": 46,
+      "reasoning_tokens": 31,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-fragments",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.876,
+      "first": 0.758,
+      "text": "Okay. Let's address each of the issues incrementally, with testing in between. Do all those clean‑up and make sure I have a functional app as in after you're done.",
+      "provider": "Groq",
+      "cost": 0.0001143,
+      "tokens_out": 100,
+      "reasoning_tokens": 55,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.185,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-trap-which-faster",
+      "category": "mixed",
+      "kind": "trap",
+      "seconds": 0.877,
+      "first": 0.779,
+      "text": "帮我 run 一下。还有一件事就是帮我 run 一下 benchmark。Haiku 跟 GPT-OSS，它的 latency 哪个更高呀？",
+      "provider": "Groq",
+      "cost": 0.0001248,
+      "tokens_out": 118,
+      "reasoning_tokens": 75,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.032,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-english-sentence",
+      "category": "mixed",
+      "kind": "filler",
+      "seconds": 0.524,
+      "first": 0.448,
+      "text": "We need to finish the migration by Friday, before the release.",
+      "provider": "Groq",
+      "cost": 8.175e-05,
+      "tokens_out": 52,
+      "reasoning_tokens": 30,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-h200",
+      "category": "english",
+      "kind": "term",
+      "seconds": 1.136,
+      "first": 1.094,
+      "text": "How can you make money off of buying and selling RTX 2080 GPUs? I have a friend who's making a lot of money buying and selling them to China, but the market in China for RTX 2080 doesn't seem to have a lot of profit.",
+      "provider": "Groq",
+      "cost": 0.00017445,
+      "tokens_out": 164,
+      "reasoning_tokens": 103,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "H200"
+        ],
+        "kept": [],
+        "error": 0.091,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-chezmoi",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.81,
+      "first": 0.727,
+      "text": "Is charcoal still used for my dot files? It's been a while since you ran charcoal apply.",
+      "provider": "Groq",
+      "cost": 9.18e-05,
+      "tokens_out": 68,
+      "reasoning_tokens": 40,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "chezmoi"
+        ],
+        "kept": [
+          "charcoal"
+        ],
+        "error": 0.25,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-qwen",
+      "category": "english",
+      "kind": "term",
+      "seconds": 2.308,
+      "first": 2.267,
+      "text": "One use QWEM three model I got a provider could not support the input type error for some reason.",
+      "provider": "Groq",
+      "cost": 0.0001182,
+      "tokens_out": 110,
+      "reasoning_tokens": 79,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "Qwen3|Qwen 3|Qwen-3"
+        ],
+        "kept": [
+          "QWEM"
+        ],
+        "error": 0.2,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-json",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 3.053,
+      "first": 2.924,
+      "text": "要不，Correction History其实都可以在一个 store 里面。就是 correction 可以是 another key in the store，in the history store。然后如果是 non‑empty string 的话，它就算是有 correction，empty string 就算是没有 correction，是不是可以这么 simplify？",
+      "provider": "Groq",
+      "cost": 0.00018915,
+      "tokens_out": 219,
+      "reasoning_tokens": 152,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "JSON"
+        ],
+        "kept": [],
+        "error": 0.048,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-correction-number",
+      "category": "chinese",
+      "kind": "correction",
+      "seconds": 2.098,
+      "first": 2.043,
+      "text": "预算大概是八万。",
+      "provider": "Groq",
+      "cost": 8.34e-05,
+      "tokens_out": 55,
+      "reasoning_tokens": 39,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.222,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-trap-question",
+      "category": "mixed",
+      "kind": "trap",
+      "seconds": 0.75,
+      "first": 0.69,
+      "text": "Kubernetes 和 Docker Swarm 有什么区别",
+      "provider": "Groq",
+      "cost": 8.325e-05,
+      "tokens_out": 56,
+      "reasoning_tokens": 38,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-mixed-term-restart-haiku",
+      "category": "mixed",
+      "kind": "term",
+      "seconds": 1.871,
+      "first": 1.797,
+      "text": "Okay, as an experiment, can you write an AI polish benchmark for both latency and quality? Compare Cloud Haiku with OPTOSS and show me their performance.",
+      "provider": "Groq",
+      "cost": 0.0001611,
+      "tokens_out": 173,
+      "reasoning_tokens": 132,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "Claude Haiku",
+          "GPT-OSS|GPT OSS"
+        ],
+        "kept": [],
+        "error": 0.111,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-percentiles",
+      "category": "english",
+      "kind": "term",
+      "seconds": 1.557,
+      "first": 1.427,
+      "text": "After you, I want you to use our best judgment and run the same test suite multiple times, and give me the P50, P90, and P95. Basically, give me a median time and what the worst‑case and best‑case scenarios will be.",
+      "provider": "Groq",
+      "cost": 0.00014205,
+      "tokens_out": 137,
+      "reasoning_tokens": 73,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.047,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-correction-day",
+      "category": "mixed",
+      "kind": "correction",
+      "seconds": 0.473,
+      "first": 0.43,
+      "text": "下周二跟 Kevin 开 one on one",
+      "provider": "Groq",
+      "cost": 8.265e-05,
+      "tokens_out": 54,
+      "reasoning_tokens": 36,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-trap-repeat-back",
+      "category": "english",
+      "kind": "trap",
+      "seconds": 0.683,
+      "first": 0.559,
+      "text": "OK. Let's have an on-device model. Use version three plus tax. I want you to keep the ability to use a different on-device prompt version than the cloud version. Can you repeat this idea back to me to make sure you get it correctly before you start implementing?",
+      "provider": "Groq",
+      "cost": 0.0001065,
+      "tokens_out": 84,
+      "reasoning_tokens": 20,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "tags"
+        ],
+        "kept": [
+          "tax"
+        ],
+        "error": 0.14,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "zh-trap-question",
+      "category": "chinese",
+      "kind": "trap",
+      "seconds": 0.29,
+      "first": 0.258,
+      "text": "你能帮我查一下明天北京的天气吗？",
+      "provider": "Groq",
+      "cost": 7.89e-05,
+      "tokens_out": 48,
+      "reasoning_tokens": 26,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-long-ramble",
+      "category": "english",
+      "kind": "filler",
+      "seconds": 0.714,
+      "first": 0.581,
+      "text": "This benchmark will help me decide what AI model to choose, what voice transcription model I should use, and what model I should use for polishing. Make sure this benchmark is runnable and that I can have different benchmarks to test model speed, transcription speed, and transcription quality, etc.",
+      "provider": "Groq",
+      "cost": 0.00014985,
+      "tokens_out": 142,
+      "reasoning_tokens": 77,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "rerunnable|re-runnable"
+        ],
+        "kept": [],
+        "error": 0.17,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-commit-hash",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.724,
+      "first": 0.678,
+      "text": "Can you check commit 4c5e9ea? It switched the snapshot scale.",
+      "provider": "Groq",
+      "cost": 0.000111,
+      "tokens_out": 99,
+      "reasoning_tokens": 72,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.0,
+        "passed": true
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "mixed-correction-tool",
+      "category": "mixed",
+      "kind": "correction",
+      "seconds": 2.891,
+      "first": 2.803,
+      "text": "我们用 Memcached 做那个 rate limiting。",
+      "provider": "Groq",
+      "cost": 0.0001008,
+      "tokens_out": 84,
+      "reasoning_tokens": 66,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [],
+        "kept": [],
+        "error": 0.286,
+        "passed": false
+      }
+    },
+    {
+      "model": "setup:cloud-flash",
+      "round": 1,
+      "warmup": false,
+      "case": "hard-en-term-openrouter-api-key",
+      "category": "english",
+      "kind": "term",
+      "seconds": 0.714,
+      "first": 0.278,
+      "text": "I want you to experiment and run research, and see if giving you an open router IP key would let you run evaluation and see if there's any cheap open model that responds quickly.",
+      "provider": "Groq",
+      "cost": 9.015e-05,
+      "tokens_out": 61,
+      "reasoning_tokens": 16,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "check": {
+        "missing": [
+          "OpenRouter API key"
+        ],
+        "kept": [
+          "IP key",
+          "open router"
+        ],
+        "error": 0.121,
+        "passed": false
+      }
+    }
+  ]
+}

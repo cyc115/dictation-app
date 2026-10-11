@@ -29,7 +29,7 @@ final class PolishServiceTests: XCTestCase {
     /// Kept recordings name the polish model.
     func testModelNames() {
         let onDevice: (String, Bool) -> PolishBackend = { OnDevicePolish(instructions: $0, wrap: $1) }
-        XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: "k", onDevice: onDevice).name, "openrouter:openai/gpt-oss-120b@Groq")
+        XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: "k", onDevice: onDevice).name, "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra")
         XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: nil, onDevice: onDevice).name, "apple:on-device")
     }
 }
@@ -162,7 +162,7 @@ final class PolishFallbackTests: XCTestCase {
     func testLatencyProbeRunsASetupsPolishAsTheAppDoes() throws {
         let runner = LatencyRunner()
         runner.apiKey = "sk-test"
-        let service = try XCTUnwrap(runner.polisher(for: "setup:cloud-flash-deepseek"))
+        let service = try XCTUnwrap(runner.polisher(for: "setup:cloud-flash"))
         XCTAssertEqual((service.backend as? OpenRouterPolish)?.provider, "Together,DeepInfra")
         XCTAssertEqual((service.backup as? OpenRouterPolish)?.provider, "DeepInfra,Together")
         XCTAssertEqual(service.backupAfter, 0.8)
