@@ -40,6 +40,7 @@ import random
 import re
 import statistics
 import subprocess
+from collections import Counter
 import sys
 import tempfile
 import time
@@ -270,7 +271,7 @@ def merge(trials: list[dict], samples: list[dict]) -> list[dict]:
         rows.append({**{k: t[k] for k in ("id", "round", "warmup", "clip", "audio_seconds", "stt")},
                      "transcribe": s.get("transcribe"), "raw": s.get("raw", ""), "error": s.get("error"),
                      "answered_by": s.get("answeredBy"),
-                     "polish": {p["model"]: {k: p.get(k) for k in ("seconds", "text", "error")}
+                     "polish": {p["model"]: {k: p.get(k) for k in ("seconds", "text", "error", "answeredBy")}
                                 for p in s.get("polish", [])}})
     return rows
 
@@ -374,6 +375,12 @@ def report_text(result: dict, by_length: bool = False, markdown: bool = False) -
     for stt, f in s.get("backups", s.get("fallbacks", {})).items():  # "fallbacks": results before the rename
         out.append(f"\n{title(stt).split('  ')[0]}: {f['count']} of {f['of']} dictations answered by the backup "
                    f"({', '.join(f['models'])}) because the main model was slow or failed.")
+    for spec in result.get("config", {}).get("polish", []):
+        if spec.startswith("setup:"):  # its backup, if it answered first
+            by = Counter((r["polish"].get(spec) or {}).get("answeredBy") for r in result["trials"] if not r.get("warmup"))
+            by.pop(None, None)
+            if len(by) > 1:
+                out.append(f"\n{spec} polish answered by: " + ", ".join(f"{m} {n}×" for m, n in by.most_common()))
     out += ["", "best/worst = fastest/slowest dictation; cold = the warm-up (first use), not in the percentiles.",
             "* fewer than 20 samples: treat p95 as rough (raise --rounds)."]
     return "\n".join(out)
@@ -533,7 +540,8 @@ def cmd_run(args) -> int:
     if args.simulate:
         samples = simulate(trials, args.seed, show)
     else:
-        samples = run_in_app(trials, args.pause, args.timeout, args.key_env, show)
+        extra = {"setupsFile": str(Path(args.setups_file).resolve())} if args.setups_file else None
+        samples = run_in_app(trials, args.pause, args.timeout, args.key_env, show, extra)
     if not samples:
         print("\nno dictations finished — nothing saved")
         return 1
@@ -583,6 +591,8 @@ def main(argv: list[str]) -> int:
                    help="your own dictations (bench.py import-recordings) instead of the TTS clips")
     r.add_argument("--warmup", type=int, default=1, help="warm-up dictations per speech model (default 1)")
     r.add_argument("--seed", type=int, default=1, help="shuffle seed, for a reproducible order")
+    r.add_argument("--setups-file", metavar="JSON",
+                   help="setups for -P setup:<id> beyond the built-in ones, instead of the app's setups.json")
     r.add_argument("--pause", type=float, default=0.3, help="seconds between dictations")
     r.add_argument("--timeout", type=float, default=90, help="seconds before a dictation counts as failed")
     r.add_argument("--key-env", metavar="VAR", help="env var with the cloud API key (default: the app's saved key)")

@@ -38,7 +38,7 @@ def test_plan_matches_what_the_app_decodes():
     assert fields("LatencyTrial") == {"id", "file", "stt", "polish"}
     assert fields("LatencyPlan") == {"pause", "timeout", "trials"}
     optional = lambda name: set(re.findall(r"var (\w+): \w+\? = nil", re.search(rf"struct {name}\b.*?\n}}", swift, re.S).group(0)))
-    assert optional("LatencyTrial") == {"text"} and optional("LatencyPlan") == {"instructions", "wrap"}
+    assert optional("LatencyTrial") == {"text"} and optional("LatencyPlan") == {"instructions", "wrap", "setupsFile"}
     src = (REPO / "bench/suites/latency.py").read_text()
     assert '("id", "file", "stt", "polish", "text")' in src and '{"pause": pause, "timeout": timeout, **(plan_extra' in src
     polish_src = (REPO / "bench/suites/polish.py").read_text()
@@ -137,7 +137,7 @@ def test_merge_marks_missing_samples_as_errors():
     samples = [{"id": "0", "transcribe": 0.4, "raw": "hi", "polish": [{"model": "apple", "seconds": 0.8, "text": "Hi."}]}]
     rows = latency.merge(trials, samples)
     assert rows[0]["transcribe"] == 0.4 and rows[0]["error"] is None
-    assert rows[0]["polish"]["apple"] == {"seconds": 0.8, "text": "Hi.", "error": None}
+    assert rows[0]["polish"]["apple"] == {"seconds": 0.8, "text": "Hi.", "error": None, "answeredBy": None}
     assert rows[1]["error"] == "no result" and rows[1]["transcribe"] is None
 
 

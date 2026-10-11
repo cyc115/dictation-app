@@ -39,6 +39,9 @@ struct LatencyPlan: Decodable {
     var instructions: String? = nil
     /// Send the transcript inside <transcript> tags; nil: yes, as the app does.
     var wrap: Bool? = nil
+    /// Custom setups for "setup:<id>" polish instead of the app's `DictationSetup.customFile`
+    /// (bench/suite.py latency --setups-file: try a setup without adding it to the app).
+    var setupsFile: String? = nil
 }
 
 /// What one trial measured, in seconds; nil when that step failed (see `error`).
@@ -72,6 +75,7 @@ final class LatencyRunner {
     /// Polish prompt overrides from the plan (bench/suite.py polish); nil/false = the app's.
     var instructions: String?
     var wrap = true
+    var setupsFile = DictationSetup.customFile
     /// Polish-only trials wait this long after `prepare()`, as if you were speaking, before polishing.
     var speakingTime: TimeInterval = 1.5
     /// Shared by every "+backup" trial, as the app shares one across dictations.
@@ -96,7 +100,7 @@ final class LatencyRunner {
         if let fake = polishers[spec] { return PolishService(backend: fake) }
         if spec.hasPrefix("setup:") {
             let id = spec.dropFirst("setup:".count)
-            let setup = (DictationSetup.builtIns + DictationSetup.loadCustom().setups).first { $0.id == id }
+            let setup = (DictationSetup.builtIns + DictationSetup.loadCustom(from: setupsFile).setups).first { $0.id == id }
             return setup?.polishService(apiKey: apiKey, onDevice: { OnDevicePolish(instructions: $0, wrap: $1) })
         }
         // Without a prompt override, each model gets its setup's prompt, as in the app.
@@ -234,6 +238,7 @@ final class LatencyProbe {
         runner.apiKey = apiKey
         runner.instructions = plan.instructions
         runner.wrap = plan.wrap ?? true
+        if let file = plan.setupsFile { runner.setupsFile = URL(fileURLWithPath: file) }
     }
 
     func run() {

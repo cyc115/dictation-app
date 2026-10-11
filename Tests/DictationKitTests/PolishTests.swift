@@ -170,3 +170,17 @@ final class PolishFallbackTests: XCTestCase {
         XCTAssertNil(runner.polisher(for: "setup:nope"))
     }
 }
+
+extension PolishFallbackTests {
+    func testLatencyPlanCanNameItsOwnSetups() throws {
+        let file = makeTempURL(self, "setups.json")
+        try #"{"setups": [{"id": "try", "title": "Try", "speech": "apple", "polish": "openrouter:m@A", "polishBackup": "openrouter:m@B", "polishBackupWait": 0.5, "prompt": "v4"}]}"#
+            .write(to: file, atomically: true, encoding: .utf8)
+        let plan = makeTempURL(self, "plan.json")
+        try #"{"pause": 0, "timeout": 1, "trials": [], "setupsFile": "\#(file.path)"}"#.write(to: plan, atomically: true, encoding: .utf8)
+        let probe = try XCTUnwrap(LatencyProbe(planPath: plan.path, outPath: makeTempURL(self, "out.jsonl").path, apiKey: "sk-test"))
+        let service = try XCTUnwrap(probe.runner.polisher(for: "setup:try"))
+        XCTAssertEqual((service.backup as? OpenRouterPolish)?.provider, "B")
+        XCTAssertEqual(service.backupAfter, 0.5)
+    }
+}
