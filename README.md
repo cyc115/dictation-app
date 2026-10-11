@@ -88,6 +88,7 @@ Relaunch the app after enabling Accessibility.
 scripts/e2e-speech.sh  # real recognizer on a synthesized 24 s dictation with pauses
 bench/suite.py latency run   # wait after you press stop, per speech/polish model (p50/p90/p95)
 ./build.sh         # build, install to /Applications, relaunch
+./build.sh --keep-running   # install without quitting the running app; new build on next open
 ```
 
 - **UI tests** host the real SwiftUI views in an offscreen window and drive them through the

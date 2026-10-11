@@ -1,10 +1,17 @@
 #!/bin/zsh
 # Build, install, and (re)launch DictationApp:  ./build.sh
 # Quits any running copy first, so it's safe to run after every change.
+#   ./build.sh --keep-running   installs without quitting the running copy, so a dictation
+#                               in progress isn't cut off; the new build runs next time you open it.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP="/Applications/DictationApp.app"
+KEEP_RUNNING=false
+[[ "${1:-}" == "--keep-running" ]] && KEEP_RUNNING=true
+
+INSTALLED="/Applications/DictationApp.app"
+# Bundled and signed beside the installed copy, then swapped in with a rename (same volume).
+APP="/Applications/.DictationApp-new.app"
 
 # Signing: a self-signed cert kept in its own keychain. Because the cert stays the
 # same across builds, macOS keeps the Accessibility/Microphone grants after a rebuild
@@ -37,12 +44,7 @@ echo "==> Compiling…"
 swift build -c release --product DictationApp
 BIN="$(swift build -c release --show-bin-path)/DictationApp"
 
-echo "==> Quitting running DictationApp (if any)…"
-pkill -x DictationApp || true
-for _ in {1..20}; do pgrep -x DictationApp >/dev/null || break; sleep 0.1; done
-pkill -9 -x DictationApp || true
-
-echo "==> Bundling into $APP …"
+echo "==> Bundling…"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 cp "$BIN" "$APP/Contents/MacOS/DictationApp"
@@ -66,8 +68,28 @@ ensure_signing_identity
 security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
 codesign --force --deep --keychain "$KEYCHAIN" --sign "$SIGN_ID" "$APP"
 
-echo "==> Launching…"
-open "$APP"
+# A running copy keeps running from the old files, which stay alive until it quits.
+swap_in() {
+  local old="/Applications/.DictationApp-old-$$.app"
+  [[ -d "$INSTALLED" ]] && mv "$INSTALLED" "$old"
+  mv "$APP" "$INSTALLED"
+  rm -rf "$old"
+}
+
+if $KEEP_RUNNING && pgrep -x DictationApp >/dev/null; then
+  echo "==> Installing to $INSTALLED (the running copy keeps going; quit and reopen it for this build)…"
+  swap_in
+  exit 0
+fi
+
+echo "==> Quitting running DictationApp (if any)…"
+pkill -x DictationApp || true
+for _ in {1..20}; do pgrep -x DictationApp >/dev/null || break; sleep 0.1; done
+pkill -9 -x DictationApp || true
+
+echo "==> Installing to $INSTALLED and launching…"
+swap_in
+open "$INSTALLED"
 echo ""
 echo "Grant the 3 permissions when prompted:"
 echo "  1. Microphone (system prompt)"
