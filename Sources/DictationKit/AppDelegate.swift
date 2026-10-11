@@ -220,20 +220,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard !dictating else { return }
         let setup = settings.setup
         let archive = settings.keepRecordings ? RecordingArchive.shared : nil
-        cloud.archive = archive
-        speech.archive = archive
         let engine: DictationEngine
         let key = settings.openRouterKey
-        if let modelID = setup.openRouterID {
+        if setup.isCloud {
             guard let key, !key.isEmpty else {
                 overlay.showMessage("Add your cloud API key in Settings to use \(setup.title)", hideAfter: 4)
                 mainWindow.show(.settings)
                 return
             }
-            cloud.modelID = modelID
-            cloud.backupModelID = settings.effectiveBackup ? setup.backup : nil
-            cloud.backupWait = setup.backupWait
-            cloud.apiKey = key
+            cloud.use(setup, apiKey: key, backupWhenSlow: settings.effectiveBackup)
             engine = cloud
         } else {
             speech.localeIdentifier = settings.localLanguage.rawValue
@@ -247,8 +242,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             : nil
         polisher?.prepare()
         note = archive.map { _ in RecordingNote(polishModel: polisher?.backend.name) }
-        cloud.note = note
-        speech.note = note
+        engine.archive = archive
+        engine.note = note
         setDictating(true)
         dictationStart = Date()
         overlay.showListening(micName: AudioDevices.activeInputName(preferredUID: settings.microphoneUID))

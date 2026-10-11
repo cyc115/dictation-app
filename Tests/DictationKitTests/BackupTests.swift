@@ -161,9 +161,19 @@ final class CloudBackupTests: XCTestCase {
         XCTAssertFalse(shared.inSlowSpell(Self.main), "the main model answered on time: spell over")
     }
 
-    func testCloudSetupsHaveAFasterBackup() {
-        XCTAssertEqual(DictationSetup.cloudFlash.backup, Self.backup)
-        XCTAssertEqual(DictationSetup.cloudBig.backup, Self.main, "Cloud Big falls back to Cloud Flash")
+    func testUseSetsUpEachCloudSetupWithItsFasterBackup() {
+        let engine = CloudEngine()
+        engine.use(.cloudBig, apiKey: "k", backupWhenSlow: true)
+        XCTAssertEqual(engine.modelID, DictationSetup.cloudBig.openRouterID)
+        XCTAssertEqual(engine.backupModelID, Self.main, "Cloud Big falls back to Cloud Flash")
+        XCTAssertEqual(engine.backupWait, 4)
+        XCTAssertEqual(engine.apiKey, "k")
+        engine.use(.cloudFlash, apiKey: "k", backupWhenSlow: true)
+        XCTAssertEqual(engine.modelID, Self.main)
+        XCTAssertEqual(engine.backupModelID, Self.backup)
+        XCTAssertEqual(engine.backupWait, 2)
+        engine.use(.cloudFlash, apiKey: "k", backupWhenSlow: false)
+        XCTAssertNil(engine.backupModelID, "setting off: only the main model")
         XCTAssertNil(DictationSetup.onDevice.backup)
     }
 
@@ -173,8 +183,7 @@ final class CloudBackupTests: XCTestCase {
         client.scripts[Self.main] = .init(delay: 0.05, result: Client.text("帮我 build 一下"))
         let engine = CloudEngine()
         engine.client = client
-        engine.modelID = big
-        engine.backupModelID = DictationSetup.cloudBig.backup
+        engine.use(.cloudBig, apiKey: "k", backupWhenSlow: true)
         engine.backupWait = 0.2
         XCTAssertTrue(engine.beginRecording())
         for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }
@@ -210,14 +219,8 @@ final class AdaptiveBackupTests: XCTestCase {
                           seconds: seconds, mainFailed: mainFailed)
     }
 
-    func testDefaultsAreEachModelsWaitAndFiveMinutes() {
-        XCTAssertEqual(DictationSetup.cloudFlash.backupWait, 2, "Cloud Flash")
-        XCTAssertEqual(DictationSetup.cloudBig.backupWait, 4, "Cloud Big usually takes about 2 s")
+    func testSpellsLastFiveMinutesAndModelsWithoutABackupGetNoPlan() {
         XCTAssertEqual(AdaptiveBackup().spell, 300)
-    }
-
-    func testSetupsWithoutABackupGetNoPlan() {
-        XCTAssertNil(DictationSetup.onDevice.backup)
         XCTAssertNil(plan("unknown/model"))
     }
 

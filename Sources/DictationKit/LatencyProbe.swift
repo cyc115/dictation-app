@@ -123,13 +123,15 @@ final class LatencyRunner {
             if withBackup { model.removeLast("+backup".count) }
             let engine = CloudEngine()
             engine.client = transcriptionClient
-            engine.modelID = model
             engine.backup = backup
-            // The backup of the built-in setup with this speech model, as the app asks it with the setting on.
-            let setup = DictationSetup.builtIn(speechModel: model)
-            engine.backupModelID = withBackup ? setup?.backup : nil
-            engine.backupWait = backupWait ?? setup?.backupWait ?? 2
-            engine.apiKey = apiKey
+            // As the app runs the built-in setup with this speech model (its backup, with the setting on).
+            if let setup = DictationSetup.builtIn(speechModel: model) {
+                engine.use(setup, apiKey: apiKey, backupWhenSlow: withBackup)
+            } else {
+                engine.modelID = model
+                engine.apiKey = apiKey
+            }
+            if let backupWait { engine.backupWait = backupWait }
             cloud = engine
             // Recording happens before you press stop, so the clip goes in at full speed.
             guard engine.beginRecording(), Self.read(url, into: engine.record) else {

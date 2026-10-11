@@ -7,6 +7,10 @@ import Foundation
 protocol DictationEngine: AnyObject {
     /// True when text only arrives after you stop (upload + transcribe), so the UI shows a wait state.
     var isBatch: Bool { get }
+    /// Set while "Keep recordings" is on: finished recordings go here instead of being deleted.
+    var archive: RecordingArchive? { get set }
+    /// Set with `archive`, before each dictation: the polish half of its JSON.
+    var note: RecordingNote? { get set }
     func start(inputUID: String, onLevel: @escaping (Float) -> Void,
                onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void)
     /// Ends recording; exactly one of `completion` / `failure` is called on the main queue.
@@ -189,6 +193,15 @@ final class CloudEngine: DictationEngine {
     private var recording: DictationRecording?
     private var race: UploadRace?
     private let lock = NSLock()
+
+    /// Set up for `setup`'s speech model as the app runs it; `backupWhenSlow` is the "Backup model
+    /// when slow" setting.
+    func use(_ setup: DictationSetup, apiKey: String, backupWhenSlow: Bool) {
+        modelID = setup.openRouterID ?? modelID
+        backupModelID = backupWhenSlow ? setup.backup : nil
+        backupWait = setup.backupWait
+        self.apiKey = apiKey
+    }
 
     /// Starts a new recording file. Called by `start`; tests call it directly with `record(_:)`
     /// to run the real stop/upload path without a microphone.
