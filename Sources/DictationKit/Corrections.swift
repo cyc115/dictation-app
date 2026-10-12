@@ -178,6 +178,9 @@ struct CorrectionCard: View {
                 TextEditor(text: $draft)
                     .font(.body)
                     .scrollContentBackground(.hidden)
+                    // A scroll bar showing up narrows the text, which can re-wrap it and hide the bar again,
+                    // around and around, when a line ends right at the edge (the card hung the test).
+                    .scrollIndicators(.never)
                     .padding(4)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .background(.background, in: RoundedRectangle(cornerRadius: 6))

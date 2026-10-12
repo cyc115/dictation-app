@@ -331,34 +331,75 @@ func snapshotBitmap(of view: NSView, scale: CGFloat = snapshotScale) -> NSBitmap
 }
 
 /// Pixels whose color or alpha moved by more than `threshold` (0–1).
+/// Compares raw sRGB bytes in a plain pointer loop: per-pixel `colorAt` logged a colorspace warning
+/// for every pixel, and even array-based loops took ~10 s per snapshot in a debug build.
 struct SnapshotDiff {
-    var differing = 0
-    var maxDelta: CGFloat = 0
-    var box = (minX: Int.max, maxX: -1, minY: Int.max, maxY: -1)
+    let differing: Int
+    let maxDelta: CGFloat
+    let box: (minX: Int, maxX: Int, minY: Int, maxY: Int)
     let fraction: Double
     /// The actual image faded, with changed pixels in red.
     let image: NSBitmapImageRep?
 
     init(_ actual: NSBitmapImageRep, _ expected: NSBitmapImageRep, threshold: CGFloat = 0.08) {
-        let marked = actual.copy() as? NSBitmapImageRep
-        for y in 0..<actual.pixelsHigh {
-            for x in 0..<actual.pixelsWide {
-                guard let a = actual.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
-                      let b = expected.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
-                let delta = max(abs(a.redComponent - b.redComponent), abs(a.greenComponent - b.greenComponent),
-                                abs(a.blueComponent - b.blueComponent), abs(a.alphaComponent - b.alphaComponent))
-                maxDelta = max(maxDelta, delta)
-                if delta > threshold {
-                    differing += 1
-                    box = (min(box.minX, x), max(box.maxX, x), min(box.minY, y), max(box.maxY, y))
-                    marked?.setColor(.red, atX: x, y: y)
-                } else {
-                    marked?.setColor(a.withAlphaComponent(a.alphaComponent * 0.3), atX: x, y: y)
-                }
+        let width = actual.pixelsWide, height = actual.pixelsHigh, count = width * height * 4
+        let a = Self.rgba(actual, width, height), b = Self.rgba(expected, width, height)
+        let m = UnsafeMutablePointer<UInt8>.allocate(capacity: count)
+        defer { m.deallocate() }
+        m.update(from: a, count: count)
+        let limit = Int(threshold * 255)
+        var differing = 0, maxByte = 0
+        var minX = Int.max, maxX = -1, minY = Int.max, maxY = -1
+        var i = 0
+        while i < count {
+            var delta = 0
+            for c in 0..<4 {
+                let d = Int(a[i + c]) - Int(b[i + c])
+                let ad = d < 0 ? -d : d
+                if ad > delta { delta = ad }
             }
+            if delta > maxByte { maxByte = delta }
+            if delta > limit {
+                differing += 1
+                let x = (i / 4) % width, y = (i / 4) / width
+                if x < minX { minX = x }
+                if x > maxX { maxX = x }
+                if y < minY { minY = y }
+                if y > maxY { maxY = y }
+                m[i] = 255; m[i + 1] = 0; m[i + 2] = 0; m[i + 3] = 255
+            } else {
+                for c in 0..<4 { m[i + c] = UInt8(Int(a[i + c]) * 3 / 10) }  // premultiplied: fade all four
+            }
+            i += 4
         }
-        fraction = Double(differing) / Double(max(actual.pixelsWide * actual.pixelsHigh, 1))
-        image = differing > 0 ? marked : nil
+        a.deallocate()
+        b.deallocate()
+        self.differing = differing
+        maxDelta = CGFloat(maxByte) / 255
+        box = (minX, maxX, minY, maxY)
+        fraction = Double(differing) / Double(max(width * height, 1))
+        image = differing > 0 ? Self.bitmap(m, width, height) : nil
+    }
+
+    private static let sRGB = CGColorSpace(name: CGColorSpace.sRGB)!
+    private static let info = CGImageAlphaInfo.premultipliedLast.rawValue
+
+    /// Top row first, 4 bytes (premultiplied RGBA) per pixel; the caller deallocates.
+    private static func rgba(_ rep: NSBitmapImageRep, _ width: Int, _ height: Int) -> UnsafeMutablePointer<UInt8> {
+        let bytes = UnsafeMutablePointer<UInt8>.allocate(capacity: width * height * 4)
+        bytes.initialize(repeating: 0, count: width * height * 4)
+        if let image = rep.cgImage {
+            CGContext(data: bytes, width: width, height: height, bitsPerComponent: 8,
+                      bytesPerRow: width * 4, space: sRGB, bitmapInfo: info)?
+                .draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        return bytes
+    }
+
+    private static func bitmap(_ bytes: UnsafeMutablePointer<UInt8>, _ width: Int, _ height: Int) -> NSBitmapImageRep? {
+        CGContext(data: bytes, width: width, height: height, bitsPerComponent: 8,
+                  bytesPerRow: width * 4, space: sRGB, bitmapInfo: info)?
+            .makeImage().map(NSBitmapImageRep.init(cgImage:))
     }
 }
 
