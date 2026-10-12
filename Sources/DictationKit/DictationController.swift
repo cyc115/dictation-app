@@ -179,8 +179,11 @@ final class DictationController {
         // Cloud models transcribe after you stop: keep the pill up ("working") until text arrives.
         let batch = engine.isBatch
         if batch { overlay.showProcessing() } else { overlay.hideUnlessMessage() }
+        // A new dictation may start before this one is delivered.
+        let setup = dictationSetup, polisher = self.polisher
         engine.stop(completion: { [weak self] text in
-            note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
+            let transcribed = ProcessInfo.processInfo.systemUptime - stoppedAt
+            note?.transcribed(seconds: transcribed)
             guard let self else { return }
             if batch { self.overlay.hideUnlessMessage() }
             let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -188,10 +191,12 @@ final class DictationController {
             if let output = output {
                 // Already typed as you spoke; finish the tail. No polish: it needs the whole text.
                 output.finish(fullText: raw)
-                if !raw.isEmpty { self.history.add(text: raw, duration: duration) }
+                if !raw.isEmpty {
+                    self.history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed)
+                }
                 self.finished()
             } else {
-                self.deliver(raw, duration: duration, note: note)
+                self.deliver(raw, duration: duration, setup: setup, polisher: polisher, transcribed: transcribed, note: note)
             }
         }, failure: { [weak self] message in
             note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
@@ -213,9 +218,9 @@ final class DictationController {
         onIdle()
     }
 
-    private func deliver(_ raw: String, duration: TimeInterval, note: RecordingNote?) {
+    private func deliver(_ raw: String, duration: TimeInterval, setup: DictationSetup, polisher: PolishService?,
+                         transcribed: TimeInterval, note: RecordingNote?) {
         guard !raw.isEmpty else { return finished() }
-        let setup = dictationSetup  // a new dictation may start before polish finishes
         if let polisher {
             overlay.showProcessing()
             let started = ProcessInfo.processInfo.systemUptime
@@ -225,7 +230,8 @@ final class DictationController {
                 let seconds = ProcessInfo.processInfo.systemUptime - started
                 await MainActor.run {
                     self.overlay.hide()
-                    self.history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt)
+                    self.history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt,
+                                     transcribeSeconds: transcribed, polishSeconds: seconds)
                     self.injector.inject(polished)
                     // After typing it, so saving it adds nothing to your wait.
                     note?.polished(polished, seconds: seconds, error: error)
@@ -233,7 +239,7 @@ final class DictationController {
                 }
             }
         } else {
-            history.add(text: raw, duration: duration, setup: setup.id)
+            history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed)
             injector.inject(raw)
             finished()
         }

@@ -544,6 +544,15 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "insights")
     }
 
+    func testInsightsTimeBreakdown() {
+        let insights = Insights(defaults: makeDefaults(self))
+        insights.record(text: Array(repeating: "w", count: 7_500).joined(separator: " "), duration: 78 * 60)
+        let breakdown = TimeBreakdown(speaking: 13.9, transcribing: 1.6, polishing: 0.3, count: 100)
+        let hosted = HostedView(InsightsView(insights: insights, breakdown: breakdown).padding(20), size: NSSize(width: 620, height: 400))
+        addTeardownBlock { hosted.close() }
+        assertSnapshot(of: hosted.hostingView, named: "insights-breakdown")
+    }
+
     func testHistory() {
         let url = makeTempURL(self)
         var entries = [

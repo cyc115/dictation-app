@@ -14,6 +14,9 @@ struct HistoryEntry: Codable, Identifiable, Equatable {
     var prompt: String?
     /// What you wanted instead (Corrections); nil = not corrected.
     var correction: String?
+    /// Stop → transcript, and transcript → polished text (nil: not polished, or before these were saved).
+    var transcribeSeconds: Double?
+    var polishSeconds: Double?
 
     /// What polish was given: a test case's input.
     var input: String { raw ?? text }
@@ -76,11 +79,32 @@ final class HistoryStore: ObservableObject {
         prune()
     }
 
-    func add(text: String, duration: TimeInterval, raw: String? = nil, setup: String? = nil, prompt: String? = nil) {
+    func add(text: String, duration: TimeInterval, raw: String? = nil, setup: String? = nil, prompt: String? = nil,
+             transcribeSeconds: Double? = nil, polishSeconds: Double? = nil) {
         guard retention != .off, !text.isEmpty else { return }
         entries.insert(HistoryEntry(date: Date(), text: text, duration: duration, raw: raw == text ? nil : raw,
-                                    setup: setup, prompt: prompt), at: 0)
+                                    setup: setup, prompt: prompt,
+                                    transcribeSeconds: transcribeSeconds, polishSeconds: polishSeconds), at: 0)
         save()
+    }
+
+    /// Fills in transcribe and polish times on dictations from before they were saved, from kept
+    /// recordings with the same transcript (`RecordingInfo`). Once: `timingsBackfilled` in defaults.
+    func backfillTimings(from recordings: @autoclosure () -> [RecordingInfo]) {
+        guard !defaults.bool(forKey: "timingsBackfilled") else { return }
+        defaults.set(true, forKey: "timingsBackfilled")
+        var byTranscript: [String: RecordingInfo] = [:]
+        for info in recordings() where info.transcribeSeconds != nil {
+            byTranscript[info.transcript.trimmingCharacters(in: .whitespacesAndNewlines)] = info
+        }
+        var changed = false
+        for i in entries.indices where entries[i].transcribeSeconds == nil {
+            guard let info = byTranscript[entries[i].input] else { continue }
+            entries[i].transcribeSeconds = info.transcribeSeconds
+            entries[i].polishSeconds = info.polishSeconds
+            changed = true
+        }
+        if changed { save() }
     }
 
     /// Dictations you corrected, newest first.

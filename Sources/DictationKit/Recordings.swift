@@ -168,6 +168,14 @@ final class RecordingArchive {
         }
     }
 
+    /// What was heard for each kept recording.
+    var infos: [RecordingInfo] {
+        recordings.compactMap { wav in
+            (try? Data(contentsOf: wav.deletingPathExtension().appendingPathExtension("json")))
+                .flatMap { try? Self.decoder.decode(RecordingInfo.self, from: $0) }
+        }
+    }
+
     /// Kept recordings, oldest first.
     var recordings: [URL] {
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []

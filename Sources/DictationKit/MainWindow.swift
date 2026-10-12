@@ -99,6 +99,7 @@ struct MainView: View {
 
 private struct HomeView: View {
     @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var history = HistoryStore.shared
 
     var body: some View {
         ScrollView {
@@ -107,7 +108,7 @@ private struct HomeView: View {
                     Text("Insights").font(.largeTitle.bold())
                     Text(settings.hint + ".").foregroundStyle(.secondary)
                 }
-                InsightsView(insights: .shared)
+                InsightsView(insights: .shared, breakdown: TimeBreakdown(history.entries))
             }
             .padding(24)
             .frame(maxWidth: 720, alignment: .leading)

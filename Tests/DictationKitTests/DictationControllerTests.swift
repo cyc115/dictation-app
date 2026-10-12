@@ -93,6 +93,8 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(pasted, ["hello world。"])
         XCTAssertEqual(history.entries.first?.text, "hello world。")
         XCTAssertEqual(history.entries.first?.raw, "hello world")
+        XCTAssertNotNil(history.entries.first?.transcribeSeconds)
+        XCTAssertGreaterThanOrEqual(history.entries.first?.polishSeconds ?? 0, 0.01, "saved for Insights' time bar")
     }
 
     func testTypeAsYouSpeakTypesPhrasesThenTheTailWithoutPasting() {
@@ -107,6 +109,8 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(typed, ["hello", " world"])
         XCTAssertEqual(pasted, [])
         XCTAssertEqual(history.entries.first?.text, "hello world")
+        XCTAssertEqual(history.entries.first?.setup, "on-device")
+        XCTAssertNotNil(history.entries.first?.transcribeSeconds)
     }
 
     func testCancelDeliversNothing() {
