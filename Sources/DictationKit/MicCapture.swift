@@ -137,10 +137,11 @@ final class MicCapture {
 
     /// The chosen mic (or the default), with its audio going to `received`.
     private func open() throws -> MicInput {
-        if !inputUID.isEmpty, !AudioDevices.inputDevices().contains(where: { $0.uid == inputUID }) {
+        let chosen = AudioDevices.connectedInput(uid: inputUID)
+        if !inputUID.isEmpty, chosen == nil {
             Self.log.error("input \(self.inputUID, privacy: .public) isn't connected; using the default")
         }
-        guard let device = AudioDevices.inputDevice(uid: inputUID) else {
+        guard let device = chosen?.id ?? AudioDevices.defaultInputDevice() else {
             throw TranscriptionError.message("no microphone is connected")
         }
         let onBuffer = self.onBuffer

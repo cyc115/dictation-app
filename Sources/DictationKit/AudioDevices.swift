@@ -12,13 +12,7 @@ struct AudioInputDevice: Hashable {
 /// CoreAudio helpers: list microphones, pick the one to record from, read/write output mute and volume.
 enum AudioDevices {
     static func inputDevices() -> [AudioInputDevice] {
-        var address = globalAddress(kAudioHardwarePropertyDevices)
-        let system = AudioObjectID(kAudioObjectSystemObject)
-        var size: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr, size > 0 else { return [] }
-        var ids = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
-        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &ids) == noErr else { return [] }
-        return ids.compactMap { id in
+        allDevices().compactMap { id in
             guard inputChannelCount(id) > 0,
                   let uid = stringProperty(id, kAudioDevicePropertyDeviceUID),
                   let name = stringProperty(id, kAudioObjectPropertyName) else { return nil }
@@ -26,51 +20,29 @@ enum AudioDevices {
         }
     }
 
-    /// The microphone a dictation records from: the one with `uid` if it's connected, else the
-    /// system default input. Nil if there's no input at all.
-    static func inputDevice(uid: String) -> AudioDeviceID? {
-        if !uid.isEmpty, let device = inputDevices().first(where: { $0.uid == uid }) { return device.id }
-        return defaultInputDevice()
+    /// The microphone with `uid`, if it's connected (nil for an empty uid).
+    static func connectedInput(uid: String) -> AudioInputDevice? {
+        uid.isEmpty ? nil : inputDevices().first { $0.uid == uid }
     }
 
-    // MARK: Output (for mute-while-dictating)
-
-    static func defaultOutputDevice() -> AudioDeviceID? {
-        var address = globalAddress(kAudioHardwarePropertyDefaultOutputDevice)
-        var id = AudioDeviceID(0)
-        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
-        let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &id)
-        return status == noErr && id != 0 ? id : nil
-    }
-
-    static func device(withUID uid: String) -> AudioDeviceID? {
-        var address = globalAddress(kAudioHardwarePropertyDevices)
-        let system = AudioObjectID(kAudioObjectSystemObject)
-        var size: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr else { return nil }
-        var ids = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
-        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &ids) == noErr else { return nil }
-        return ids.first { stringProperty($0, kAudioDevicePropertyDeviceUID) == uid }
-    }
-
-    static func uid(of id: AudioDeviceID) -> String? { stringProperty(id, kAudioDevicePropertyDeviceUID) }
-
-    static func defaultInputDevice() -> AudioDeviceID? {
-        var address = globalAddress(kAudioHardwarePropertyDefaultInputDevice)
-        var id = AudioDeviceID(0)
-        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
-        let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &id)
-        return status == noErr && id != 0 ? id : nil
-    }
+    static func defaultInputDevice() -> AudioDeviceID? { defaultDevice(kAudioHardwarePropertyDefaultInputDevice) }
 
     /// Name of the mic a dictation will actually use: the preferred one if it's connected,
     /// otherwise the system default input.
     static func activeInputName(preferredUID: String) -> String? {
-        if !preferredUID.isEmpty, let device = inputDevices().first(where: { $0.uid == preferredUID }) {
-            return device.name
-        }
-        return defaultInputDevice().flatMap { stringProperty($0, kAudioObjectPropertyName) }
+        connectedInput(uid: preferredUID)?.name
+            ?? defaultInputDevice().flatMap { stringProperty($0, kAudioObjectPropertyName) }
     }
+
+    // MARK: Output (for mute-while-dictating)
+
+    static func defaultOutputDevice() -> AudioDeviceID? { defaultDevice(kAudioHardwarePropertyDefaultOutputDevice) }
+
+    static func device(withUID uid: String) -> AudioDeviceID? {
+        allDevices().first { stringProperty($0, kAudioDevicePropertyDeviceUID) == uid }
+    }
+
+    static func uid(of id: AudioDeviceID) -> String? { stringProperty(id, kAudioDevicePropertyDeviceUID) }
 
     static func isMuted(_ id: AudioDeviceID) -> Bool? {
         var address = outputAddress(kAudioDevicePropertyMute)
@@ -109,6 +81,25 @@ enum AudioDevices {
     }
 
     // MARK: Private
+
+    /// Every audio device, input or output.
+    private static func allDevices() -> [AudioDeviceID] {
+        var address = globalAddress(kAudioHardwarePropertyDevices)
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr, size > 0 else { return [] }
+        var ids = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &ids) == noErr else { return [] }
+        return ids
+    }
+
+    private static func defaultDevice(_ selector: AudioObjectPropertySelector) -> AudioDeviceID? {
+        var address = globalAddress(selector)
+        var id = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &id)
+        return status == noErr && id != 0 ? id : nil
+    }
 
     private static func globalAddress(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
         AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal,
