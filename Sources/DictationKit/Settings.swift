@@ -68,6 +68,7 @@ final class AppSettings: ObservableObject {
         static let language = "localLanguage"
         static let keepRecordings = "keepRecordings"
         static let backupWhenSlow = "backupWhenSlow"
+        static let excludedApps = "excludedApps"
     }
 
     var onChange: (() -> Void)?
@@ -123,6 +124,23 @@ final class AppSettings: ObservableObject {
     @Published var backupWhenSlow: Bool {
         didSet { defaults.set(backupWhenSlow, forKey: Key.backupWhenSlow); onChange?() }
     }
+    /// Apps in which the hotkey and mouse button are ignored (ExclusionWatcher), in the order added.
+    @Published private(set) var excludedApps: [ExcludedApp] {
+        didSet {
+            defaults.set(try? JSONEncoder().encode(excludedApps), forKey: Key.excludedApps)
+            onChange?()
+        }
+    }
+
+    func exclude(_ app: ExcludedApp) {
+        guard !excludedApps.contains(where: { $0.bundleID == app.bundleID }) else { return }
+        excludedApps.append(app)
+    }
+
+    func include(_ app: ExcludedApp) {
+        excludedApps.removeAll { $0.bundleID == app.bundleID }
+    }
+
     private let secrets: SecretStore
     static let openRouterAccount = "openrouter-api-key"
 
@@ -169,6 +187,8 @@ final class AppSettings: ObservableObject {
         localLanguage = LocalLanguage(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .english
         keepRecordings = defaults.bool(forKey: Key.keepRecordings)
         backupWhenSlow = defaults.object(forKey: Key.backupWhenSlow) as? Bool ?? true
+        excludedApps = defaults.data(forKey: Key.excludedApps)
+            .flatMap { try? JSONDecoder().decode([ExcludedApp].self, from: $0) } ?? []
         launchAtLogin = false
         let saved = defaults.string(forKey: Key.model).map(DictationSetup.currentID)
         reloadSetups(selecting: saved)
@@ -321,6 +341,7 @@ struct SettingsView: View {
                         ForEach(MouseButton.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
                 }
+                ExcludedAppsList(settings: settings)
                 if settings.hotkey == .fn {
                     Text("Tip: set System Settings → Keyboard → “Press 🌐 key to” → Do Nothing, so Fn doesn't also open the emoji picker.")
                         .font(.callout)

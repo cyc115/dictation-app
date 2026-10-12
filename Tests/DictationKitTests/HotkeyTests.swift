@@ -162,6 +162,39 @@ final class HotkeyTests: XCTestCase {
         XCTAssertEqual(events, ["press", "escape"])
     }
 
+    // MARK: Paused in an excluded app
+
+    func testPausedHotkeyDoesNotStartDictation() {
+        let m = makeManager(.rightShift, .toggle)
+        m.isPaused = { true }
+        down(m, .rightShift); up(m, .rightShift)
+        XCTAssertEqual(events, [])
+    }
+
+    func testReleaseStillCountsAfterSwitchingIntoAnExcludedApp() {
+        var paused = false
+        let m = makeManager(.fn, .hold)
+        m.isPaused = { paused }
+        down(m, .fn)
+        paused = true
+        up(m, .fn)
+        paused = false
+        down(m, .fn); up(m, .fn)
+        XCTAssertEqual(events, ["press", "release", "press", "release"], "the key isn't left stuck down")
+    }
+
+    func testPausedMouseButtonAndEscPassThrough() {
+        let m = makeManager(mouse: .button4)
+        m.isPaused = { true }
+        m.isRecording = { true }
+        m.onEscape = { [unowned self] in events.append("escape") }
+        XCTAssertTrue(passes(m, .otherMouseDown, button: 3), "the game gets its own button")
+        XCTAssertTrue(passes(m, .otherMouseUp, button: 3))
+        XCTAssertTrue(escapePasses(m))
+        spinRunLoop()
+        XCTAssertEqual(events, [])
+    }
+
     func testMouseButtonNumbers() {
         XCTAssertNil(MouseButton.off.buttonNumber)
         XCTAssertEqual(MouseButton.middle.buttonNumber, 2)

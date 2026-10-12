@@ -18,7 +18,7 @@ final class SettingsUITests: XCTestCase {
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
                       "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep history", "Keep recordings",
-                      "Backup model when slow"] {
+                      "Backup model when slow", "Pause in these apps"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }
@@ -162,6 +162,17 @@ final class SettingsUITests: XCTestCase {
                 XCTAssertFalse(text.contains(banned), "\(model.title): settings mention \(banned)")
             }
         }
+    }
+
+    func testExcludedAppsListedAndRemovable() {
+        let settings = makeSettings(self)
+        settings.exclude(ExcludedApp(bundleID: "com.example.game", name: "Some Game"))
+        let hosted = host(settings)
+        XCTAssertTrue(hosted.allText.contains("Some Game"))
+        let remove = try? XCTUnwrap(hosted.element(id: "excluded.remove.com.example.game"))
+        XCTAssertTrue(remove.map { hosted.click($0) } ?? false)
+        XCTAssertEqual(settings.excludedApps, [])
+        XCTAssertFalse(hosted.allText.contains("Some Game"))
     }
 
     func testFnTipOnlyShownForFn() {
@@ -535,6 +546,16 @@ final class SnapshotTests: XCTestCase {
         let hosted = HostedView(HistoryView(store: store), size: NSSize(width: 760, height: 520))
         addTeardownBlock { hosted.close() }
         assertSnapshot(of: hosted.hostingView, named: "history")
+    }
+
+    func testExcludedApps() {
+        let settings = makeSettings(self)
+        settings.exclude(ExcludedApp(bundleID: "com.nvidia.gfnpc.mall", name: "GeForce NOW"))
+        settings.exclude(ExcludedApp(bundleID: "com.example.game", name: "Some Game"))
+        let view = Form { Section { ExcludedAppsList(settings: settings) } }.formStyle(.grouped)
+        let hosted = HostedView(view, size: NSSize(width: 640, height: 200))
+        addTeardownBlock { hosted.close() }
+        assertSnapshot(of: hosted.hostingView, named: "excluded-apps")
     }
 
     func testCorrections() {

@@ -49,6 +49,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var finishing = 0
     private let relaunch = AppRelaunch()
     private var bundleWatcher: BundleWatcher?
+    private lazy var exclusion = ExclusionWatcher(excluded: settings.excludedApps)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if Diagnostics.runIfRequested() { return }
@@ -61,6 +62,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         overlay.onCancel = { [weak self] in self?.cancelDictation() }
         overlay.onConfirm = { [weak self] in self?.stopDictation() }
         settings.onChange = { [weak self] in self?.settingsChanged() }
+        exclusion.onChange = { [weak self] in self?.updateStatusIcon(); self?.updateMenu() }
+        exclusion.start()
         Permissions.requestAll { [weak self] granted in
             guard let self = self else { return }
             // HotkeyManager prompts for Accessibility itself when needed.
@@ -75,6 +78,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             )
             self.hotkey?.isRecording = { [weak self] in self?.dictating == true }
             self.hotkey?.onEscape = { [weak self] in self?.cancelDictation() }
+            self.hotkey?.isPaused = { [weak self] in self?.exclusion.isPaused == true }
             self.hotkey?.start()
             if !granted {
                 DispatchQueue.main.async { Permissions.showInstructions() }
@@ -111,7 +115,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateMenu() {
-        hintItem.title = settings.hint
+        hintItem.title = exclusion.pausedFor.map { "Paused while \($0.name) is in front" } ?? settings.hint
         polishItem.state = settings.polishEnabled ? .on : .off
     }
 
@@ -122,6 +126,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             hotkey.mode = settings.mode
         }
         hotkey?.mouseButton = settings.mouseButton
+        exclusion.excluded = settings.excludedApps
         applyAppearanceAndDock()
         updateMenu()
     }
@@ -179,10 +184,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openSettings() { mainWindow.show(.settings) }
     @objc private func togglePolish() { settings.polishEnabled.toggle() }
 
-    /// Waveform glyph matching the app icon; red while the mic is open.
+    /// Waveform glyph matching the app icon; red while the mic is open, struck through while paused.
     private func updateStatusIcon() {
         guard let button = statusItem.button else { return }
-        let image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "DictationApp")?
+        let symbol = exclusion.isPaused && !dictating ? "waveform.slash" : "waveform"
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "DictationApp")?
             .withSymbolConfiguration(.init(pointSize: 14, weight: .semibold))
         image?.isTemplate = !dictating
         button.image = image

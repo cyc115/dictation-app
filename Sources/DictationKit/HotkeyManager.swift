@@ -92,6 +92,9 @@ class HotkeyManager {
     /// Called when Esc is pressed while `isRecording()` is true; the Esc is swallowed.
     var onEscape: () -> Void = {}
     var isRecording: () -> Bool = { false }
+    /// True while an excluded app (e.g. a game) is in front: the hotkey can't start dictation and
+    /// the mouse button and Esc pass through to that app.
+    var isPaused: () -> Bool = { false }
     private var mouseTap: CFMachPort?
     private var monitors: [Any] = []
     private(set) var held = false
@@ -171,6 +174,7 @@ class HotkeyManager {
             if let tap = mouseTap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
+        if isPaused() { return Unmanaged.passUnretained(event) }
         if type == .keyDown {
             // Esc cancels a recording; swallowed so it doesn't also close a dialog in the
             // app being typed into. Outside a recording, Esc passes through untouched.
@@ -200,6 +204,8 @@ class HotkeyManager {
         guard keyCode == hotkey.keyCode else { return }
         let down = rawFlags & hotkey.flagMask != 0
         if down && !held {
+            // Releases still count while paused, so a key held into the excluded app isn't stuck down.
+            guard !isPaused() else { return }
             held = true
             cancelled = false
             if mode == .hold { onPress() }
