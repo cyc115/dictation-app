@@ -22,9 +22,19 @@ for arg in "$@"; do
 done
 
 (( LIVE )) && export LIVE_OPENROUTER=1
-swift test "${args[@]}" 2>&1 | tee "${TMPDIR:-/tmp}/dictationapp-test.log" | grep -E "error:|failed|Executed .* tests|\[perf\]" || true
-if grep -qE "error:|with [1-9][0-9]* failures?" "${TMPDIR:-/tmp}/dictationapp-test.log"; then
-  echo "❌ tests failed (full log: ${TMPDIR:-/tmp}/dictationapp-test.log)"
+LOG="${TMPDIR:-/tmp}/dictationapp-test.log"
+swift test "${args[@]}" 2>&1 | tee "$LOG" | grep -E "error:|failed|Executed .* tests|\[perf\]" || true
+if grep -qE "error:|with [1-9][0-9]* failures?" "$LOG"; then
+  echo "❌ tests failed (full log: $LOG)"
+  exit 1
+fi
+# A message logged over and over (once per pixel, per buffer…) slows the tests and fills the disk:
+# the snapshot diff once logged "Unrecognized colorspace" 8.8M times a run. Fail on any repeated
+# 1000+ times (timestamps and process ids removed first).
+spam=$(sed -E 's/^[0-9-]+ [0-9:.]+ [^ ]+\[[0-9:]+\] //' "$LOG" | sort | uniq -c | sort -rn | awk '$1 >= 1000' | head -3)
+if [[ -n "$spam" ]]; then
+  echo "❌ the tests logged the same line 1000+ times; stop whatever logs it:"
+  echo "$spam"
   exit 1
 fi
 echo "✅ tests passed"

@@ -124,6 +124,33 @@ final class CloudEngineTests: XCTestCase {
         XCTAssertEqual(Double(declared) / 2 / 16_000, 1.0, accuracy: 0.05, "16 kHz 16-bit mono")
     }
 
+    func testCancelUploadDeletesAHungUploadsRecording() throws {
+        let engine = CloudEngine()
+        let fake = FakeTranscriptionClient(text: "ok")
+        fake.scripts["hang"] = .never
+        engine.client = fake
+        engine.modelID = "hang"
+        XCTAssertTrue(engine.beginRecording())
+        feedSpeech(engine, seconds: 1)
+        engine.stop(completion: { _ in XCTFail("hung upload answered") }, failure: { XCTFail($0) })
+        let wav = try XCTUnwrap(engine.uploading?.url)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: wav.path))
+        engine.cancelUpload()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: wav.path), "a timed-out benchmark trial left its WAV in the temp folder")
+        XCTAssertNil(engine.uploading)
+    }
+
+    func testFinishedUploadIsNoLongerHeld() {
+        let engine = CloudEngine()
+        engine.client = FakeTranscriptionClient(text: "ok")
+        XCTAssertTrue(engine.beginRecording())
+        feedSpeech(engine, seconds: 1)
+        let done = expectation(description: "stopped")
+        engine.stop(completion: { _ in done.fulfill() }, failure: { XCTFail($0); done.fulfill() })
+        wait(for: [done], timeout: 2)
+        XCTAssertNil(engine.uploading)
+    }
+
     func testTooShortRecordingSkipsUpload() {
         let engine = CloudEngine()
         let fake = FakeTranscriptionClient(text: "ok")

@@ -112,6 +112,12 @@ final class LatencyRunner {
             .map { PolishService(backend: $0) }
     }
 
+    /// Stops the trial in flight and deletes its recording (it timed out).
+    func cancel() {
+        cloud?.cancelUpload()
+        speech.cancel()
+    }
+
     /// Plays the clip into the engine like the mic would, then times `stop()` → transcript.
     private func transcribe(_ trial: LatencyTrial, completion: @escaping (LatencySample) -> Void) {
         let url = URL(fileURLWithPath: trial.file)
@@ -255,6 +261,7 @@ final class LatencyProbe {
         let id = token
         DispatchQueue.main.asyncAfter(deadline: .now() + plan.timeout) { [weak self] in
             guard let self = self, id == self.token else { return }
+            self.runner.cancel()
             self.record(LatencySample(id: trial.id, error: String(format: "timed out after %g s", self.plan.timeout)))
         }
         runner.run(trial) { [weak self] sample in

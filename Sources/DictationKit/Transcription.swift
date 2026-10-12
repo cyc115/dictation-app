@@ -191,6 +191,8 @@ final class CloudEngine: DictationEngine {
 
     let mic = MicCapture()
     private var recording: DictationRecording?
+    /// The stopped dictation being uploaded (deleted or kept when its upload finishes).
+    private(set) var uploading: DictationRecording?
     private var race: UploadRace?
     private let lock = NSLock()
 
@@ -237,6 +239,7 @@ final class CloudEngine: DictationEngine {
         let url = recording.url
         let info = RecordingInfo(date: Date(), model: "openrouter:\(modelID)", transcript: "", seconds: recording.duration)
         lastAnsweredBy = nil
+        uploading = recording
         let main = modelID, wait = backupWait, policy = backup, backupModel = backupModelID
         race = UploadRace(wav: url, apiKey: apiKey, client: client, main: main,
                           backup: backupModel.map { policy.plan(for: main, backup: $0, wait: wait) },
@@ -255,8 +258,18 @@ final class CloudEngine: DictationEngine {
             // After the text is delivered, so keeping it adds nothing to your wait. Failed uploads
             // are kept too: they're the cases a benchmark most needs.
             recording.done(heard)
+            if self?.uploading === recording { self?.uploading = nil }
         }
         race?.start()
+    }
+
+    /// Gives up on the upload in flight and deletes its recording (a benchmark trial that timed out).
+    /// Not part of `cancel()`: cancelling a new dictation must not stop the last one's upload.
+    func cancelUpload() {
+        race?.cancel()
+        race = nil
+        uploading?.discard()
+        uploading = nil
     }
 
     func cancel() {
@@ -404,6 +417,15 @@ final class UploadRace {
             }
         }
         if let task = task { tasks[model] = task }
+    }
+
+    /// Stops both requests without reporting an outcome.
+    func cancel() {
+        guard !finished else { return }
+        finished = true
+        timer?.cancel()
+        judgeTimer?.cancel()
+        tasks.values.forEach { $0.cancel() }
     }
 
     /// The main model's verdict, once: the first of its answer, its failure, or the wait running out.
