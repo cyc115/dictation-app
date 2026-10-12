@@ -1,138 +1,134 @@
 # DictationApp
 
-Fast dictation for macOS — on-device, or in the cloud for English mixed into Chinese.
+**Hold a key, speak, let go: your words are typed into any app on your Mac.**
 
-Hold **Fn** (or another hotkey you pick) to dictate into any app on your Mac. Release to paste.
-A small bar at the bottom of the screen shows a live waveform while you speak,
-with ✕ (cancel) and ✓ (paste) buttons.
-AI polish is **OFF by default** — toggle it in the menu bar when you want it.
+A small macOS menu-bar app for fast, private dictation. It runs on your Mac by default, and
+cloud models can handle **English mixed into Chinese**, which the built-in macOS dictation can't.
 
-## Install (one command)
+![DictationApp: the recording bar, dictation history and insights](docs/images/screenshot.png)
+
+## Features
+
+- **Works everywhere.** Hold **Fn** (or Right ⌘ / ⌥ / ⌃ / ⇧, or a mouse button), speak, and let go.
+  The text is pasted at your cursor in whatever app you're in.
+- **Live recording bar.** A small bar at the bottom of the screen shows a waveform and which mic
+  is recording. Click ✓ to paste, or ✕ / **Esc** to cancel.
+- **On-device or cloud.** *On-device* uses Apple Speech, and no audio leaves your Mac.
+  *Cloud Flash* returns text about 0.5 s after you stop, and *Cloud Big* in about 2 s. Both handle
+  English mixed into Chinese.
+- **Optional AI polish.** Removes filler words and fixes self-corrections ("Tuesday, no,
+  Wednesday") without changing your meaning. On-device setups polish with Apple Intelligence,
+  cloud setups with DeepSeek. It's off by default; turn it on from the menu bar. Polish never
+  holds you up: if it fails or takes longer than 6 s, you get your unpolished text.
+- **Type as you speak.** Optionally types each phrase as soon as you pause, instead of pasting
+  everything at the end.
+- **History and corrections.** Past dictations, grouped by day and searchable, kept only on your
+  Mac. When a dictation comes out wrong, click the pencil and type what you meant. Corrections
+  become a test set for comparing models and prompts.
+- **Insights.** Words dictated, time saved compared with typing, your speaking speed, and where a
+  typical dictation's time goes (speaking, transcribing, polishing).
+- **Your clipboard is kept.** It's saved before each paste and restored about a second later.
+- **Lots of options.** Hold to talk or tap to toggle, a mouse button that presses Return, apps
+  where the hotkey is paused (e.g. games), mute audio while dictating, launch at login, and
+  [your own model setups](docs/custom-setups.md).
+
+## Requirements
+
+- macOS 26 or later
+- Swift 6 toolchain (Xcode 26 or its Command Line Tools)
+- For the cloud setups: an [OpenRouter](https://openrouter.ai) API key
+- For on-device AI polish: Apple Intelligence turned on
+
+## Install
+
+There's no prebuilt download yet. Build from source:
 
 ```sh
-./build.sh   # builds, quits any running copy, installs, relaunches
+git clone https://github.com/cyc115/dictation-app.git
+cd dictation-app
+./build.sh        # builds, installs to /Applications, and launches
 ```
 
-Then grant the 3 permissions when prompted:
+`build.sh` signs the app with a self-signed certificate that it creates once and reuses, so macOS
+keeps the app's permissions when you rebuild. Then grant three permissions:
 
-1. **Microphone** — system prompt at launch
-2. **Speech Recognition** — system prompt at launch
-3. **Accessibility** — System Settings → Privacy & Security → Accessibility → enable DictationApp
-   (needed for the Fn hotkey and pasting text)
+1. **Microphone**: prompted at first launch.
+2. **Speech Recognition**: prompted at first launch.
+3. **Accessibility**: System Settings → Privacy & Security → Accessibility → turn on DictationApp.
+   This lets the app see the hotkey and paste text. Relaunch the app afterwards.
 
-Relaunch the app after enabling Accessibility.
+## Usage
 
-## Use
+| Action | How |
+|---|---|
+| Dictate | Hold **Fn**, speak, release |
+| Paste now / cancel | Click ✓ / click ✕ or press **Esc** |
+| Toggle AI polish | Menu bar 🎙 → **AI polish** |
+| Insights | Menu bar 🎙 → **Insights…** |
+| History | Menu bar 🎙 → **History…** (⌘Y) |
+| Settings | Menu bar 🎙 → **Settings…** (⌘,) |
 
-- **Hold Fn**, speak, **release** → the transcript pastes at your cursor.
-- Menu bar 🎙 → **Settings…** (⌘,):
-  - **Hotkey**: Fn, Right ⌘, Right ⌥, Right ⌃ or Right ⇧.
-  - **Activation**: hold to talk, or tap once to start and tap again to paste.
-    Pressing another key while the hotkey is down (e.g. Right ⌘+C) counts as a shortcut, not dictation.
-  - **Mouse trigger**: middle, button 4 or button 5 — press to start, press again to paste.
-    The button's normal action (e.g. Back) is blocked while it's assigned.
-- Menu bar 🎙 → **Insights…**: words dictated, time saved (vs. typing at 40 WPM), average WPM, total dictation time.
-- Menu bar 🎙 → **History…** (⌘Y): past dictations by day, searchable; hover a row to copy it.
-  Kept on this Mac only (`~/Library/Application Support/DictationApp/history.json`); choose how long to keep it.
-- **Corrections:** in History, click the pencil beside a dictation that came out wrong and type what you
-  wanted. Each correction keeps the speech model's text, what the app wrote and your fix on that History
-  entry, kept until you delete it. `bench/suite.py polish run -m setup:cloud-flash --corrections` tests a
-  setup or prompt on them.
-- Click ✕ (or press **Esc**) to throw the dictation away, ✓ to stop and paste.
-- **Model** (Settings → Model) picks a *setup*: the speech model, the AI polish model and the polish
-  prompt, together:
-  - *On-device* — runs on your Mac, English or 中文 (one at a time); polished on-device too.
-  - *Cloud Flash* — text in ~0.5 s after you stop; handles English mixed into Chinese.
-  - *Cloud Big* — text in ~2 s; handles English mixed into Chinese.
-  - *Cloud Flash + DeepSeek* — Cloud Flash's speech, polished by DeepSeek V4.1 Flash, which fixes
-    more misheard terms (Claude Code, JSON…) at about the same speed. If DeepSeek hasn't answered in
-    0.8 s it's asked again on a second host, and the first answer wins.
+In **Settings → Model**, pick a setup:
 
-  Cloud polish never holds up your text: after 6 s (or if the polish model fails) you get what you
-  said, unpolished.
+| Setup | Speech | Polish | Notes |
+|---|---|---|---|
+| **On-device** | Apple Speech | Apple Intelligence | Nothing leaves your Mac. English *or* Chinese, one at a time. |
+| **Cloud Flash** | Qwen3-ASR 1.7B | DeepSeek V4.1 Flash | Text in about 0.5 s. Handles mixed English/Chinese. |
+| **Cloud Big** | Meta Muse Voice | DeepSeek V4.1 Flash | Text in about 2 s. Handles mixed English/Chinese. |
 
-  Cloud models ask for an API key (saved in `~/Library/Application Support/DictationApp/secrets.json`, readable only by your user account; shared by every cloud setup) and send audio when you
-  stop. Settings that a model can't use are greyed out and marked *Unavailable*; your choice is kept.
-  (Each setup's models and prompt are in `DictationSetup.builtInJSON`, `Sources/DictationKit/Setups.swift`;
-  how they compare is in `bench/`.)
-- **Your own setups**, to try another combination in the app: add them to
-  `~/Library/Application Support/DictationApp/setups.json` and they appear after the built-in ones
-  (the file is re-read whenever Settings opens; problems show under Model):
+Cloud setups send audio to OpenRouter when you stop recording. Your API key is stored in
+`~/Library/Application Support/DictationApp/secrets.json`, readable only by your user account.
+If the cloud model hasn't answered after a couple of seconds, a smaller, faster backup model is
+asked too and the first answer is used (Settings → *Backup model when slow*).
 
-  ```json
-  {"setups": [
-    {"id": "flash-v2", "title": "Flash, v2 prompt",
-     "speech": "openrouter:qwen/qwen3-asr-1.7b", "backup": "qwen/qwen3-asr-0.6b", "backupWait": 2,
-     "polish": "openrouter:openai/gpt-oss-120b@Groq", "prompt": "v2"},
-    {"id": "mac-my-prompt", "title": "On-device, my prompt",
-     "speech": "apple", "polish": "apple", "prompt": "~/prompts/mine.txt", "wrap": false}
-  ]}
-  ```
+## Privacy
 
-  `speech`: `apple` or `openrouter:<model id>`. `polish`: `apple` or
-  `openrouter:<model id>[@Provider[,Provider…]]` (only those hosts, in order: the next if one fails).
-  `prompt`: `v1`–`v4` (`bench/polish_prompts/`) or a text file. Optional: `summary`, `backup`
-  (an OpenRouter model also asked when the speech model is slow) and `backupWait` (seconds, default 2);
-  for cloud polish, `polishBackup` (`openrouter:…`, also asked when polish is slow or fails),
-  `polishBackupWait` (seconds, default 0.8) and `polishDeadline` (seconds before you get the raw
-  text, default 6); `wrap` (transcript in `<transcript>` tags, default true). Benchmark one with
-  `bench/suite.py polish run -m setup:<id>` (quality) or
-  `bench/suite.py latency run -P setup:<id> --setups-file <file>` (wait, backup included).
-- **Type as you speak** (Settings → Output, off by default): each phrase is typed into the focused app as soon as you pause, instead of one paste at the end.
-- The bar shows which microphone is recording, under the waveform.
-- **Keep recordings** (Settings → Recordings, off by default): saves each dictation's audio and
-  transcript on this Mac, to use as a benchmark set (`bench/README.md`).
-- **Backup model when slow** (Settings → Model, on by default; cloud setups): if Cloud Flash hasn't
-  answered in 2 s, a smaller, faster model is asked too and the first answer is used (Cloud Big:
-  Cloud Flash after 4 s); after a slow answer both are asked at once for 5 minutes. Faster in slow
-  spells, but the smaller model gets more technical terms wrong. Off, only the chosen model is asked.
-- Menu bar 🎙 → **AI polish** toggles LLM cleanup (default: off). It removes fillers and fixes
-  self-corrections without rewriting your meaning. The setup picks the polish model and prompt;
-  the transcript always goes in `<transcript>` tags:
-  - **On-device** → Apple's on-device polish: nothing leaves your Mac (about 1 s, up to 3 s
-    on long paragraphs).
-  - **Cloud Flash / Cloud Big** → cloud polish: DeepSeek V4.1 Flash through OpenRouter (on
-    Together; the same model on DeepInfra if Together is 0.8 s late or fails), about 0.35 s, with
-    prompt v4, which also fixes misheard terms from the topic. It replaced gpt-oss-120b on Oct 11,
-    2026 after beating it on every column of the hard polish set (70% vs 57% pass, terms 50% vs
-    19%, p50 0.35 s vs 0.71 s, cheaper); see `bench/results/polish/README.md`.
+- The mic is on **only** while you're dictating, never in the background.
+- With the On-device setup, audio and text never leave your Mac.
+- Audio is thrown away once it's transcribed, unless you turn on *Keep recordings*. Those, and
+  your history, stay in `~/Library/Application Support/DictationApp/`.
+- History is kept for as long as you choose (Settings → *Keep history*), and **Clear All…**
+  deletes it.
+
+## Troubleshooting
+
+- **Nothing happens when I press the hotkey.** Accessibility isn't on yet. Turn it on, then
+  relaunch the app.
+- **Fn also opens the emoji picker or Apple Dictation.** System Settings → Keyboard → "Press 🌐
+  key to" → Do Nothing, or pick a different hotkey.
+- **"On-device recognition unavailable".** System Settings → Keyboard → Dictation: make sure
+  your language is turned on, so its on-device model is downloaded.
+- **AI polish does nothing.** On-device polish needs Apple Intelligence. Cloud polish needs a
+  valid API key. If polish fails, the unpolished text is pasted.
+- **Text lands in the wrong app.** Click the text field you want first, then hold the hotkey.
 
 ## Development
 
 ```sh
-./test.sh          # unit, UI, snapshot and performance-budget tests
-./test.sh --perf   # + launch time / idle CPU / memory of the installed app
-scripts/e2e-speech.sh  # real recognizer on a synthesized 24 s dictation with pauses
-bench/suite.py latency run   # wait after you press stop, per speech/polish model (p50/p90/p95)
-./build.sh         # build, install to /Applications, relaunch
-./build.sh --keep-running   # install without cutting off a dictation; the app relaunches when idle
+./test.sh                    # unit, UI, snapshot and performance-budget tests
+./test.sh --live             # + the real cloud API, both cloud models (needs $OPENROUTER_API_KEY)
+./test.sh --perf             # + launch time, idle CPU and memory of the installed app
+./build.sh --keep-running    # install without interrupting a dictation; relaunches when idle
+bench/suite.py latency run   # time from stop to text, per speech/polish model
+bench/suite.py polish run    # polish quality on tricky dictations
 ```
 
-- **UI tests** host the real SwiftUI views in an offscreen window and drive them through the
-  accessibility tree with real mouse clicks (`Tests/DictationKitTests/UITests.swift`).
-- **Snapshot tests** compare rendered views to `Tests/DictationKitTests/__Snapshots__/*.png`.
-  After an intentional UI change: `RECORD_SNAPSHOTS=1 ./test.sh --filter SnapshotTests`.
-- **Performance tests** fail if hot paths (mic level per buffer, waveform redraw, overlay show,
-  history load/save) exceed their budgets; `scripts/perf.sh` checks the running app.
+- `Sources/DictationKit`: all app code. `Sources/DictationApp`: the entry point.
+  `Tests/DictationKitTests`: the tests.
+- **UI tests** host the real SwiftUI views in an offscreen window and click through them using
+  their accessibility identifiers.
+- **Snapshot tests** compare rendered views with `Tests/DictationKitTests/__Snapshots__/`. After
+  a deliberate UI change, run `RECORD_SNAPSHOTS=1 ./test.sh --filter SnapshotTests`, then
+  `scripts/readme-screenshot.py` to rebuild the screenshot above.
+- **Performance tests** fail when hot paths (audio processing, the recording bar, saving and
+  loading history) go over their time budgets.
+- **Benchmarks** in [`bench/`](bench/README.md) compare speech models, polish models and prompts
+  on generated speech, your own recordings or your corrections.
 
-## Privacy design
-
-- The mic opens **only** while you hold Fn (or while menu-bar dictation is active) — never in the background.
-- Transcription runs 100% on-device via Apple Speech (`requiresOnDeviceRecognition`).
-- Audio is deleted once transcribed, unless you turn on Keep recordings (stored only on this Mac).
-- Your clipboard is saved before pasting and restored ~1s after, so nothing you copied is lost.
-
-## Troubleshooting
-
-- **Nothing happens on the hotkey**: Accessibility isn't enabled yet → enable it, relaunch.
-  `build.sh` signs with a stable local cert, so the permission survives rebuilds.
-- **Fn also opens the emoji picker / Apple Dictation**: System Settings → Keyboard →
-  "Press 🌐 key to" → Do Nothing, or pick a different hotkey.
-- **"On-device recognition unavailable"**: System Settings → Keyboard → Dictation → make sure English dictation is enabled (downloads the on-device model).
-- **AI polish does nothing**: with On-device polish, Apple Intelligence must be available on this Mac; with Cloud, the cloud API key must be valid. Either way a failed polish pastes the raw transcript.
-- **Paste lands in the wrong app**: click the target text field first, then hold Fn.
+Contributor and agent conventions are in [`AGENTS.md`](AGENTS.md).
 
 ## Uninstall
 
-Delete `/Applications/DictationApp.app` (or `~/Applications/DictationApp.app`) and remove it from
-System Settings → Privacy & Security → Accessibility / Microphone / Speech Recognition.
+Delete `/Applications/DictationApp.app`, remove it from System Settings → Privacy & Security →
+Accessibility, Microphone and Speech Recognition, and optionally delete
+`~/Library/Application Support/DictationApp/`.
