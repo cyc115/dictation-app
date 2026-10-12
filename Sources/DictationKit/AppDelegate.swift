@@ -407,9 +407,9 @@ enum Permissions {
                (If you denied either: System Settings → Privacy & Security → \
                Microphone / Speech Recognition → enable DictationApp, then relaunch.)
             3. Accessibility — System Settings → Privacy & Security → Accessibility → \
-               enable DictationApp. Needed for the Fn hotkey and pasting text.
+               enable DictationApp. Needed for the hotkey, the mouse buttons and pasting text.
 
-            The mic opens only while you hold Fn. On-device is completely private; \
+            The mic opens only while you dictate. On-device is completely private; \
             cloud models send your audio to the cloud for transcription and polish.
             """
         alert.addButton(withTitle: "OK")
