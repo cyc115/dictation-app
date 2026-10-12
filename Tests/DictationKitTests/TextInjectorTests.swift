@@ -61,4 +61,15 @@ final class TextInjectorTests: XCTestCase {
         injector.typeText = { _ in XCTFail("should not type without Accessibility") }
         injector.type("x")
     }
+
+    func testPressReturnNeedsAccessibility() {
+        let injector = TextInjector()
+        var presses = 0
+        injector.postReturn = { presses += 1 }
+        injector.canPaste = { false }
+        injector.pressReturn()
+        injector.canPaste = { true }
+        injector.pressReturn()
+        XCTAssertEqual(presses, 1)
+    }
 }

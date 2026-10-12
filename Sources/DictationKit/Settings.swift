@@ -69,6 +69,8 @@ final class AppSettings: ObservableObject {
         static let keepRecordings = "keepRecordings"
         static let backupWhenSlow = "backupWhenSlow"
         static let excludedApps = "excludedApps"
+        static let enterEnabled = "mouseEnterEnabled"
+        static let enterButton = "mouseEnterButton"
     }
 
     var onChange: (() -> Void)?
@@ -82,6 +84,15 @@ final class AppSettings: ObservableObject {
     @Published var mouseButton: MouseButton {
         didSet { defaults.set(mouseButton.rawValue, forKey: Key.mouse); onChange?() }
     }
+    /// A mouse button presses Return, to send what you dictated without the keyboard. On by default.
+    @Published var mouseEnterEnabled: Bool {
+        didSet { defaults.set(mouseEnterEnabled, forKey: Key.enterEnabled); onChange?() }
+    }
+    @Published var mouseEnterButton: MouseButton {
+        didSet { defaults.set(mouseEnterButton.rawValue, forKey: Key.enterButton); onChange?() }
+    }
+    /// The button that presses Return, or `.off`.
+    var effectiveEnterButton: MouseButton { mouseEnterEnabled ? mouseEnterButton : .off }
     @Published var polishEnabled: Bool {
         didSet { defaults.set(polishEnabled, forKey: Key.polish); onChange?() }
     }
@@ -177,6 +188,9 @@ final class AppSettings: ObservableObject {
         mode = ActivationMode(rawValue: defaults.string(forKey: Key.mode) ?? "") ?? .hold
         polishEnabled = defaults.bool(forKey: Key.polish)
         mouseButton = MouseButton(rawValue: defaults.string(forKey: Key.mouse) ?? "") ?? .off
+        mouseEnterEnabled = defaults.object(forKey: Key.enterEnabled) as? Bool ?? true
+        mouseEnterButton = MouseButton(rawValue: defaults.string(forKey: Key.enterButton) ?? "")
+            .flatMap { $0 == .off ? nil : $0 } ?? .button6
         microphoneUID = defaults.string(forKey: Key.microphone) ?? ""
         interactionSounds = defaults.object(forKey: Key.sounds) as? Bool ?? true
         muteWhileDictating = defaults.bool(forKey: Key.mute)
@@ -339,6 +353,17 @@ struct SettingsView: View {
                 SettingRow("Mouse button", "Press once to start, again to stop and paste. The button's normal action (e.g. Back) is blocked while assigned.") {
                     Picker("Mouse button", selection: $settings.mouseButton) {
                         ForEach(MouseButton.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                }
+                SettingRow("Mouse button for Enter", "Press it to send Return, e.g. to send what you dictated without touching the keyboard.") {
+                    Toggle("Mouse button for Enter", isOn: $settings.mouseEnterEnabled)
+                }
+                SettingRow("Enter button", settings.mouseEnterButton == settings.mouseButton
+                           ? "Also the dictation button above, so it toggles dictation instead. Pick another."
+                           : "Its normal action is blocked while assigned.",
+                           available: settings.mouseEnterEnabled) {
+                    Picker("Enter button", selection: $settings.mouseEnterButton) {
+                        ForEach(MouseButton.allCases.filter { $0 != .off }, id: \.self) { Text($0.title).tag($0) }
                     }
                 }
                 ExcludedAppsList(settings: settings)

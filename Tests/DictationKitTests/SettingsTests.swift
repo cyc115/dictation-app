@@ -46,6 +46,19 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(r.streamWhileSpeaking)
     }
 
+    func testMouseEnterOnByDefaultWithButton6AndPersists() {
+        let defaults = makeDefaults(self)
+        let s = makeSettings(self, defaults: defaults)
+        XCTAssertTrue(s.mouseEnterEnabled)
+        XCTAssertEqual(s.effectiveEnterButton, .button6)
+        s.mouseEnterButton = .middle
+        s.mouseEnterEnabled = false
+        XCTAssertEqual(s.effectiveEnterButton, .off, "off keeps the chosen button")
+        let r = makeSettings(self, defaults: defaults)
+        XCTAssertFalse(r.mouseEnterEnabled)
+        XCTAssertEqual(r.mouseEnterButton, .middle)
+    }
+
     func testHint() {
         let s = makeSettings(self)
         XCTAssertEqual(s.hint, "Hold Fn to dictate — release to paste")

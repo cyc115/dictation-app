@@ -162,6 +162,46 @@ final class HotkeyTests: XCTestCase {
         XCTAssertEqual(events, ["press", "escape"])
     }
 
+    // MARK: Enter button
+
+    func testEnterButtonPressesReturnOnceAndIsSwallowed() {
+        let m = makeManager(mouse: .button5)
+        m.enterButton = .button6
+        m.onEnter = { [unowned self] in events.append("enter") }
+        XCTAssertFalse(passes(m, .otherMouseDown, button: 5))
+        XCTAssertFalse(passes(m, .otherMouseUp, button: 5))
+        XCTAssertFalse(passes(m, .otherMouseDown, button: 4))
+        spinRunLoop()
+        XCTAssertEqual(events, ["enter", "tap"], "button 6 presses Return, button 5 still dictates")
+    }
+
+    func testDictationWinsWhenBothUseTheSameButton() {
+        let m = makeManager(mouse: .button6)
+        m.enterButton = .button6
+        m.onEnter = { [unowned self] in events.append("enter") }
+        XCTAssertFalse(passes(m, .otherMouseDown, button: 5))
+        spinRunLoop()
+        XCTAssertEqual(events, ["tap"])
+    }
+
+    func testEnterButtonOffPassesThrough() {
+        let m = makeManager()
+        m.onEnter = { [unowned self] in events.append("enter") }
+        XCTAssertTrue(passes(m, .otherMouseDown, button: 5))
+        spinRunLoop()
+        XCTAssertEqual(events, [])
+    }
+
+    func testPausedEnterButtonPassesThrough() {
+        let m = makeManager()
+        m.enterButton = .button6
+        m.isPaused = { true }
+        m.onEnter = { [unowned self] in events.append("enter") }
+        XCTAssertTrue(passes(m, .otherMouseDown, button: 5))
+        spinRunLoop()
+        XCTAssertEqual(events, [])
+    }
+
     // MARK: Paused in an excluded app
 
     func testPausedHotkeyDoesNotStartDictation() {
@@ -200,6 +240,7 @@ final class HotkeyTests: XCTestCase {
         XCTAssertEqual(MouseButton.middle.buttonNumber, 2)
         XCTAssertEqual(MouseButton.button4.buttonNumber, 3)
         XCTAssertEqual(MouseButton.button5.buttonNumber, 4)
+        XCTAssertEqual(MouseButton.button6.buttonNumber, 5)
     }
 }
 

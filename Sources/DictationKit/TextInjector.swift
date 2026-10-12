@@ -20,6 +20,13 @@ class TextInjector {
         typeText(text)
     }
 
+    /// Presses Return in the focused app (the mouse's Enter button).
+    func pressReturn() {
+        guard canPaste() else { return }
+        postReturn()
+    }
+    var postReturn: () -> Void = TextInjector.postReturnKey
+
     func inject(_ text: String) {
         guard canPaste() else { return }
         let pasteboard = self.pasteboard
@@ -66,6 +73,17 @@ class TextInjector {
             vDown?.post(tap: .cghidEventTap)
             Thread.sleep(forTimeInterval: 0.03)
             vUp?.post(tap: .cghidEventTap)
+        }
+    }
+
+    /// Private source, so a modifier you're holding doesn't turn it into ⌘↩ or ⇧↩.
+    static func postReturnKey() {
+        let source = CGEventSource(stateID: .privateState)
+        for keyDown in [true, false] {
+            guard let event = CGEvent(keyboardEventSource: source, virtualKey: 0x24, keyDown: keyDown) else { continue }  // 0x24 = Return
+            event.flags = []
+            event.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
+            event.post(tap: .cghidEventTap)
         }
     }
 

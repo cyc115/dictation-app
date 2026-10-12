@@ -79,6 +79,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self.hotkey?.isRecording = { [weak self] in self?.dictating == true }
             self.hotkey?.onEscape = { [weak self] in self?.cancelDictation() }
             self.hotkey?.isPaused = { [weak self] in self?.exclusion.isPaused == true }
+            self.hotkey?.enterButton = self.settings.effectiveEnterButton
+            self.hotkey?.onEnter = { [weak self] in self?.injector.pressReturn() }
             self.hotkey?.start()
             if !granted {
                 DispatchQueue.main.async { Permissions.showInstructions() }
@@ -126,6 +128,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             hotkey.mode = settings.mode
         }
         hotkey?.mouseButton = settings.mouseButton
+        hotkey?.enterButton = settings.effectiveEnterButton
         exclusion.excluded = settings.excludedApps
         applyAppearanceAndDock()
         updateMenu()

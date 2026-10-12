@@ -48,9 +48,9 @@ enum Hotkey: String, CaseIterable {
     }
 }
 
-/// An extra mouse button that toggles dictation (press to start, press again to stop).
+/// An extra mouse button: one toggles dictation (press to start, press again to stop), one can press Return.
 enum MouseButton: String, CaseIterable {
-    case off, middle, button4, button5
+    case off, middle, button4, button5, button6
 
     var title: String {
         switch self {
@@ -58,16 +58,18 @@ enum MouseButton: String, CaseIterable {
         case .middle: return "Middle button"
         case .button4: return "Button 4 (Back)"
         case .button5: return "Button 5 (Forward)"
+        case .button6: return "Button 6"
         }
     }
 
-    /// CGEvent button number: 0 left, 1 right, 2 middle, 3 = button 4, 4 = button 5.
+    /// CGEvent button number: 0 left, 1 right, 2 middle, 3 = button 4, 4 = button 5, 5 = button 6.
     var buttonNumber: Int64? {
         switch self {
         case .off: return nil
         case .middle: return 2
         case .button4: return 3
         case .button5: return 4
+        case .button6: return 5
         }
     }
 }
@@ -85,6 +87,9 @@ class HotkeyManager {
         didSet { held = false }
     }
     var mouseButton: MouseButton
+    /// Pressed → `onEnter` (Return). The dictation button wins if they're the same.
+    var enterButton: MouseButton = .off
+    var onEnter: () -> Void = {}
     private let onPress: () -> Void
     private let onRelease: () -> Void
     private let onCancel: () -> Void
@@ -185,14 +190,16 @@ class HotkeyManager {
             DispatchQueue.main.async { [weak self] in self?.onEscape() }
             return nil
         }
-        guard let number = mouseButton.buttonNumber,
-              event.getIntegerValueField(.mouseEventButtonNumber) == number else {
-            return Unmanaged.passUnretained(event)
+        let number = event.getIntegerValueField(.mouseEventButtonNumber)
+        if number == mouseButton.buttonNumber {
+            if type == .otherMouseDown { DispatchQueue.main.async { [weak self] in self?.onTap() } }
+            return nil  // swallow both down and up
         }
-        if type == .otherMouseDown {
-            DispatchQueue.main.async { [weak self] in self?.onTap() }
+        if number == enterButton.buttonNumber {
+            if type == .otherMouseDown { DispatchQueue.main.async { [weak self] in self?.onEnter() } }
+            return nil
         }
-        return nil  // swallow both down and up
+        return Unmanaged.passUnretained(event)
     }
 
     private func flagsChanged(_ event: NSEvent) {

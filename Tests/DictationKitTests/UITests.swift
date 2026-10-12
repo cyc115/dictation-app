@@ -18,7 +18,8 @@ final class SettingsUITests: XCTestCase {
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
                       "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep history", "Keep recordings",
-                      "Backup model when slow", "Pause in these apps"] {
+                      "Backup model when slow", "Pause in these apps",
+                      "Mouse button for Enter", "Enter button"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }
@@ -162,6 +163,18 @@ final class SettingsUITests: XCTestCase {
                 XCTAssertFalse(text.contains(banned), "\(model.title): settings mention \(banned)")
             }
         }
+    }
+
+    func testEnterButtonGreyedOutWhileMouseEnterIsOff() {
+        let settings = makeSettings(self)
+        let hosted = host(settings)
+        func enabled() -> Bool? {
+            hosted.element(id: "setting.Enter button")?.object.value(forKey: "accessibilityEnabled") as? Bool
+        }
+        XCTAssertEqual(enabled(), true)
+        XCTAssertTrue(hosted.element(id: "setting.Mouse button for Enter").map { hosted.click($0) } ?? false)
+        XCTAssertFalse(settings.mouseEnterEnabled)
+        XCTAssertEqual(enabled(), false)
     }
 
     func testExcludedAppsListedAndRemovable() {
