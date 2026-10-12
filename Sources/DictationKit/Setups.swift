@@ -88,6 +88,35 @@ enum PolishPrompt {
     }
 }
 
+/// A model as setups and benchmarks name it: "apple" (on-device; "apple:<locale>" names a speech
+/// language in benchmarks) or "openrouter:<model id>[@Provider[,Provider…]]".
+enum ModelSpec: Equatable, CustomStringConvertible {
+    case apple(locale: String?)
+    /// `providers`: only these OpenRouter hosts, in order, comma-separated; nil lets OpenRouter route.
+    case openRouter(id: String, providers: String?)
+
+    init?(_ spec: String) {
+        if spec == "apple" { self = .apple(locale: nil); return }
+        if spec.hasPrefix("apple:") { self = .apple(locale: String(spec.dropFirst("apple:".count))); return }
+        guard spec.hasPrefix("openrouter:") else { return nil }
+        let parts = spec.dropFirst("openrouter:".count).split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+        guard let id = parts.first, !id.isEmpty else { return nil }
+        self = .openRouter(id: id, providers: parts.count > 1 ? parts[1] : nil)
+    }
+
+    var openRouterID: String? {
+        if case .openRouter(let id, _) = self { return id }
+        return nil
+    }
+
+    var description: String {
+        switch self {
+        case .apple(let locale): return locale.map { "apple:\($0)" } ?? "apple"
+        case .openRouter(let id, let providers): return "openrouter:\(id)" + (providers.map { "@\($0)" } ?? "")
+        }
+    }
+}
+
 struct SetupError: LocalizedError, Equatable {
     let message: String
     init(_ message: String) { self.message = message }
@@ -146,16 +175,14 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     }
 
     /// OpenRouter model id of the speech model; nil for on-device.
-    var openRouterID: String? {
-        speech.hasPrefix("openrouter:") ? String(speech.dropFirst("openrouter:".count)) : nil
-    }
+    var openRouterID: String? { ModelSpec(speech)?.openRouterID }
 
     var isCloud: Bool { openRouterID != nil }
     /// Text appears phrase by phrase while you speak (needed for "Type as you speak").
     var supportsStreaming: Bool { !isCloud }
     /// Apple's models are one language each; cloud models detect English/Chinese themselves.
     var supportsLanguageChoice: Bool { !isCloud }
-    var polishesOnDevice: Bool { polish == "apple" }
+    var polishesOnDevice: Bool { ModelSpec(polish) == .apple(locale: nil) }
     /// Speech or polish goes to the cloud, so the cloud API key is needed.
     var usesCloud: Bool { isCloud || !polishesOnDevice }
 
@@ -182,27 +209,27 @@ struct DictationSetup: Codable, Hashable, Identifiable {
 
     /// "openrouter:<id>[@Provider[,Provider…]]" as an `OpenRouterPolish`, as bench/suite.py polish runs it; nil otherwise.
     static func polishBackend(spec: String, apiKey: String, instructions: String, wrap: Bool) -> PolishBackend? {
-        guard spec.hasPrefix("openrouter:") else { return nil }
-        let parts = spec.dropFirst("openrouter:".count).split(separator: "@", maxSplits: 1).map(String.init)
-        return OpenRouterPolish(model: parts[0], apiKey: apiKey, instructions: instructions, wrap: wrap,
-                                provider: parts.count > 1 ? parts[1] : nil)
+        guard case .openRouter(let id, let providers) = ModelSpec(spec) else { return nil }
+        return OpenRouterPolish(model: id, apiKey: apiKey, instructions: instructions, wrap: wrap, provider: providers)
     }
 
     /// Why this setup can't be used, if it can't.
     func validate() throws {
         if id.isEmpty || title.isEmpty { throw SetupError("every setup needs an id and a title") }
-        if speech != "apple" && openRouterID?.isEmpty != false {
-            throw SetupError("\(id): speech must be \"apple\" or \"openrouter:<model id>\"")
+        func check(_ field: String, _ value: String, apple: Bool) throws {
+            switch ModelSpec(value) {
+            case .apple(locale: nil) where apple, .openRouter: return
+            default:
+                let cloud = field == "speech" ? "\"openrouter:<model id>\"" : "\"openrouter:<model id>[@Provider]\""
+                throw SetupError("\(id): \(field) must be " + (apple ? "\"apple\" or " : "") + cloud)
+            }
         }
+        try check("speech", speech, apple: true)
+        try check("polish", polish, apple: true)
         if backup != nil && !isCloud { throw SetupError("\(id): a backup only works with cloud speech") }
-        if polish != "apple" && !(polish.hasPrefix("openrouter:") && polish.count > "openrouter:".count) {
-            throw SetupError("\(id): polish must be \"apple\" or \"openrouter:<model id>[@Provider]\"")
-        }
         if let polishBackup {
             if polishesOnDevice { throw SetupError("\(id): a polish backup only works with cloud polish") }
-            if !(polishBackup.hasPrefix("openrouter:") && polishBackup.count > "openrouter:".count) {
-                throw SetupError("\(id): polishBackup must be \"openrouter:<model id>[@Provider]\"")
-            }
+            try check("polishBackup", polishBackup, apple: false)
         }
         _ = try PolishPrompt.text(for: prompt)
     }

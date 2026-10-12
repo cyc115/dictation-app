@@ -104,7 +104,7 @@ final class LatencyRunner {
             return setup?.polishService(apiKey: apiKey, onDevice: { OnDevicePolish(instructions: $0, wrap: $1) })
         }
         // Without a prompt override, each model gets its setup's prompt, as in the app.
-        if spec == "apple" {
+        if ModelSpec(spec) == .apple(locale: nil) {
             return PolishService(backend: OnDevicePolish(instructions: instructions ?? DictationSetup.onDevice.promptText, wrap: wrap))
         }
         return DictationSetup.polishBackend(spec: spec, apiKey: apiKey,
@@ -135,8 +135,8 @@ final class LatencyRunner {
             if raw.isEmpty { sample.error = error ?? "empty transcript" }
             completion(sample)
         }
-        if trial.stt.hasPrefix("openrouter:") {
-            var model = String(trial.stt.dropFirst("openrouter:".count))
+        switch ModelSpec(trial.stt) {
+        case .openRouter(var model, _):
             let withBackup = model.hasSuffix("+backup")
             if withBackup { model.removeLast("+backup".count) }
             let engine = CloudEngine()
@@ -159,24 +159,24 @@ final class LatencyRunner {
             }
             let started = clock()
             engine.stop(completion: { [weak engine] raw in
-                            sample.answeredBy = engine?.lastAnsweredBy.map { "openrouter:\($0)" }
+                            sample.answeredBy = engine?.lastAnsweredBy.map { ModelSpec.openRouter(id: $0, providers: nil).description }
                             finish(raw, started, nil)
                         },
                         failure: { message in
                             sample.error = message
                             completion(sample)
                         })
-        } else if trial.stt.hasPrefix("apple:") {
+        case .apple(let locale?):
             // Real-time pace, so the recognizer has kept up by the time you press stop, as with the mic.
             let speech = self.speech
-            speech.localeIdentifier = String(trial.stt.dropFirst("apple:".count))
+            speech.localeIdentifier = locale
             var error: String?
             sample.utterances = []
             speech.startFile(url, onUtterance: { sample.utterances?.append($0) }, onError: { error = $0 }, onEnd: {
                 let started = clock()
                 speech.stop { raw in finish(raw, started, error) }
             })
-        } else {
+        default:
             sample.error = "unknown speech model \(trial.stt)"
             completion(sample)
         }

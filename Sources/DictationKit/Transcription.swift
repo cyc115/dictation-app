@@ -256,7 +256,7 @@ final class CloudEngine: DictationEngine {
         }
         recording.finish()
         let url = recording.url
-        let info = RecordingInfo(date: Date(), model: "openrouter:\(modelID)", transcript: "", seconds: recording.duration)
+        let info = RecordingInfo(date: Date(), model: ModelSpec.openRouter(id: modelID, providers: nil).description, transcript: "", seconds: recording.duration)
         lastAnsweredBy = nil
         uploading = recording
         let main = modelID, wait = backupWait, policy = backup, backupModel = backupModelID
@@ -267,7 +267,7 @@ final class CloudEngine: DictationEngine {
             switch report.outcome {
             case .text(let text, let model):
                 heard.transcript = text
-                heard.model = "openrouter:\(model)"
+                heard.model = ModelSpec.openRouter(id: model, providers: nil).description
                 self?.lastAnsweredBy = model
                 completion(text)
             case .failed(let message):

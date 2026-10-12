@@ -135,7 +135,7 @@ struct OpenRouterPolish: PolishBackend {
     /// if the first fails); nil lets OpenRouter route.
     var provider: String?
 
-    var name: String { "openrouter:\(model)" + (provider.map { "@\($0)" } ?? "") }
+    var name: String { ModelSpec.openRouter(id: model, providers: provider).description }
 
     func polish(_ text: String) async throws -> String {
         let request = Self.request(model: model, apiKey: apiKey, text: PolishService.userMessage(text, wrap: wrap),

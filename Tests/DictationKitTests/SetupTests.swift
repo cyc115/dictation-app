@@ -166,4 +166,15 @@ final class SetupTests: XCTestCase {
             XCTAssertFalse(setup.supportsLanguageChoice, "\(setup.id) detects the language")
         }
     }
+
+    func testModelSpecParsesAndPrintsEveryForm() {
+        XCTAssertEqual(ModelSpec("apple"), .apple(locale: nil))
+        XCTAssertEqual(ModelSpec("apple:zh-CN"), .apple(locale: "zh-CN"))
+        XCTAssertEqual(ModelSpec("openrouter:qwen/qwen3-asr-1.7b"), .openRouter(id: "qwen/qwen3-asr-1.7b", providers: nil))
+        XCTAssertEqual(ModelSpec("openrouter:deepseek/x@Together,DeepInfra"), .openRouter(id: "deepseek/x", providers: "Together,DeepInfra"))
+        for bad in ["", "openrouter:", "openrouter:@Groq", "groq:llama", "Apple"] { XCTAssertNil(ModelSpec(bad), bad) }
+        for spec in ["apple", "apple:en-US", "openrouter:a/b", "openrouter:a/b@Groq"] {
+            XCTAssertEqual(ModelSpec(spec)?.description, spec, "round trip")
+        }
+    }
 }
