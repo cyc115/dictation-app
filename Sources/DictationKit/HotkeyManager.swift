@@ -74,9 +74,9 @@ enum MouseButton: String, CaseIterable {
     }
 }
 
-/// Watches the hotkey.
+/// Watches the hotkey, the mouse buttons and Esc, and calls the actions below.
 /// - Hold mode: key-down → onPress, key-up → onRelease.
-/// - Toggle mode: a tap (press and release) → onTap.
+/// - Toggle mode: a tap (press and release) → onTap; so does the dictation mouse button.
 /// Pressing any other key while the hotkey is down (e.g. Right ⌘+C) is treated as a
 /// shortcut, not dictation: hold mode calls onCancel, toggle mode ignores the tap.
 class HotkeyManager {
@@ -89,32 +89,30 @@ class HotkeyManager {
     var mouseButton: MouseButton
     /// Pressed → `onEnter` (Return). The dictation button wins if they're the same.
     var enterButton: MouseButton = .off
+
+    // MARK: Actions (main queue)
+
+    var onPress: () -> Void = {}
+    var onRelease: () -> Void = {}
+    var onCancel: () -> Void = {}
+    var onTap: () -> Void = {}
     var onEnter: () -> Void = {}
-    private let onPress: () -> Void
-    private let onRelease: () -> Void
-    private let onCancel: () -> Void
-    private let onTap: () -> Void
     /// Called when Esc is pressed while `isRecording()` is true; the Esc is swallowed.
     var onEscape: () -> Void = {}
     var isRecording: () -> Bool = { false }
     /// True while an excluded app (e.g. a game) is in front: the hotkey can't start dictation and
-    /// the mouse button and Esc pass through to that app.
+    /// the mouse buttons and Esc pass through to that app.
     var isPaused: () -> Bool = { false }
-    private var mouseTap: CFMachPort?
+
+    private var eventTap: CFMachPort?
     private var monitors: [Any] = []
     private(set) var held = false
     private var cancelled = false
 
-    init(hotkey: Hotkey, mode: ActivationMode, mouseButton: MouseButton,
-         onPress: @escaping () -> Void, onRelease: @escaping () -> Void,
-         onCancel: @escaping () -> Void, onTap: @escaping () -> Void) {
+    init(hotkey: Hotkey, mode: ActivationMode, mouseButton: MouseButton) {
         self.hotkey = hotkey
         self.mode = mode
         self.mouseButton = mouseButton
-        self.onPress = onPress
-        self.onRelease = onRelease
-        self.onCancel = onCancel
-        self.onTap = onTap
     }
 
     func start() {
@@ -146,22 +144,22 @@ class HotkeyManager {
             guard event.cgEvent?.getIntegerValueField(.eventSourceUserData) != TextInjector.syntheticMarker else { return }
             self?.otherKeyPressed()
         }) { monitors.append(m) }
-        installMouseTap()
+        installEventTap()
     }
 
     static let escapeKeyCode: Int64 = 53
 
-    // MARK: Mouse button / Esc
+    // MARK: Mouse buttons / Esc
 
-    /// An event tap (not a passive monitor) so the assigned button's own action,
-    /// like Back in a browser, can be swallowed.
-    private func installMouseTap() {
+    /// An event tap (not a passive monitor) so the assigned buttons' own actions, like Back in a
+    /// browser, and Esc during a recording can be swallowed.
+    private func installEventTap() {
         let mask = (1 << CGEventType.otherMouseDown.rawValue) | (1 << CGEventType.otherMouseUp.rawValue)
             | (1 << CGEventType.keyDown.rawValue)
         let callback: CGEventTapCallBack = { _, type, event, refcon in
             guard let refcon = refcon else { return Unmanaged.passUnretained(event) }
             let manager = Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue()
-            return manager.handleMouse(type: type, event: event)
+            return manager.handleTap(type: type, event: event)
         }
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
@@ -171,12 +169,12 @@ class HotkeyManager {
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
-        mouseTap = tap
+        eventTap = tap
     }
 
-    func handleMouse(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+    func handleTap(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            if let tap = mouseTap { CGEvent.tapEnable(tap: tap, enable: true) }
+            if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
         if isPaused() { return Unmanaged.passUnretained(event) }

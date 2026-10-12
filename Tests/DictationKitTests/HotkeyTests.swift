@@ -7,11 +7,12 @@ final class HotkeyTests: XCTestCase {
 
     private func makeManager(_ key: Hotkey = .fn, _ mode: ActivationMode = .hold,
                              mouse: MouseButton = .off) -> HotkeyManager {
-        HotkeyManager(hotkey: key, mode: mode, mouseButton: mouse,
-                      onPress: { [unowned self] in events.append("press") },
-                      onRelease: { [unowned self] in events.append("release") },
-                      onCancel: { [unowned self] in events.append("cancel") },
-                      onTap: { [unowned self] in events.append("tap") })
+        let m = HotkeyManager(hotkey: key, mode: mode, mouseButton: mouse)
+        m.onPress = { [unowned self] in events.append("press") }
+        m.onRelease = { [unowned self] in events.append("release") }
+        m.onCancel = { [unowned self] in events.append("cancel") }
+        m.onTap = { [unowned self] in events.append("tap") }
+        return m
     }
 
     private func down(_ m: HotkeyManager, _ key: Hotkey) { m.handleFlags(keyCode: key.keyCode, rawFlags: key.flagMask) }
@@ -87,7 +88,7 @@ final class HotkeyTests: XCTestCase {
     /// The event is kept alive across the call: the tap returns it unretained.
     private func passes(_ m: HotkeyManager, _ type: CGEventType, button: Int64) -> Bool {
         let event = mouseEvent(type, button: button)
-        return withExtendedLifetime(event) { m.handleMouse(type: type, event: event) != nil }
+        return withExtendedLifetime(event) { m.handleTap(type: type, event: event) != nil }
     }
 
     private func mouseEvent(_ type: CGEventType, button: Int64) -> CGEvent {
@@ -123,7 +124,7 @@ final class HotkeyTests: XCTestCase {
 
     private func escapePasses(_ m: HotkeyManager) -> Bool {
         let event = CGEvent(keyboardEventSource: nil, virtualKey: 53, keyDown: true)!
-        return withExtendedLifetime(event) { m.handleMouse(type: .keyDown, event: event) != nil }
+        return withExtendedLifetime(event) { m.handleTap(type: .keyDown, event: event) != nil }
     }
 
     func testEscapeCancelsAndIsSwallowedWhileRecording() {
@@ -148,7 +149,7 @@ final class HotkeyTests: XCTestCase {
         let m = makeManager()
         m.isRecording = { true }
         let event = CGEvent(keyboardEventSource: nil, virtualKey: 0x00, keyDown: true)!  // "a"
-        XCTAssertTrue(withExtendedLifetime(event) { m.handleMouse(type: .keyDown, event: event) != nil })
+        XCTAssertTrue(withExtendedLifetime(event) { m.handleTap(type: .keyDown, event: event) != nil })
     }
 
     func testEscapeWhileHoldingHotkeyDoesNotPasteOnRelease() {

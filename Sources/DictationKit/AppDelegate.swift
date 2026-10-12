@@ -67,21 +67,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Permissions.requestAll { [weak self] granted in
             guard let self = self else { return }
             // HotkeyManager prompts for Accessibility itself when needed.
-            self.hotkey = HotkeyManager(
-                hotkey: self.settings.hotkey,
-                mode: self.settings.mode,
-                mouseButton: self.settings.mouseButton,
-                onPress: { [weak self] in self?.startDictation() },
-                onRelease: { [weak self] in self?.stopDictation() },
-                onCancel: { [weak self] in self?.cancelDictation() },
-                onTap: { [weak self] in self?.toggleDictation() }
-            )
-            self.hotkey?.isRecording = { [weak self] in self?.dictating == true }
-            self.hotkey?.onEscape = { [weak self] in self?.cancelDictation() }
-            self.hotkey?.isPaused = { [weak self] in self?.exclusion.isPaused == true }
-            self.hotkey?.enterButton = self.settings.effectiveEnterButton
-            self.hotkey?.onEnter = { [weak self] in self?.injector.pressReturn() }
-            self.hotkey?.start()
+            let hotkey = HotkeyManager(hotkey: self.settings.hotkey, mode: self.settings.mode,
+                                       mouseButton: self.settings.mouseButton)
+            hotkey.enterButton = self.settings.effectiveEnterButton
+            hotkey.onPress = { [weak self] in self?.startDictation() }
+            hotkey.onRelease = { [weak self] in self?.stopDictation() }
+            hotkey.onCancel = { [weak self] in self?.cancelDictation() }
+            hotkey.onTap = { [weak self] in self?.toggleDictation() }
+            hotkey.onEnter = { [weak self] in self?.injector.pressReturn() }
+            hotkey.onEscape = { [weak self] in self?.cancelDictation() }
+            hotkey.isRecording = { [weak self] in self?.dictating == true }
+            hotkey.isPaused = { [weak self] in self?.exclusion.isPaused == true }
+            self.hotkey = hotkey
+            hotkey.start()
             if !granted {
                 DispatchQueue.main.async { Permissions.showInstructions() }
             }
