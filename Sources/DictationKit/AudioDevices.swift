@@ -139,9 +139,12 @@ enum AudioDevices {
 /// saved to UserDefaults, so a crash mid-dictation is undone on the next launch.
 final class OutputMuter {
     private static let pendingKey = "pendingAudioRestore"
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
 
     func mute() {
-        guard UserDefaults.standard.dictionary(forKey: Self.pendingKey) == nil,
+        guard defaults.dictionary(forKey: Self.pendingKey) == nil,
               let device = AudioDevices.defaultOutputDevice(),
               let uid = AudioDevices.uid(of: device) else { return }
         if AudioDevices.isMuted(device) == false, AudioDevices.setMuted(device, true) {
@@ -155,8 +158,8 @@ final class OutputMuter {
 
     /// Restores whatever mute() changed (also used at launch for crash recovery).
     func restore() {
-        guard let pending = UserDefaults.standard.dictionary(forKey: Self.pendingKey) else { return }
-        UserDefaults.standard.removeObject(forKey: Self.pendingKey)
+        guard let pending = defaults.dictionary(forKey: Self.pendingKey) else { return }
+        defaults.removeObject(forKey: Self.pendingKey)
         guard let uid = pending["uid"] as? String, let device = AudioDevices.device(withUID: uid) else { return }
         if pending["kind"] as? String == "mute" {
             _ = AudioDevices.setMuted(device, false)
@@ -166,7 +169,7 @@ final class OutputMuter {
     }
 
     private func save(_ value: [String: Any]) {
-        UserDefaults.standard.set(value, forKey: Self.pendingKey)
+        defaults.set(value, forKey: Self.pendingKey)
     }
 }
 
