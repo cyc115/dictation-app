@@ -153,11 +153,8 @@ struct OpenRouterPolish: PolishBackend {
 
     static func request(model: String, apiKey: String, text: String,
                         instructions: String, provider: String? = nil) -> URLRequest {
-        var request = URLRequest(url: endpoint, timeoutInterval: 60)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        var request = OpenRouter.request(endpoint, apiKey: apiKey)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("DictationApp", forHTTPHeaderField: "X-Title")
         var body: [String: Any] = ["model": model, "temperature": 0, "reasoning": reasoning(for: model), "messages": [
             ["role": "system", "content": instructions],
             ["role": "user", "content": text],
@@ -170,12 +167,11 @@ struct OpenRouterPolish: PolishBackend {
     }
 
     static func parse(data: Data, status: Int) -> Result<String, Error> {
-        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let json = OpenRouter.json(data)
         if (200..<300).contains(status), let choices = json?["choices"] as? [[String: Any]],
            let message = choices.first?["message"] as? [String: Any], let content = message["content"] as? String {
             return .success(content)
         }
-        let apiMessage = (json?["error"] as? [String: Any])?["message"] as? String
-        return .failure(PolishError.failed(apiMessage ?? "Polish failed (HTTP \(status))."))
+        return .failure(PolishError.failed(OpenRouter.errorMessage(json) ?? "Polish failed (HTTP \(status))."))
     }
 }

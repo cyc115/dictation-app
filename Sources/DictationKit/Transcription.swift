@@ -96,6 +96,28 @@ protocol TranscriptionClient {
                     completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask?
 }
 
+/// What every OpenRouter call shares (speech and polish).
+enum OpenRouter {
+    /// A POST to `url` with the API key and the app's name.
+    static func request(_ url: URL, apiKey: String) -> URLRequest {
+        var request = URLRequest(url: url, timeoutInterval: 60)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("DictationApp", forHTTPHeaderField: "X-Title")
+        return request
+    }
+
+    /// A response body as a JSON object, or nil.
+    static func json(_ data: Data) -> [String: Any]? {
+        (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+
+    /// The `error.message` OpenRouter puts in a failed response.
+    static func errorMessage(_ json: [String: Any]?) -> String? {
+        (json?["error"] as? [String: Any])?["message"] as? String
+    }
+}
+
 /// Minimal client for OpenRouter's speech-to-text endpoint (multipart WAV upload).
 final class OpenRouterClient: TranscriptionClient {
     static let endpoint = URL(string: "https://openrouter.ai/api/v1/audio/transcriptions")!
@@ -111,11 +133,8 @@ final class OpenRouterClient: TranscriptionClient {
             return nil
         }
         let (body, boundary) = Self.multipart(model: model, audio: audio, filename: wav.lastPathComponent)
-        var request = URLRequest(url: Self.endpoint, timeoutInterval: 60)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        var request = OpenRouter.request(Self.endpoint, apiKey: apiKey)
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue("DictationApp", forHTTPHeaderField: "X-Title")
         let task = session.uploadTask(with: request, from: body) { data, response, error in
             let result: Result<String, Error>
             if let error = error {
@@ -141,11 +160,11 @@ final class OpenRouterClient: TranscriptionClient {
     }
 
     static func parse(data: Data, status: Int) -> Result<String, Error> {
-        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let json = OpenRouter.json(data)
         if (200..<300).contains(status), let text = json?["text"] as? String {
             return .success(cleanup(text))
         }
-        let apiMessage = (json?["error"] as? [String: Any])?["message"] as? String
+        let apiMessage = OpenRouter.errorMessage(json)
         switch status {
         case 401: return .failure(TranscriptionError.message("The cloud service rejected the API key — check it in Settings."))
         case 402: return .failure(TranscriptionError.message("The cloud account is out of credits."))
