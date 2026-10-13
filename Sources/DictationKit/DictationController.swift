@@ -56,6 +56,15 @@ final class DictationController {
     private var dictationStart = Date()
     /// Set while a "type as you speak" dictation is running.
     private var streaming: StreamingOutput?
+    /// The last stopped dictation, while its text is still on the way.
+    private var lastDelivery: Delivery?
+
+    /// A stopped dictation on its way to the app. `send` can still be set until its text is in.
+    private final class Delivery {
+        var send: Bool
+        var done = false
+        init(send: Bool) { self.send = send }
+    }
 
     init(settings: AppSettings, overlay: OverlayWindow, injector: TextInjector,
          history: HistoryStore, insights: Insights, archive: RecordingArchive, muter: OutputMuter = OutputMuter()) {
@@ -93,7 +102,9 @@ final class DictationController {
     }
 
     /// A stopped dictation is done (delivered, empty or failed).
-    private func finished() {
+    private func finished(_ delivery: Delivery) {
+        delivery.done = true
+        if lastDelivery === delivery { lastDelivery = nil }
         finishing = max(finishing - 1, 0)
         onIdle()
     }
@@ -103,9 +114,11 @@ final class DictationController {
     }
 
     /// The mouse's Enter button: during a dictation, stop it and press Return once the text is
-    /// in (send it); otherwise just press Return.
+    /// in (send it). Right after a stop, while the text is still on the way, the same: Return
+    /// waits for the text instead of sending without it. Otherwise just press Return.
     func enter() {
-        if dictating { stop(send: true) } else { injector.pressReturn() }
+        if dictating { return stop(send: true) }
+        if let delivery = lastDelivery, !delivery.done { delivery.send = true } else { injector.pressReturn() }
     }
 
     func start() {
@@ -185,6 +198,8 @@ final class DictationController {
             return onIdle()
         }
         finishing += 1
+        let delivery = Delivery(send: send)
+        lastDelivery = delivery
         // Cloud models transcribe after you stop: keep the pill up ("working") until text arrives.
         let batch = engine.isBatch
         if batch { overlay.showProcessing() } else { overlay.hideUnlessMessage() }
@@ -200,19 +215,19 @@ final class DictationController {
             if let output = output {
                 // Already typed as you spoke; finish the tail. No polish: it needs the whole text.
                 output.finish(fullText: raw)
-                if !output.typed.isEmpty, send { self.pressReturnSoon() }
+                if !output.typed.isEmpty, delivery.send { self.pressReturnSoon() }
                 if !raw.isEmpty {
                     self.history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed)
                 }
-                self.finished()
+                self.finished(delivery)
             } else {
                 self.deliver(raw, duration: duration, setup: setup, polisher: polisher, transcribed: transcribed,
-                             note: note, send: send)
+                             note: note, delivery: delivery)
             }
         }, failure: { [weak self] message in
             note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
             self?.overlay.showMessage(message, hideAfter: 5)
-            self?.finished()
+            self?.finished(delivery)
         })
     }
 
@@ -234,8 +249,8 @@ final class DictationController {
     }
 
     private func deliver(_ raw: String, duration: TimeInterval, setup: DictationSetup, polisher: PolishService?,
-                         transcribed: TimeInterval, note: RecordingNote?, send: Bool) {
-        guard !raw.isEmpty else { return finished() }
+                         transcribed: TimeInterval, note: RecordingNote?, delivery: Delivery) {
+        guard !raw.isEmpty else { return finished(delivery) }
         if let polisher {
             overlay.showProcessing()
             let started = ProcessInfo.processInfo.systemUptime
@@ -248,17 +263,17 @@ final class DictationController {
                     self.history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt,
                                      transcribeSeconds: transcribed, polishSeconds: seconds)
                     self.injector.inject(polished)
-                    if send { self.pressReturnSoon() }
+                    if delivery.send { self.pressReturnSoon() }
                     // After typing it, so saving it adds nothing to your wait.
                     note?.polished(polished, seconds: seconds, error: error)
-                    self.finished()
+                    self.finished(delivery)
                 }
             }
         } else {
             history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed)
             injector.inject(raw)
-            if send { pressReturnSoon() }
-            finished()
+            if delivery.send { pressReturnSoon() }
+            finished(delivery)
         }
     }
 }

@@ -159,6 +159,30 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(keys, ["type:hello", "type: world", "return"])
     }
 
+    func testEnterAfterAStopWaitsForTheTextThenSends() {
+        let controller = makeController()
+        controller.start()
+        controller.stop()
+        controller.enter()  // text still on the way
+        XCTAssertEqual(keys, [], "Return doesn't go out ahead of the text")
+        waitUntil { keys.count == 2 }
+        XCTAssertEqual(keys, ["paste:hello world", "return"])
+        controller.enter()  // text delivered: back to a plain Return
+        XCTAssertEqual(keys, ["paste:hello world", "return", "return"])
+    }
+
+    func testEnterDuringPolishSendsAfterThePolishedText() {
+        let controller = makeController()
+        settings.polishEnabled = true
+        controller.makePolish = { _ in PolishService(backend: FakePolish(delay: 0.1, log: EventLog())) }
+        controller.start()
+        controller.stop()
+        waitUntil { controller.overlay.mode == .processing }
+        controller.enter()
+        waitUntil { keys.count == 2 }
+        XCTAssertEqual(keys, ["paste:hello world。", "return"])
+    }
+
     func testEnterSendsNothingWhenNothingWasHeard() {
         let controller = makeController()
         engine.text = "  "
@@ -167,6 +191,8 @@ final class DictationControllerTests: XCTestCase {
         waitUntil { !controller.isBusy }
         spinRunLoop(0.05)
         XCTAssertEqual(keys, [])
+        controller.enter()
+        XCTAssertEqual(keys, ["return"], "afterwards Enter is a plain Return again")
     }
 
     func testDictationButtonStopDoesNotSend() {
