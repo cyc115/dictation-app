@@ -306,6 +306,14 @@ func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.0
                        file: file, line: line)
     }
     let diff = SnapshotDiff(rep, expected)
+    // `<name>.alt.png`: a second render the same code produces on this Mac in some setups (the
+    // overlay pill's caption and ✕/✓ come out one of two ways depending on attached displays).
+    let alternate = dir.appendingPathComponent("\(name).alt.png")
+    if diff.fraction > tolerance, let data = try? Data(contentsOf: alternate),
+       let other = NSBitmapImageRep(data: data), other.pixelsWide == rep.pixelsWide, other.pixelsHigh == rep.pixelsHigh,
+       SnapshotDiff(rep, other).fraction <= tolerance {
+        return
+    }
     if diff.fraction > tolerance {
         saveSnapshotFailure(png, diff: diff.image, named: name, in: failures)
         XCTFail(String(format: "%@: %.2f%% of pixels differ (limit %.2f%%), largest change %.2f, in x %ld–%ld y %ld–%ld of %ldx%ld; "
