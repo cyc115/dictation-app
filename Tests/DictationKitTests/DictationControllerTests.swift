@@ -37,6 +37,8 @@ final class DictationControllerTests: XCTestCase {
     private var engine: FakeEngine!
     private var pasted: [String] = []
     private var typed: [String] = []
+    /// What reached the app, in order: "paste:<text>", "type:<text>", "return".
+    private var keys: [String] = []
     private var idle = 0
 
     /// `realEngines`: the app's own engine choice instead of `engine`.
@@ -51,8 +53,12 @@ final class DictationControllerTests: XCTestCase {
         injector.pasteboard = pasteboard
         injector.restoreDelay = 0.01
         injector.canPaste = { true }
-        injector.paste = { [unowned self] in pasted.append(pasteboard.string(forType: .string) ?? "") }
-        injector.typeText = { [unowned self] in typed.append($0) }
+        injector.paste = { [unowned self] in
+            pasted.append(pasteboard.string(forType: .string) ?? "")
+            keys.append("paste:" + (pasted.last ?? ""))
+        }
+        injector.typeText = { [unowned self] in typed.append($0); keys.append("type:" + $0) }
+        injector.postReturn = { [unowned self] in keys.append("return") }
         let overlay = OverlayWindow()
         overlay.makePanel = { OffscreenPanel(contentRect: $0, styleMask: [.borderless, .nonactivatingPanel],
                                              backing: .buffered, defer: false) }
@@ -61,6 +67,7 @@ final class DictationControllerTests: XCTestCase {
             settings: settings, overlay: overlay, injector: injector, history: history, insights: insights,
             archive: RecordingArchive(directory: makeTempURL(self, "Recordings")), muter: OutputMuter(defaults: makeDefaults(self)))
         if !realEngines { controller.makeEngine = { [unowned self] _ in engine } }
+        controller.sendDelay = 0.01
         controller.onIdle = { [unowned self] in idle += 1 }
         return controller
     }
@@ -111,6 +118,64 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(history.entries.first?.text, "hello world")
         XCTAssertEqual(history.entries.first?.setup, "on-device")
         XCTAssertNotNil(history.entries.first?.transcribeSeconds)
+    }
+
+    // MARK: Enter button
+
+    func testEnterWhileIdleJustPressesReturn() {
+        let controller = makeController()
+        controller.enter()
+        XCTAssertEqual(keys, ["return"])
+        XCTAssertFalse(controller.isBusy)
+    }
+
+    func testEnterDuringDictationStopsAndSendsAfterThePaste() {
+        let controller = makeController()
+        controller.start()
+        controller.enter()
+        XCTAssertFalse(controller.dictating, "stops like the dictation button")
+        XCTAssertEqual(keys, [], "no Return before the text is in")
+        waitUntil { keys.count == 2 }
+        XCTAssertEqual(keys, ["paste:hello world", "return"])
+    }
+
+    func testEnterSendsAfterThePolishedText() {
+        let controller = makeController()
+        settings.polishEnabled = true
+        controller.makePolish = { _ in PolishService(backend: FakePolish(delay: 0.01, log: EventLog())) }
+        controller.start()
+        controller.enter()
+        waitUntil { keys.count == 2 }
+        XCTAssertEqual(keys, ["paste:hello world。", "return"])
+    }
+
+    func testEnterSendsAfterTypeAsYouSpeak() {
+        let controller = makeController()
+        settings.streamWhileSpeaking = true
+        engine.utterances = ["hello"]
+        controller.start()
+        controller.enter()
+        waitUntil { keys.count == 3 }
+        XCTAssertEqual(keys, ["type:hello", "type: world", "return"])
+    }
+
+    func testEnterSendsNothingWhenNothingWasHeard() {
+        let controller = makeController()
+        engine.text = "  "
+        controller.start()
+        controller.enter()
+        waitUntil { !controller.isBusy }
+        spinRunLoop(0.05)
+        XCTAssertEqual(keys, [])
+    }
+
+    func testDictationButtonStopDoesNotSend() {
+        let controller = makeController()
+        controller.start()
+        controller.toggle()
+        waitUntil { !controller.isBusy }
+        spinRunLoop(0.05)
+        XCTAssertEqual(keys, ["paste:hello world"])
     }
 
     func testCancelDeliversNothing() {

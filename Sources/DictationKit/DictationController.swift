@@ -32,6 +32,8 @@ final class DictationController {
     var onIdle: () -> Void = {}
     /// Seconds before a dictation stops on its own: (hold, toggle).
     var autoStopAfter: (hold: TimeInterval, toggle: TimeInterval) = (90, 300)
+    /// Wait between pasting the text and pressing Return, so the app has taken the paste first.
+    var sendDelay: TimeInterval = 0.15
 
     private(set) var dictating = false
     /// Stopped dictations whose text hasn't been delivered yet.
@@ -100,6 +102,12 @@ final class DictationController {
         if dictating { stop() } else { start() }
     }
 
+    /// The mouse's Enter button: during a dictation, stop it and press Return once the text is
+    /// in (send it); otherwise just press Return.
+    func enter() {
+        if dictating { stop(send: true) } else { injector.pressReturn() }
+    }
+
     func start() {
         guard !dictating else { return }
         let setup = settings.setup
@@ -159,7 +167,8 @@ final class DictationController {
         DispatchQueue.main.asyncAfter(deadline: .now() + limit, execute: work)
     }
 
-    func stop() {
+    /// `send`: press Return after the text is delivered (nothing is sent if no text came).
+    func stop(send: Bool = false) {
         guard dictating else { return }
         setDictating(false)
         autoStop?.cancel()
@@ -191,12 +200,14 @@ final class DictationController {
             if let output = output {
                 // Already typed as you spoke; finish the tail. No polish: it needs the whole text.
                 output.finish(fullText: raw)
+                if !output.typed.isEmpty, send { self.pressReturnSoon() }
                 if !raw.isEmpty {
                     self.history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed)
                 }
                 self.finished()
             } else {
-                self.deliver(raw, duration: duration, setup: setup, polisher: polisher, transcribed: transcribed, note: note)
+                self.deliver(raw, duration: duration, setup: setup, polisher: polisher, transcribed: transcribed,
+                             note: note, send: send)
             }
         }, failure: { [weak self] message in
             note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
@@ -218,8 +229,12 @@ final class DictationController {
         onIdle()
     }
 
+    private func pressReturnSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + sendDelay) { [injector] in injector.pressReturn() }
+    }
+
     private func deliver(_ raw: String, duration: TimeInterval, setup: DictationSetup, polisher: PolishService?,
-                         transcribed: TimeInterval, note: RecordingNote?) {
+                         transcribed: TimeInterval, note: RecordingNote?, send: Bool) {
         guard !raw.isEmpty else { return finished() }
         if let polisher {
             overlay.showProcessing()
@@ -233,6 +248,7 @@ final class DictationController {
                     self.history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt,
                                      transcribeSeconds: transcribed, polishSeconds: seconds)
                     self.injector.inject(polished)
+                    if send { self.pressReturnSoon() }
                     // After typing it, so saving it adds nothing to your wait.
                     note?.polished(polished, seconds: seconds, error: error)
                     self.finished()
@@ -241,6 +257,7 @@ final class DictationController {
         } else {
             history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed)
             injector.inject(raw)
+            if send { pressReturnSoon() }
             finished()
         }
     }

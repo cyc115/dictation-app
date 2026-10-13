@@ -110,7 +110,7 @@ struct SettingsView: View {
                         ForEach(MouseButton.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
                 }
-                SettingRow("Mouse button for Enter", "Press it to send Return, e.g. to send what you dictated without touching the keyboard.") {
+                SettingRow("Mouse button for Enter", "Press it to send Return. While dictating, it stops instead and presses Return once the text is in — dictate and send in one go.") {
                     Toggle("Mouse button for Enter", isOn: $settings.mouseEnterEnabled)
                 }
                 SettingRow("Enter button", settings.mouseEnterButton == settings.mouseButton

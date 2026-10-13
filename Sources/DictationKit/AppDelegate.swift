@@ -67,7 +67,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             hotkey.onRelease = { [weak self] in self?.dictation.stop() }
             hotkey.onCancel = { [weak self] in self?.dictation.cancel() }
             hotkey.onTap = { [weak self] in self?.dictation.toggle() }
-            hotkey.onEnter = { [weak self] in self?.injector.pressReturn() }
+            hotkey.onEnter = { [weak self] in self?.dictation.enter() }
             hotkey.onEscape = { [weak self] in self?.dictation.cancel() }
             hotkey.isRecording = { [weak self] in self?.dictation.dictating == true }
             hotkey.isPaused = { [weak self] in self?.exclusion.isPaused == true }
