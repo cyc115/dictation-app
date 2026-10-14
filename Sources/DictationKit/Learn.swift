@@ -22,6 +22,8 @@ final class LearnController: ObservableObject {
         case needMore(have: Int)
         case ready(count: Int)
         case allLearned(count: Int)
+        /// The current prompt is being measured (no teacher; the tile opened with nothing to show).
+        case measuring
         case running
         case done
     }
@@ -52,6 +54,9 @@ final class LearnController: ObservableObject {
     @Published private(set) var sweep = 0
     /// Seconds since the tune started (the status line's stopwatch).
     @Published private(set) var elapsed = 0
+    @Published private(set) var measuring = false
+    /// The running tune's baseline, once it has measured it.
+    private var baseline: PromptMeasurement?
     private var started = Date()
     private var clock: Timer?
     /// What the running tune was started with.
@@ -87,6 +92,7 @@ final class LearnController: ObservableObject {
 
     var gate: Gate {
         if result != nil { return .done }
+        if measuring { return .measuring }
         if phase != nil { return .running }
         if setup.polishesOnDevice { return .cloudOnly }
         if !settings.hasOpenRouterKey { return .noKey }
@@ -96,9 +102,19 @@ final class LearnController: ObservableObject {
         return .ready(count: count)
     }
 
-    /// The scores on the rings: the result's, else the active learned prompt's; nil before either.
-    var mine: Double? { result?.mine ?? store.active(for: setup.id)?.score.mine }
-    var generalScore: Double? { result?.general ?? store.active(for: setup.id)?.score.general }
+    /// The current prompt as measured (the tune's own baseline while it runs, else the stored one).
+    var measured: PromptMeasurement? {
+        if case .measured(let m)? = phase, let running {
+            return PromptMeasurement(setup: running.setup.id, prompt: running.setup.prompt, date: started, mine: m.mine, general: m.general, corrections: running.cases.count)
+        }
+        if phase != nil, let baseline { return baseline }
+        return store.measurement(setup: setup.id, prompt: setup.prompt)
+    }
+
+    /// The scores on the rings: the result's, else the active learned prompt's, else the current
+    /// prompt's measurement; nil before any.
+    var mine: Double? { result?.mine ?? store.active(for: setup.id)?.score.mine ?? measured?.mine }
+    var generalScore: Double? { result?.general ?? store.active(for: setup.id)?.score.general ?? measured?.general }
     var mineBefore: Double? { result?.mineBefore ?? store.active(for: setup.id)?.score.mineBefore }
     var generalBefore: Double? { result?.generalBefore ?? store.active(for: setup.id)?.score.generalBefore }
 
@@ -127,11 +143,19 @@ final class LearnController: ObservableObject {
         clock = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in guard let self else { return }; self.elapsed = Int(self.now().timeIntervalSince(self.started)) }
         }
+        baseline = nil
         task = Task { @MainActor [weak self] in
             defer { self?.clock?.invalidate(); self?.clock = nil }
             do {
                 let result = try await tuner.tune(cases: cases, prompt: setup.promptText) { phase in
-                    Task { @MainActor in self?.phase = phase }
+                    Task { @MainActor in
+                        guard let self else { return }
+                        if case .measured(let m) = phase {
+                            self.baseline = PromptMeasurement(setup: setup.id, prompt: setup.prompt, date: self.now(), mine: m.mine, general: m.general, corrections: cases.count)
+                            self.store.record(self.baseline!)
+                        }
+                        self.phase = phase
+                    }
                 }
                 self?.phase = .done
                 self?.result = result
@@ -140,6 +164,32 @@ final class LearnController: ObservableObject {
             } catch {
                 self?.error = error.localizedDescription
                 self?.phase = nil
+            }
+        }
+    }
+
+    /// Measures the current prompt when the tile has nothing to show for it yet (enough corrections,
+    /// a cloud setup, a key, no learned version and no stored measurement). Called when the tile appears.
+    func measureIfNeeded() {
+        switch gate {
+        case .ready, .allLearned: break
+        default: return
+        }
+        guard store.active(for: setup.id) == nil, store.measurement(setup: setup.id, prompt: setup.prompt) == nil,
+              let key = settings.openRouterKey, let tuner = makeTuner(setup, key) else { return }
+        let setup = setup
+        let cases = corrections.map { TuneCase(id: $0.id, input: $0.input, wanted: $0.correction ?? $0.text) }
+        measuring = true
+        error = nil; notice = nil
+        task = Task { @MainActor [weak self] in
+            defer { self?.measuring = false }
+            do {
+                let m = try await tuner.measure(cases: cases, prompt: setup.promptText)
+                self?.store.record(PromptMeasurement(setup: setup.id, prompt: setup.prompt, date: self?.now() ?? Date(),
+                                                     mine: m.mine, general: m.general, corrections: cases.count))
+            } catch is CancellationError {
+            } catch {
+                self?.error = error.localizedDescription
             }
         }
     }
@@ -172,9 +222,11 @@ final class LearnController: ObservableObject {
     var status: String? {
         if let error { return error }
         if let notice { return notice }
+        if measuring { return "Measuring prompt \(setup.prompt) on your \(corrections.count) corrections and the general test set" }
         guard let phase, let running else { return nil }
         switch phase {
-        case .reading: return "Reading your \(running.cases.count) corrections"
+        case .reading: return "Measuring prompt \(running.setup.prompt) on your \(running.cases.count) corrections"
+        case .measured: return "Reading your \(running.cases.count) corrections"
         case .racing(let progress):
             let scored = progress.values.map(\.scored).reduce(0, +), of = progress.values.map(\.of).reduce(0, +)
             return "Trying \(Lens.allCases.count) prompts on \(running.setup.title) · \(scored) of \(of) scored · \(elapsed) s"
@@ -225,7 +277,7 @@ struct LearnView: View {
                     .accessibilityIdentifier("learn.status")
                     .transition(.opacity)
             }
-            if let phase = controller.phase, phase != .reading {
+            if let phase = controller.phase, phase != .reading, !isMeasured(phase) {
                 candidates(phase)
             }
             if let result = controller.result {
@@ -239,6 +291,8 @@ struct LearnView: View {
         .animation(reduceMotion ? nil : .spring(duration: 0.5), value: controller.result)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("learn.tile")
+        .onAppear { controller.measureIfNeeded() }
+        .onChange(of: controller.setup.id) { controller.measureIfNeeded() }
     }
 
     /// One card: the two scores on a grid, the Learn button (or why it can't run) at the trailing edge.
@@ -266,6 +320,8 @@ struct LearnView: View {
             LearnButton(title: "Learn", busy: false) { controller.learn() }
         case .running:
             LearnButton(title: "Learning…", busy: true) {}
+        case .measuring:
+            LearnButton(title: "Measuring…", busy: true) {}
         case .done:
             LearnButton(title: "Learned", busy: false, disabled: true) {}
         case .allLearned:
@@ -293,6 +349,8 @@ struct LearnView: View {
                 .accessibilityIdentifier("learn.gate")
         }
     }
+
+    private func isMeasured(_ phase: TunePhase) -> Bool { if case .measured = phase { return true } else { return false } }
 
     private func candidates(_ phase: TunePhase) -> some View {
         let winner = controller.result?.lens

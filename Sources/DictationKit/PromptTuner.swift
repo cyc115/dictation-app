@@ -47,9 +47,21 @@ struct LensProgress: Equatable {
     var score: Double?
 }
 
+/// The current prompt's scores: the baseline a tune improves on, also measured on its own when the
+/// tile has nothing to show yet.
+struct Measurement: Equatable {
+    /// 100 × (1 − mean error) over every correction.
+    var mine: Double
+    /// Pass rate on the general set, 0–100.
+    var general: Double
+    var errors: [UUID: Double]
+}
+
 /// Where a tune is, for the Learn tile.
 enum TunePhase: Equatable {
     case reading
+    /// The current prompt is measured (the rings can show it while the race runs).
+    case measured(Measurement)
     /// Every fold's candidates being written and scored at once, per lens.
     case racing([Lens: LensProgress])
     case writing
@@ -156,8 +168,12 @@ final class PromptTuner {
         guard !teachable.isEmpty else { throw TuneError.nothingToLearn }
         progress(.reading)
 
-        // Baseline: the current prompt on every correction (its outputs are what the teacher is shown).
+        // Baseline: the current prompt on every correction (its outputs are what the teacher is
+        // shown) and on the general set, so the rings show where it stands before the race.
+        async let generalBefore = passRate(prompt: prompt)
         let baseline = try await errors(prompt: prompt, cases: cases)
+        let generalBeforeNow = try await generalBefore
+        progress(.measured(Measurement(mine: Self.score(baseline.mapValues(\.error)), general: generalBeforeNow, errors: baseline.mapValues(\.error))))
         let folded = Self.fold(cases, into: min(folds, teachable.count), seed: seed)
 
         // Every fold's three candidates at once: the teacher calls are the slow part (tens of
@@ -202,16 +218,14 @@ final class PromptTuner {
 
         try Task.checkCancellation()
         progress(.checking)
-        async let before = passRate(prompt: prompt)
-        async let after = passRate(prompt: final)
-        let (generalBefore, generalNow) = try await (before, after)
+        let generalNow = try await passRate(prompt: final)
 
         let mine = scores[winner]!, mineBefore = Self.score(baseline.mapValues(\.error))
         let verdict: Verdict = mine < mineBefore + Self.minGain ? .noImprovement
-            : generalNow < generalBefore - Self.maxGeneralDrop ? .generalDropped : .pass
+            : generalNow < generalBeforeNow - Self.maxGeneralDrop ? .generalDropped : .pass
         progress(.done)
         return TuneResult(prompt: final, lens: winner, mine: mine, mineBefore: mineBefore,
-                          general: generalNow, generalBefore: generalBefore,
+                          general: generalNow, generalBefore: generalBeforeNow,
                           errors: lensErrors[winner]!, errorsBefore: baseline.mapValues(\.error),
                           lensScores: scores, tokens: Self.tokenEstimate(final), verdict: verdict,
                           trace: trace.sorted { ($0.fold, $0.lens.rawValue) < ($1.fold, $1.lens.rawValue) })
@@ -248,6 +262,13 @@ final class PromptTuner {
             send(.racing(progress))
             lock.unlock()
         }
+    }
+
+    /// The current prompt's scores alone: no teacher, no candidates (corrections × repeats + the general set).
+    func measure(cases: [TuneCase], prompt: String) async throws -> Measurement {
+        async let general = passRate(prompt: prompt)
+        let errors = try await errors(prompt: prompt, cases: cases).mapValues(\.error)
+        return Measurement(mine: Self.score(errors), general: try await general, errors: errors)
     }
 
     // MARK: Folds and scores

@@ -34,6 +34,17 @@ struct LearnedPrompt: Codable, Equatable, Identifiable {
     var summary: String { "\(version) · learned from \(corrections) correction\(corrections == 1 ? "" : "s")" }
 }
 
+/// A prompt's measured scores on your corrections, kept so the tile shows them without measuring again.
+struct PromptMeasurement: Codable, Equatable {
+    var setup: String
+    var prompt: String
+    var date: Date
+    var mine: Double
+    var general: Double
+    /// How many corrections it was measured on.
+    var corrections: Int
+}
+
 /// The learned prompts, and which one each setup uses, in Application Support
 /// (learned-prompts.json; each prompt's text also in prompts/<version>.txt for bench/suite.py
 /// polish run --prompt-file). `AppSettings` applies the active one to its setups.
@@ -43,6 +54,8 @@ final class LearnedPromptStore: ObservableObject {
     @Published private(set) var prompts: [LearnedPrompt] = []
     /// Setup id → the version it polishes with (absent: its built-in prompt).
     @Published private(set) var active: [String: String] = [:]
+    /// The current prompt's scores, by "<setup>|<prompt version>".
+    @Published private(set) var measurements: [String: PromptMeasurement] = [:]
 
     let fileURL: URL
 
@@ -51,6 +64,7 @@ final class LearnedPromptStore: ObservableObject {
     private struct File: Codable {
         var active: [String: String]
         var prompts: [LearnedPrompt]
+        var measurements: [String: PromptMeasurement]?
     }
 
     init(fileURL: URL = LearnedPromptStore.defaultFileURL) {
@@ -61,6 +75,7 @@ final class LearnedPromptStore: ObservableObject {
             if let file = try? decoder.decode(File.self, from: data) {
                 prompts = file.prompts
                 active = file.active
+                measurements = file.measurements ?? [:]
             }
         }
     }
@@ -95,6 +110,13 @@ final class LearnedPromptStore: ObservableObject {
         save()
     }
 
+    func measurement(setup: String, prompt: String) -> PromptMeasurement? { measurements["\(setup)|\(prompt)"] }
+
+    func record(_ measurement: PromptMeasurement) {
+        measurements["\(measurement.setup)|\(measurement.prompt)"] = measurement
+        save()
+    }
+
     /// The setup with its active learned prompt applied (unchanged when it has none).
     func apply(to setup: DictationSetup) -> DictationSetup {
         guard let learned = active(for: setup.id) else { return setup }
@@ -122,7 +144,7 @@ final class LearnedPromptStore: ObservableObject {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let folder = fileURL.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: folder.appendingPathComponent("prompts"), withIntermediateDirectories: true)
-        if let data = try? encoder.encode(File(active: active, prompts: prompts)) {
+        if let data = try? encoder.encode(File(active: active, prompts: prompts, measurements: measurements)) {
             try? data.write(to: fileURL, options: .atomic)
         }
         for prompt in prompts {

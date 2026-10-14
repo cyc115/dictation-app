@@ -38,6 +38,18 @@ final class LearnedPromptStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.prompts[0].summary, "v5 · learned from 15 corrections")
     }
 
+    func testMeasurementsAreKeptPerSetupAndPrompt() {
+        let url = makeTempURL(self, "learned-prompts.json")
+        let store = LearnedPromptStore(fileURL: url)
+        XCTAssertNil(store.measurement(setup: "cloud-flash", prompt: "v4"))
+        let m = PromptMeasurement(setup: "cloud-flash", prompt: "v4", date: fixedDate(2026, 10, 13, 9, 0), mine: 65.1, general: 70.6, corrections: 15)
+        store.record(m)
+        XCTAssertEqual(store.measurement(setup: "cloud-flash", prompt: "v4"), m)
+        XCTAssertNil(store.measurement(setup: "cloud-flash", prompt: "v5"))
+        XCTAssertNil(store.measurement(setup: "cloud-big", prompt: "v4"))
+        XCTAssertEqual(LearnedPromptStore(fileURL: url).measurement(setup: "cloud-flash", prompt: "v4"), m, "remembered")
+    }
+
     func testActivateRevertsAndReChooses() {
         let store = LearnedPromptStore(fileURL: makeTempURL(self, "learned-prompts.json"))
         let id = UUID()

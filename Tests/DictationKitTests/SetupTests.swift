@@ -131,10 +131,10 @@ final class SetupTests: XCTestCase {
             {"setups": [{"id": "try", "title": "Try", "speech": "apple", "polish": "apple", "prompt": "v1"}]}
             """)
         let defaults = makeDefaults(self)
-        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: url)
+        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: url, learned: noLearnedPrompts(self))
         XCTAssertEqual(settings.setups.map(\.title), DictationSetup.builtIns.map(\.title) + ["Try"])
         settings.setup = settings.setups.last!
-        XCTAssertEqual(AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: url).setup.id, "try",
+        XCTAssertEqual(AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: url, learned: noLearnedPrompts(self)).setup.id, "try",
                        "a custom choice is remembered")
 
         try #"{"setups": [{"id": "try", "title": "Try", "speech": "apple", "polish": "apple", "prompt": "v2"}]}"#
@@ -151,7 +151,8 @@ final class SetupTests: XCTestCase {
     func testAChoiceOfTheOldDeepSeekSetupMovesToCloudFlash() {
         let defaults = makeDefaults(self)
         defaults.set("cloud-flash-deepseek", forKey: "transcriptionModel")
-        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: makeTempURL(self, "none.json"))
+        let settings = AppSettings(defaults: defaults, secrets: InMemorySecretStore(), customSetupsFile: makeTempURL(self, "none.json"),
+                                   learned: noLearnedPrompts(self))
         XCTAssertEqual(settings.setup, .cloudFlash, "it became Cloud Flash, not On-device")
         XCTAssertEqual(defaults.string(forKey: "transcriptionModel"), "cloud-flash", "saved under the new id")
         XCTAssertEqual(DictationSetup.currentID("cloud-big"), "cloud-big")

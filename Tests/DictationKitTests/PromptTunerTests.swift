@@ -12,18 +12,21 @@ final class FakeStudent: PolishBackend {
     let generalFails: [Lens: Set<String>]
     let log: EventLog?
     let error: PolishError?
+    /// Seconds each call takes (so a test can see the tile mid-flight).
+    let delay: TimeInterval
     var name = "FakeStudent"
 
     init(instructions: String, right: [Lens: Set<String>], wanted: [String: String], generalFails: [Lens: Set<String>] = [:],
-         log: EventLog? = nil, error: PolishError? = nil) {
+         log: EventLog? = nil, error: PolishError? = nil, delay: TimeInterval = 0) {
         self.instructions = instructions; self.right = right; self.wanted = wanted; self.generalFails = generalFails
-        self.log = log; self.error = error
+        self.log = log; self.error = error; self.delay = delay
     }
 
     var lens: Lens? { Lens.allCases.first { instructions.contains("LENS:\($0.rawValue)") } }
 
     func polish(_ text: String) async throws -> String {
         log?.add("polish:\(lens?.rawValue ?? "current"):\(text)")
+        if delay > 0 { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
         if let error { throw error }
         if let w = wanted[text] {  // a correction
             return (lens.flatMap { right[$0] }?.contains(text) ?? false) ? w : "wrong " + w
@@ -85,6 +88,8 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertEqual(result.tokens, Int(Double(PolishScore.tokens(result.prompt).count) * 1.3))
 
         XCTAssertEqual(phases.first, .reading)
+        XCTAssertEqual(phases[1], .measured(Measurement(mine: result.mineBefore, general: result.generalBefore, errors: result.errorsBefore)),
+                       "the current prompt's scores, before the race")
         XCTAssertEqual(phases.last, .done)
         XCTAssertTrue(phases.contains(.writing) && phases.contains(.checking))
         let racing = phases.compactMap { if case .racing(let p) = $0 { return p } else { return nil } }
@@ -213,6 +218,16 @@ final class PromptTunerTests: XCTestCase {
         // baseline 10×2, three lenses × 10 held-out × 2, general 4 × 2 prompts.
         XCTAssertEqual(polishes.count, 20 + 60 + 8)
         XCTAssertEqual(polishes.filter { $0.hasPrefix("polish:current:raw") }.count, 20)
+    }
+
+    func testMeasureScoresTheCurrentPromptAlone() async throws {
+        let teacher = FakeTeacher()
+        let m = try await makeTuner(right: [:], teacher: teacher).tune(cases: cases, prompt: "P") { _ in }
+        let measured = try await makeTuner(right: [:], teacher: teacher).measure(cases: cases, prompt: "P")
+        XCTAssertEqual(measured.mine, m.mineBefore)
+        XCTAssertEqual(measured.general, 100)
+        XCTAssertEqual(measured.errors, m.errorsBefore)
+        XCTAssertEqual(teacher.inputs.count, 16, "measuring asks no teacher")
     }
 
     func testFoldsAreStableAndDealUnlearnedFirst() {

@@ -37,11 +37,16 @@ func fixedDate(_ y: Int, _ mo: Int, _ d: Int, _ h: Int, _ mi: Int) -> Date {
 /// Region, clock and time zone for views under test, whatever this Mac is set to.
 let testDates = DateContext(locale: Locale(identifier: "en_US"), timeZone: TimeZone(identifier: "America/Chicago")!)
 
+/// An empty learned-prompt store in a throwaway file: never the user's own learned-prompts.json.
+func noLearnedPrompts(_ test: XCTestCase) -> LearnedPromptStore {
+    LearnedPromptStore(fileURL: makeTempURL(test, "learned-prompts.json"))
+}
+
 /// A settings store with throwaway defaults, no saved key, no custom setups and no learned prompts.
 func makeSettings(_ test: XCTestCase, defaults: UserDefaults? = nil,
                   secrets: SecretStore = InMemorySecretStore(), learned: LearnedPromptStore? = nil) -> AppSettings {
     AppSettings(defaults: defaults ?? makeDefaults(test), secrets: secrets, customSetupsFile: noCustomSetups,
-                learned: learned ?? LearnedPromptStore(fileURL: makeTempURL(test, "learned-prompts.json")))
+                learned: learned ?? noLearnedPrompts(test))
 }
 
 // MARK: - Fakes for the network and models

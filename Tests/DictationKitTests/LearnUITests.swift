@@ -11,11 +11,13 @@ struct LearnFixture {
     let history: HistoryStore
     let store: LearnedPromptStore
     let teacher = PromptTunerTests.FakeTeacher()
+    let log = EventLog()
     let controller: LearnController
     var inputs: [String] { history.corrections.map(\.input) }
 
     init(_ test: XCTestCase, count: Int = 10, key: Bool = true, setup: DictationSetup = .cloudFlash,
-         generalFails: [Lens: Set<String>] = [:], right: [Lens: Set<String>]? = nil, studentError: PolishError? = nil) {
+         generalFails: [Lens: Set<String>] = [:], right: [Lens: Set<String>]? = nil, studentError: PolishError? = nil,
+         studentDelay: TimeInterval = 0) {
         store = LearnedPromptStore(fileURL: makeTempURL(test, "learned-prompts.json"))
         settings = makeSettings(test, learned: store)
         if key { settings.setOpenRouterKey("sk-or-v1-test") }
@@ -37,7 +39,7 @@ struct LearnFixture {
                        GeneralCase(id: "g2", raw: "general two", expected: "general two")]
         let wanted = Dictionary(uniqueKeysWithValues: history.corrections.map { ($0.input, $0.correction!) })
         let right = right ?? [.both: Set(wanted.keys)]
-        let teacher = teacher
+        let teacher = teacher, log = log
         // The current prompt with one rule added, so the diff is one hunk, as a real tune's would be.
         teacher.answer = { lens, user in
             let current = user.components(separatedBy: "<current>\n")[1].components(separatedBy: "\n</current>")[0]
@@ -46,15 +48,18 @@ struct LearnFixture {
             return "<prompt>\n\(edited)\n</prompt>"
         }
         controller = LearnController(settings: settings, history: history, store: store, general: general) { _, _ in
-            PromptTuner(student: { FakeStudent(instructions: $0, right: right, wanted: wanted, generalFails: generalFails, error: studentError) },
+            PromptTuner(student: { FakeStudent(instructions: $0, right: right, wanted: wanted, generalFails: generalFails, log: log, error: studentError, delay: studentDelay) },
                         teacher: teacher.call, general: general, repeats: 1)
         }
         controller.now = { fixedDate(2026, 10, 13, 9, 0) }
     }
 
+    /// The tile measures the current prompt as it appears; this waits for that to finish.
     func host(_ test: XCTestCase, height: CGFloat = 900) -> HostedView<CorrectionsView> {
         let hosted = HostedView(CorrectionsView(store: history, learn: controller), size: NSSize(width: 760, height: height))
         test.addTeardownBlock { hosted.close() }
+        waitUntil(timeout: 5) { !controller.measuring }
+        hosted.settle()
         return hosted
     }
 }
@@ -77,6 +82,39 @@ final class LearnUITests: XCTestCase {
         let readyHosted = ready.host(self)
         XCTAssertEqual(readyHosted.element(id: "learn.button")?.label, "Learn")
         XCTAssertNil(readyHosted.element(id: "corrections.fit"), "no fit before any tune")
+    }
+
+    func testTheTileMeasuresTheCurrentPromptWhenItHasNothingToShow() {
+        let fx = LearnFixture(self, studentDelay: 0.3)
+        XCTAssertNil(fx.store.measurement(setup: "cloud-flash", prompt: "v4"))
+        let hosted = HostedView(CorrectionsView(store: fx.history, learn: fx.controller), size: NSSize(width: 760, height: 600))
+        addTeardownBlock { hosted.close() }
+        hosted.settle()
+        XCTAssertEqual(fx.controller.gate, .measuring)
+        XCTAssertEqual(hosted.element(id: "learn.button")?.label, "Measuring…")
+        XCTAssertEqual(hosted.element(id: "learn.status")?.value, "Measuring prompt v4 on your 10 corrections and the general test set")
+        waitUntil(timeout: 5) { !fx.controller.measuring }
+        hosted.settle()
+        let m = fx.store.measurement(setup: "cloud-flash", prompt: "v4")
+        XCTAssertEqual(m?.mine ?? 0, 83.3, accuracy: 0.1)
+        XCTAssertEqual(m?.general, 100)
+        XCTAssertEqual(m?.corrections, 10)
+        XCTAssertEqual(hosted.element(id: "learn.score.mine")?.value, "83%")
+        XCTAssertEqual(hosted.element(id: "learn.score.general")?.value, "100%")
+        XCTAssertNil(hosted.element(id: "learn.status"), "nothing to say once measured")
+        XCTAssertEqual(fx.controller.gate, .ready(count: 10))
+        XCTAssertEqual(fx.teacher.inputs.count, 0, "no teacher for a measurement")
+        let polishes = fx.log.events.filter { $0.hasPrefix("polish:") }.count
+        XCTAssertEqual(polishes, 10 + 2, "corrections once, and the general set")
+
+        let again = fx.host(self)
+        XCTAssertEqual(fx.log.events.filter { $0.hasPrefix("polish:") }.count, polishes, "measured once, remembered")
+        XCTAssertEqual(again.element(id: "learn.score.mine")?.value, "83%")
+
+        let few = LearnFixture(self, count: 7)
+        _ = few.host(self)
+        XCTAssertNil(few.store.measurement(setup: "cloud-flash", prompt: "v4"), "below the minimum: not measured")
+        XCTAssertEqual(few.controller.gate, .needMore(have: 7))
     }
 
     func testLearnRunsTheTuneAndShowsCandidatesDiffScoresAndFits() throws {
