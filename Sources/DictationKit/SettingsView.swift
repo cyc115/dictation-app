@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.dateContext) private var dates
     @ObservedObject var settings: AppSettings
     @ObservedObject var history: HistoryStore = .shared
     @State private var microphones: [AudioInputDevice] = []
@@ -17,7 +18,7 @@ struct SettingsView: View {
 
     private var promptDetail: String {
         if let learned = settings.learned.active(for: settings.setup.id) {
-            return "Learned from your corrections: \(Int(learned.score.mineBefore.rounded()))% → \(Int(learned.score.mine.rounded()))% on them, general set \(Int(learned.score.general.rounded()))%."
+            return "\(learned.summary): \(Int(learned.score.mineBefore.rounded()))% → \(Int(learned.score.mine.rounded()))% on them, general set \(Int(learned.score.general.rounded()))%. Learn branches from the version chosen here."
         }
         return settings.learned.versions(for: settings.setup.id).isEmpty
             ? "The built-in prompt. Learn one from your corrections in the Corrections tab."
@@ -44,7 +45,8 @@ struct SettingsView: View {
                         set: { settings.learned.activate($0.isEmpty ? nil : $0, for: settings.setup.id) })) {
                         Text("\(builtInPrompt) · built in").tag("")
                         ForEach(settings.learned.versions(for: settings.setup.id)) { learned in
-                            Text("\(learned.summary) · \(Int(learned.score.mine.rounded()))%").tag(learned.version)
+                            Text("\(learned.version) · \(Int(learned.score.mine.rounded()))% · from \(learned.basedOn) · \(dates.string(learned.date, .dateTime.month(.abbreviated).day()))")
+                                .tag(learned.version)
                         }
                     }
                 }

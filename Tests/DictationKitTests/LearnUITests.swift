@@ -67,7 +67,8 @@ final class LearnUITests: XCTestCase {
         let hosted = few.host(self)
         XCTAssertNil(hosted.element(id: "learn.button"))
         XCTAssertTrue(hosted.allText.contains("7 of 10"), hosted.allText)
-        XCTAssertEqual(hosted.element(id: "learn.score.mine")?.value, "unknown", "no score before the first tune")
+        XCTAssertEqual(hosted.element(id: "learn.score.mine")?.value, "not measured yet", "no score before the first tune")
+        XCTAssertTrue(hosted.allText.contains("Not measured yet"))
 
         XCTAssertEqual(LearnFixture(self, key: false).controller.gate, .noKey)
         XCTAssertEqual(LearnFixture(self, setup: .onDevice).controller.gate, .cloudOnly)
@@ -181,8 +182,8 @@ final class LearnUITests: XCTestCase {
         waitUntil { fx.settings.setup.prompt == "v5" }
         hosted.settle()
         XCTAssertEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, true)
-        XCTAssertTrue(hosted.allText.contains("Learned from your corrections: 65% → 74% on them, general set 71%."), hosted.allText)
-        XCTAssertTrue(hosted.allText.contains("v5 · learned from 15 corrections · 74%"))
+        XCTAssertTrue(hosted.allText.contains("v5 · learned from 15 corrections: 65% → 74% on them, general set 71%."), hosted.allText)
+        XCTAssertTrue(hosted.allText.contains("v5 · 74% · from v4 · Oct 13"), hosted.allText)
 
         fx.store.activate(nil, for: "cloud-flash")
         waitUntil { fx.settings.setup.prompt == "v4" }

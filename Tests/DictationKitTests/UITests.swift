@@ -612,6 +612,13 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "learn-ready")
     }
 
+    /// Before the first tune (what a new user sees): no scores yet, Learn ready.
+    @MainActor func testLearnFirstRun() {
+        let fx = LearnFixture(self)
+        let hosted = fx.host(self, height: 420)
+        assertSnapshot(of: hosted.hostingView, named: "learn-first-run")
+    }
+
     /// After a tune: the candidates, the diff, the new scores, the fits and Keep.
     @MainActor func testLearnDone() {
         let fx = LearnFixture(self, right: [.rules: ["can you install cloud code 1", "can you install cloud code 2"],

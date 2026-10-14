@@ -204,11 +204,7 @@ struct LearnView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 16) {
-                scores
-                Spacer(minLength: 0)
-                action
-            }
+            scores
             if let status = controller.status {
                 Text(status)
                     .font(.caption)
@@ -233,17 +229,23 @@ struct LearnView: View {
         .accessibilityIdentifier("learn.tile")
     }
 
+    /// One card: the two scores on a grid, the Learn button (or why it can't run) at the trailing edge.
     private var scores: some View {
-        HStack(spacing: 28) {
+        HStack(alignment: .center, spacing: 16) {
             ScoreRing(value: controller.mine, before: controller.mineBefore, up: controller.result != nil,
                       label: "Your corrections · \(controller.setup.title)", id: "learn.score.mine", deltaAsHeld: false)
+                .frame(minWidth: 230, alignment: .leading)
             ScoreRing(value: controller.generalScore, before: controller.generalBefore, up: false,
                       label: "General test set · guard", id: "learn.score.general", deltaAsHeld: true)
+                .frame(minWidth: 230, alignment: .leading)
+            Spacer(minLength: 12)
+            action
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(.separator))
     }
 
     @ViewBuilder private var action: some View {
@@ -271,11 +273,11 @@ struct LearnView: View {
             .accessibilityIdentifier("learn.gate")
         case .cloudOnly:
             Text("Learning tunes the cloud setups' prompt. Choose Cloud Flash or Cloud Big in Settings › Model.")
-                .font(.caption).foregroundStyle(.secondary).frame(maxWidth: 220)
+                .font(.caption).foregroundStyle(.secondary).frame(maxWidth: 200).multilineTextAlignment(.trailing)
                 .accessibilityIdentifier("learn.gate")
         case .noKey:
             Text("Add the cloud API key in Settings to learn from your corrections.")
-                .font(.caption).foregroundStyle(.secondary).frame(maxWidth: 220)
+                .font(.caption).foregroundStyle(.secondary).frame(maxWidth: 200).multilineTextAlignment(.trailing)
                 .accessibilityIdentifier("learn.gate")
         }
     }
@@ -376,21 +378,28 @@ struct ScoreRing: View {
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                Circle().stroke(Color.primary.opacity(0.12), lineWidth: 5)
+                Circle().stroke(Color.primary.opacity(0.12), lineWidth: 4.5)
                 Circle()
                     .trim(from: 0, to: (value ?? 0) / 100)
-                    .stroke(up ? LearnView.good : Color(nsColor: .systemBlue), style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .stroke(up ? LearnView.good : Color(nsColor: .systemBlue), style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(reduceMotion ? nil : .easeOut(duration: 1.2), value: value)
             }
-            .frame(width: 64, height: 64)
-            VStack(alignment: .leading, spacing: 4) {
+            .frame(width: 56, height: 56)
+            VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(value.map { "\(Int($0.rounded()))" } ?? "—")
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .contentTransition(.numericText())
-                        .animation(reduceMotion ? nil : .easeOut(duration: 1.2), value: value)
-                    if value != nil { Text("%").font(.system(size: 16, weight: .semibold)).foregroundStyle(.secondary) }
+                    if let value {
+                        Text("\(Int(value.rounded()))")
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .contentTransition(.numericText())
+                            .animation(reduceMotion ? nil : .easeOut(duration: 1.2), value: value)
+                        Text("%").font(.system(size: 15, weight: .semibold)).foregroundStyle(.secondary)
+                    } else {
+                        Text("Not measured yet")
+                            .font(.callout.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .frame(height: 40)  // the figure's height, so the card doesn't jump at the first score
+                    }
                     if let delta {
                         Text(delta.text)
                             .font(.caption.weight(.bold))
@@ -406,7 +415,7 @@ struct ScoreRing: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityValue(value.map { "\(Int($0.rounded()))%" } ?? "unknown")
+        .accessibilityValue(value.map { "\(Int($0.rounded()))%" } ?? "not measured yet")
         .accessibilityIdentifier(id)
     }
 
