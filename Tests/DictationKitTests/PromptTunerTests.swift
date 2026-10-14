@@ -207,6 +207,14 @@ final class PromptTunerTests: XCTestCase {
                                         general: general + traps).tune(cases: cases, prompt: "P") { _ in }
         XCTAssertEqual(wordy.acted, 0)
         XCTAssertEqual(wordy.verdict, Verdict.generalDropped, "100 → 83 on the general set: the ordinary guard, not the floor")
+
+        // An ordinary case's must_not phrase in the output is a failed cleanup; only a trap's means it acted on the dictation.
+        let filler = GeneralCase(id: "f1", raw: "general five", expected: "general five", mustNot: ["buenos"], kind: "filler")
+        let sloppy = try await makeTuner(right: [.both: all], acts: [.both: ["general five"]], teacher: teacher,
+                                         general: general + traps + [filler]).tune(cases: cases, prompt: "P") { _ in }
+        XCTAssertEqual(sloppy.acted, 0, "not a trap")
+        XCTAssertEqual(sloppy.actedBefore, 0)
+        XCTAssertEqual(sloppy.verdict, Verdict.generalDropped, "the ordinary guard catches it")
     }
 
     func testATeacherAnswerWithoutAPromptFailsThatCandidateOnly() async throws {
@@ -288,6 +296,11 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertEqual(try reasoning(polish)["effort"] as? String, "minimal", "cleanup: the lowest effort")
         polish.reasoning = ["effort": "high"]
         XCTAssertEqual(try reasoning(polish)["effort"] as? String, "high")
+    }
+
+    func testTeacherIsSonnetNotSolPro() {
+        XCTAssertEqual(LearnController.teacherModel, "anthropic/claude-sonnet-5.5", "the Oct 14 bake-off's pick: best tune, fastest")
+        XCTAssertEqual(CorrectionSuggester.model, "openrouter:openai/gpt-6.1-sol-pro", "suggestions keep the pro model: one call, accuracy matters most")
     }
 
     /// The real teacher and student through the tuner's own code path (`LearnController.appTuner`):

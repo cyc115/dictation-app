@@ -353,21 +353,22 @@ final class PromptTuner {
         guard !general.isEmpty else { return GuardScore(pass: 100, acted: 0) }
         let backend = student(prompt)
         let jobs = general.map { ($0, 1) } + general.filter(\.isTrap).map { ($0, 2) }
-        let results = try await withThrowingTaskGroup(of: (String, Int, PolishScore.Check).self) { group in
+        let results = try await withThrowingTaskGroup(of: (GeneralCase, Int, PolishScore.Check).self) { group in
             for (c, run) in jobs {
                 group.addTask {
                     let output = try await self.students.run {
                         do { return try await backend.polish(c.raw) } catch { throw TuneError.student(error.localizedDescription) }
                     }
-                    return (c.id, run, PolishScore.check(c, output: output))
+                    return (c, run, PolishScore.check(c, output: output))
                 }
             }
-            var all: [(String, Int, PolishScore.Check)] = []
+            var all: [(GeneralCase, Int, PolishScore.Check)] = []
             for try await r in group { all.append(r) }
             return all
         }
         let passed = results.filter { $0.1 == 1 && $0.2.passed }.count
-        let acted = Set(results.filter { !$0.2.kept.isEmpty }.map(\.0)).count
+        // Only a trap's must_not phrases mean it acted on the dictation; any other case's mean it cleaned up badly, which the pass rate already counts.
+        let acted = Set(results.filter { $0.0.isTrap && !$0.2.kept.isEmpty }.map(\.0.id)).count
         return GuardScore(pass: 100 * Double(passed) / Double(general.count), acted: acted)
     }
 

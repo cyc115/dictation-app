@@ -114,6 +114,22 @@ bench/suite.py polish run -m setup:cloud-flash --corrections --prompt-file ~/Lib
   models: Cloud Flash's), or `--prompt-file` (see `polish_prompts/`, versions `v1`–`v3`, identical to
   `PolishPrompt` in `Setups.swift`; a test checks). The transcript goes in `<transcript>` tags, as
   the app sends it; `--no-wrap` sends it bare, to compare. Built-in setups all use `v3` + tags.
+- **Teacher bake-off:** which model should write learned prompts (`LearnController.teacherModel`)?
+  `Tests/DictationKitTests/TeacherBakeoffTests.swift` runs one real tune per teacher through the
+  tuner's own code path (Cloud Flash's student, `PolishPrompt.v4`, a copy of your corrections) and
+  writes scores, verdict, the prompt, and every teacher call's time to a JSON file. Build the tests
+  once, then run the teachers side by side:
+  ```sh
+  swift build --build-tests
+  cp ~/Library/Application\ Support/DictationApp/history.json /tmp/bakeoff/history.json   # a copy, never the live file
+  for m in openai/gpt-6.1-sol anthropic/claude-sonnet-5.5; do
+    BAKEOFF_TEACHER=$m BAKEOFF_HISTORY=/tmp/bakeoff/history.json BAKEOFF_OUT=/tmp/bakeoff/${m//\//_}.json OPENROUTER_API_KEY=… \
+      xcrun xctest -XCTest DictationKitTests.TeacherBakeoffTests/testLiveTeacherBakeoff .build/debug/DictationKitTests.xctest &
+  done; wait
+  ```
+  Compare `result.mine` (cross-validated, so a teacher that memorised its fold gets no credit),
+  `result.general`, `result.acted` (must not rise) and `elapsed`. One tune is 16 teacher calls and
+  about 300 student calls. Oct 14 results: `results/polish/README.md`.
 
 ## Speech-to-text accuracy (`suite.py accuracy` = `bench.py`)
 

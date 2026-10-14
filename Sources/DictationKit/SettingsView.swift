@@ -26,6 +26,7 @@ struct SettingsView: View {
     }
 
     private var promptDetail: String {
+        guard settings.polishEnabled else { return "Turn on AI polish to choose the prompt it polishes with." }
         if let learned = settings.learned.active(for: settings.setup.id) {
             return "\(learned.summary): \(Int(learned.score.mineBefore.rounded()))% → \(Int(learned.score.mine.rounded()))% on them, general set \(Int(learned.score.general.rounded()))%. Learn branches from the version chosen here."
         }
@@ -46,17 +47,6 @@ struct SettingsView: View {
                             if setup.usesCloud && !settings.hasOpenRouterKey { keyDraft = ""; askForKey = true }
                         })) {
                         ForEach(settings.setups) { Text($0.title).tag($0) }
-                    }
-                }
-                SettingRow("Polish prompt", promptDetail, available: !settings.learned.versions(for: settings.setup.id).isEmpty) {
-                    Picker("Polish prompt", selection: Binding(
-                        get: { settings.setup.usesLearnedPrompt ? settings.setup.prompt : "" },
-                        set: { settings.learned.activate($0.isEmpty ? nil : $0, for: settings.setup.id) })) {
-                        Text(builtInScore.map { "\(builtInPrompt) · \($0)% · built in" } ?? "\(builtInPrompt) · built in").tag("")
-                        ForEach(settings.learned.versions(for: settings.setup.id)) { learned in
-                            Text("\(learned.version) · \(Int(learned.score.mine.rounded()))% · from \(learned.basedOn) · \(dates.string(learned.date, .dateTime.month(.abbreviated).day()))")
-                                .tag(learned.version)
-                        }
                     }
                 }
                 SettingRow("Language", settings.setup.supportsLanguageChoice
@@ -183,6 +173,17 @@ struct SettingsView: View {
                            ? "Removes filler words and fixes self-corrections, on this Mac like the speech model: nothing leaves it. Adds about 1 second to a sentence, up to 3 to a long paragraph."
                            : "Removes filler words and fixes self-corrections with a cloud model, like the speech model. Adds about half a second.") {
                     Toggle("AI polish", isOn: $settings.polishEnabled)
+                }
+                SettingRow("Polish prompt", promptDetail, available: settings.polishEnabled && !settings.learned.versions(for: settings.setup.id).isEmpty) {
+                    Picker("Polish prompt", selection: Binding(
+                        get: { settings.setup.usesLearnedPrompt ? settings.setup.prompt : "" },
+                        set: { settings.learned.activate($0.isEmpty ? nil : $0, for: settings.setup.id) })) {
+                        Text(builtInScore.map { "\(builtInPrompt) · \($0)% · built in" } ?? "\(builtInPrompt) · built in").tag("")
+                        ForEach(settings.learned.versions(for: settings.setup.id)) { learned in
+                            Text("\(learned.version) · \(Int(learned.score.mine.rounded()))% · from \(learned.basedOn) · \(dates.string(learned.date, .dateTime.month(.abbreviated).day()))")
+                                .tag(learned.version)
+                        }
+                    }
                 }
             } header: {
                 Label("Output", systemImage: "text.cursor")

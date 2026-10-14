@@ -127,3 +127,42 @@ bench/suite.py polish run -m apple --cases-file bench/polish_cases.json --cases-
 
 The cloud key is read from the app's Keychain entry, and macOS may ask once to allow it. If Apple
 with v3 + tags also passes the traps, the app's on-device prompt should switch to v3 too.
+
+# Teacher bake-off — 2026-10-14
+
+Which model should write learned prompts (Corrections › Learn, `LearnController.teacherModel`)? Five
+teachers each ran one real tune through the tuner's own code path (`TeacherBakeoffTests`), all five
+at once from this Mac: student DeepSeek V4.1 Flash (Cloud Flash's setup), starting prompt `v4`, the
+same 18 corrections, 5 folds × 3 lenses, general set of 88 cases, reasoning effort medium. Result
+files: `teacher-bakeoff-20261014/`.
+
+| teacher | mine | general | learned | lens | words | verdict | tune | teacher call p50 / max |
+|:--|:--|:--|:--|:--|--:|:--|--:|--:|
+| **Claude Sonnet 5.5** | 72.6 → **79.5** | 77.3 → 77.3 | 6 → 7 | both | 358 | pass | **45 s** | 7 s / 7 s |
+| Qwen3.8 Max (0902) | 72.3 → **80.1** | 77.3 → 78.4 | 6 → 8 | both | 313 | pass | 399 s | 84 s / 145 s |
+| Gemini 3.8 Flash | 72.0 → 76.4 | 73.9 → 77.3 | 6 → 6 | rules | 346 | pass | 210 s | 42 s / 74 s |
+| GPT-6.1 Sol | 73.1 → 76.5 | 78.4 → 76.1 | 6 → 6 | both | 349 | general dropped | 94 s | 17 s / 21 s |
+| DeepSeek V4 Pro | 72.1 → 76.0 | 77.3 → 78.4 | 6 → 7 | both | 334 | pass | 624 s | 127 s / 238 s |
+
+- **mine**: 100 × (1 − mean error) on the corrections, before → after, cross-validated (the teacher
+  never saw the correction a candidate is scored on). **general**: pass rate on the general set.
+  **learned**: corrections within 15% of what was wanted. **tune**: start to verdict, end to end.
+- **Noise floor**: the "before" numbers are the same `v4` prompt measured five times by the same
+  student: 72.0–73.1 on the corrections, 73.9–78.4 on the general set. So a gain under ~1.5 on mine
+  or ~4 on general is within the student's own variation. Sonnet and Qwen's +7 to +8 are real; the
+  other three's +4 are probably real; GPT-6.1 Sol's "general dropped" (−2.3) is partly bad luck on
+  the baseline run (its before, 78.4, was the highest of the five).
+- **Convergence**: every tune's student scoring takes the same ~12 s per stage; the rest is the
+  teacher. Fifteen candidates are written at once, so a tune lasts about three teacher calls plus
+  scoring: Sonnet's 7 s calls gave 45 s; DeepSeek's two-minute calls gave ten minutes. DeepSeek also
+  answered once without `<prompt>` tags (that candidate was dropped, the tune went on). All five ran
+  in parallel, so a slow provider may have been slower than usual, but Sonnet's calls were unaffected.
+- **Cost**: the five tunes together cost about $2.50 on the OpenRouter key, teacher and student calls
+  (the key's daily total went from $1.81 to $4.32).
+- **Pick**: Claude Sonnet 5.5. Best gain together with Qwen3.8 Max, the general set held, and nine
+  times faster than Qwen; same list price as GPT-6.1 Sol ($2 / $10 per million tokens).
+- **Caveat**: one tune per teacher, one Mac, one afternoon. The order among the three +4 teachers
+  is not established; Sonnet and Qwen ahead of them is.
+- **Bug found by the bake-off**: the trap floor counted every case whose output held a `must_not`
+  phrase (a filler left in, say), not only traps. Fixed the same day; the "acted" numbers in the
+  result files are the old count.

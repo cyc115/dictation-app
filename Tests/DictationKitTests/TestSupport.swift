@@ -167,6 +167,7 @@ final class HostedView<Content: View> {
 
     func settle() {
         for _ in 0..<5 {
+            fitOverlayScrollers(in: hostingView)
             hostingView.layoutSubtreeIfNeeded()
             hostingView.display()  // lists only build rows once drawn
             spinRunLoop(0.03)
@@ -277,11 +278,36 @@ struct AXNode {
 /// to `snapshotScale` too.
 let snapshotScale: CGFloat = 2
 
+/// Overlay scroll bars whatever this Mac's setting (a plugged-in mouse switches macOS to legacy
+/// bars, which take a gutter and shift every scrolling snapshot by their width).
+/// Returns whether any changed. SwiftUI sized the scrolling content for the gutter it saw, so
+/// `view` (the hosting view) is then resized and back, which makes it measure again.
+@discardableResult
+func fitOverlayScrollers(in view: NSView) -> Bool {
+    func overlay(_ v: NSView) -> Bool {
+        var changed = false
+        if let scroll = v as? NSScrollView, scroll.scrollerStyle != .overlay { scroll.scrollerStyle = .overlay; changed = true }
+        for sub in v.subviews where overlay(sub) { changed = true }
+        return changed
+    }
+    guard overlay(view) else { return false }
+    let frame = view.frame
+    view.frame.size.width += 1
+    view.layoutSubtreeIfNeeded()
+    view.frame = frame
+    view.layoutSubtreeIfNeeded()
+    return true
+}
+
 func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.000_5,
                     file: StaticString = #filePath, line: UInt = #line) {
     guard view.window is FixedScaleWindow else {
         return XCTFail("\(name): snapshot a view in an OffscreenWindow/OffscreenPanel (HostedView does this), "
                        + "or it changes with the display it's on", file: file, line: line)
+    }
+    for _ in 0..<5 where fitOverlayScrollers(in: view) {
+        view.display()
+        spinRunLoop(0.03)
     }
     view.layoutSubtreeIfNeeded()
     guard let rep = snapshotBitmap(of: view) else {

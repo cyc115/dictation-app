@@ -13,8 +13,11 @@ final class LearnController: ObservableObject {
 
     /// Corrections needed before the first tune.
     static let minimum = 10
-    /// The teacher: the strongest polish model benchmarked, thinking (Corrections' suggestions use it too).
-    static let teacherModel = ModelSpec(CorrectionSuggester.model)!.openRouterID!
+    /// The teacher: Claude Sonnet 5.5, thinking at medium effort. In the Oct 14 bake-off
+    /// (bench/results/polish/README.md) it tuned as well as any teacher tried (+7 points on the
+    /// corrections, general set held) in 45 s, against 94 s for GPT-6.1 Sol and 6–7 minutes for Qwen3.8
+    /// Max; same list price as the Sol Pro that Corrections' suggestions use, a fraction of its reasoning spend.
+    static let teacherModel = "anthropic/claude-sonnet-5.5"
 
     enum Gate: Equatable {
         case cloudOnly
@@ -77,7 +80,7 @@ final class LearnController: ObservableObject {
         }
     }
 
-    /// The setup's polish model as student, GPT-6.1 Sol Pro (thinking) as teacher.
+    /// The setup's polish model as student, `teacherModel` (thinking) as teacher.
     nonisolated static func appTuner(setup: DictationSetup, apiKey: String, general: [GeneralCase]) -> PromptTuner? {
         guard case .openRouter(let id, let providers) = ModelSpec(setup.polish) else { return nil }
         let student: PromptTuner.Student = { OpenRouterPolish(model: id, apiKey: apiKey, instructions: $0, wrap: setup.wrap, provider: providers) }

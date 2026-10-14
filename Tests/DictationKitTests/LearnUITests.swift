@@ -212,6 +212,11 @@ final class LearnUITests: XCTestCase {
         let hosted = HostedView(SettingsView(settings: fx.settings, history: fx.history), size: NSSize(width: 640, height: 1900))
         addTeardownBlock { hosted.close() }
         let row = "setting.Polish prompt"
+        XCTAssertFalse(fx.settings.polishEnabled)
+        XCTAssertEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, false, "no polish, no prompt to choose")
+        XCTAssertTrue(hosted.allText.contains("Turn on AI polish to choose the prompt it polishes with."))
+        fx.settings.polishEnabled = true
+        hosted.settle()
         XCTAssertEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, false, "nothing learned yet")
         XCTAssertTrue(hosted.allText.contains("Learn one from your corrections in the Corrections tab."))
         XCTAssertTrue(hosted.allText.contains("v4 · built in"), "no score until measured")

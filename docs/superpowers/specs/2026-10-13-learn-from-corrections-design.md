@@ -38,9 +38,10 @@ general test set guards against a prompt that learned your corrections and forgo
      **Keep v5**. Keep is enabled only when the verdict passes (below).
 - Errors (no key, network, teacher refused) show in the status line; nothing is saved.
 
-**Settings → Model**: a "Polish prompt" row under the Model picker: a picker of the setup's prompt
-versions (the built-in one and every kept learned version, newest last, "v5 · learned from 15
-corrections · Oct 13"). Choosing an older one is the revert.
+**Settings → Output**: a "Polish prompt" row under the AI polish toggle (greyed while AI polish is
+off, or while nothing has been learned for the setup): a picker of the setup's prompt versions (the
+built-in one and every kept learned version, newest last, "v5 · 74% · from v4 · Oct 13"). Choosing
+an older one is the revert.
 
 **History / Corrections cards**: a dictation polished with a learned prompt records it like any
 other ("Cloud Flash · prompt v5").
@@ -56,8 +57,10 @@ default spring; `accessibilityReduceMotion` turns the sweep and the counting off
 ## The learning loop
 
 Teacher and student. The *student* is the setup's own polish model with the candidate prompt (what
-the app will actually run). The *teacher* writes prompts: GPT-6.1 Sol Pro, the model Corrections
-already uses for suggestions, with reasoning on.
+the app will actually run). The *teacher* writes prompts: Claude Sonnet 5.5 with reasoning on
+(medium), the pick of the Oct 14 teacher bake-off (bench/results/polish/README.md). Corrections'
+suggestions use GPT-6.1 Sol Pro; the teacher doesn't, because pro mode costs several times the
+reasoning tokens for the same list price and writing a prompt under fixed constraints doesn't need it.
 
 **Inputs**: the corrections of the chosen setup's kind (all corrections, whichever setup made them;
 the setup is what's being tuned), the setup's current prompt text, its polish model and `wrap`, the
@@ -101,7 +104,7 @@ is offered.
 them are still scored, so the score is comparable across versions. Learn is enabled at 10
 corrections with at least one unlearned; "Learned" otherwise.
 
-**Budget**: 5 folds × 3 lenses + 1 final = 16 teacher calls (~$0.08); corrections × (3 lenses + 1
+**Budget**: 5 folds × 3 lenses + 1 final = 16 teacher calls (well under a dollar; a Sol Pro teacher ran $0.50–1); corrections × (3 lenses + 1
 baseline) × 2 repeats + 2 × 68 general ≈ 260 student calls (~$0.02 with Cloud Flash's model).
 Student calls run 6 at a time; teacher calls 3 at a time. About a minute.
 
