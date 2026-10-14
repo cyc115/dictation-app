@@ -80,9 +80,9 @@ final class HistoryStore: ObservableObject {
     }
 
     func add(text: String, duration: TimeInterval, raw: String? = nil, setup: String? = nil, prompt: String? = nil,
-             transcribeSeconds: Double? = nil, polishSeconds: Double? = nil) {
+             transcribeSeconds: Double? = nil, polishSeconds: Double? = nil, date: Date = Date()) {
         guard retention != .off, !text.isEmpty else { return }
-        entries.insert(HistoryEntry(date: Date(), text: text, duration: duration, raw: raw == text ? nil : raw,
+        entries.insert(HistoryEntry(date: date, text: text, duration: duration, raw: raw == text ? nil : raw,
                                     setup: setup, prompt: prompt,
                                     transcribeSeconds: transcribeSeconds, polishSeconds: polishSeconds), at: 0)
         save()

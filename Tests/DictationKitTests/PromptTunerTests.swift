@@ -230,4 +230,25 @@ final class PromptTunerTests: XCTestCase {
         polish.reasoning = ["effort": "high"]
         XCTAssertEqual(try reasoning(polish)["effort"] as? String, "high")
     }
+
+    /// The real teacher and student through the tuner's own code path (`LearnController.appTuner`):
+    /// one teacher call and two general cases. Opt-in: LIVE_OPENROUTER=1 OPENROUTER_API_KEY=… (~$0.01).
+    func testLiveTeacherWritesAPromptAndStudentIsScored() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_API_KEY"] else {
+            throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_API_KEY to run")
+        }
+        let general = try XCTUnwrap(GeneralCase.loadAll(from: benchFolder)).filter { ["en-correction-time", "zh-correction-name"].contains($0.id) }
+        XCTAssertFalse(general.isEmpty)
+        let tuner = try XCTUnwrap(LearnController.appTuner(setup: .cloudFlash, apiKey: key, general: general))
+        let example = (input: "can you install cloud code", wrote: "Can you install Cloud Code?", wanted: "Can you install Claude Code?")
+        let answer = try await tuner.teacher(PromptTuner.teacherSystem,
+                                             PromptTuner.teacherMessage(prompt: PolishPrompt.v4, lens: .rules, examples: [example]))
+        let prompt = try XCTUnwrap(PromptTuner.extractPrompt(answer), "the teacher answers inside <prompt> tags: \(answer.prefix(200))")
+        XCTAssertTrue(prompt.contains("Output only"), "keeps the prompt's structure: \(prompt.suffix(80))")
+        XCTAssertNotEqual(prompt, PolishPrompt.v4, "changed something")
+        print("[live] teacher's prompt:\n\(prompt)\n[live] end")
+        let rate = try await tuner.passRate(prompt: prompt)
+        XCTAssertGreaterThanOrEqual(rate, 50, "the student passes at least one of the two self-correction cases with the new prompt")
+    }
 }

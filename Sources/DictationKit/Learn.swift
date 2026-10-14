@@ -69,7 +69,7 @@ final class LearnController: ObservableObject {
     }
 
     /// The setup's polish model as student, GPT-6.1 Sol Pro (thinking) as teacher.
-    static func appTuner(setup: DictationSetup, apiKey: String, general: [GeneralCase]) -> PromptTuner? {
+    nonisolated static func appTuner(setup: DictationSetup, apiKey: String, general: [GeneralCase]) -> PromptTuner? {
         guard case .openRouter(let id, let providers) = ModelSpec(setup.polish) else { return nil }
         let student: PromptTuner.Student = { OpenRouterPolish(model: id, apiKey: apiKey, instructions: $0, wrap: setup.wrap, provider: providers) }
         let teacher: PromptTuner.Teacher = { system, user in
@@ -300,9 +300,11 @@ struct LearnView: View {
         return VStack(alignment: .leading, spacing: 6) {
             Text("WHAT CHANGED IN THE PROMPT").font(.caption.weight(.semibold)).foregroundStyle(.secondary).kerning(0.5)
             // A rewrite from top to bottom scrolls instead of pushing the cards away.
-            let long = hunks.reduce(0) { $0 + $1.lines.count } > 14
-            ScrollView(long ? .vertical : []) { hunkList(hunks) }
-                .frame(maxHeight: long ? 260 : nil)
+            if hunks.reduce(0, { $0 + $1.lines.count }) > 14 {
+                ScrollView { hunkList(hunks) }.frame(height: 260)
+            } else {
+                hunkList(hunks)
+            }
             if hunks.isEmpty {
                 Text("Nothing: the prompt came back unchanged.").font(.caption).foregroundStyle(.secondary)
             }

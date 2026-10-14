@@ -20,11 +20,19 @@ struct LearnFixture {
         settings = makeSettings(test, learned: store)
         if key { settings.setOpenRouterKey("sk-or-v1-test") }
         settings.setup = settings.setups.first { $0.id == setup.id }!
-        history = HistoryStore(fileURL: makeTempURL(test), defaults: makeDefaults(test))
-        for n in 1...max(count, 1) where count > 0 {
-            history.add(text: "Can you install Cloud Code \(n)?", duration: 2, raw: "can you install cloud code \(n)", setup: "cloud-flash", prompt: "v4")
-            history.setCorrection("Can you install Claude Code \(n)?", for: history.entries[0].id)
+        // Fixed dates (not Date()), so snapshots don't change with the clock.
+        let url = makeTempURL(test)
+        var entries: [HistoryEntry] = []
+        for n in stride(from: max(count, 1), through: 1, by: -1) where count > 0 {
+            var entry = HistoryEntry(date: fixedDate(2026, 10, 13, 8, n), text: "Can you install Cloud Code \(n)?", duration: 2,
+                                     raw: "can you install cloud code \(n)", setup: "cloud-flash", prompt: "v4")
+            entry.correction = "Can you install Claude Code \(n)?"
+            entries.append(entry)
         }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try? encoder.encode(entries).write(to: url)
+        history = HistoryStore(fileURL: url, defaults: makeDefaults(test))
         let general = [GeneralCase(id: "g1", raw: "general one", expected: "general one"),
                        GeneralCase(id: "g2", raw: "general two", expected: "general two")]
         let wanted = Dictionary(uniqueKeysWithValues: history.corrections.map { ($0.input, $0.correction!) })
