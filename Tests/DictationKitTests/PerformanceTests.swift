@@ -85,6 +85,15 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// Shown as soon as a tune finishes; prompts are ~30 lines.
+    func testPromptDiffOfLongPrompts() {
+        let old = (1...60).map { "- Rule number \($0) about cleanup." }.joined(separator: "\n")
+        let new = (1...60).map { $0 % 7 == 0 ? "- Rule number \($0), rewritten." : "- Rule number \($0) about cleanup." }.joined(separator: "\n")
+        assertFaster(than: 0.02, iterations: 20, "diff of two 60-line prompts") {
+            XCTAssertEqual(PromptDiff.hunks(old: old, new: new).count, 8)
+        }
+    }
+
     /// Saved after every dictation and loaded at launch.
     func testHistoryWithFiveThousandEntries() throws {
         let url = makeTempURL(self), defaults = makeDefaults(self)

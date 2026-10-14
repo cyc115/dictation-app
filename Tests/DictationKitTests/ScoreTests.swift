@@ -38,3 +38,36 @@ final class ScoreTests: XCTestCase {
         XCTAssertNil(GeneralCase.loadAll(from: URL(fileURLWithPath: "/nonexistent")))
     }
 }
+
+final class PromptDiffTests: XCTestCase {
+    func testHunksShowChangedLinesWithOneLineOfContext() {
+        let old = "Rules:\n- Remove fillers.\n- Keep names.\n- Add punctuation.\n\nExamples:\na → A\n\nOutput only the text."
+        let new = "Rules:\n- Remove fillers and stutters.\n- Keep names.\n- Add punctuation.\n\nExamples:\na → A\nb → B\n\nOutput only the text."
+        let hunks = PromptDiff.hunks(old: old, new: new)
+        XCTAssertEqual(hunks.count, 2)
+        XCTAssertEqual(hunks[0].lines, [
+            .init(kind: .context, text: "Rules:"),
+            .init(kind: .removed, text: "- Remove fillers."),
+            .init(kind: .added, text: "- Remove fillers and stutters."),
+            .init(kind: .context, text: "- Keep names."),
+        ])
+        XCTAssertEqual(hunks[1].lines, [
+            .init(kind: .context, text: "a → A"),
+            .init(kind: .added, text: "b → B"),
+            .init(kind: .context, text: "Output only the text."),
+        ])
+    }
+
+    func testNoChangeNoHunksAndWholeRewriteIsOneHunk() {
+        XCTAssertEqual(PromptDiff.hunks(old: "a\nb", new: "a\nb"), [])
+        XCTAssertEqual(PromptDiff.hunks(old: "a\nb", new: "a \nb\n"), [], "whitespace and blank lines don't count")
+        let whole = PromptDiff.hunks(old: "a\nb", new: "c\nd")
+        XCTAssertEqual(whole.count, 1)
+        XCTAssertEqual(whole[0].lines.map(\.kind), [.removed, .removed, .added, .added])
+    }
+
+    func testAddedAtTheEndAndRemovedAtTheStart() {
+        XCTAssertEqual(PromptDiff.hunks(old: "a\nb", new: "a\nb\nc"), [.init(lines: [.init(kind: .context, text: "b"), .init(kind: .added, text: "c")])])
+        XCTAssertEqual(PromptDiff.hunks(old: "a\nb", new: "b"), [.init(lines: [.init(kind: .removed, text: "a"), .init(kind: .context, text: "b")])])
+    }
+}
