@@ -214,6 +214,7 @@ final class LearnUITests: XCTestCase {
         let row = "setting.Polish prompt"
         XCTAssertEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, false, "nothing learned yet")
         XCTAssertTrue(hosted.allText.contains("Learn one from your corrections in the Corrections tab."))
+        XCTAssertTrue(hosted.allText.contains("v4 · built in"), "no score until measured")
 
         let id = fx.history.corrections[0].id
         fx.store.keep(makeLearned(errors: [id: 0.0], errorsBefore: [id: 0.2]))
@@ -228,5 +229,10 @@ final class LearnUITests: XCTestCase {
         hosted.settle()
         XCTAssertTrue(hosted.allText.contains("The built-in prompt."))
         XCTAssertFalse(hosted.allText.contains("Learn one from your corrections"), "a version exists, it's just not chosen")
+        XCTAssertTrue(hosted.allText.contains("v4 · 65% · built in"), "the built-in's score is v5's baseline: \(hosted.allText)")
+
+        fx.store.record(PromptMeasurement(setup: "cloud-flash", prompt: "v4", date: fixedDate(2026, 10, 14, 9, 0), mine: 68.2, general: 70, corrections: 11))
+        hosted.settle()
+        XCTAssertTrue(hosted.allText.contains("v4 · 68% · built in"), "a fresh measurement wins over the old baseline")
     }
 }

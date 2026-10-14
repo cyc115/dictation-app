@@ -16,6 +16,15 @@ struct SettingsView: View {
         (DictationSetup.builtIns + DictationSetup.loadCustom(from: settings.customSetupsFile).setups).first { $0.id == settings.setup.id }?.prompt ?? settings.setup.prompt
     }
 
+    /// The built-in prompt's score on your corrections, once measured (by the tile, or as the baseline
+    /// of a version learned from it).
+    private var builtInScore: Int? {
+        let setup = settings.setup.id, prompt = builtInPrompt
+        let measured = settings.learned.measurement(setup: setup, prompt: prompt)?.mine
+            ?? settings.learned.versions(for: setup).last { $0.basedOn == prompt }?.score.mineBefore
+        return measured.map { Int($0.rounded()) }
+    }
+
     private var promptDetail: String {
         if let learned = settings.learned.active(for: settings.setup.id) {
             return "\(learned.summary): \(Int(learned.score.mineBefore.rounded()))% → \(Int(learned.score.mine.rounded()))% on them, general set \(Int(learned.score.general.rounded()))%. Learn branches from the version chosen here."
@@ -43,7 +52,7 @@ struct SettingsView: View {
                     Picker("Polish prompt", selection: Binding(
                         get: { settings.setup.usesLearnedPrompt ? settings.setup.prompt : "" },
                         set: { settings.learned.activate($0.isEmpty ? nil : $0, for: settings.setup.id) })) {
-                        Text("\(builtInPrompt) · built in").tag("")
+                        Text(builtInScore.map { "\(builtInPrompt) · \($0)% · built in" } ?? "\(builtInPrompt) · built in").tag("")
                         ForEach(settings.learned.versions(for: settings.setup.id)) { learned in
                             Text("\(learned.version) · \(Int(learned.score.mine.rounded()))% · from \(learned.basedOn) · \(dates.string(learned.date, .dateTime.month(.abbreviated).day()))")
                                 .tag(learned.version)
