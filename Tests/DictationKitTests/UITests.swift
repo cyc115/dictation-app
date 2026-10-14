@@ -616,6 +616,8 @@ final class SnapshotTests: XCTestCase {
     @MainActor func testLearnFirstRun() {
         let fx = LearnFixture(self)
         let hosted = fx.host(self, height: 420)
+        spinRunLoop(1.6)  // the rings and figures count up once the measurement is in
+        hosted.settle()
         assertSnapshot(of: hosted.hostingView, named: "learn-first-run")
     }
 
