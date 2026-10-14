@@ -33,19 +33,27 @@ final class MainWindowController {
     func show(_ tab: MainTab) {
         selection.tab = tab
         if window == nil {
-            let host = NSHostingController(rootView: MainView(selection: selection))
-            let window = NSWindow(contentViewController: host)
-            window.title = "DictationApp"
-            window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-            window.setContentSize(NSSize(width: 860, height: 620))
-            window.minSize = NSSize(width: 680, height: 480)
-            window.isReleasedWhenClosed = false
-            window.setFrameAutosaveName("DictationAppMainWindow")
-            window.center()
-            self.window = window
+            window = Self.makeWindow(rootView: MainView(selection: selection))
         }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// The configured but not yet shown window, so tests can check its setup.
+    static func makeWindow<Root: View>(rootView: Root) -> NSWindow {
+        let window = NSWindow(contentViewController: NSHostingController(rootView: rootView))
+        window.title = "DictationApp"
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        // Content runs under the title bar; without these the system draws it as a lighter
+        // band with the title over the detail column.
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.setContentSize(NSSize(width: 860, height: 620))
+        window.minSize = NSSize(width: 680, height: 480)
+        window.isReleasedWhenClosed = false
+        window.setFrameAutosaveName("DictationAppMainWindow")
+        window.center()
+        return window
     }
 }
 

@@ -615,3 +615,14 @@ final class SidebarTests: XCTestCase {
         }
     }
 }
+
+final class MainWindowTests: XCTestCase {
+    func testTitleBarIsTransparentAndUntitledSoNoBandShowsOverTheContent() {
+        let window = MainWindowController.makeWindow(rootView: Text("content"))
+        defer { window.close() }
+        XCTAssertTrue(window.styleMask.contains(.fullSizeContentView))
+        XCTAssertTrue(window.titlebarAppearsTransparent)
+        XCTAssertEqual(window.titleVisibility, .hidden)
+        XCTAssertEqual(window.title, "DictationApp", "still named for the Window menu and Mission Control")
+    }
+}
