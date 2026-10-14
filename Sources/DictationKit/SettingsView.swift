@@ -10,6 +10,20 @@ struct SettingsView: View {
 
     private var cloud: Bool { settings.setup.usesCloud }
 
+    /// The setup's own prompt version, under any learned one.
+    private var builtInPrompt: String {
+        (DictationSetup.builtIns + DictationSetup.loadCustom(from: settings.customSetupsFile).setups).first { $0.id == settings.setup.id }?.prompt ?? settings.setup.prompt
+    }
+
+    private var promptDetail: String {
+        if let learned = settings.learned.active(for: settings.setup.id) {
+            return "Learned from your corrections: \(Int(learned.score.mineBefore.rounded()))% → \(Int(learned.score.mine.rounded()))% on them, general set \(Int(learned.score.general.rounded()))%."
+        }
+        return settings.learned.versions(for: settings.setup.id).isEmpty
+            ? "The built-in prompt. Learn one from your corrections in the Corrections tab."
+            : "The built-in prompt."
+    }
+
 
     var body: some View {
         Form {
@@ -22,6 +36,16 @@ struct SettingsView: View {
                             if setup.usesCloud && !settings.hasOpenRouterKey { keyDraft = ""; askForKey = true }
                         })) {
                         ForEach(settings.setups) { Text($0.title).tag($0) }
+                    }
+                }
+                SettingRow("Polish prompt", promptDetail, available: !settings.learned.versions(for: settings.setup.id).isEmpty) {
+                    Picker("Polish prompt", selection: Binding(
+                        get: { settings.setup.usesLearnedPrompt ? settings.setup.prompt : "" },
+                        set: { settings.learned.activate($0.isEmpty ? nil : $0, for: settings.setup.id) })) {
+                        Text("\(builtInPrompt) · built in").tag("")
+                        ForEach(settings.learned.versions(for: settings.setup.id)) { learned in
+                            Text("\(learned.summary) · \(Int(learned.score.mine.rounded()))%").tag(learned.version)
+                        }
                     }
                 }
                 SettingRow("Language", settings.setup.supportsLanguageChoice

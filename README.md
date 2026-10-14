@@ -25,6 +25,11 @@ cloud models can handle **English mixed into Chinese**, which the built-in macOS
 - **History and corrections.** Past dictations, grouped by day and searchable, kept only on your
   Mac. When a dictation comes out wrong, click the pencil and type what you meant. Corrections
   become a test set for comparing models and prompts.
+- **Learn from your corrections.** With ten corrections, one click tunes the cloud setups' polish
+  prompt from them: a strong model rewrites the prompt three ways, your own polish model runs each,
+  and the best becomes the next prompt version. The score you see is cross-validated (no
+  correction scores a prompt written from it), and a general test set guards against a prompt that
+  only learned your corrections. Each version is kept, with its scores, under Settings → Model.
 - **Insights.** Words dictated, time saved compared with typing, your speaking speed, and where a
   typical dictation's time goes (speaking, transcribing, polishing).
 - **Your clipboard is kept.** It's saved before each paste and restored about a second later.
@@ -89,6 +94,9 @@ asked too and the first answer is used (Settings → *Backup model when slow*).
   your history, stay in `~/Library/Application Support/DictationApp/`.
 - History is kept for as long as you choose (Settings → *Keep history*), and **Clear All…**
   deletes it.
+- Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted)
+  to the cloud models, like any cloud dictation. Learned prompts stay in
+  `~/Library/Application Support/DictationApp/learned-prompts.json`.
 
 ## Troubleshooting
 

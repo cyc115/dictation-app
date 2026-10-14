@@ -97,7 +97,7 @@ struct MainView: View {
                 selection.editing = id
                 selection.tab = .corrections
             }, suggester: .shared)
-            case .corrections: CorrectionsView(store: history, editing: selection.editing)
+            case .corrections: CorrectionsView(store: history, learn: .shared, editing: selection.editing)
                 .onDisappear { selection.editing = nil }
             case .settings: SettingsView(settings: .shared)
             }

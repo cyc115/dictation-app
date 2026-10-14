@@ -597,6 +597,32 @@ final class SnapshotTests: XCTestCase {
         addTeardownBlock { hosted.close() }
         assertSnapshot(of: hosted.hostingView, named: "corrections")
     }
+
+    /// The Learn tile at rest with a kept version: its scores on the rings, Learn ready for the new correction.
+    @MainActor func testLearnReady() {
+        let fx = LearnFixture(self, count: 3)
+        let ids = fx.history.corrections.map(\.id)
+        fx.store.keep(makeLearned(errors: [ids[0]: 0.0, ids[1]: 0.09], errorsBefore: [ids[0]: 0.25, ids[1]: 0.38]))
+        waitUntil { fx.settings.setup.prompt == "v5" }
+        for n in 4...10 {
+            fx.history.add(text: "Dictation \(n).", duration: 1, raw: "dictation \(n)", setup: "cloud-flash", prompt: "v5")
+            fx.history.setCorrection("Dictation number \(n).", for: fx.history.entries[0].id)
+        }
+        let hosted = fx.host(self, height: 620)
+        assertSnapshot(of: hosted.hostingView, named: "learn-ready")
+    }
+
+    /// After a tune: the candidates, the diff, the new scores, the fits and Keep.
+    @MainActor func testLearnDone() {
+        let fx = LearnFixture(self, right: [.rules: ["can you install cloud code 1", "can you install cloud code 2"],
+                                            .both: Set((1...10).map { "can you install cloud code \($0)" })])
+        let hosted = fx.host(self, height: 980)
+        fx.controller.learn()
+        waitUntil(timeout: 5) { fx.controller.gate == .done }
+        spinRunLoop(1.6)  // the rings and figures count up
+        hosted.settle()
+        assertSnapshot(of: hosted.hostingView, named: "learn-done")
+    }
 }
 
 /// The sidebar picks tabs by each row's `.tag`. A modifier after the tag (the Corrections badge)

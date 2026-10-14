@@ -87,6 +87,7 @@ bench/suite.py polish run -m apple -m openai/gpt-oss-120b@Groq \
     --prompt-file bench/polish_prompts/v3.txt -r 2                       # Apple (via the app) vs cloud
 bench/suite.py polish report --failures openai/gpt-oss-120b@Groq         # what one model got wrong
 bench/suite.py polish run -m setup:cloud-flash --cases-file bench/polish_cases_holdout.json   # held-out set
+bench/suite.py polish run -m setup:cloud-flash --corrections --prompt-file ~/Library/Application\ Support/DictationApp/prompts/v5.txt  # a learned prompt on your corrections
 ```
 
 - **Cases:** one main set, `polish_cases.json` (54), and one held-out set, `polish_cases_holdout.json`

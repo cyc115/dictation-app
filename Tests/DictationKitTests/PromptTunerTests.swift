@@ -44,12 +44,13 @@ final class PromptTunerTests: XCTestCase {
     /// A teacher that returns the current prompt tagged with its lens, and remembers what it was shown.
     final class FakeTeacher {
         var inputs: [(system: String, user: String)] = []
-        var answer: (Lens) -> String = { "<prompt>Clean it up. LENS:\($0.rawValue)</prompt>" }
+        /// The answer for a lens, given the teacher's user message (which holds the current prompt).
+        var answer: (Lens, String) -> String = { lens, _ in "<prompt>Clean it up. LENS:\(lens.rawValue)</prompt>" }
         let lock = NSLock()
         func call(_ system: String, _ user: String) async throws -> String {
             lock.lock(); inputs.append((system, user)); lock.unlock()
             let lens = Lens.allCases.first { user.hasSuffix($0.instruction) }!
-            return answer(lens)
+            return answer(lens, user)
         }
     }
 
@@ -161,13 +162,13 @@ final class PromptTunerTests: XCTestCase {
 
     func testATeacherAnswerWithoutAPromptFailsThatCandidateOnly() async throws {
         let teacher = FakeTeacher()
-        teacher.answer = { $0 == .rules ? "I can't help with that." : "<prompt>Clean it up. LENS:\($0.rawValue)</prompt>" }
+        teacher.answer = { lens, _ in lens == .rules ? "I can't help with that." : "<prompt>Clean it up. LENS:\(lens.rawValue)</prompt>" }
         let tuner = makeTuner(right: [.both: Set(cases.map(\.input)), .rules: Set(cases.map(\.input))], teacher: teacher)
         let result = try await tuner.tune(cases: cases, prompt: "P") { _ in }
         XCTAssertEqual(result.lensScores[.rules], result.mineBefore, "scored as the current prompt")
         XCTAssertEqual(result.lens, .both)
 
-        teacher.answer = { _ in "no tags here" }
+        teacher.answer = { _, _ in "no tags here" }
         do {
             _ = try await tuner.tune(cases: cases, prompt: "P") { _ in }
             XCTFail("no final prompt")

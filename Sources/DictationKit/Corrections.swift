@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// Which words of a dictation a correction changed, for highlighting.
@@ -66,17 +67,23 @@ final class CorrectionSuggester: ObservableObject {
 struct CorrectionsView: View {
     @ObservedObject var store: HistoryStore
     @ObservedObject var suggester: CorrectionSuggester = .shared
+    /// Learns the polish prompt from these corrections (`LearnView`); nil hides the tile.
+    var learn: LearnController?
     /// The correction to put the cursor in when the tab opens (the one just made from History).
     var editing: UUID?
     @State private var search = ""
     @FocusState private var focused: UUID?
+    /// Bumped as `learn` changes, so the cards' fits follow a tune (the controller is optional, so it can't be observed directly).
+    @State private var learnChanges = 0
 
     var body: some View {
+        let _ = learnChanges  // read here so a tune's progress re-renders the cards' fits
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Corrections").font(.largeTitle.bold())
                 Text("Teach the app the way you speak.").foregroundStyle(.secondary)
             }
+            if let learn { LearnView(controller: learn) }
             if shown.isEmpty {
                 Spacer()
                 Text(store.corrections.isEmpty
@@ -95,12 +102,14 @@ struct CorrectionsView: View {
                                 CorrectionCard(entry: entry, focused: $focused,
                                                suggesting: suggester.pending.contains(entry.id),
                                                suggestionError: suggester.failed[entry.id],
+                                               fit: learn?.fit(for: entry.id),
                                                onChange: { store.setCorrection($0, for: entry.id) },
                                                onDelete: { store.setCorrection("", for: entry.id) })
                                     .id(entry.id)
                             }
                         }
                     }
+                    .overlay { if let learn { SweepOverlay(trigger: learn.sweep) } }
                     .onAppear {
                         guard let editing else { return }
                         proxy.scrollTo(editing, anchor: .center)
@@ -119,6 +128,9 @@ struct CorrectionsView: View {
         }
         .padding(24)
         .searchable(text: $search, placement: .toolbar, prompt: "Search corrections")
+        .onReceive(learn?.objectWillChange.eraseToAnyPublisher() ?? Empty().eraseToAnyPublisher()) { _ in
+            DispatchQueue.main.async { learnChanges += 1 }
+        }
     }
 
     /// Corrections, plus the one you're typing in even while it's empty (emptied ones go when you leave them).
@@ -138,16 +150,19 @@ struct CorrectionCard: View {
     var focused: FocusState<UUID?>.Binding
     var suggesting = false
     var suggestionError: String?
+    /// How far off this dictation was before and after the learned prompt ("v4 38% off → v5 9% off").
+    var fit: LearnController.Fit?
     let onChange: (String) -> Void
     let onDelete: () -> Void
     @State private var draft: String
 
     init(entry: HistoryEntry, focused: FocusState<UUID?>.Binding, suggesting: Bool = false, suggestionError: String? = nil,
-         onChange: @escaping (String) -> Void, onDelete: @escaping () -> Void) {
+         fit: LearnController.Fit? = nil, onChange: @escaping (String) -> Void, onDelete: @escaping () -> Void) {
         self.entry = entry
         self.focused = focused
         self.suggesting = suggesting
         self.suggestionError = suggestionError
+        self.fit = fit
         self.onChange = onChange
         self.onDelete = onDelete
         _draft = State(initialValue: entry.correction ?? entry.text)
@@ -159,6 +174,23 @@ struct CorrectionCard: View {
                 Text(dates.string(entry.date, .dateTime.month(.abbreviated).day().hour().minute()))
                 if let about { Text(about).padding(.horizontal, 8).padding(.vertical, 1).background(.quaternary, in: Capsule()) }
                 Spacer()
+                if let fit {
+                    HStack(spacing: 5) {
+                        Text("\(fit.from) \(Int((fit.before * 100).rounded()))% off")
+                        Text("→").foregroundStyle(.tertiary)
+                        Text("\(fit.to) \(Int((fit.now * 100).rounded()))% off")
+                            .fontWeight(fit.learned ? .semibold : .medium)
+                            .foregroundStyle(fit.learned ? LearnView.good : .secondary)
+                        if fit.learned {
+                            Text("learned").font(.caption2.weight(.semibold)).foregroundStyle(LearnView.good)
+                                .padding(.horizontal, 6).padding(.vertical, 1).background(LearnView.good.opacity(0.16), in: Capsule())
+                        }
+                    }
+                    .monospacedDigit()
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("corrections.fit")
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 Button(action: onDelete) { Image(systemName: "trash") }
                     .buttonStyle(.borderless)
                     .help("Delete correction")
@@ -218,6 +250,7 @@ struct CorrectionCard: View {
         }
         .padding(12)
         .background(.background.secondary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+        .animation(.spring(duration: 0.5), value: fit)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("corrections.card")
     }
