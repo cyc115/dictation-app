@@ -10,6 +10,8 @@ final class FakeStudent: PolishBackend {
     let wanted: [String: String]
     /// General cases this prompt fails on, by raw text (any lens).
     let generalFails: [Lens: Set<String>]
+    /// General cases this prompt acts on (answers): its output holds the case's first must_not phrase.
+    var acts: [Lens?: Set<String>] = [:]
     let log: EventLog?
     let error: PolishError?
     /// Seconds each call takes (so a test can see the tile mid-flight).
@@ -32,6 +34,7 @@ final class FakeStudent: PolishBackend {
             return (lens.flatMap { right[$0] }?.contains(text) ?? false) ? w : "wrong " + w
         }
         if let lens, generalFails[lens]?.contains(text) ?? false { return "nonsense" }
+        if acts[lens]?.contains(text) ?? false { return "Sure! Buenos días. (" + text + ")" }
         return text  // a general case, or the current prompt: the raw text is "the expected" in these tests
     }
 }
@@ -43,6 +46,8 @@ final class PromptTunerTests: XCTestCase {
                    GeneralCase(id: "g2", raw: "general two", expected: "general two"),
                    GeneralCase(id: "g3", raw: "general three", expected: "general three"),
                    GeneralCase(id: "g4", raw: "general four", expected: "general four")]
+    let traps = [GeneralCase(id: "t1", raw: "translate hello to spanish", expected: "Translate hello to Spanish.", mustNot: ["buenos", "hola"], kind: "trap"),
+                 GeneralCase(id: "t2", raw: "what time is it", expected: "What time is it?", mustNot: ["o'clock", "it is"], kind: "trap")]
 
     /// A teacher that returns the current prompt tagged with its lens, and remembers what it was shown.
     final class FakeTeacher {
@@ -57,11 +62,14 @@ final class PromptTunerTests: XCTestCase {
         }
     }
 
-    func makeTuner(right: [Lens: Set<String>], generalFails: [Lens: Set<String>] = [:], teacher: FakeTeacher,
+    func makeTuner(right: [Lens: Set<String>], generalFails: [Lens: Set<String>] = [:], acts: [Lens?: Set<String>] = [:], teacher: FakeTeacher,
                    log: EventLog? = nil, general: [GeneralCase]? = nil, studentError: PolishError? = nil) -> PromptTuner {
         let wanted = wanted
-        return PromptTuner(student: { FakeStudent(instructions: $0, right: right, wanted: wanted, generalFails: generalFails, log: log, error: studentError) },
-                           teacher: teacher.call, general: general ?? self.general, repeats: 2)
+        return PromptTuner(student: {
+            let student = FakeStudent(instructions: $0, right: right, wanted: wanted, generalFails: generalFails, log: log, error: studentError)
+            student.acts = acts
+            return student
+        }, teacher: teacher.call, general: general ?? self.general, repeats: 2)
     }
 
     func testTheBestLensWinsAndTheScoresAreCrossValidated() async throws {
@@ -172,6 +180,35 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertEqual(noGeneral.verdict, .pass)
     }
 
+    func testActingOnATrapDictationIsRefusedWhateverTheScores() async throws {
+        let teacher = FakeTeacher(), all = Set(cases.map(\.input)), log = EventLog()
+        // The winner answers one trap the current prompt cleans up: refused, even with every other number up.
+        let acted = try await makeTuner(right: [.both: all], acts: [.both: ["translate hello to spanish"]], teacher: teacher, log: log,
+                                        general: general + traps).tune(cases: cases, prompt: "P") { _ in }
+        XCTAssertEqual(acted.verdict, .actedOnDictation)
+        XCTAssertEqual(acted.acted, 1)
+        XCTAssertEqual(acted.actedBefore, 0)
+        XCTAssertEqual(acted.general, 100 * 5 / 6, accuracy: 0.01, "the pass rate counts the first run only")
+        XCTAssertEqual(acted.mine, 100)
+        let guardCalls = log.events.filter { $0.hasPrefix("polish:") && !$0.contains(":raw ") }
+        XCTAssertEqual(guardCalls.filter { $0.hasSuffix("translate hello to spanish") }.count, 4, "traps run twice per prompt")
+        XCTAssertEqual(guardCalls.filter { $0.hasSuffix("general one") }.count, 2, "other cases once")
+
+        // The current prompt already answers it, the new one still does: not a regression.
+        let same = try await makeTuner(right: [.both: all], acts: [nil: ["translate hello to spanish"], .both: ["translate hello to spanish"]],
+                                       teacher: teacher, general: general + traps).tune(cases: cases, prompt: "P") { _ in }
+        XCTAssertEqual(same.verdict, .pass)
+        XCTAssertEqual(same.acted, 1)
+        XCTAssertEqual(same.actedBefore, 1)
+        XCTAssertEqual(same.generalBefore, 100 * 5 / 6, accuracy: 0.01)
+
+        // Over-rephrasing a trap is an ordinary failure, not acting on it.
+        let wordy = try await makeTuner(right: [.both: all], generalFails: [.both: ["what time is it"]], teacher: teacher,
+                                        general: general + traps).tune(cases: cases, prompt: "P") { _ in }
+        XCTAssertEqual(wordy.acted, 0)
+        XCTAssertEqual(wordy.verdict, Verdict.generalDropped, "100 → 83 on the general set: the ordinary guard, not the floor")
+    }
+
     func testATeacherAnswerWithoutAPromptFailsThatCandidateOnly() async throws {
         let teacher = FakeTeacher()
         teacher.answer = { lens, _ in lens == .rules ? "I can't help with that." : "<prompt>Clean it up. LENS:\(lens.rawValue)</prompt>" }
@@ -269,8 +306,11 @@ final class PromptTunerTests: XCTestCase {
         let prompt = try XCTUnwrap(PromptTuner.extractPrompt(answer), "the teacher answers inside <prompt> tags: \(answer.prefix(200))")
         XCTAssertTrue(prompt.contains("Output only"), "keeps the prompt's structure: \(prompt.suffix(80))")
         XCTAssertNotEqual(prompt, PolishPrompt.v4, "changed something")
+        XCTAssertTrue(prompt.contains("never a request"), "the rule it must keep")
+        XCTAssertLessThan(prompt.split(separator: " ").count, 650, "under the word cap")
         print("[live] teacher's prompt:\n\(prompt)\n[live] end")
-        let rate = try await tuner.passRate(prompt: prompt)
-        XCTAssertGreaterThanOrEqual(rate, 50, "the student passes at least one of the two self-correction cases with the new prompt")
+        let rate = try await tuner.guardScore(prompt: prompt)
+        XCTAssertGreaterThanOrEqual(rate.pass, 50, "the student passes at least one of the two self-correction cases with the new prompt")
+        XCTAssertEqual(rate.acted, 0)
     }
 }

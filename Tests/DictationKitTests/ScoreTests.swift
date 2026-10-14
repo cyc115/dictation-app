@@ -35,6 +35,9 @@ final class ScoreTests: XCTestCase {
         let cases = try XCTUnwrap(GeneralCase.loadAll(from: benchFolder))
         XCTAssertGreaterThan(cases.count, 50)
         for c in cases { XCTAssertTrue(PolishScore.check(c, output: c.expected).passed, c.id) }
+        let traps = cases.filter(\.isTrap)
+        XCTAssertGreaterThanOrEqual(traps.count, 10, "the kinds come through")
+        XCTAssertTrue(traps.allSatisfy { !$0.mustNot.isEmpty }, "every trap names the signs of acting on it")
         XCTAssertNil(GeneralCase.loadAll(from: URL(fileURLWithPath: "/nonexistent")))
     }
 }

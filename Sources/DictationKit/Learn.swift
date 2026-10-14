@@ -250,6 +250,9 @@ final class LearnController: ObservableObject {
         case .pass: return nil
         case .noImprovement: return "Not kept: your score didn't improve."
         case .generalDropped: return "Not kept: the general set dropped more than \(Int(PromptTuner.maxGeneralDrop)) points."
+        case .actedOnDictation:
+            return "Not kept: it answered or carried out \(result.acted) test dictation\(result.acted == 1 ? "" : "s") instead of cleaning "
+                + "\(result.acted == 1 ? "it" : "them") up (\(running?.setup.prompt ?? "before"): \(result.actedBefore)). A prompt must never act on what you dictate."
         }
     }
 }

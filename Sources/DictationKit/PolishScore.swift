@@ -95,12 +95,18 @@ struct GeneralCase: Codable, Equatable, Identifiable {
     var expected: String
     var must: [String] = []
     var mustNot: [String] = []
+    /// "trap", "correction", "term", "filler", "clean" (bench); "" when unknown.
+    var kind: String = ""
 
-    enum CodingKeys: String, CodingKey { case id, raw, expected, must, mustNot = "must_not" }
+    enum CodingKeys: String, CodingKey { case id, raw, expected, must, mustNot = "must_not", kind }
 
-    init(id: String, raw: String, expected: String, must: [String] = [], mustNot: [String] = []) {
-        self.id = id; self.raw = raw; self.expected = expected; self.must = must; self.mustNot = mustNot
+    init(id: String, raw: String, expected: String, must: [String] = [], mustNot: [String] = [], kind: String = "") {
+        self.id = id; self.raw = raw; self.expected = expected; self.must = must; self.mustNot = mustNot; self.kind = kind
     }
+
+    /// A dictation that asks a question or gives an instruction: a polish model must clean it up, not
+    /// carry it out. Its `must_not` phrases are the signs it did.
+    var isTrap: Bool { kind == "trap" }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -109,6 +115,7 @@ struct GeneralCase: Codable, Equatable, Identifiable {
         expected = try c.decode(String.self, forKey: .expected)
         must = try c.decodeIfPresent([String].self, forKey: .must) ?? []
         mustNot = try c.decodeIfPresent([String].self, forKey: .mustNot) ?? []
+        kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? ""
     }
 
     /// The cases in a bench file (`{"cases": [...]}`).
