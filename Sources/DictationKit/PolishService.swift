@@ -134,12 +134,15 @@ struct OpenRouterPolish: PolishBackend {
     /// Only these OpenRouter providers, in order, comma-separated ("Together,DeepInfra": the second
     /// if the first fails); nil lets OpenRouter route.
     var provider: String?
+    /// The request's "reasoning" field; nil is the cleanup rule below (off, or minimal). The prompt
+    /// tuner's teacher model sets it high.
+    var reasoning: [String: Any]?
 
     var name: String { ModelSpec.openRouter(id: model, providers: provider).description }
 
     func polish(_ text: String) async throws -> String {
         let request = Self.request(model: model, apiKey: apiKey, text: PolishService.userMessage(text, wrap: wrap),
-                                   instructions: instructions, provider: provider)
+                                   instructions: instructions, provider: provider, reasoning: reasoning)
         let (data, response) = try await session.data(for: request)
         return try Self.parse(data: data, status: (response as? HTTPURLResponse)?.statusCode ?? 0).get()
     }
@@ -152,10 +155,10 @@ struct OpenRouterPolish: PolishBackend {
     }
 
     static func request(model: String, apiKey: String, text: String,
-                        instructions: String, provider: String? = nil) -> URLRequest {
+                        instructions: String, provider: String? = nil, reasoning: [String: Any]? = nil) -> URLRequest {
         var request = OpenRouter.request(endpoint, apiKey: apiKey)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        var body: [String: Any] = ["model": model, "temperature": 0, "reasoning": reasoning(for: model), "messages": [
+        var body: [String: Any] = ["model": model, "temperature": 0, "reasoning": reasoning ?? Self.reasoning(for: model), "messages": [
             ["role": "system", "content": instructions],
             ["role": "user", "content": text],
         ]]
