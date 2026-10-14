@@ -87,9 +87,12 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertEqual(phases.first, .reading)
         XCTAssertEqual(phases.last, .done)
         XCTAssertTrue(phases.contains(.writing) && phases.contains(.checking))
-        let folds = phases.compactMap { if case .racing(let f, let of, _) = $0 { return (f, of) } else { return nil } }
-        XCTAssertEqual(folds.map(\.0), [1, 2, 3, 4, 5, 5], "five folds, then the final scores")
-        XCTAssertTrue(folds.allSatisfy { $0.1 == 5 })
+        let racing = phases.compactMap { if case .racing(let p) = $0 { return p } else { return nil } }
+        XCTAssertEqual(racing.first?.values.map(\.scored), [0, 0, 0], "the race starts with nothing scored")
+        XCTAssertTrue(racing.contains { $0.values.contains { $0.writing } }, "the teacher is seen writing")
+        XCTAssertEqual(racing.last?[.both], LensProgress(scored: 10, of: 10, writing: false, score: 100))
+        XCTAssertEqual(racing.last?[.examples]?.score, result.lensScores[.examples])
+        XCTAssertEqual(racing.count, 1 + 2 * 15 + 30, "one report per teacher start and finish, and per scored correction")
         XCTAssertEqual(teacher.inputs.count, 5 * 3 + 1, "three candidates per fold, then the final prompt")
     }
 
@@ -105,16 +108,20 @@ final class PromptTunerTests: XCTestCase {
         }
         let heldOutByFold = Dictionary(grouping: result.trace, by: \.fold).mapValues { Set($0.flatMap(\.heldOut)) }
         XCTAssertEqual(Set(heldOutByFold.values.flatMap { $0 }).count, 10, "each case is held out exactly once")
-        // The teacher's messages hold the training cases' wanted text and never a held-out one's.
-        for (i, input) in teacher.inputs.prefix(15).enumerated() {
-            let t = result.trace[i]
-            for c in cases {
-                XCTAssertEqual(input.user.contains("Wanted:\n\(c.wanted)\n"), t.shown.contains(c.id), "fold \(t.fold) \(t.lens): \(c.wanted)")
-            }
-            XCTAssertTrue(input.user.contains("Model wrote:\nwrong wanted"), "shows what the current prompt wrote")
+        // The teacher's messages hold the training cases' wanted text and never a held-out one's
+        // (the folds run at once, so match each message to its fold by what it shows).
+        XCTAssertEqual(teacher.inputs.count, 16)
+        var finals = 0
+        for input in teacher.inputs {
             XCTAssertEqual(input.system, PromptTuner.teacherSystem)
+            XCTAssertTrue(input.user.contains("Model wrote:\nwrong wanted"), "shows what the current prompt wrote")
+            let shown = Set(cases.filter { input.user.contains("Wanted:\n\($0.wanted)\n") }.map(\.id))
+            if shown.count == cases.count { finals += 1; continue }
+            let fold = result.trace.first { Set($0.shown) == shown }
+            XCTAssertNotNil(fold, "a fold's training set")
+            XCTAssertTrue(Set(fold?.heldOut ?? []).isDisjoint(with: shown))
         }
-        XCTAssertTrue(teacher.inputs[15].user.contains("Wanted:\n\(cases[0].wanted)\n"), "the final prompt is written from every correction")
+        XCTAssertEqual(finals, 1, "the final prompt is written from every correction")
     }
 
     func testLearnedCorrectionsAreScoredButNotShownToTheTeacher() async throws {

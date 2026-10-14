@@ -37,11 +37,21 @@ enum Lens: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+/// How far one lens's candidates are: scored corrections so far (each fold's candidate scores its
+/// held-out ones as soon as the teacher has written it), and whether a teacher is still writing one.
+struct LensProgress: Equatable {
+    var scored = 0
+    var of: Int
+    var writing = false
+    /// 100 × (1 − mean error) over the corrections scored so far; nil before any.
+    var score: Double?
+}
+
 /// Where a tune is, for the Learn tile.
 enum TunePhase: Equatable {
     case reading
-    /// Fold `fold` of `of` running; each lens's score over the cases held out so far.
-    case racing(fold: Int, of: Int, scores: [Lens: Double])
+    /// Every fold's candidates being written and scored at once, per lens.
+    case racing([Lens: LensProgress])
     case writing
     case checking
     case done
@@ -125,17 +135,20 @@ final class PromptTuner {
     let folds: Int
     let repeats: Int
     let seed: UInt64
-    let concurrency: Int
+    /// Student calls in flight at most, over everything running; and teacher calls.
+    private let students: Limiter
+    private let teachers: Limiter
 
     init(student: @escaping Student, teacher: @escaping Teacher, general: [GeneralCase],
-         folds: Int = 5, repeats: Int = 2, seed: UInt64 = 1, concurrency: Int = 6) {
+         folds: Int = 5, repeats: Int = 2, seed: UInt64 = 1, concurrency: Int = 6, teacherConcurrency: Int = 5) {
         self.student = student
         self.teacher = teacher
         self.general = general
         self.folds = folds
         self.repeats = repeats
         self.seed = seed
-        self.concurrency = concurrency
+        students = Limiter(concurrency)
+        teachers = Limiter(teacherConcurrency)
     }
 
     func tune(cases: [TuneCase], prompt: String, progress: @escaping (TunePhase) -> Void) async throws -> TuneResult {
@@ -146,34 +159,40 @@ final class PromptTuner {
         // Baseline: the current prompt on every correction (its outputs are what the teacher is shown).
         let baseline = try await errors(prompt: prompt, cases: cases)
         let folded = Self.fold(cases, into: min(folds, teachable.count), seed: seed)
+
+        // Every fold's three candidates at once: the teacher calls are the slow part (tens of
+        // seconds each), so waiting for them fold by fold took minutes. The race reports a step
+        // per scored correction, so the tile moves the whole time.
+        let race = Race(of: cases.count, report: progress)
+        race.report()
         var lensErrors: [Lens: [UUID: Double]] = [:]
         var trace: [TuneTrace] = []
-        for (f, heldOut) in folded.enumerated() {
-            try Task.checkCancellation()
-            progress(.racing(fold: f + 1, of: folded.count, scores: Self.scores(lensErrors)))
-            let shown = cases.filter { c in !c.learned && !heldOut.contains { $0.id == c.id } }
-            let candidates = try await withThrowingTaskGroup(of: (Lens, String?).self) { group -> [Lens: String?] in
+        try await withThrowingTaskGroup(of: (Lens, [UUID: Double], TuneTrace).self) { group in
+            for (f, heldOut) in folded.enumerated() {
+                let shown = cases.filter { c in !c.learned && !heldOut.contains { $0.id == c.id } }
                 for lens in Lens.allCases {
-                    group.addTask { (lens, try await self.candidate(prompt: prompt, lens: lens, examples: shown, baseline: baseline)) }
+                    group.addTask {
+                        race.writing(lens, +1)
+                        let text = try await self.candidate(prompt: prompt, lens: lens, examples: shown, baseline: baseline)
+                        race.writing(lens, -1)
+                        let scored: [UUID: Double]
+                        if let text {
+                            scored = try await self.errors(prompt: text, cases: heldOut) { race.scored(lens, $1) }.mapValues(\.error)
+                        } else {  // a failed candidate scores as the current prompt
+                            scored = Dictionary(uniqueKeysWithValues: heldOut.map { ($0.id, baseline[$0.id]!.error) })
+                            for error in scored.values { race.scored(lens, error) }
+                        }
+                        return (lens, scored, TuneTrace(fold: f + 1, lens: lens, shown: shown.map(\.id), heldOut: heldOut.map(\.id)))
+                    }
                 }
-                var found: [Lens: String?] = [:]
-                for try await (lens, text) in group { found[lens] = text }
-                return found
             }
-            for lens in Lens.allCases {
-                let scored: [UUID: Double]
-                if let text = candidates[lens] ?? nil {
-                    scored = try await errors(prompt: text, cases: heldOut).mapValues(\.error)
-                } else {
-                    scored = Dictionary(uniqueKeysWithValues: heldOut.map { ($0.id, baseline[$0.id]!.error) })  // a failed candidate scores as the current prompt
-                }
+            for try await (lens, scored, t) in group {
                 lensErrors[lens, default: [:]].merge(scored) { _, new in new }
-                trace.append(TuneTrace(fold: f + 1, lens: lens, shown: shown.map(\.id), heldOut: heldOut.map(\.id)))
+                trace.append(t)
             }
         }
         let scores = Self.scores(lensErrors)
         let winner = Lens.allCases.max { scores[$0]! < scores[$1]! }!
-        progress(.racing(fold: folded.count, of: folded.count, scores: scores))
 
         try Task.checkCancellation()
         progress(.writing)
@@ -194,7 +213,41 @@ final class PromptTuner {
         return TuneResult(prompt: final, lens: winner, mine: mine, mineBefore: mineBefore,
                           general: generalNow, generalBefore: generalBefore,
                           errors: lensErrors[winner]!, errorsBefore: baseline.mapValues(\.error),
-                          lensScores: scores, tokens: Self.tokenEstimate(final), verdict: verdict, trace: trace)
+                          lensScores: scores, tokens: Self.tokenEstimate(final), verdict: verdict,
+                          trace: trace.sorted { ($0.fold, $0.lens.rawValue) < ($1.fold, $1.lens.rawValue) })
+    }
+
+    /// The race's running state, reported as one `.racing` phase after every change (serialized).
+    private final class Race {
+        private var progress: [Lens: LensProgress]
+        private var sums: [Lens: Double] = [:]
+        private var writers: [Lens: Int] = [:]
+        private let send: (TunePhase) -> Void
+        private let lock = NSLock()
+
+        init(of: Int, report: @escaping (TunePhase) -> Void) {
+            progress = Dictionary(uniqueKeysWithValues: Lens.allCases.map { ($0, LensProgress(of: of)) })
+            send = report
+        }
+
+        func report() { lock.lock(); send(.racing(progress)); lock.unlock() }
+
+        func writing(_ lens: Lens, _ delta: Int) {
+            lock.lock()
+            writers[lens, default: 0] += delta
+            progress[lens]!.writing = writers[lens]! > 0
+            send(.racing(progress))
+            lock.unlock()
+        }
+
+        func scored(_ lens: Lens, _ error: Double) {
+            lock.lock()
+            sums[lens, default: 0] += error
+            progress[lens]!.scored += 1
+            progress[lens]!.score = 100 * (1 - sums[lens]! / Double(progress[lens]!.scored))
+            send(.racing(progress))
+            lock.unlock()
+        }
     }
 
     // MARK: Folds and scores
@@ -232,20 +285,32 @@ final class PromptTuner {
     }
 
     /// Each case polished `repeats` times with `prompt`; the mean error, and the first output.
-    func errors(prompt: String, cases: [TuneCase]) async throws -> [UUID: Scored] {
+    /// `onCase` is called as each case's mean is in.
+    func errors(prompt: String, cases: [TuneCase], onCase: ((UUID, Double) -> Void)? = nil) async throws -> [UUID: Scored] {
         let backend = student(prompt)
         let jobs = cases.flatMap { c in (0..<repeats).map { (c, $0) } }
-        let results = try await Self.run(jobs, concurrency: concurrency) { (c, _) -> (UUID, Double, String) in
-            let output: String
-            do { output = try await backend.polish(c.input) } catch { throw TuneError.student(error.localizedDescription) }
-            return (c.id, PolishScore.errorRate(reference: c.wanted, hypothesis: output), output)
-        }
+        let lock = NSLock()
         var scored: [UUID: Scored] = [:], counts: [UUID: Int] = [:]
-        for (id, error, output) in results {
-            scored[id, default: Scored(error: 0, output: output)].error += error
-            counts[id, default: 0] += 1
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for (c, _) in jobs {
+                group.addTask {
+                    let output = try await self.students.run {
+                        do { return try await backend.polish(c.input) } catch { throw TuneError.student(error.localizedDescription) }
+                    }
+                    let error = PolishScore.errorRate(reference: c.wanted, hypothesis: output)
+                    let (done, mean): (Bool, Double) = {
+                        lock.lock(); defer { lock.unlock() }
+                        scored[c.id, default: Scored(error: 0, output: output)].error += error
+                        counts[c.id, default: 0] += 1
+                        let done = counts[c.id] == self.repeats
+                        if done { scored[c.id]!.error /= Double(self.repeats) }
+                        return (done, scored[c.id]!.error)
+                    }()
+                    if done { onCase?(c.id, mean) }
+                }
+            }
+            try await group.waitForAll()
         }
-        for (id, n) in counts { scored[id]!.error /= Double(n) }
         return scored
     }
 
@@ -253,27 +318,20 @@ final class PromptTuner {
     func passRate(prompt: String) async throws -> Double {
         guard !general.isEmpty else { return 100 }
         let backend = student(prompt)
-        let passed = try await Self.run(general, concurrency: concurrency) { c -> Bool in
-            let output: String
-            do { output = try await backend.polish(c.raw) } catch { throw TuneError.student(error.localizedDescription) }
-            return PolishScore.check(c, output: output).passed
-        }
-        return 100 * Double(passed.filter { $0 }.count) / Double(general.count)
-    }
-
-    /// `work` on every job, at most `concurrency` at a time; results in job order.
-    static func run<Job, Out>(_ jobs: [Job], concurrency: Int, _ work: @escaping (Job) async throws -> Out) async throws -> [Out] {
-        try await withThrowingTaskGroup(of: (Int, Out).self) { group in
-            var next = 0
-            func add() { let i = next; next += 1; group.addTask { (i, try await work(jobs[i])) } }
-            while next < min(concurrency, jobs.count) { add() }
-            var out = [Out?](repeating: nil, count: jobs.count)
-            for try await (i, result) in group {
-                out[i] = result
-                if next < jobs.count { add() }
+        let passed = try await withThrowingTaskGroup(of: Bool.self) { group in
+            for c in general {
+                group.addTask {
+                    let output = try await self.students.run {
+                        do { return try await backend.polish(c.raw) } catch { throw TuneError.student(error.localizedDescription) }
+                    }
+                    return PolishScore.check(c, output: output).passed
+                }
             }
-            return out.map { $0! }
+            var n = 0
+            for try await ok in group where ok { n += 1 }
+            return n
         }
+        return 100 * Double(passed) / Double(general.count)
     }
 
     // MARK: Teacher
@@ -311,10 +369,34 @@ final class PromptTuner {
 
     private func candidate(prompt: String, lens: Lens, examples: [TuneCase], baseline: [UUID: Scored]) async throws -> String? {
         let shown = examples.map { (input: $0.input, wrote: baseline[$0.id]?.output ?? "", wanted: $0.wanted) }
-        let answer: String
-        do { answer = try await teacher(Self.teacherSystem, Self.teacherMessage(prompt: prompt, lens: lens, examples: shown)) }
-        catch { throw TuneError.teacher(error.localizedDescription) }
+        let message = Self.teacherMessage(prompt: prompt, lens: lens, examples: shown)
+        let answer = try await teachers.run {
+            do { return try await self.teacher(Self.teacherSystem, message) } catch { throw TuneError.teacher(error.localizedDescription) }
+        }
         return Self.extractPrompt(answer)
+    }
+}
+
+/// At most `limit` pieces of work at once; the rest wait their turn.
+actor Limiter {
+    private let limit: Int
+    private var active = 0
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    init(_ limit: Int) { self.limit = max(1, limit) }
+
+    private func acquire() async {
+        if active < limit { active += 1; return }
+        await withCheckedContinuation { waiting.append($0) }  // resumed with the slot already counted
+    }
+
+    private func release() {
+        if waiting.isEmpty { active -= 1 } else { waiting.removeFirst().resume() }
+    }
+
+    nonisolated func run<T: Sendable>(_ work: @Sendable () async throws -> T) async throws -> T {
+        await acquire()
+        do { let result = try await work(); await release(); return result } catch { await release(); throw error }
     }
 }
 

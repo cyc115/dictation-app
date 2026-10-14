@@ -50,6 +50,10 @@ final class LearnController: ObservableObject {
     @Published private(set) var notice: String?
     /// Goes up when a tune starts reading the corrections (the cards' sweep follows it).
     @Published private(set) var sweep = 0
+    /// Seconds since the tune started (the status line's stopwatch).
+    @Published private(set) var elapsed = 0
+    private var started = Date()
+    private var clock: Timer?
     /// What the running tune was started with.
     private var running: (setup: DictationSetup, cases: [TuneCase])?
     private var task: Task<Void, Never>?
@@ -118,7 +122,13 @@ final class LearnController: ObservableObject {
         error = nil; result = nil; notice = nil
         phase = .reading
         sweep += 1
+        started = now(); elapsed = 0
+        clock?.invalidate()
+        clock = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in guard let self else { return }; self.elapsed = Int(self.now().timeIntervalSince(self.started)) }
+        }
         task = Task { @MainActor [weak self] in
+            defer { self?.clock?.invalidate(); self?.clock = nil }
             do {
                 let result = try await tuner.tune(cases: cases, prompt: setup.promptText) { phase in
                     Task { @MainActor in self?.phase = phase }
@@ -165,7 +175,9 @@ final class LearnController: ObservableObject {
         guard let phase, let running else { return nil }
         switch phase {
         case .reading: return "Reading your \(running.cases.count) corrections"
-        case .racing(let fold, let of, _): return "Trying \(Lens.allCases.count) prompts on \(running.setup.title) · fold \(fold) of \(of)"
+        case .racing(let progress):
+            let scored = progress.values.map(\.scored).reduce(0, +), of = progress.values.map(\.of).reduce(0, +)
+            return "Trying \(Lens.allCases.count) prompts on \(running.setup.title) · \(scored) of \(of) scored · \(elapsed) s"
         case .writing: return "Writing the prompt from every correction"
         case .checking: return "Checking it on the general test set"
         case .done:
@@ -283,14 +295,17 @@ struct LearnView: View {
     }
 
     private func candidates(_ phase: TunePhase) -> some View {
-        let (fold, of, scores): (Int, Int, [Lens: Double]) = {
-            if case .racing(let f, let of, let s) = phase { return (f, of, s) }
-            return (1, 1, controller.result?.lensScores ?? [:])
-        }()
         let winner = controller.result?.lens
         return VStack(spacing: 8) {
             ForEach(Lens.allCases) { lens in
-                CandidateRow(lens: lens, score: scores[lens], progress: Double(fold - (scores.isEmpty ? 1 : 0)) / Double(of),
+                let row: (score: Double?, progress: Double, writing: Bool, stage: String?) = {
+                    if case .racing(let all) = phase, let p = all[lens] {
+                        return (p.score, Double(p.scored) / Double(max(1, p.of)), p.writing,
+                                p.scored == p.of ? nil : p.scored == 0 ? "writing…" : "scoring \(p.scored) of \(p.of)")
+                    }
+                    return (controller.result?.lensScores[lens], 1, false, nil)
+                }()
+                CandidateRow(lens: lens, score: row.score, progress: row.progress, writing: row.writing, stage: row.stage,
                              state: winner == nil ? .running : winner == lens ? .won : .lost)
             }
         }
@@ -341,9 +356,7 @@ struct LearnView: View {
     private func resultRow(_ result: TuneResult) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                (Text("Prompt \(controller.nextVersion)").bold()
-                 + Text(" · learned from \(result.errors.count) corrections · \(dates.string(controller.now(), .dateTime.month(.abbreviated).day())) · ~\(result.tokens) tokens")
-                    .foregroundStyle(.secondary))
+                Text("**Prompt \(controller.nextVersion)** · learned from \(result.errors.count) corrections · \(dates.string(controller.now(), .dateTime.month(.abbreviated).day())) · ~\(result.tokens) tokens")
                     .font(.callout)
                 if let verdict = controller.verdictText {
                     Text(verdict).font(.caption).foregroundStyle(Color(nsColor: .systemOrange))
@@ -460,13 +473,18 @@ struct LearnButton: View {
     }
 }
 
-/// One candidate prompt in the race: name, lens, score so far, a bar that fills a fold at a time.
+/// One candidate prompt in the race: name, lens, score so far, a bar that fills a correction at a
+/// time, with a highlight running along the unfilled part while a teacher is still writing.
 struct CandidateRow: View {
     enum State { case running, won, lost }
     let lens: Lens
     let score: Double?
     let progress: Double
+    var writing = false
+    /// "writing…", "scoring 7 of 15".
+    var stage: String?
     let state: State
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 5) {
@@ -477,6 +495,10 @@ struct CandidateRow: View {
                         .padding(.horizontal, 6).padding(.vertical, 1).background(LearnView.good.opacity(0.16), in: Capsule())
                 }
                 Spacer()
+                if let stage {
+                    Text(stage).font(.caption).foregroundStyle(.tertiary).monospacedDigit()
+                        .transition(.opacity)
+                }
                 Text(score.map { "\(Int($0.rounded()))%" } ?? "—")
                     .font(.callout.weight(state == .won ? .semibold : .regular))
                     .foregroundStyle(state == .won ? LearnView.good : .secondary)
@@ -484,13 +506,26 @@ struct CandidateRow: View {
                     .monospacedDigit()
             }
             GeometryReader { geo in
+                let filled = geo.size.width * min(1, max(0, progress))
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.primary.opacity(0.1))
+                    if writing && !reduceMotion {
+                        // A highlight sweeping the unfilled part, once every 1.4 s.
+                        TimelineView(.animation) { context in
+                            let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4
+                            let span = geo.size.width - filled, width: CGFloat = 90
+                            Capsule()
+                                .fill(LinearGradient(colors: [.clear, Color(nsColor: .systemBlue).opacity(0.55), .clear], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: width)
+                                .offset(x: filled - width + (span + width) * t)
+                        }
+                        .mask(Capsule())
+                    }
                     Capsule()
                         .fill(state == .won ? AnyShapeStyle(LearnView.good)
                               : AnyShapeStyle(LinearGradient(colors: LearnView.learning, startPoint: .leading, endPoint: .trailing)))
-                        .frame(width: geo.size.width * min(1, max(0, progress)))
-                        .animation(.spring(duration: 0.5), value: progress)
+                        .frame(width: filled)
+                        .animation(.spring(duration: 0.35), value: progress)
                 }
             }
             .frame(height: 3)
@@ -499,7 +534,7 @@ struct CandidateRow: View {
         .background(.background, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         .opacity(state == .lost ? 0.35 : 1)
         .accessibilityElement(children: .combine)
-        .accessibilityValue(score.map { "\(Int($0.rounded()))%" } ?? "running")
+        .accessibilityValue((score.map { "\(Int($0.rounded()))%" } ?? "running") + (stage.map { " · \($0)" } ?? ""))
         .accessibilityIdentifier("learn.candidate." + lens.rawValue)
     }
 }
