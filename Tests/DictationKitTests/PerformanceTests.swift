@@ -75,6 +75,16 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// Scores every correction several times per tune (PromptTuner), off the main thread; a long
+    /// dictation is ~300 tokens (the distance is O(n·m)).
+    func testScoreLongCorrection() {
+        let wanted = Array(repeating: "今天我们 shipped the new 设置 page and it works fine", count: 36).joined(separator: " ")
+        let got = wanted.replacingOccurrences(of: "shipped", with: "shift").replacingOccurrences(of: "设置", with: "设")
+        assertFaster(than: 0.1, iterations: 3, "error rate of a 500-token correction") {
+            XCTAssertGreaterThan(PolishScore.errorRate(reference: wanted, hypothesis: got), 0.1)
+        }
+    }
+
     /// Saved after every dictation and loaded at launch.
     func testHistoryWithFiveThousandEntries() throws {
         let url = makeTempURL(self), defaults = makeDefaults(self)

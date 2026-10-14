@@ -282,3 +282,15 @@ def test_failures_of_a_result_from_before_the_merge_still_find_their_cases():
               "trials": [{"model": "m", "warmup": False, "case": "hard-en-term-claude-code", "text": "x",
                           "check": {"passed": False, "missing": ["Claude Code"], "kept": [], "error": 1.0}}]}
     assert "hard-en-term-claude-code" in polish.failures_text(result, "m")
+
+
+def test_scores_match_the_app():
+    """The app scores corrections (PolishScore in Swift) exactly as the bench does; both assert bench/score_fixture.json."""
+    rows = json.loads((polish.CASES.parent / "score_fixture.json").read_text())["rows"]
+    assert len(rows) >= 12
+    for row in rows:
+        assert round(polish.error_rate(row["reference"], row["hypothesis"]), 3) == row["error"], row
+        if "tokens" in row:
+            assert polish.tokens(row["reference"]) == row["tokens"], row
+        case = {"expected": row["reference"], "must": row["must"], "must_not": row["must_not"]}
+        assert polish.check(case, row["hypothesis"])["passed"] == row["passed"], row
