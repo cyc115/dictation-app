@@ -62,6 +62,7 @@ PLIST="$APP/Contents/Info.plist"
 echo "    version $VERSION ($COMMIT)"
 mkdir -p "$APP/Contents/Resources"
 cp Assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"   # regenerate: swift scripts/make-icon.swift
+cp bench/polish_cases.json bench/polish_cases_holdout.json "$APP/Contents/Resources/"   # the guard when learning a prompt
 chmod +x "$APP/Contents/MacOS/DictationApp"
 
 echo "==> Signing with stable local identity…"

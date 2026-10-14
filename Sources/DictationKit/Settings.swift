@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import ServiceManagement
 import SwiftUI
 
@@ -148,8 +149,12 @@ final class AppSettings: ObservableObject {
     @Published var setup: DictationSetup {
         didSet { defaults.set(setup.id, forKey: Self.setupKey); onChange?() }
     }
-    /// The built-in setups, then the valid ones in `customSetupsFile`.
+    /// The built-in setups, then the valid ones in `customSetupsFile`, each with its active learned
+    /// prompt (`learned`) applied.
     @Published private(set) var setups: [DictationSetup] = DictationSetup.builtIns
+    /// Prompts learned from your corrections; a kept or re-chosen one shows up in `setups` at once.
+    let learned: LearnedPromptStore
+    private var learnedChanges: AnyCancellable?
     /// What's wrong in `customSetupsFile`, if anything.
     @Published private(set) var setupsError: String?
     let customSetupsFile: URL
@@ -193,23 +198,26 @@ final class AppSettings: ObservableObject {
     @Published private(set) var loginItemNeedsApproval = false
 
     init(defaults: UserDefaults = .standard, secrets: SecretStore = FileSecretStore(),
-         customSetupsFile: URL = DictationSetup.customFile) {
+         customSetupsFile: URL = DictationSetup.customFile, learned: LearnedPromptStore = .shared) {
         self.defaults = defaults
         self.secrets = secrets
         self.customSetupsFile = customSetupsFile
+        self.learned = learned
         setup = .onDevice
         excludedApps = defaults.data(forKey: Self.excludedAppsKey)
             .flatMap { try? JSONDecoder().decode([ExcludedApp].self, from: $0) } ?? []
         let saved = defaults.string(forKey: Self.setupKey).map(DictationSetup.currentID)
         reloadSetups(selecting: saved)
         refreshLoginItem()
+        // objectWillChange fires before the store changes; the setups are re-read once it has.
+        learnedChanges = learned.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.reloadSetups() } }
     }
 
     /// Re-reads `customSetupsFile` (Settings calls this when it opens, so edits show up). The chosen
     /// setup picks up its edits; if it's gone, On-device is chosen.
     func reloadSetups(selecting id: String? = nil) {
         let custom = DictationSetup.loadCustom(from: customSetupsFile)
-        setups = DictationSetup.builtIns + custom.setups
+        setups = (DictationSetup.builtIns + custom.setups).map(learned.apply(to:))
         setupsError = custom.error
         let wanted = id ?? setup.id
         let chosen = setups.first { $0.id == wanted } ?? .onDevice

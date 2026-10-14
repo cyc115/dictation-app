@@ -294,3 +294,15 @@ def test_scores_match_the_app():
             assert polish.tokens(row["reference"]) == row["tokens"], row
         case = {"expected": row["reference"], "must": row["must"], "must_not": row["must_not"]}
         assert polish.check(case, row["hypothesis"])["passed"] == row["passed"], row
+
+
+def test_prompt_text_reads_learned_versions(tmp_path):
+    learned = tmp_path / "learned-prompts.json"
+    learned.write_text(json.dumps({"active": {"cloud-flash": "v5"},
+                                   "prompts": [{"version": "v5", "setup": "cloud-flash", "text": "Learned prompt.\n"}]}))
+    assert polish.prompt_text("v5", learned) == "Learned prompt."
+    assert polish.prompt_text("v4", learned) == polish.swift_string("v4"), "built-ins first"
+    with pytest.raises(SystemExit, match="unknown prompt v9"):
+        polish.prompt_text("v9", learned)
+    with pytest.raises(SystemExit):
+        polish.prompt_text("v9", tmp_path / "missing.json")

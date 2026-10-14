@@ -150,10 +150,17 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     /// Cloud polish only: seconds before you get the raw transcript instead of waiting for polish.
     /// Default 6: with a backup, the slowest polish in bench/suite.py latency was 2.7 s (7.1 s without).
     let polishDeadline: TimeInterval
-    /// A `PolishPrompt` version or a prompt file path.
-    let prompt: String
+    /// A `PolishPrompt` version or a prompt file path; a learned version ("v5") once
+    /// `LearnedPromptStore.apply(to:)` has set one.
+    var prompt: String
     /// Send the transcript inside <transcript> tags (default on).
     let wrap: Bool
+    /// The learned prompt's text, when `prompt` names one (not in the JSON: it comes from the store).
+    var learnedText: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, summary, speech, backup, backupWait, backupNote, polish, polishBackup, polishBackupWait, polishDeadline, prompt, wrap
+    }
 
     /// Setups come from JSON (`builtInJSON`, `customFile`); missing optional fields get their defaults here.
     init(from decoder: Decoder) throws {
@@ -186,7 +193,9 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     /// Speech or polish goes to the cloud, so the cloud API key is needed.
     var usesCloud: Bool { isCloud || !polishesOnDevice }
 
-    var promptText: String { (try? PolishPrompt.text(for: prompt)) ?? PolishPrompt.v1 }
+    var promptText: String { learnedText ?? (try? PolishPrompt.text(for: prompt)) ?? PolishPrompt.v1 }
+    /// A prompt the app learned from your corrections is in use.
+    var usesLearnedPrompt: Bool { learnedText != nil }
 
     /// Settings help for "Backup model when slow"; nil when this setup has no backup.
     var backupHelp: String? {

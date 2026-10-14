@@ -52,6 +52,7 @@ CASES = harness.ROOT / "polish_cases.json"
 SWIFT = harness.ROOT.parent / "Sources/DictationKit/Setups.swift"
 CUSTOM_SETUPS = Path.home() / "Library/Application Support/DictationApp/setups.json"
 HISTORY = Path.home() / "Library/Application Support/DictationApp/history.json"  # your Corrections
+LEARNED = HISTORY.parent / "learned-prompts.json"  # prompts the app learned from them (Corrections → Learn)
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MAX_ERROR = 0.25  # words off from the expected text, as a share of its words
 # Lowest reasoning settings to try, in order, for models that can't turn it off.
@@ -71,10 +72,17 @@ def swift_string(name: str, swift: Path = SWIFT) -> str:
     return "".join(line[:-1] if line.endswith("\\") else line + "\n" for line in lines).strip()
 
 
-def prompt_text(ref: str) -> str:
-    """A prompt version ("v3", PolishPrompt in Setups.swift) or a prompt file, as DictationSetup reads it."""
+def prompt_text(ref: str, learned: Path = LEARNED) -> str:
+    """A prompt version ("v3", PolishPrompt in Setups.swift; "v5", learned from your corrections in
+    `learned`) or a prompt file, as DictationSetup reads it."""
     if re.fullmatch(r"v\d+", ref):
-        return swift_string(ref)
+        try:
+            return swift_string(ref)
+        except AttributeError:
+            for p in (json.loads(learned.read_text())["prompts"] if learned.exists() else []):
+                if p["version"] == ref:
+                    return p["text"].strip()
+            raise SystemExit(f"unknown prompt {ref}: not in Setups.swift or {learned}")
     return Path(ref).expanduser().read_text().strip()
 
 
