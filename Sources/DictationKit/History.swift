@@ -175,7 +175,8 @@ struct HistoryView: View {
     var onCorrect: (UUID) -> Void = { _ in }
     /// Prefills a new correction with a cloud model's polish (`CorrectionSuggester`) (nil: keeps what the app wrote).
     var suggester: CorrectionSuggester?
-    @State private var search = ""
+    /// What's typed in the toolbar's search field (MainView).
+    var search = ""
     @State private var confirmClear = false
 
     var body: some View {
@@ -211,7 +212,6 @@ struct HistoryView: View {
             }
         }
         .padding(24)
-        .searchable(text: $search, placement: .toolbar, prompt: "Search history")
     }
 
     private var header: some View {

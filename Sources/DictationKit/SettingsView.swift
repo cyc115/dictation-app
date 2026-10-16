@@ -11,10 +11,7 @@ struct SettingsView: View {
 
     private var cloud: Bool { settings.setup.usesCloud }
 
-    /// The setup's own prompt version, under any learned one.
-    private var builtInPrompt: String {
-        (DictationSetup.builtIns + DictationSetup.loadCustom(from: settings.customSetupsFile).setups).first { $0.id == settings.setup.id }?.prompt ?? settings.setup.prompt
-    }
+    private var builtInPrompt: String { settings.builtInPrompt(for: settings.setup) }
 
     /// The built-in prompt's score on your corrections, once measured (by the tile, or as the baseline
     /// of a version learned from it).
@@ -219,8 +216,9 @@ struct SettingsView: View {
                             if !settings.hasOpenRouterKey { settings.setup = .onDevice }
                         })
         }
-        .onAppear {
-            microphones = AudioDevices.inputDevices()
+        .onTabShown {
+            let found = AudioDevices.inputDevices()
+            if found != microphones { microphones = found }
             settings.refreshLoginItem()
             settings.reloadSetups()
         }

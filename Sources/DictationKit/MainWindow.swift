@@ -15,6 +15,15 @@ enum MainTab: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The toolbar search field's prompt, on the pages that search.
+    var searchPrompt: String? {
+        switch self {
+        case .history: return "Search history"
+        case .corrections: return "Search corrections"
+        case .home, .settings: return nil
+        }
+    }
+
     var icon: String {
         switch self {
         case .home: return "house"
@@ -66,6 +75,11 @@ final class TabSelection: ObservableObject {
 struct MainView: View {
     @ObservedObject var selection: TabSelection
     @ObservedObject var history: HistoryStore = .shared
+    var settings: AppSettings = .shared
+    var learn: LearnController? = .shared
+    @State private var visited: Set<MainTab> = []
+    @State private var searches: [MainTab: String] = [:]
+    @State private var pages = Dictionary(uniqueKeysWithValues: MainTab.allCases.map { ($0, KeptPage()) })
 
     var body: some View {
         NavigationSplitView {
@@ -91,23 +105,95 @@ struct MainView: View {
                 .accessibilityIdentifier("sidebar.version")
             }
         } detail: {
-            switch selection.tab {
-            case .home: HomeView()
-            case .history: HistoryView(store: history, onCorrect: { id in
-                selection.editing = id
-                selection.tab = .corrections
-            }, suggester: .shared)
-            case .corrections: CorrectionsView(store: history, learn: .shared, editing: selection.editing)
-                .onDisappear { selection.editing = nil }
-            case .settings: SettingsView(settings: .shared)
+            // Each page is built once, on its first visit, and kept: rebuilding one (Settings has
+            // ~20 native switches and pop-ups) took ~100 ms of every tab switch.
+            ZStack {
+                ForEach(MainTab.allCases.filter { visited.contains($0) || $0 == selection.tab }) { tab in
+                    let shown = tab == selection.tab
+                    page(tab)
+                        .opacity(shown ? 1 : 0)
+                        .allowsHitTesting(shown)
+                        .accessibilityHidden(!shown)
+                        .environment(\.keptPage, pages[tab])
+                }
+                // One search field, for the page in front: with each kept page adding its own, the
+                // toolbar got two and AppKit threw. Only this empty view comes and goes, not a page.
+                if let prompt = selection.tab.searchPrompt {
+                    Color.clear.frame(width: 0, height: 0)
+                        .searchable(text: Binding(get: { searches[selection.tab, default: ""] },
+                                                  set: { searches[selection.tab] = $0 }),
+                                    placement: .toolbar, prompt: prompt)
+                }
             }
+            .onChange(of: selection.tab, initial: true) {
+                visited.insert(selection.tab)
+                for (tab, page) in pages where page.shown != (tab == selection.tab) { page.shown = tab == selection.tab }
+            }
+        }
+    }
+
+    @ViewBuilder private func page(_ tab: MainTab) -> some View {
+        switch tab {
+        case .home: HomeView(settings: settings, history: history)
+        case .history: HistoryView(store: history, onCorrect: { id in
+            selection.editing = id
+            selection.tab = .corrections
+        }, suggester: .shared, search: searches[.history, default: ""])
+        case .corrections: CorrectionsView(store: history, learn: learn, editing: selection.editing,
+                                           search: searches[.corrections, default: ""])
+            .onTabHidden { selection.editing = nil }
+        case .settings: SettingsView(settings: settings, history: history)
+        }
+    }
+}
+
+/// Whether a kept page is the selected tab's (MainView). An object, not a Bool in the environment:
+/// changing an environment value re-checks every view on the page (~20 ms for Settings).
+final class KeptPage: ObservableObject {
+    @Published var shown = false
+}
+
+extension EnvironmentValues {
+    /// The page this view is on, when it's one of MainView's kept tabs.
+    @Entry var keptPage: KeptPage?
+}
+
+extension View {
+    /// Runs `action` each time this page comes on screen: when it appears, and when its kept tab
+    /// is selected again. Use it in a tab's page instead of onAppear, which runs only once there.
+    func onTabShown(perform action: @escaping () -> Void) -> some View {
+        modifier(OnTabShown(shown: true, action: action))
+    }
+
+    /// Runs `action` each time this page's tab is left (the page stays, hidden).
+    func onTabHidden(perform action: @escaping () -> Void) -> some View {
+        modifier(OnTabShown(shown: false, action: action))
+    }
+}
+
+private struct OnTabShown: ViewModifier {
+    @Environment(\.keptPage) private var page
+    /// `page.shown`, mirrored so the action runs in a view update, with the page's current values.
+    @State private var visible: Bool?
+    let shown: Bool
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        if let page {
+            content
+                .onReceive(page.$shown) { visible = $0 }
+                .onChange(of: visible) { old, new in
+                    if shown ? new == true : (old == true && new == false) { action() }
+                }
+        } else {
+            content.onAppear { if shown { action() } }
         }
     }
 }
 
 private struct HomeView: View {
-    @ObservedObject private var settings = AppSettings.shared
-    @ObservedObject private var history = HistoryStore.shared
+    @ObservedObject var settings: AppSettings
+    @ObservedObject var history: HistoryStore
 
     var body: some View {
         ScrollView {

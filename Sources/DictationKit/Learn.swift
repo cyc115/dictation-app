@@ -297,7 +297,7 @@ struct LearnView: View {
         .animation(reduceMotion ? nil : .spring(duration: 0.5), value: controller.result)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("learn.tile")
-        .onAppear { controller.measureIfNeeded() }
+        .onTabShown { controller.measureIfNeeded() }
         .onChange(of: controller.setup.id) { controller.measureIfNeeded() }
     }
 
@@ -524,7 +524,9 @@ struct LearnButton: View {
         .buttonStyle(.plain)
         .disabled(disabled || busy)
         .accessibilityIdentifier("learn.button")
-        .onAppear { if busy && !reduceMotion { withAnimation(.linear(duration: 2.4).repeatForever(autoreverses: false)) { shift = 1 } } }
+        .onTabShown { if busy && !reduceMotion { withAnimation(.linear(duration: 2.4).repeatForever(autoreverses: false)) { shift = 1 } } }
+        // Stops the endless animation while Corrections is hidden behind another tab.
+        .onTabHidden { withTransaction(Transaction(animation: nil)) { shift = 0 } }
     }
 
     private var background: AnyShapeStyle {
@@ -549,6 +551,7 @@ struct CandidateRow: View {
     var stage: String?
     let state: State
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var tabShown = true
 
     var body: some View {
         VStack(spacing: 5) {
@@ -575,7 +578,7 @@ struct CandidateRow: View {
                     Capsule().fill(Color.primary.opacity(0.1))
                     if writing && !reduceMotion {
                         // A highlight sweeping the unfilled part, once every 1.4 s.
-                        TimelineView(.animation) { context in
+                        TimelineView(.animation(paused: !tabShown)) { context in
                             let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4
                             let span = geo.size.width - filled, width: CGFloat = 90
                             Capsule()
@@ -600,6 +603,9 @@ struct CandidateRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityValue((score.map { "\(Int($0.rounded()))%" } ?? "running") + (stage.map { " · \($0)" } ?? ""))
         .accessibilityIdentifier("learn.candidate." + lens.rawValue)
+        // The sweep stops while Corrections is hidden behind another tab.
+        .onTabShown { tabShown = true }
+        .onTabHidden { tabShown = false }
     }
 }
 

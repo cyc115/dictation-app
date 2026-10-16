@@ -152,6 +152,8 @@ final class AppSettings: ObservableObject {
     /// The built-in setups, then the valid ones in `customSetupsFile`, each with its active learned
     /// prompt (`learned`) applied.
     @Published private(set) var setups: [DictationSetup] = DictationSetup.builtIns
+    /// `setups` as read, before learned prompts are applied.
+    private var ownSetups = DictationSetup.builtIns
     /// Prompts learned from your corrections; a kept or re-chosen one shows up in `setups` at once.
     let learned: LearnedPromptStore
     private var learnedChanges: AnyCancellable?
@@ -210,18 +212,30 @@ final class AppSettings: ObservableObject {
         reloadSetups(selecting: saved)
         refreshLoginItem()
         // objectWillChange fires before the store changes; the setups are re-read once it has.
-        learnedChanges = learned.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.reloadSetups() } }
+        // Settings shows the learned versions' scores through `learned`, so it's redrawn too.
+        learnedChanges = learned.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.objectWillChange.send(); self?.reloadSetups() }
+        }
     }
 
     /// Re-reads `customSetupsFile` (Settings calls this when it opens, so edits show up). The chosen
     /// setup picks up its edits; if it's gone, On-device is chosen.
     func reloadSetups(selecting id: String? = nil) {
         let custom = DictationSetup.loadCustom(from: customSetupsFile)
-        setups = (DictationSetup.builtIns + custom.setups).map(learned.apply(to:))
-        setupsError = custom.error
+        ownSetups = DictationSetup.builtIns + custom.setups
+        // Assigned only when changed: Settings calls this each time it opens, and every
+        // assignment redraws it.
+        let applied = ownSetups.map(learned.apply(to:))
+        if applied != setups { setups = applied }
+        if custom.error != setupsError { setupsError = custom.error }
         let wanted = id ?? setup.id
         let chosen = setups.first { $0.id == wanted } ?? .onDevice
         if chosen != setup || defaults.string(forKey: Self.setupKey) != chosen.id { setup = chosen }
+    }
+
+    /// The setup's own prompt version, under any learned one.
+    func builtInPrompt(for setup: DictationSetup) -> String {
+        ownSetups.first { $0.id == setup.id }?.prompt ?? setup.prompt
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -235,8 +249,9 @@ final class AppSettings: ObservableObject {
 
     func refreshLoginItem() {
         let status = SMAppService.mainApp.status
-        launchAtLogin = status == .enabled || status == .requiresApproval
-        loginItemNeedsApproval = status == .requiresApproval
+        let enabled = status == .enabled || status == .requiresApproval, pending = status == .requiresApproval
+        if enabled != launchAtLogin { launchAtLogin = enabled }
+        if pending != loginItemNeedsApproval { loginItemNeedsApproval = pending }
     }
 
     /// One-line usage hint, e.g. "Hold Fn to dictate — release to paste".

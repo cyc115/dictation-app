@@ -71,7 +71,8 @@ struct CorrectionsView: View {
     var learn: LearnController?
     /// The correction to put the cursor in when the tab opens (the one just made from History).
     var editing: UUID?
-    @State private var search = ""
+    /// What's typed in the toolbar's search field (MainView).
+    var search = ""
     @FocusState private var focused: UUID?
     /// Bumped as `learn` changes, so the cards' fits follow a tune (the controller is optional, so it can't be observed directly).
     @State private var learnChanges = 0
@@ -110,7 +111,7 @@ struct CorrectionsView: View {
                         }
                     }
                     .overlay { if let learn { SweepOverlay(trigger: learn.sweep) } }
-                    .onAppear {
+                    .onTabShown {
                         guard let editing else { return }
                         proxy.scrollTo(editing, anchor: .center)
                         focused = editing
@@ -127,7 +128,8 @@ struct CorrectionsView: View {
             .foregroundStyle(.secondary)
         }
         .padding(24)
-        .searchable(text: $search, placement: .toolbar, prompt: "Search corrections")
+        // Kept hidden behind the other tabs (MainView), so a card mustn't keep the keyboard.
+        .onTabHidden { focused = nil }
         .onReceive(learn?.objectWillChange.eraseToAnyPublisher() ?? Empty().eraseToAnyPublisher()) { _ in
             DispatchQueue.main.async { learnChanges += 1 }
         }

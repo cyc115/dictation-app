@@ -121,6 +121,29 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// Switching tabs shows a kept page instead of rebuilding it: ~23 ms, including Settings' refresh
+    /// as it opens; rebuilding Settings took ~100 ms.
+    func testTabSwitch() {
+        let selection = TabSelection()
+        selection.tab = .settings
+        let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let hosted = HostedView(MainView(selection: selection, history: history, settings: makeSettings(self)),
+                                size: NSSize(width: 860, height: 620))
+        addTeardownBlock { hosted.close() }
+        // Without the accessibility tree HostedView turns on (as when no assistive app is running).
+        let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+        NSApplication.shared.accessibilitySetValue(false, forAttribute: enhanced)
+        addTeardownBlock { NSApplication.shared.accessibilitySetValue(true, forAttribute: enhanced) }
+        selection.tab = .history
+        hosted.settle()
+        assertFaster(than: 0.06, iterations: 10, "tab switch History ⇄ Settings") {
+            selection.tab = selection.tab == .settings ? .history : .settings
+            spinRunLoop(0.001)
+            hosted.hostingView.layoutSubtreeIfNeeded()
+            hosted.hostingView.display()
+        }
+    }
+
     /// Also report XCTest's own metrics (visible in the test log; no pass/fail outside Xcode).
     func testMicLevelMetrics() {
         let buffer = AudioLevelTests.buffer(amplitude: 0.2)

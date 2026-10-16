@@ -23,12 +23,11 @@ struct ExcludedApp: Codable, Hashable, Identifiable {
         self.init(bundleID: id, name: name)
     }
 
-    /// Apps with a window that are running now, by name, minus this app and `skip`.
-    static func running(skipping skip: [ExcludedApp]) -> [ExcludedApp] {
+    /// Apps with a window that are running now, by name, minus this app.
+    static func running() -> [ExcludedApp] {
         let own = Bundle.main.bundleIdentifier
         let apps = NSWorkspace.shared.runningApplications.compactMap { app -> ExcludedApp? in
-            guard app.activationPolicy == .regular, let id = app.bundleIdentifier, id != own,
-                  !skip.contains(where: { $0.bundleID == id }) else { return nil }
+            guard app.activationPolicy == .regular, let id = app.bundleIdentifier, id != own else { return nil }
             return ExcludedApp(bundleID: id, name: app.localizedName ?? id)
         }
         return Set(apps).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -85,6 +84,8 @@ final class ExclusionWatcher {
 /// Settings → Shortcuts: the excluded apps, with Add and Remove.
 struct ExcludedAppsList: View {
     @ObservedObject var settings: AppSettings
+    /// Listed when Settings opens and as apps launch or quit, not on every redraw (~10 ms with many apps).
+    @State private var running: [ExcludedApp] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -98,7 +99,7 @@ struct ExcludedAppsList: View {
                 }
                 Spacer(minLength: 12)
                 Menu("Add App") {
-                    ForEach(ExcludedApp.running(skipping: settings.excludedApps)) { app in
+                    ForEach(running.filter { app in !settings.excludedApps.contains { $0.bundleID == app.bundleID } }) { app in
                         Button(app.name) { settings.exclude(app) }
                     }
                     Divider()
@@ -123,6 +124,14 @@ struct ExcludedAppsList: View {
             }
         }
         .padding(.vertical, 3)
+        .onTabShown {
+            let now = ExcludedApp.running()
+            if now != running { running = now }
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)
+            .merge(with: NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification))) { _ in
+            running = ExcludedApp.running()
+        }
     }
 
     private func chooseApps() {
