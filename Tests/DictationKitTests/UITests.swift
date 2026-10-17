@@ -863,9 +863,9 @@ final class SnapshotTests: XCTestCase {
         let fx = LearnFixture(self, count: 3)
         let ids = fx.history.corrections.map(\.id)
         fx.store.keep(makeLearned(errors: [ids[0]: 0.0, ids[1]: 0.09], errorsBefore: [ids[0]: 0.25, ids[1]: 0.38]))
-        waitUntil { fx.settings.setup.prompt == "v5" }
+        waitUntil { fx.settings.setup.prompt == "v8" }
         for n in 4...10 {
-            fx.history.add(text: "Dictation \(n).", duration: 1, raw: "dictation \(n)", setup: "cloud-flash", prompt: "v5", date: fixedDate(2026, 10, 13, 9, n))
+            fx.history.add(text: "Dictation \(n).", duration: 1, raw: "dictation \(n)", setup: "cloud-flash", prompt: "v8", date: fixedDate(2026, 10, 13, 9, n))
             fx.history.setCorrection("Dictation number \(n).", for: fx.history.entries[0].id)
         }
         let hosted = fx.host(self, height: 620)

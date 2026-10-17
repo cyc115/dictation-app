@@ -8,7 +8,7 @@ from suites import polish
 
 def test_prompt_versions_match_their_benchmark_files():
     """The app sends exactly the prompts that were benchmarked (PolishPrompt in Setups.swift)."""
-    for version in ("v1", "v2", "v3", "v4"):
+    for version in ("v1", "v2", "v3", "v4", "v7"):
         benchmarked = (polish.CASES.parent / f"polish_prompts/{version}.txt").read_text().strip()
         assert polish.prompt_text(version) == benchmarked, version
     v1 = polish.prompt_text("v1")
@@ -19,12 +19,12 @@ def test_prompt_versions_match_their_benchmark_files():
 def test_reads_the_apps_setups_and_their_prompts(tmp_path):
     built_in = polish.setups(tmp_path / "none.json")
     assert list(built_in) == ["on-device", "cloud-flash", "cloud-big"]
-    assert all(s["prompt"] == ("v3" if s["polish"] == "apple" else "v4") and s["wrap"] for s in built_in.values())
+    assert all(s["prompt"] == ("v3" if s["polish"] == "apple" else "v7") and s["wrap"] for s in built_in.values())
     assert polish.resolve("setup:on-device", "ignored", False) == ("apple", polish.prompt_text("v3"), True)
     assert polish.resolve("setup:cloud-big")[0] == "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra"
     assert polish.app_prompt("apple") == polish.prompt_text("v3")
-    assert polish.app_prompt("openrouter:x") == polish.prompt_text("v4")
-    assert polish.resolve("openrouter:m") == ("openrouter:m", polish.prompt_text("v4"), True)
+    assert polish.app_prompt("openrouter:x") == polish.prompt_text("v7")
+    assert polish.resolve("openrouter:m") == ("openrouter:m", polish.prompt_text("v7"), True)
     assert polish.request_body("m", "t", "P", "Together,DeepInfra", None, None)["provider"]["order"] == ["Together", "DeepInfra"]
     assert polish.resolve("openrouter:m", "P", False) == ("openrouter:m", "P", False)
     with pytest.raises(SystemExit, match="unknown setup"):

@@ -15,7 +15,7 @@ struct LearnedPrompt: Codable, Equatable, Identifiable {
 
     var version: String
     var setup: String
-    /// The version this was learned from ("v4", or an earlier learned one).
+    /// The version this was learned from ("v7", or an earlier learned one).
     var basedOn: String
     var date: Date
     var text: String
@@ -80,7 +80,7 @@ final class LearnedPromptStore: ObservableObject {
         }
     }
 
-    /// The next version name: one past the built-in and learned ones ("v5" at first).
+    /// The next version name: one past the built-in and learned ones ("v8" at first).
     var nextVersion: String {
         let numbers = (PolishPrompt.versions.keys.map { $0 } + prompts.map(\.version)).compactMap { Int($0.dropFirst()) }
         return "v\((numbers.max() ?? 0) + 1)"

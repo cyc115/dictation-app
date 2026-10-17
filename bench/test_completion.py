@@ -78,6 +78,6 @@ words=({BENCH / 'suite.py'} polish run --out ""); CURRENT=5; _dictation_bench_su
 words=({BENCH / 'suite.py'} polish run -r ""); CURRENT=5; _dictation_bench_suite
 """
     out = subprocess.run(["zsh", "-f", "-c", script], capture_output=True, text=True, check=True).stdout
-    assert r"setup\:cloud-flash:Cloud Flash: openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra, prompt v4" in out.splitlines()
+    assert r"setup\:cloud-flash:Cloud Flash: openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra, prompt v7" in out.splitlines()
     assert "FILES -/" in out
     assert "MESSAGE -r times each case is polished per model (default 1)" in out

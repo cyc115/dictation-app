@@ -27,7 +27,7 @@ struct LearnFixture {
         var entries: [HistoryEntry] = []
         for n in stride(from: max(count, 1), through: 1, by: -1) where count > 0 {
             var entry = HistoryEntry(date: fixedDate(2026, 10, 13, 8, n), text: "Can you install Cloud Code \(n)?", duration: 2,
-                                     raw: "can you install cloud code \(n)", setup: "cloud-flash", prompt: "v4")
+                                     raw: "can you install cloud code \(n)", setup: "cloud-flash", prompt: "v7")
             entry.correction = "Can you install Claude Code \(n)?"
             entries.append(entry)
         }
@@ -86,16 +86,16 @@ final class LearnUITests: XCTestCase {
 
     func testTheTileMeasuresTheCurrentPromptWhenItHasNothingToShow() {
         let fx = LearnFixture(self, studentDelay: 0.3)
-        XCTAssertNil(fx.store.measurement(setup: "cloud-flash", prompt: "v4"))
+        XCTAssertNil(fx.store.measurement(setup: "cloud-flash", prompt: "v7"))
         let hosted = HostedView(CorrectionsView(store: fx.history, learn: fx.controller), size: NSSize(width: 760, height: 600))
         addTeardownBlock { hosted.close() }
         hosted.settle()
         XCTAssertEqual(fx.controller.gate, .measuring)
         XCTAssertEqual(hosted.element(id: "learn.button")?.label, "Measuring…")
-        XCTAssertEqual(hosted.element(id: "learn.status")?.value, "Measuring prompt v4 on your 10 corrections and the general test set")
+        XCTAssertEqual(hosted.element(id: "learn.status")?.value, "Measuring prompt v7 on your 10 corrections and the general test set")
         waitUntil(timeout: 5) { !fx.controller.measuring }
         hosted.settle()
-        let m = fx.store.measurement(setup: "cloud-flash", prompt: "v4")
+        let m = fx.store.measurement(setup: "cloud-flash", prompt: "v7")
         XCTAssertEqual(m?.mine ?? 0, 83.3, accuracy: 0.1)
         XCTAssertEqual(m?.general, 100)
         XCTAssertEqual(m?.corrections, 10)
@@ -113,7 +113,7 @@ final class LearnUITests: XCTestCase {
 
         let few = LearnFixture(self, count: 7)
         _ = few.host(self)
-        XCTAssertNil(few.store.measurement(setup: "cloud-flash", prompt: "v4"), "below the minimum: not measured")
+        XCTAssertNil(few.store.measurement(setup: "cloud-flash", prompt: "v7"), "below the minimum: not measured")
         XCTAssertEqual(few.controller.gate, .needMore(have: 7))
     }
 
@@ -136,10 +136,10 @@ final class LearnUITests: XCTestCase {
         XCTAssertEqual(hosted.element(id: "learn.score.mine")?.value, "100%")
         XCTAssertEqual(hosted.element(id: "learn.score.mine")?.label, "100, %, +17, Your corrections · Cloud Flash", "from 83 (one word in six wrong)")
         XCTAssertEqual(hosted.element(id: "learn.score.general")?.label, "100, %, held, General test set · guard")
-        XCTAssertEqual(hosted.element(id: "learn.status")?.value, "v5: 10 of 10 corrections now within 15% of what you wanted (v4: 0). General set held at 100%.")
+        XCTAssertEqual(hosted.element(id: "learn.status")?.value, "v8: 10 of 10 corrections now within 15% of what you wanted (v7: 0). General set held at 100%.")
         XCTAssertEqual(hosted.elements(id: "corrections.fit").count, hosted.elements(id: "corrections.card").count, "every card on screen")
-        XCTAssertEqual(hosted.element(id: "corrections.fit")?.value, "v4 17% off, →, v5 0% off, learned")
-        XCTAssertTrue(hosted.allText.contains("Prompt v5"))
+        XCTAssertEqual(hosted.element(id: "corrections.fit")?.value, "v7 17% off, →, v8 0% off, learned")
+        XCTAssertTrue(hosted.allText.contains("Prompt v8"))
         XCTAssertTrue(hosted.allText.contains("learned from 10 corrections · Oct 13"))
         XCTAssertNil(hosted.element(id: "learn.verdict"))
         XCTAssertEqual(hosted.element(id: "learn.button")?.label, "Learned")
@@ -152,22 +152,22 @@ final class LearnUITests: XCTestCase {
         waitUntil(timeout: 5) { fx.controller.gate == .done }
         hosted.settle()
         XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "learn.keep"))))
-        XCTAssertEqual(fx.store.active(for: "cloud-flash")?.version, "v5")
-        waitUntil { fx.settings.setup.prompt == "v5" }
+        XCTAssertEqual(fx.store.active(for: "cloud-flash")?.version, "v8")
+        waitUntil { fx.settings.setup.prompt == "v8" }
         XCTAssertTrue(fx.settings.setup.promptText.hasPrefix(PolishPrompt.v4.prefix(40)) && fx.settings.setup.promptText.contains("Codex. LENS:both"), "the kept text")
         XCTAssertNil(fx.controller.result)
         XCTAssertEqual(fx.controller.gate, .allLearned(count: 10), "nothing left to learn")
         hosted.settle()
-        XCTAssertEqual(hosted.element(id: "learn.status")?.value, "Cloud Flash now polishes with prompt v5. Older versions are in Settings › Model.")
+        XCTAssertEqual(hosted.element(id: "learn.status")?.value, "Cloud Flash now polishes with prompt v8. Older versions are in Settings › Model.")
         XCTAssertEqual(hosted.element(id: "learn.score.mine")?.value, "100%", "the kept version's scores stay on the rings")
         XCTAssertEqual(hosted.elements(id: "corrections.fit").count, hosted.elements(id: "corrections.card").count, "fits now come from the kept version")
-        XCTAssertEqual(fx.controller.fit(for: fx.history.corrections[0].id)?.to, "v5")
-        XCTAssertEqual(fx.controller.fit(for: fx.history.corrections[0].id)?.from, "v4")
+        XCTAssertEqual(fx.controller.fit(for: fx.history.corrections[0].id)?.to, "v8")
+        XCTAssertEqual(fx.controller.fit(for: fx.history.corrections[0].id)?.from, "v7")
 
-        fx.history.add(text: "New one", duration: 1, raw: "new one", setup: "cloud-flash", prompt: "v5")
+        fx.history.add(text: "New one", duration: 1, raw: "new one", setup: "cloud-flash", prompt: "v8")
         fx.history.setCorrection("A new one", for: fx.history.entries[0].id)
         XCTAssertEqual(fx.controller.gate, .ready(count: 11), "a new correction: learn again")
-        XCTAssertEqual(fx.controller.nextVersion, "v6")
+        XCTAssertEqual(fx.controller.nextVersion, "v9")
         XCTAssertNil(fx.controller.fit(for: fx.history.entries[0].id), "not scored yet")
     }
 
@@ -219,25 +219,25 @@ final class LearnUITests: XCTestCase {
         hosted.settle()
         XCTAssertEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, false, "nothing learned yet")
         XCTAssertTrue(hosted.allText.contains("Learn one from your corrections in the Corrections tab."))
-        XCTAssertTrue(hosted.allText.contains("v4 · built in"), "no score until measured")
+        XCTAssertTrue(hosted.allText.contains("v7 · built in"), "no score until measured")
 
         let id = fx.history.corrections[0].id
         fx.store.keep(makeLearned(errors: [id: 0.0], errorsBefore: [id: 0.2]))
-        waitUntil { fx.settings.setup.prompt == "v5" }
+        waitUntil { fx.settings.setup.prompt == "v8" }
         hosted.settle()
         XCTAssertEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, true)
-        XCTAssertTrue(hosted.allText.contains("v5 · learned from 15 corrections: 65% → 74% on them, general set 71%."), hosted.allText)
-        XCTAssertTrue(hosted.allText.contains("v5 · 74% · from v4 · Oct 13"), hosted.allText)
+        XCTAssertTrue(hosted.allText.contains("v8 · learned from 15 corrections: 65% → 74% on them, general set 71%."), hosted.allText)
+        XCTAssertTrue(hosted.allText.contains("v8 · 74% · from v7 · Oct 13"), hosted.allText)
 
         fx.store.activate(nil, for: "cloud-flash")
-        waitUntil { fx.settings.setup.prompt == "v4" }
+        waitUntil { fx.settings.setup.prompt == "v7" }
         hosted.settle()
         XCTAssertTrue(hosted.allText.contains("The built-in prompt."))
         XCTAssertFalse(hosted.allText.contains("Learn one from your corrections"), "a version exists, it's just not chosen")
-        XCTAssertTrue(hosted.allText.contains("v4 · 65% · built in"), "the built-in's score is v5's baseline: \(hosted.allText)")
+        XCTAssertTrue(hosted.allText.contains("v7 · 65% · built in"), "the built-in's score is v8's baseline: \(hosted.allText)")
 
-        fx.store.record(PromptMeasurement(setup: "cloud-flash", prompt: "v4", date: fixedDate(2026, 10, 14, 9, 0), mine: 68.2, general: 70, corrections: 11))
+        fx.store.record(PromptMeasurement(setup: "cloud-flash", prompt: "v7", date: fixedDate(2026, 10, 14, 9, 0), mine: 68.2, general: 70, corrections: 11))
         hosted.settle()
-        XCTAssertTrue(hosted.allText.contains("v4 · 68% · built in"), "a fresh measurement wins over the old baseline")
+        XCTAssertTrue(hosted.allText.contains("v7 · 68% · built in"), "a fresh measurement wins over the old baseline")
     }
 }

@@ -1,5 +1,11 @@
 # AI polish research — 2026-10-09/10
 
+> **Update 2026-10-17:** Cloud Flash and Cloud Big now polish with prompt **v7**, learned in the app
+> from 18 corrections (Corrections › Learn: v4 → v6 → v7). Same model and set, v7 vs v4
+> (`20261017-104811_v7-vs-v4.json`, 54 cases): pass 83% vs 72%, traps 91% vs 82%, misheard terms
+> 69% vs 44%, mixed zh/en 86% vs 73%, cost $0.058 vs $0.082 per 1,000. Weaker on self-corrections:
+> 78% vs 89%.
+
 > **Update 2026-10-11:** the cloud setups now polish with **DeepSeek V4.1 Flash** (Together, with
 > DeepInfra as backup), not gpt-oss-120b. On the merged hard set (54 cases, prompt v4,
 > `20261011-162131_v4-deepseek-vs-gptoss.json`) it won every column: pass 70% vs 57%, traps 82% vs
