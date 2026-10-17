@@ -146,6 +146,7 @@ final class DictationController {
         // sound waits for it too, so it means "talk now".
         let warmingUp = mic?.isBluetooth == true
         overlay.showListening(micName: mic?.name, warmingUp: warmingUp)
+        var cuePending = warmingUp
         if !warmingUp { startCue() }
         if settings.effectiveStreaming {
             streaming = StreamingOutput(canTypeNow: { [weak self] in self?.canTypeNow() ?? true },
@@ -156,6 +157,7 @@ final class DictationController {
         let output = streaming
         engine.start(
             inputUID: settings.microphoneUID,
+            backups: settings.intelligentMicSelection,
             onLevel: { [weak self] level in
                 guard self?.dictating == true else { return }
                 self?.overlay.setLevel(level)
@@ -164,10 +166,15 @@ final class DictationController {
                 guard let self, self.dictating else { return }
                 switch event {
                 case .live:
-                    if self.overlay.isWarmingUp { self.startCue() }
+                    if cuePending { cuePending = false; self.startCue() }
                     self.overlay.micLive()
-                case .switched(let name):
-                    self.overlay.micSwitched(to: name)
+                case .noAudio:
+                    self.overlay.micSilent()
+                case .switched(let device):
+                    // Mid-sentence, so no start sound: just mute, if that's on.
+                    if cuePending { cuePending = false; self.startCue(sound: false) }
+                    self.overlay.micSwitched(to: device.name)
+                    self.settings.microphoneUID = device.uid  // the next dictation starts on it
                 }
             },
             onUtterance: output.map { output in { [weak self] chunk in
@@ -190,10 +197,11 @@ final class DictationController {
     }
 
     /// The start sound, then muting output (after the sound, so it isn't cut off).
-    private func startCue() {
-        if settings.interactionSounds { InteractionSound.start.play() }
+    private func startCue(sound: Bool = true) {
+        let sound = sound && settings.interactionSounds
+        if sound { InteractionSound.start.play() }
         if settings.muteWhileDictating {
-            let delay: TimeInterval = settings.interactionSounds ? 0.25 : 0
+            let delay: TimeInterval = sound ? 0.25 : 0
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 if self?.dictating == true { self?.muter.mute() }
             }

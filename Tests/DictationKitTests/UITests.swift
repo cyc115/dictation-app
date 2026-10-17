@@ -546,15 +546,54 @@ final class OverlayUITests: XCTestCase {
         XCTAssertEqual(overlay.confirmButton.emphasis, 1)
     }
 
-    func testSwitchedMicRenamesTheCaption() {
+    /// Intelligent mic selection moved to a better mic: its name, a yellow flash, the wait over.
+    func testSwitchedMicFlashesYellowWithItsName() throws {
         let overlay = OverlayWindow()
         addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
         overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
-        overlay.micSwitched(to: "MacBook Pro Microphone")
-        XCTAssertTrue(overlay.isWarmingUp, "still waiting for the new mic's audio")
-        XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("Starting MacBook Pro Microphone…"), overlay.micLabel.stringValue)
+        overlay.micSilent()
+        clock = 1.2
+        overlay.micSwitched(to: "Logitech BRIO")
+        XCTAssertFalse(overlay.isWarmingUp)
+        XCTAssertFalse(overlay.isShowingNoAudio, "the switch ends the red glow")
+        XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("Logitech BRIO"), overlay.micLabel.stringValue)
+        let pill = try XCTUnwrap(overlay.panel?.contentView?.subviews.first)
+        clock = 1.3
+        overlay.tick()
+        let yellow = try XCTUnwrap(pill.shadow?.shadowColor?.usingColorSpace(.sRGB))
+        XCTAssertGreaterThan(yellow.redComponent, 0.9)
+        XCTAssertGreaterThan(yellow.greenComponent, 0.7)
+        XCTAssertLessThan(yellow.blueComponent, 0.1)
+        clock = 1.2 + PillLook.glowDuration
+        overlay.tick()
+        XCTAssertNil(pill.shadow, "then the plain pill")
+    }
+
+    /// No audio 3 s in: a red glow fades in, and stays until audio arrives.
+    func testNoAudioGlowsRedUntilLive() throws {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        overlay.showListening(micName: "USB Mic")
+        overlay.micSilent()
+        let pill = try XCTUnwrap(overlay.panel?.contentView?.subviews.first)
+        clock = 0.3
+        overlay.tick()
+        let early = try XCTUnwrap(pill.shadow?.shadowColor?.usingColorSpace(.sRGB))
+        XCTAssertGreaterThan(early.redComponent, 0.9)
+        XCTAssertLessThan(early.greenComponent, 0.3)
+        clock = 10
+        overlay.tick()
+        let late = try XCTUnwrap(pill.shadow?.shadowColor)
+        XCTAssertGreaterThan(late.alphaComponent, early.alphaComponent, "fades in")
+        XCTAssertEqual(overlay.panel?.hasShadow, false)
         overlay.micLive()
-        XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("MacBook Pro Microphone"))
+        XCTAssertFalse(overlay.isShowingNoAudio)
+        XCTAssertNil(pill.shadow)
+        XCTAssertEqual(overlay.panel?.hasShadow, true)
     }
 
     func testOtherModesEndTheWait() {
@@ -684,6 +723,34 @@ final class SnapshotTests: XCTestCase {
         clock = 0.23
         overlay.tick()
         assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-narrowing")
+    }
+
+    /// Moved to a better mic: the ready flash in yellow.
+    func testOverlayMicSwitched() throws {
+        let overlay = snapshotOverlay()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        overlay.reduceMotion = { false }
+        overlay.showListening(micName: "Mike’s Pixel Buds Pro")
+        for level in [0.1, 0.3, 0.7, 0.9, 0.6, 0.4, 0.8, 0.5, 0.2, 0.6, 0.9, 0.3, 0.1] as [Float] { overlay.setLevel(level) }
+        overlay.micSwitched(to: "Logitech BRIO")
+        clock = 0.4
+        overlay.tick()
+        assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-mic-switched")
+    }
+
+    /// No audio coming in: the red glow, fully faded in.
+    func testOverlayNoAudio() throws {
+        let overlay = snapshotOverlay()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        overlay.showListening(micName: "USB Mic")
+        overlay.micSilent()
+        clock = PillLook.silentFadeIn
+        overlay.tick()
+        assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-no-audio")
     }
 
     func testOverlayMessage() throws {

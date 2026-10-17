@@ -14,7 +14,10 @@ import Foundation
 /// writes how long it took to send audio and real (non-zero) audio, as one JSON line, then quits:
 ///
 ///   open -n --env DICTATIONAPP_MIC_PROBE_OUT=out.json [--env DICTATIONAPP_MIC_PROBE_UID=<uid>]
-///           [--env DICTATIONAPP_MIC_PROBE_SECONDS=4] [--env DICTATIONAPP_MIC_PROBE_FALLBACK=1] /Applications/DictationApp.app
+///           [--env DICTATIONAPP_MIC_PROBE_SECONDS=4] [--env DICTATIONAPP_MIC_PROBE_BACKUPS=1] /Applications/DictationApp.app
+///
+/// With BACKUPS, the other wired and built-in mics record too (Intelligent mic selection), and the
+/// line says which opened and any switch (speak into a backup to see one).
 enum Diagnostics {
     private static var probe: LatencyProbe?  // kept alive until the app exits
     private static var micProbe: MicProbe?
@@ -24,7 +27,7 @@ enum Diagnostics {
         if let out = env["DICTATIONAPP_MIC_PROBE_OUT"] {
             let probe = MicProbe(uid: env["DICTATIONAPP_MIC_PROBE_UID"] ?? "",
                                  seconds: env["DICTATIONAPP_MIC_PROBE_SECONDS"].flatMap(Double.init) ?? 4,
-                                 fallback: env["DICTATIONAPP_MIC_PROBE_FALLBACK"] == "1")
+                                 backups: env["DICTATIONAPP_MIC_PROBE_BACKUPS"] == "1")
             micProbe = probe
             probe.run { line in
                 try? (line + "\n").write(toFile: out, atomically: true, encoding: .utf8)
@@ -46,36 +49,36 @@ enum Diagnostics {
 }
 
 /// One mic's warm-up, timed from opening it: first buffer, first real audio (`MicEvent.live`), and
-/// any fallback. Without `fallback` the mic gets the whole run, so a slow one is measured, not replaced.
+/// with `backups`, which other mics opened and any switch to one.
 final class MicProbe {
     let uid: String
     let seconds: TimeInterval
-    let fallback: Bool
+    let backups: Bool
     private let mic = MicCapture()
 
-    init(uid: String, seconds: TimeInterval, fallback: Bool) {
+    init(uid: String, seconds: TimeInterval, backups: Bool) {
         self.uid = uid
         self.seconds = seconds
-        self.fallback = fallback
+        self.backups = backups
     }
 
     func run(done: @escaping (String) -> Void) {
         let device = AudioDevices.activeInput(preferredUID: uid)
         var result: [String: Any] = ["device": device?.name ?? NSNull(), "bluetooth": device?.isBluetooth ?? false]
-        if !fallback { mic.fallbackAfter = seconds + 60 }
         let clock = { ProcessInfo.processInfo.systemUptime }
         let opened = clock()
         let lock = NSLock()
         var buffers = 0, firstBuffer: TimeInterval?, rate: Double?
         do {
-            try mic.start(inputUID: uid, onBuffer: { buffer in
+            try mic.start(inputUID: uid, backups: backups, onBuffer: { buffer in
                 lock.lock(); defer { lock.unlock() }
                 buffers += 1
                 if firstBuffer == nil { firstBuffer = clock() - opened; rate = buffer.format.sampleRate }
             }, onEvent: { event in
                 switch event {
                 case .live: result["live"] = Self.ms(clock() - opened)
-                case .switched(let name): result["switchedTo"] = name; result["switchedAt"] = Self.ms(clock() - opened)
+                case .noAudio: result["noAudioAt"] = Self.ms(clock() - opened)
+                case .switched(let device): result["switchedTo"] = device.name; result["switchedAt"] = Self.ms(clock() - opened)
                 }
             }, onError: { result["error"] = $0 })
             result["openMs"] = Self.ms(clock() - opened)
@@ -83,6 +86,7 @@ final class MicProbe {
             result["error"] = error.localizedDescription
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [mic] in
+            result["mics"] = mic.openDevices.map(\.name)
             mic.stop()
             lock.lock()
             result["buffers"] = buffers

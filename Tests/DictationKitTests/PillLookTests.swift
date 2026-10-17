@@ -23,6 +23,20 @@ final class PillLookTests: XCTestCase {
         XCTAssertGreaterThan(PillLook.ready(since: 0.13, reduceMotion: true).glow, 0, "the flash still shows")
     }
 
+    func testSwitchFlashIsTheReadyFlashInYellow() {
+        var yellow = PillLook.ready(since: 0.1, reduceMotion: false, aura: .yellow)
+        XCTAssertEqual(yellow.aura, .yellow)
+        yellow.aura = .green
+        XCTAssertEqual(yellow, PillLook.ready(since: 0.1, reduceMotion: false), "same animation, other color")
+    }
+
+    func testNoAudioGlowFadesInThenStays() {
+        XCTAssertEqual(PillLook.silentGlow(since: 0), 0)
+        XCTAssertLessThan(PillLook.silentGlow(since: 0.3), 0.2, "gradual")
+        XCTAssertEqual(PillLook.silentGlow(since: PillLook.silentFadeIn), 1)
+        XCTAssertEqual(PillLook.silentGlow(since: 60), 1)
+    }
+
     func testNarrowingFadesTheControlsThenNarrows() {
         let start = PillLook.narrowing(since: 0)
         XCTAssertEqual(start.narrowing, 0)

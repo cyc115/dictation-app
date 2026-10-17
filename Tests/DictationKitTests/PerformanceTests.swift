@@ -67,6 +67,22 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// Per buffer per mic on the audio queues with Intelligent mic selection (~47 buffers a second
+    /// for each of up to ~4 mics): the selector's meter and decision, and keeping a backup's audio
+    /// at 16 kHz.
+    func testMicSelectionPerBuffer() {
+        var selector = MicSelector(mics: 4)
+        let buffer = AudioLevelTests.buffer(amplitude: 0.05)
+        let keeper = FormatKeeper(format: MicCapture.backupFormat)
+        var mic = 0
+        assertFaster(than: 0.0005, iterations: 500, "selector + 16 kHz copy for one buffer") {
+            selector.add(MicSelector.decibels(of: buffer), mic: mic % 4)
+            _ = selector.better(than: 0)
+            _ = keeper.conform(buffer)
+            mic += 1
+        }
+    }
+
     /// 60 times a second while a Bluetooth mic starts and as it goes live (~1.5 s per dictation).
     func testOverlayWarmUpFrame() {
         let overlay = OverlayWindow()

@@ -8,9 +8,21 @@ import Foundation
 ///   Words spoken now would be lost.
 /// - Ready: the edge flashes green and the pill bounces once while the bars ripple out from the
 ///   center. That's the cue to talk. Then it's the plain listening pill.
+/// - Switched (Intelligent mic selection moved to a mic that hears you better): the same flash in yellow.
+/// - No audio (the mic has sent nothing real for 3 s): a red edge and glow fade in and stay.
 /// - Narrowing (you stopped, text is on the way): ✕, ✓ and the mic name fade, then the pill narrows
 ///   to the small processing pill while the bars turn into its ripple (`WaveformView`).
 struct PillLook: Equatable {
+    /// The edge and glow's color: what it's telling you.
+    enum Aura: Equatable {
+        /// The mic is live: talk.
+        case green
+        /// Moved to a mic that hears you better.
+        case yellow
+        /// No audio is coming in.
+        case red
+    }
+
     static let barCount = 13
     /// One sweep of the highlight across the dots.
     static let sweepPeriod: TimeInterval = 1.1
@@ -19,6 +31,8 @@ struct PillLook: Equatable {
     static let bounceDuration: TimeInterval = 0.26
     /// The green edge fades out over this long; then the look is `plain`.
     static let glowDuration: TimeInterval = 0.65
+    /// The red "no audio" glow fades in over this long.
+    static let silentFadeIn: TimeInterval = 1.5
     /// Listening → processing, after which the pill is laid out narrow.
     static let narrowDuration: TimeInterval = 0.4
 
@@ -26,8 +40,9 @@ struct PillLook: Equatable {
     var barAlphas = Array(repeating: CGFloat(1), count: barCount)
     /// Bar heights to draw instead of the mic's (0…1); nil: follow the mic.
     var levels: [CGFloat]?
-    /// The green edge and glow, 0…1.
+    /// The edge and glow, 0…1, in `aura`'s color.
     var glow: CGFloat = 0
+    var aura = Aura.green
     var scale: CGFloat = 1
     var captionAlpha: CGFloat = 1
     /// ✓ button, 1 = normal.
@@ -52,10 +67,12 @@ struct PillLook: Equatable {
         return look
     }
 
-    /// `since` seconds after the mic went live. With `reduceMotion` there's no bounce.
-    static func ready(since: TimeInterval, reduceMotion: Bool) -> PillLook {
+    /// `since` seconds after the mic went live (green) or the dictation moved to a better one
+    /// (yellow). With `reduceMotion` there's no bounce.
+    static func ready(since: TimeInterval, reduceMotion: Bool, aura: Aura = .green) -> PillLook {
         let s = CGFloat(since)
         var look = PillLook()
+        look.aura = aura
         look.glow = clamp(1 - s / CGFloat(glowDuration))
         look.scale = reduceMotion ? 1 : 1 + 0.045 * sin(.pi * clamp(s / CGFloat(bounceDuration)))
         look.captionAlpha = clamp(s / 0.2)
@@ -69,6 +86,12 @@ struct PillLook: Equatable {
             look.confirmEmphasis = 0.3 + 0.7 * clamp(s / 0.2)
         }
         return look
+    }
+
+    /// The red "no audio" glow `since` seconds after it was reported: fades in, then stays.
+    static func silentGlow(since: TimeInterval) -> CGFloat {
+        let t = clamp(CGFloat(since / silentFadeIn))
+        return t * t * (3 - 2 * t)
     }
 
     /// `since` seconds after you stopped.

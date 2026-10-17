@@ -11,8 +11,9 @@ protocol DictationEngine: AnyObject {
     var archive: RecordingArchive? { get set }
     /// Set with `archive`, before each dictation: the polish half of its JSON.
     var note: RecordingNote? { get set }
-    /// `onMic` gets the mic's events (live, switched) on the main queue.
-    func start(inputUID: String, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
+    /// `backups`: Intelligent mic selection (also record from the other wired and built-in mics and
+    /// move to the one that hears you best). `onMic` gets the mic's events on the main queue.
+    func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
                onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void)
     /// Ends recording; exactly one of `completion` / `failure` is called on the main queue.
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void)
@@ -238,11 +239,22 @@ final class CloudEngine: DictationEngine {
         lock.lock(); recording?.append(buffer); lock.unlock()
     }
 
-    func start(inputUID: String, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
+    func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
                onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
         guard beginRecording() else { return onError("Couldn't create a recording file.") }
-        mic.start(inputUID: inputUID, onBuffer: { [weak self] in self?.record($0) }, onLevel: onLevel, onEvent: onMic,
-                  onError: onError)
+        mic.startDictation(inputUID: inputUID, backups: backups, onBuffer: { [weak self] in self?.record($0) }, onLevel: onLevel,
+                  onEvent: onMic, onRestart: { [weak self] in self?.restartRecording() ?? false }, onError: onError)
+    }
+
+    /// A better mic won: its audio from the start replaces what was recorded.
+    private func restartRecording() -> Bool {
+        lock.lock()
+        let old = recording
+        recording = DictationRecording(archive: archive, note: note)
+        let started = recording != nil
+        lock.unlock()
+        old?.discard()
+        return started
     }
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {

@@ -13,8 +13,11 @@ cloud models can handle **English mixed into Chinese**, which the built-in macOS
   The text is pasted at your cursor in whatever app you're in.
 - **Live recording bar.** A small bar at the bottom of the screen shows a waveform and which mic
   is recording. Click ✓ to paste, or ✕ / **Esc** to cancel. Bluetooth headsets take about a second
-  to start their mic: the bar shows the wait, then flashes green when you can talk. If the headset's
-  mic never starts, the dictation moves to the Mac's own mic.
+  to start their mic: the bar shows the wait, then flashes green when you can talk. It glows red if
+  no audio is coming in.
+- **Intelligent mic selection.** Picked the wrong mic? While you dictate, your wired and built-in
+  mics listen too. If one hears you clearly better, the dictation switches to it with nothing lost
+  (the bar flashes yellow), and it becomes your mic from then on. On by default; Settings → Audio.
 - **On-device or cloud.** *On-device* uses Apple Speech, and no audio leaves your Mac.
   *Cloud Flash* returns text about 0.5 s after you stop, and *Cloud Big* in about 2 s. Both handle
   English mixed into Chinese.

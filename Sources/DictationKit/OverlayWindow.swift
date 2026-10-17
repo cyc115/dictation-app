@@ -3,8 +3,9 @@ import AppKit
 /// Small pill at the bottom of the screen: ✕ cancel · live waveform (+ mic name) · ✓ paste.
 /// Also shows short status text ("Polishing…", errors) in the same pill.
 ///
-/// With a slow mic (Bluetooth) the pill first shows that the mic is starting, then flashes when it's
-/// live (`PillLook`), so you know when you can talk.
+/// With a slow mic (Bluetooth) the pill first shows that the mic is starting, then flashes green when
+/// it's live (`PillLook`), so you know when you can talk. It flashes yellow when the dictation moves
+/// to a mic that hears you better, and glows red while no audio is coming in.
 class OverlayWindow {
     var onCancel: (() -> Void)?
     var onConfirm: (() -> Void)?
@@ -18,8 +19,14 @@ class OverlayWindow {
     /// The "working" pill: just the ripple.
     static let processingWidth: CGFloat = 84
     private static let bottomMargin: CGFloat = 28
-    /// The "mic is live" flash.
-    private static let green = NSColor(red: 52 / 255, green: 199 / 255, blue: 89 / 255, alpha: 1)
+    /// The edge and glow colors (system green, yellow, red).
+    private static func color(_ aura: PillLook.Aura) -> (red: CGFloat, green: CGFloat, blue: CGFloat) {
+        switch aura {
+        case .green: return (52, 199, 89)
+        case .yellow: return (255, 204, 0)
+        case .red: return (255, 59, 48)
+        }
+    }
     /// Clear space around the pill inside its window, for the ready glow and bounce to draw into.
     static let glowMargin: CGFloat = 16
 
@@ -46,9 +53,13 @@ class OverlayWindow {
     private(set) var mode = Mode.hidden
     private var autoHide: DispatchWorkItem?
     private var micName = ""
-    /// When the slow mic started (while it's starting), and when it went live (during the flash).
+    /// When the slow mic started (while it's starting); the green or yellow flash in progress; and
+    /// since when no audio has come in (red).
     private var warmingSince: TimeInterval?
-    private var readySince: TimeInterval?
+    private var flash: (since: TimeInterval, aura: PillLook.Aura)?
+    private var silentSince: TimeInterval?
+    /// The glow last applied, so an unchanged one isn't set again every frame.
+    private var shownGlow: (CGFloat, PillLook.Aura) = (0, .green)
     /// Since you stopped, while the pill narrows to the processing one: when, and what it started from.
     private var narrowing: (since: TimeInterval, width: CGFloat, waveform: NSRect)?
     private var animation: Timer?
@@ -83,29 +94,42 @@ class OverlayWindow {
         if warmingUp { startAnimation() }
     }
 
-    /// The mic sent its first real audio: if the pill was showing the wait, it flashes "ready".
+    /// The mic sent its first real audio: if the pill was showing the wait, it flashes green; any
+    /// red "no audio" glow goes.
     func micLive() {
-        guard mode == .listening, warmingSince != nil else { return }
-        warmingSince = nil
-        readySince = now()
-        plainCaptionWidth = 0
-        setMicName(micName)
-        panel?.hasShadow = false  // the glow stands in for the shadow while it shows
-        applyLook()
+        guard mode == .listening else { return }
+        silentSince = nil
+        if warmingSince != nil {
+            warmingSince = nil
+            flash = (now(), .green)
+            plainCaptionWidth = 0
+            setMicName(micName)
+        }
+        animate()
     }
 
-    /// The dictation moved to another mic (the slow one never started).
+    /// The dictation moved to a mic that hears you better: its name, and a yellow flash.
     func micSwitched(to name: String) {
         guard mode == .listening else { return }
         micName = name
-        if warmingSince != nil {
-            plainCaptionWidth = Self.caption(name, symbol: "mic.fill").size().width
-            setCaption("Starting \(name)…", symbol: "headphones", accessibility: "Microphone starting: \(name)")
-        } else {
-            setMicName(name)
-        }
+        warmingSince = nil
+        silentSince = nil
+        plainCaptionWidth = 0
+        flash = (now(), .yellow)
+        setMicName(name)
         present(.listening)
+        animate()
     }
+
+    /// No audio is coming in from the mic: a red glow fades in and stays until it does.
+    func micSilent() {
+        guard mode == .listening, silentSince == nil else { return }
+        silentSince = now()
+        animate()
+    }
+
+    /// Whether the pill is glowing red for "no audio".
+    var isShowingNoAudio: Bool { silentSince != nil }
 
     private func setMicName(_ name: String?) {
         guard let name = name, !name.isEmpty else {
@@ -191,8 +215,8 @@ class OverlayWindow {
 
     // MARK: - Warm-up animation
 
-    /// Redraws the warm-up or ready look for `now()` (the timer calls it; tests and the README frames
-    /// call it after moving the clock).
+    /// Redraws the animated look for `now()` (the timer calls it; tests and the README frames call it
+    /// after moving the clock).
     func tick() { applyLook() }
 
     private func startAnimation() {
@@ -203,12 +227,18 @@ class OverlayWindow {
         applyLook()
     }
 
+    /// Runs the animation if something needs it, else shows the look as it is now.
+    private func animate() {
+        if warmingSince != nil || flash != nil || silentSince != nil { startAnimation() } else { applyLook() }
+    }
+
     /// Back to the plain pill, with no animation running.
     private func stopAnimation() {
         animation?.invalidate()
         animation = nil
         warmingSince = nil
-        readySince = nil
+        flash = nil
+        silentSince = nil
         narrowing = nil
         cancelButton.alphaValue = 1
         confirmButton.alphaValue = 1
@@ -226,16 +256,27 @@ class OverlayWindow {
             } else {
                 layOutNarrowing(.narrowing(since: elapsed), from: narrowing)
             }
-        } else if let since = warmingSince {
-            apply(.waiting(elapsed: now() - since, reduceMotion: reduce))
-        } else if let since = readySince {
-            let elapsed = now() - since
+            return
+        }
+        var look = PillLook.plain
+        if let since = warmingSince {
+            look = .waiting(elapsed: now() - since, reduceMotion: reduce)
+        } else if let flash {
+            let elapsed = now() - flash.since
             if PillLook.settled(since: elapsed) {
-                stopAnimation()
-                panel?.invalidateShadow()
+                self.flash = nil
             } else {
-                apply(.ready(since: elapsed, reduceMotion: reduce))
+                look = .ready(since: elapsed, reduceMotion: reduce, aura: flash.aura)
             }
+        }
+        if let since = silentSince, flash == nil {
+            look.glow = PillLook.silentGlow(since: now() - since)
+            look.aura = .red
+        }
+        apply(look)
+        if warmingSince == nil, flash == nil, silentSince == nil, animation != nil {
+            animation?.invalidate()
+            animation = nil
         }
     }
 
@@ -261,23 +302,32 @@ class OverlayWindow {
         confirmButton.emphasis = look.confirmEmphasis
         micLabel.alphaValue = look.captionAlpha
         let g = look.glow
-        // The view's shadow, not the layer's: AppKit resets a layer-backed view's layer shadow.
-        if g > 0 {
-            let glow = NSShadow()
-            glow.shadowColor = Self.green.withAlphaComponent(0.8 * g)
-            glow.shadowBlurRadius = 14 * g
-            glow.shadowOffset = .zero
-            background.shadow = glow
-        } else if background.shadow != nil {
-            background.shadow = nil
+        let (r, gr, b) = Self.color(look.aura)
+        if shownGlow != (g, look.aura) {
+            shownGlow = (g, look.aura)
+            // The view's shadow, not the layer's: AppKit resets a layer-backed view's layer shadow.
+            if g > 0 {
+                let glow = NSShadow()
+                glow.shadowColor = NSColor(red: r / 255, green: gr / 255, blue: b / 255, alpha: 0.8 * g)
+                glow.shadowBlurRadius = 14 * g
+                glow.shadowOffset = .zero
+                background.shadow = glow
+            } else {
+                background.shadow = nil
+            }
+            // The glow stands in for the window's drop shadow while it shows.
+            if let panel, panel.hasShadow != (g == 0) {
+                panel.hasShadow = g == 0
+                panel.invalidateShadow()
+            }
         }
         guard let layer = background.layer else { return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         layer.borderWidth = 0.5 + 1.1 * g
-        // White at 14% (the resting edge) → `green`.
-        layer.borderColor = NSColor(red: (255 - 203 * g) / 255, green: (255 - 56 * g) / 255, blue: (255 - 166 * g) / 255,
-                                    alpha: 0.14 + 0.76 * g).cgColor
+        // White at 14% (the resting edge) → the aura's color.
+        layer.borderColor = NSColor(red: (255 - (255 - r) * g) / 255, green: (255 - (255 - gr) * g) / 255,
+                                    blue: (255 - (255 - b) * g) / 255, alpha: 0.14 + 0.76 * g).cgColor
         let bounds = layer.bounds
         // AppKit puts a view's layer anchor at its corner: scale about the pill's center.
         var transform = CATransform3DMakeTranslation(-bounds.midX, -bounds.midY, 0)

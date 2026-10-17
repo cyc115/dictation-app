@@ -14,13 +14,15 @@ final class FakeEngine: DictationEngine {
     private(set) var started = 0
     private(set) var cancelled = 0
 
-    /// The last dictation's mic events, to send as the mic would.
+    /// The last dictation's mic events, to send as the mic would, and whether backups were asked for.
     private(set) var onMic: ((MicEvent) -> Void)?
+    private(set) var backups: Bool?
 
-    func start(inputUID: String, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
+    func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
                onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
         started += 1
         self.onMic = onMic
+        self.backups = backups
         utterances.forEach { onUtterance?($0) }
     }
 
@@ -99,10 +101,41 @@ final class DictationControllerTests: XCTestCase {
         controller.activeInput = { _ in MicCaptureTests.buds }
         controller.start()
         XCTAssertTrue(controller.overlay.isWarmingUp)
-        engine.onMic?(.switched(to: "MacBook Pro Microphone"))
-        XCTAssertTrue(controller.overlay.micLabel.stringValue.hasSuffix("Starting MacBook Pro Microphone…"))
         engine.onMic?(.live)
         XCTAssertFalse(controller.overlay.isWarmingUp)
+        controller.cancel()
+    }
+
+    /// Intelligent mic selection (on by default) moved to a better mic: the pill names it, and it
+    /// becomes the Microphone setting for next time.
+    func testASwitchNamesTheMicAndBecomesTheSetting() {
+        let controller = makeController()
+        controller.activeInput = { _ in MicCaptureTests.buds }
+        settings.microphoneUID = MicCaptureTests.buds.uid
+        controller.start()
+        XCTAssertEqual(engine.backups, true)
+        engine.onMic?(.switched(to: MicCaptureTests.webcam))
+        XCTAssertFalse(controller.overlay.isWarmingUp)
+        XCTAssertTrue(controller.overlay.micLabel.stringValue.hasSuffix("Logitech BRIO"))
+        XCTAssertEqual(settings.microphoneUID, MicCaptureTests.webcam.uid)
+        controller.cancel()
+    }
+
+    func testIntelligentMicSelectionOff() {
+        let controller = makeController()
+        settings.intelligentMicSelection = false
+        controller.start()
+        XCTAssertEqual(engine.backups, false)
+        controller.cancel()
+    }
+
+    func testNoAudioGlowsRedUntilAudioComes() {
+        let controller = makeController()
+        controller.start()
+        engine.onMic?(.noAudio)
+        XCTAssertTrue(controller.overlay.isShowingNoAudio)
+        engine.onMic?(.live)
+        XCTAssertFalse(controller.overlay.isShowingNoAudio)
         controller.cancel()
     }
 
@@ -120,8 +153,9 @@ final class DictationControllerTests: XCTestCase {
         controller.activeInput = { _ in MicCaptureTests.buds }
         controller.start()
         controller.cancel()
-        engine.onMic?(.switched(to: "MacBook Pro Microphone"))
+        engine.onMic?(.switched(to: MicCaptureTests.builtIn))
         XCTAssertEqual(controller.overlay.mode, .hidden)
+        XCTAssertEqual(settings.microphoneUID, "", "a finished dictation's late events change nothing")
     }
 
     func testPolishedTextIsPastedAndTheRawKept() {

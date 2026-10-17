@@ -128,6 +128,9 @@ final class AppSettings: ObservableObject {
     @Setting("aiPolishEnabled", default: false) var polishEnabled: Bool
     /// CoreAudio device UID; empty means the system default input.
     @Setting("microphoneUID", default: "") var microphoneUID: String
+    /// Also record from the other wired and built-in mics, move a dictation to whichever hears you
+    /// clearly better, and make it the Microphone setting.
+    @Setting("intelligentMicSelection", default: true) var intelligentMicSelection: Bool
     @Setting("interactionSounds", default: true) var interactionSounds: Bool
     @Setting("muteWhileDictating", default: false) var muteWhileDictating: Bool
     @Setting("appearance", default: .system) var appearance: AppearanceMode

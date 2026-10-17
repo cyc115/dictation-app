@@ -43,19 +43,23 @@ enum AudioDevices {
         connectedInput(uid: preferredUID) ?? defaultInputDevice().flatMap(input)
     }
 
-    /// The mic to move to when `failing` (a Bluetooth mic) stays silent: the Mac's own mic, unless
-    /// the lid is closed (it then records pure silence), else the system default if that's a
-    /// different, non-Bluetooth mic. Nil when there's nothing better.
-    static func fallbackInput(for failing: AudioInputDevice) -> AudioInputDevice? {
-        if !isLidClosed(),
-           let builtIn = allDevices().lazy.filter({ transportType($0) == kAudioDeviceTransportTypeBuiltIn }).compactMap(input).first,
-           builtIn.id != failing.id {
-            return builtIn
-        }
-        guard let system = defaultInputDevice().flatMap(input), system.id != failing.id, !system.isBluetooth,
-              transportType(system.id) != kAudioDeviceTransportTypeBuiltIn else { return nil }
-        return system
+    /// Intelligent mic selection's backups: every connected mic that's real wired or built-in
+    /// hardware, besides `chosen`. Not Bluetooth (opening a headset's mic drops its audio to call
+    /// quality), virtual devices (Steam, Jump Desktop), an iPhone's Continuity mic, or the Mac's
+    /// own mic while the lid is closed (it then records pure silence).
+    static func backupInputs(excluding chosen: AudioInputDevice) -> [AudioInputDevice] {
+        let lidClosed = isLidClosed()
+        return allDevices().filter { id in
+            let transport = transportType(id)
+            return wiredTransports.contains(transport) && !(lidClosed && transport == kAudioDeviceTransportTypeBuiltIn)
+        }.compactMap(input).filter { $0.id != chosen.id }
     }
+
+    private static let wiredTransports: Set<UInt32> = [
+        kAudioDeviceTransportTypeBuiltIn, kAudioDeviceTransportTypeUSB, kAudioDeviceTransportTypeFireWire,
+        kAudioDeviceTransportTypePCI, kAudioDeviceTransportTypeThunderbolt, kAudioDeviceTransportTypeHDMI,
+        kAudioDeviceTransportTypeDisplayPort,
+    ]
 
     /// A MacBook with its lid closed (an external display in use), whose own mic is then silent.
     static func isLidClosed() -> Bool {

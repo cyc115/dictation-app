@@ -106,6 +106,12 @@ struct SettingsView: View {
                         ForEach(microphones, id: \.uid) { Text($0.name).tag($0.uid) }
                     }
                 }
+                SettingRow("Intelligent mic selection",
+                           "Also listen on your wired and built-in mics, and switch to the one that hears you best. "
+                           + "Bluetooth mics are only used when chosen above.") {
+                    Toggle("Intelligent mic selection", isOn: $settings.intelligentMicSelection)
+                        .accessibilityIdentifier("settings.intelligentMic")
+                }
                 SettingRow("Interaction sounds", "Play sounds for key actions like start/stop.") {
                     Toggle("Interaction sounds", isOn: $settings.interactionSounds)
                 }

@@ -31,27 +31,55 @@ class SpeechEngine {
     /// Set with `archive`, before each dictation: the polish half of its JSON.
     var note: RecordingNote?
     private var recording: DictationRecording?
+    /// What a restart (a better mic won) needs to recognize again, for the dictation in progress.
+    private var restartWith: (recognizer: SFSpeechRecognizer, onUtterance: ((String) -> Void)?, onError: (String) -> Void)?
+    /// An utterance has been handed out ("type as you speak" typed it), so a restart would repeat it.
+    private var handedOut = false
 
     /// Starts listening on the microphone.
     /// - `inputUID` picks a microphone by CoreAudio UID; empty or missing uses the system default.
     /// - `onLevel` gets the mic level (0…1) for each audio buffer, on the main queue.
-    /// - `onMic` gets the mic's events (live, switched), on the main queue.
+    /// - `backups`: Intelligent mic selection. If another mic wins, recognition starts over on its
+    ///   audio from the start, unless "type as you speak" already typed something.
+    /// - `onMic` gets the mic's events, on the main queue.
     /// - `onUtterance` gets each finished utterance (with its leading separator) as soon as you
     ///   pause, on the main queue — for streaming text out while still dictating.
-    func start(inputUID: String = "", onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void = { _ in },
+    func start(inputUID: String = "", backups: Bool = false, onLevel: @escaping (Float) -> Void,
+               onMic: @escaping (MicEvent) -> Void = { _ in },
                onUtterance: ((String) -> Void)? = nil, onError: @escaping (String) -> Void) {
         guard let (recognizer, request, id) = prepare(onError: onError) else { return }
 
-        let recording = startRecording()
-        guard mic.start(inputUID: inputUID, onBuffer: { [weak self] buffer in
+        _ = startRecording()
+        restartWith = (recognizer, onUtterance, onError)
+        handedOut = false
+        // The request and recording are only swapped by `restart`, while no audio is handed on.
+        guard mic.startDictation(inputUID: inputUID, backups: backups, onBuffer: { [weak self] buffer in
             self?.request?.append(buffer)
-            recording?.append(buffer)
-        }, onLevel: onLevel, onEvent: onMic, onError: onError) else {
+            self?.recording?.append(buffer)
+        }, onLevel: onLevel, onEvent: onMic, onRestart: { [weak self] in self?.restart() ?? false }, onError: onError) else {
             self.request = nil
             finishRecording(transcript: nil)
             return
         }
         recognize(recognizer, request, id: id, onUtterance: onUtterance, onError: onError)
+    }
+
+    /// Main queue, a better mic won: recognition (and the kept WAV) start over on its audio, unless
+    /// typed text would be repeated or the dictation is already stopping.
+    private func restart() -> Bool {
+        guard let with = restartWith, finishHandler == nil, task != nil, !handedOut else { return false }
+        session += 1  // the old task's late results are ignored
+        task?.cancel()
+        transcript = TranscriptAccumulator()
+        lastResultAt = clock()
+        let request = Self.makeRequest()
+        self.request = request
+        if archive != nil {
+            recording?.discard()
+            recording = DictationRecording(archive: archive, note: note)
+        }
+        recognize(with.recognizer, request, id: session, onUtterance: with.onUtterance, onError: with.onError)
+        return true
     }
 
     /// Same pipeline as `start`, fed from an audio file at real-time pace like a mic (for end-to-end
@@ -100,13 +128,18 @@ class SpeechEngine {
             onError("on-device recognition unavailable — check Dictation languages in System Settings → Keyboard")
             return nil
         }
+        let request = Self.makeRequest()
+        self.request = request
+        return (recognizer, request, session)
+    }
+
+    private static func makeRequest() -> SFSpeechAudioBufferRecognitionRequest {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true   // text streams while you speak
         request.requiresOnDeviceRecognition = true  // nothing leaves the Mac
         request.taskHint = .dictation
         request.addsPunctuation = true
-        self.request = request
-        return (recognizer, request, session)
+        return request
     }
 
     private func recognize(_ recognizer: SFSpeechRecognizer, _ request: SFSpeechAudioBufferRecognitionRequest, id: Int,
@@ -120,7 +153,10 @@ class SpeechEngine {
                 // Metadata marks the last result of an utterance (the recognizer restarts after it).
                 let ended = result.speechRecognitionMetadata != nil || result.isFinal
                 if let chunk = self.transcript.update(result.bestTranscription.formattedString, utteranceEnded: ended) {
-                    onUtterance?(chunk)
+                    if let onUtterance {
+                        self.handedOut = true
+                        onUtterance(chunk)
+                    }
                 }
                 if result.isFinal { self.complete() }
             }
@@ -134,6 +170,7 @@ class SpeechEngine {
     /// `completion` on the main queue with the full transcript.
     func stop(completion: @escaping (String) -> Void) {
         mic.stop()
+        restartWith = nil
         guard task != nil else {  // start failed — nothing more is coming
             request = nil
             finishRecording(transcript: nil)
@@ -166,6 +203,7 @@ class SpeechEngine {
     /// Stops capture and throws the transcript away.
     func cancel() {
         mic.stop()
+        restartWith = nil
         finishHandler = nil
         session += 1
         task?.cancel()

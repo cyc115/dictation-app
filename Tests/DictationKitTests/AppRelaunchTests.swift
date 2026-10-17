@@ -6,41 +6,57 @@ import XCTest
 /// copy only zeros from the mic ("Client is not granted access to the input device"), so every
 /// dictation came back empty or as text a model made up from silence, until it was relaunched.
 final class MicSilenceTests: XCTestCase {
-    private func feed(_ mic: MicCapture, amplitude: Float, count: Int) {
-        for _ in 0..<count { mic.received(AudioLevelTests.buffer(amplitude: amplitude), to: nil) }
+    /// Starts `mic` on a fake wired mic; returns what feeds it audio.
+    private func start(_ mic: MicCapture, onBuffer: @escaping (AVAudioPCMBuffer) -> Void = { _ in }) throws
+        -> (AVAudioPCMBuffer) -> Void {
+        var deliver: ((AVAudioPCMBuffer) -> Void)?
+        mic.resolveInput = { _ in MicCaptureTests.wired }
+        mic.openInput = { device, feed, stopped in
+            deliver = feed
+            return MicCaptureTests.FakeInput(device: device, stopped: stopped)
+        }
+        try mic.start(inputUID: "", onBuffer: onBuffer, onError: { XCTFail($0) })
+        return try XCTUnwrap(deliver)
     }
 
-    func testAllZeroAudioIsFlaggedAfterHalfASecond() {
+    private func feed(_ deliver: (AVAudioPCMBuffer) -> Void, amplitude: Float, count: Int) {
+        for _ in 0..<count { deliver(AudioLevelTests.buffer(amplitude: amplitude)) }
+    }
+
+    func testAllZeroAudioIsFlaggedAfterHalfASecond() throws {
         let mic = MicCapture()
         XCTAssertFalse(mic.heardOnlySilence, "nothing recorded yet")
-        feed(mic, amplitude: 0, count: MicCapture.silenceBuffers - 1)
+        let deliver = try start(mic)
+        feed(deliver, amplitude: 0, count: MicCapture.silenceBuffers - 1)
         XCTAssertFalse(mic.heardOnlySilence, "a quick press can start with a few zero buffers")
-        feed(mic, amplitude: 0, count: 1)
+        feed(deliver, amplitude: 0, count: 1)
         XCTAssertTrue(mic.heardOnlySilence)
+        mic.stop()
+        XCTAssertTrue(mic.heardOnlySilence, "still known after stop, when the engine checks")
     }
 
-    func testAnyNoiseCountsAsSignal() {
+    func testAnyNoiseCountsAsSignal() throws {
         let mic = MicCapture()
-        feed(mic, amplitude: 0, count: 30)
-        feed(mic, amplitude: 0.0001, count: 1)  // a quiet room is never exactly zero
-        feed(mic, amplitude: 0, count: 30)
+        let deliver = try start(mic)
+        feed(deliver, amplitude: 0, count: 30)
+        feed(deliver, amplitude: 0.0001, count: 1)  // a quiet room is never exactly zero
+        feed(deliver, amplitude: 0, count: 30)
         XCTAssertFalse(mic.heardOnlySilence)
     }
 
     func testEachDictationStartsOver() throws {
         let mic = MicCapture()
-        mic.openInput = { device, _, stopped in MicCaptureTests.FakeInput(device: device, stopped: stopped) }
-        mic.resolveInput = { _ in MicCaptureTests.wired }
-        feed(mic, amplitude: 0, count: 30)
-        try mic.start(inputUID: "", onBuffer: { _ in }, onError: { XCTFail($0) })
+        feed(try start(mic), amplitude: 0, count: 30)
+        _ = try start(mic)
         XCTAssertFalse(mic.heardOnlySilence)
         mic.stop()
     }
 
-    func testBuffersStillReachTheEngine() {
+    func testBuffersStillReachTheEngine() throws {
         let mic = MicCapture()
         var got = 0
-        mic.received(AudioLevelTests.buffer(amplitude: 0), to: { _ in got += 1 })
+        let deliver = try start(mic, onBuffer: { _ in got += 1 })
+        deliver(AudioLevelTests.buffer(amplitude: 0))
         XCTAssertEqual(got, 1)
     }
 
@@ -50,11 +66,14 @@ final class MicSilenceTests: XCTestCase {
         let client = FakeTranscriptionClient()
         engine.client = client
         engine.modelID = CloudBackupTests.main
-        XCTAssertTrue(engine.beginRecording())
-        for _ in 0..<47 {  // 1 s of zeros through the tap path
-            let buffer = AudioLevelTests.buffer(amplitude: 0)
-            engine.mic.received(buffer, to: { engine.record($0) })
+        var deliver: ((AVAudioPCMBuffer) -> Void)?
+        engine.mic.resolveInput = { _ in MicCaptureTests.wired }
+        engine.mic.openInput = { device, feed, stopped in
+            deliver = feed
+            return MicCaptureTests.FakeInput(device: device, stopped: stopped)
         }
+        engine.start(inputUID: "", backups: false, onLevel: { _ in }, onMic: { _ in }, onUtterance: nil, onError: { XCTFail($0) })
+        for _ in 0..<47 { deliver?(AudioLevelTests.buffer(amplitude: 0)) }  // 1 s of zeros through the tap path
         let done = expectation(description: "stopped")
         var error: String?
         engine.stop(completion: { XCTFail("got text: \($0)"); done.fulfill() }, failure: { error = $0; done.fulfill() })
@@ -63,9 +82,9 @@ final class MicSilenceTests: XCTestCase {
         XCTAssertTrue(client.asked.isEmpty, "silence isn't sent to the cloud model")
     }
 
-    func testOnDeviceEngineReportsSilence() {
+    func testOnDeviceEngineReportsSilence() throws {
         let engine = SpeechEngine()
-        for _ in 0..<30 { engine.mic.received(AudioLevelTests.buffer(amplitude: 0), to: nil) }
+        feed(try start(engine.mic), amplitude: 0, count: 30)
         var error: String?
         (engine as DictationEngine).stop(completion: { XCTFail("got text: \($0)") }, failure: { error = $0 })
         XCTAssertEqual(error, MicCapture.silenceMessage)
