@@ -29,7 +29,8 @@ class FakeHttp(private val respond: suspend (url: String, model: String, body: B
         fun modelOf(body: ByteArray): String {
             val text = String(body, Charsets.ISO_8859_1)
             Regex("name=\"model\"\r\n\r\n([^\r]+)").find(text)?.let { return it.groupValues[1] }
-            return Regex("\"model\":\"([^\"]+)\"").find(text)?.groupValues?.get(1) ?: ""
+            // Android's org.json writes "/" as "\/" (valid JSON; OpenRouter reads it as "/").
+            return Regex("\"model\":\"([^\"]+)\"").find(text)?.groupValues?.get(1)?.replace("\\/", "/") ?: ""
         }
 
         fun transcript(text: String) = HttpResponse(200, org.json.JSONObject().put("text", text).toString())
@@ -38,3 +39,32 @@ class FakeHttp(private val respond: suspend (url: String, model: String, body: B
             org.json.JSONArray().put(org.json.JSONObject().put("message", org.json.JSONObject().put("content", content)))).toString())
     }
 }
+
+/** A microphone that "hears" a second of speech. */
+class FakeMic : Mic {
+    var listening = false
+    var cancelled = 0
+    var silent = false
+    private var onLevel: ((Float) -> Unit)? = null
+
+    override fun start(onLevel: (Float) -> Unit): Boolean {
+        listening = true
+        this.onLevel = onLevel
+        return true
+    }
+
+    /** As the recording thread does, every 100 ms. */
+    fun level(value: Float) = onLevel?.invoke(value)
+
+    override fun stop(): Recording {
+        listening = false
+        return Recording(if (silent) ByteArray(32_000) else ByteArray(32_000) { (it % 50).toByte() }, heardOnlySilence = silent)
+    }
+
+    override fun cancel() {
+        listening = false
+        cancelled++
+    }
+}
+
+class MemorySecrets(override var apiKey: String?) : SecretStore

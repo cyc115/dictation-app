@@ -87,9 +87,10 @@ class AudioRecordMic : Mic {
 
     private fun finish() {
         running = false
+        record?.let { runCatching { it.stop() } }  // returns the recording thread's read() at once
         thread?.join(500)
         thread = null
-        record?.run { runCatching { stop() }; release() }
+        record?.release()
         record = null
     }
 

@@ -63,6 +63,7 @@ class GestureDecoder(entries: List<Entry>) {
             for (entry in byFirst[first]) {
                 val last = entry.letters.last() - 'a'
                 if (last !in 0..25 || !ends.contains(last)) continue
+                if (templates.size > MAX_TEMPLATES) templates.clear()  // ~3 MB; a swipe needs a few hundred
                 val template = templates.getOrPut(entry) { template(entry.letters) ?: EMPTY }
                 if (template === EMPTY) continue
                 val location = meanDistance(user, template)
@@ -123,6 +124,7 @@ class GestureDecoder(entries: List<Entry>) {
         const val KEY_SLACK = 0.55f
         const val MISSED_WEIGHT = 6f
         const val PRIOR_WEIGHT = 3f
+        const val MAX_TEMPLATES = 8_000
         private val EMPTY = FloatArray(0)
 
         fun length(xs: FloatArray, ys: FloatArray): Float {
