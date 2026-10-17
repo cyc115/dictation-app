@@ -397,8 +397,8 @@ final class OverlayUITests: XCTestCase {
         let panel = try XCTUnwrap(overlay.panel)
         XCTAssertTrue(panel.isVisible)
         XCTAssertEqual(overlay.mode, .listening)
-        XCTAssertEqual(overlay.pillFrame.height, OverlayWindow.height)
-        XCTAssertEqual(overlay.pillFrame.width, OverlayWindow.listeningWidth)
+        XCTAssertEqual(overlay.pillFrame.height, PillLayout.height)
+        XCTAssertEqual(overlay.pillFrame.width, PillLayout.listeningWidth)
         let screen = try XCTUnwrap(panel.screen ?? NSScreen.main)
         XCTAssertEqual(overlay.pillFrame.midX, screen.visibleFrame.midX, accuracy: 1, "centered")
         XCTAssertLessThan(overlay.pillFrame.minY - screen.visibleFrame.minY, 60, "near the bottom")
@@ -432,7 +432,7 @@ final class OverlayUITests: XCTestCase {
         overlay.showMessage("On-device recognition unavailable — check Dictation languages", hideAfter: 10)
         XCTAssertNotNil(overlay.panel)
         XCTAssertEqual(overlay.mode, .message)
-        XCTAssertGreaterThan(overlay.pillFrame.width, OverlayWindow.listeningWidth)
+        XCTAssertGreaterThan(overlay.pillFrame.width, PillLayout.listeningWidth)
         XCTAssertLessThanOrEqual(overlay.pillFrame.width, 460)
         overlay.hideUnlessMessage()
         XCTAssertEqual(overlay.mode, .message, "messages survive hideUnlessMessage")
@@ -445,7 +445,7 @@ final class OverlayUITests: XCTestCase {
         XCTAssertFalse(overlay.micLabel.isHidden)
         XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("MacBook Pro Microphone"), overlay.micLabel.stringValue)
         XCTAssertLessThan(overlay.micLabel.frame.maxY, overlay.waveform.frame.minY + 1, "caption sits below the bars")
-        XCTAssertEqual(overlay.pillFrame.height, OverlayWindow.height, "caption doesn't grow the pill")
+        XCTAssertEqual(overlay.pillFrame.height, PillLayout.height, "caption doesn't grow the pill")
 
         overlay.showListening(micName: nil)
         XCTAssertTrue(overlay.micLabel.isHidden)
@@ -505,14 +505,14 @@ final class OverlayUITests: XCTestCase {
         overlay.tick()
         let pill = try XCTUnwrap(overlay.panel?.contentView?.subviews.first)
         XCTAssertLessThan(pill.frame.width, wide.width)
-        XCTAssertGreaterThan(pill.frame.width, OverlayWindow.processingWidth)
+        XCTAssertGreaterThan(pill.frame.width, PillLayout.processingWidth)
         XCTAssertEqual(pill.frame.midX, overlay.panel!.contentView!.bounds.midX, accuracy: 0.5, "narrows toward its center")
         XCTAssertEqual(overlay.confirmButton.alphaValue, 0, accuracy: 0.01)
 
         clock = PillLook.narrowDuration
         overlay.tick()
         XCTAssertFalse(overlay.isNarrowing)
-        XCTAssertEqual(overlay.pillFrame.width, OverlayWindow.processingWidth)
+        XCTAssertEqual(overlay.pillFrame.width, PillLayout.processingWidth)
         XCTAssertEqual(overlay.pillFrame.midX, wide.midX, accuracy: 1, "ends where it narrowed to")
         XCTAssertTrue(overlay.confirmButton.isHidden)
     }
@@ -522,7 +522,7 @@ final class OverlayUITests: XCTestCase {
         addTeardownBlock { overlay.hide() }
         overlay.showProcessing()
         XCTAssertFalse(overlay.isNarrowing)
-        XCTAssertEqual(overlay.pillFrame.width, OverlayWindow.processingWidth)
+        XCTAssertEqual(overlay.pillFrame.width, PillLayout.processingWidth)
     }
 
     func testMessageDuringNarrowingWins() {
@@ -620,9 +620,9 @@ final class OverlayUITests: XCTestCase {
                            "caption is centered in the pill")
         }
         overlay.showListening(micName: "Mic")
-        XCTAssertEqual(overlay.pillFrame.width, OverlayWindow.listeningWidth, "short names keep the compact pill")
+        XCTAssertEqual(overlay.pillFrame.width, PillLayout.listeningWidth, "short names keep the compact pill")
         overlay.showListening(micName: String(repeating: "Very Long Device Name ", count: 6))
-        XCTAssertEqual(overlay.pillFrame.width, OverlayWindow.maxListeningWidth, "absurd names are capped")
+        XCTAssertEqual(overlay.pillFrame.width, PillLayout.maxListeningWidth, "absurd names are capped")
     }
 
     func testHideFadesOut() throws {

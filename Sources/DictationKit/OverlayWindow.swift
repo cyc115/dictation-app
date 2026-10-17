@@ -4,20 +4,15 @@ import AppKit
 /// Also shows short status text ("Polishing…", errors) in the same pill.
 ///
 /// With a slow mic (Bluetooth) the pill first shows that the mic is starting, then flashes green when
-/// it's live (`PillLook`), so you know when you can talk. It flashes yellow when the dictation moves
-/// to a mic that hears you better, and glows red while no audio is coming in.
+/// it's live, so you know when you can talk. It flashes yellow when the dictation moves to a mic that
+/// hears you better, and glows red while no audio is coming in. What it's animating is `PillState`,
+/// each frame's look `PillLook`, and where things sit `PillLayout`; this class draws them.
 class OverlayWindow {
     var onCancel: (() -> Void)?
     var onConfirm: (() -> Void)?
 
     enum Mode { case hidden, listening, processing, message }
 
-    static let height: CGFloat = 40
-    static let listeningWidth: CGFloat = 164
-    /// The pill widens to fit a long mic name, up to this width (then truncates).
-    static let maxListeningWidth: CGFloat = 340
-    /// The "working" pill: just the ripple.
-    static let processingWidth: CGFloat = 84
     private static let bottomMargin: CGFloat = 28
     /// The edge and glow colors (system green, yellow, red).
     private static func color(_ aura: PillLook.Aura) -> (red: CGFloat, green: CGFloat, blue: CGFloat) {
@@ -53,23 +48,21 @@ class OverlayWindow {
     private(set) var mode = Mode.hidden
     private var autoHide: DispatchWorkItem?
     private var micName = ""
-    /// When the slow mic started (while it's starting); the green or yellow flash in progress; and
-    /// since when no audio has come in (red).
-    private var warmingSince: TimeInterval?
-    private var flash: (since: TimeInterval, aura: PillLook.Aura)?
-    private var silentSince: TimeInterval?
+    private(set) var state = PillState()
+    /// The layout on screen; while narrowing, the listening one it started from.
+    private var layout = PillLayout(width: PillLayout.listeningWidth, content: .listening(caption: false))
     /// The glow last applied, so an unchanged one isn't set again every frame.
     private var shownGlow: (CGFloat, PillLook.Aura) = (0, .green)
-    /// Since you stopped, while the pill narrows to the processing one: when, and what it started from.
-    private var narrowing: (since: TimeInterval, width: CGFloat, waveform: NSRect)?
     private var animation: Timer?
     /// While the mic is starting: the width its plain caption will need, so the pill keeps one width.
     private var plainCaptionWidth: CGFloat = 0
 
     /// The mic is starting: the pill is showing "Starting <mic>…".
-    var isWarmingUp: Bool { warmingSince != nil }
+    var isWarmingUp: Bool { state.isWarmingUp }
     /// The listening pill is narrowing into the processing one.
-    var isNarrowing: Bool { narrowing != nil }
+    var isNarrowing: Bool { state.isNarrowing }
+    /// Whether the pill is glowing red for "no audio".
+    var isShowingNoAudio: Bool { state.isShowingNoAudio }
     /// Where the pill itself is on screen (its window is `glowMargin` bigger all round).
     var pillFrame: NSRect { panel?.frame.insetBy(dx: Self.glowMargin, dy: Self.glowMargin) ?? .zero }
 
@@ -82,7 +75,7 @@ class OverlayWindow {
         waveform.reset()
         waveform.processing = false
         self.micName = micName ?? ""
-        warmingSince = warmingUp ? now() : nil
+        state = .listening(warmingUp: warmingUp, at: now())
         plainCaptionWidth = 0
         if warmingUp, let micName, !micName.isEmpty {
             plainCaptionWidth = Self.caption(micName, symbol: "mic.fill").size().width
@@ -98,13 +91,11 @@ class OverlayWindow {
     /// red "no audio" glow goes.
     func micLive() {
         guard mode == .listening else { return }
-        silentSince = nil
-        if warmingSince != nil {
-            warmingSince = nil
-            flash = (now(), .green)
+        if state.isWarmingUp {
             plainCaptionWidth = 0
             setMicName(micName)
         }
+        state.micLive(at: now())
         animate()
     }
 
@@ -112,10 +103,8 @@ class OverlayWindow {
     func micSwitched(to name: String) {
         guard mode == .listening else { return }
         micName = name
-        warmingSince = nil
-        silentSince = nil
+        state.micSwitched(at: now())
         plainCaptionWidth = 0
-        flash = (now(), .yellow)
         setMicName(name)
         present(.listening)
         animate()
@@ -123,13 +112,10 @@ class OverlayWindow {
 
     /// No audio is coming in from the mic: a red glow fades in and stays until it does.
     func micSilent() {
-        guard mode == .listening, silentSince == nil else { return }
-        silentSince = now()
+        guard mode == .listening, !state.isShowingNoAudio else { return }
+        state.micSilent(at: now())
         animate()
     }
-
-    /// Whether the pill is glowing red for "no audio".
-    var isShowingNoAudio: Bool { silentSince != nil }
 
     private func setMicName(_ name: String?) {
         guard let name = name, !name.isEmpty else {
@@ -175,14 +161,13 @@ class OverlayWindow {
     /// Bars ripple while waiting on something (e.g. AI polish). From the listening pill, it narrows
     /// into this one rather than jumping.
     func showProcessing() {
-        let from = background.frame.width
-        let fromListening = mode == .listening && panel?.isVisible == true && from > Self.processingWidth
+        let fromListening = mode == .listening && panel?.isVisible == true && layout.width > PillLayout.processingWidth
         waveform.processing = true
         guard fromListening else { return present(.processing) }
         stopAnimation()
         autoHide?.cancel()
         mode = .processing
-        narrowing = (now(), from, waveform.frame)
+        state = .narrowing(at: now())  // from `layout`, the listening one
         startAnimation()
     }
 
@@ -213,7 +198,7 @@ class OverlayWindow {
         if mode != .message { hide() }
     }
 
-    // MARK: - Warm-up animation
+    // MARK: - Animation
 
     /// Redraws the animated look for `now()` (the timer calls it; tests and the README frames call it
     /// after moving the clock).
@@ -229,17 +214,14 @@ class OverlayWindow {
 
     /// Runs the animation if something needs it, else shows the look as it is now.
     private func animate() {
-        if warmingSince != nil || flash != nil || silentSince != nil { startAnimation() } else { applyLook() }
+        if state.isAnimating { startAnimation() } else { applyLook() }
     }
 
     /// Back to the plain pill, with no animation running.
     private func stopAnimation() {
         animation?.invalidate()
         animation = nil
-        warmingSince = nil
-        flash = nil
-        silentSince = nil
-        narrowing = nil
+        state = PillState()
         cancelButton.alphaValue = 1
         confirmButton.alphaValue = 1
         plainCaptionWidth = 0
@@ -248,53 +230,44 @@ class OverlayWindow {
     }
 
     private func applyLook() {
-        let reduce = reduceMotion()
-        if let narrowing {
-            let elapsed = now() - narrowing.since
-            if PillLook.narrowed(since: elapsed) {
+        let time = now()
+        if state.isNarrowing {
+            if state.isNarrowed(at: time) {
                 present(.processing)  // the final layout, in a window its size
             } else {
-                layOutNarrowing(.narrowing(since: elapsed), from: narrowing)
+                layOutNarrowing(state.look(at: time, reduceMotion: false))
             }
             return
         }
-        var look = PillLook.plain
-        if let since = warmingSince {
-            look = .waiting(elapsed: now() - since, reduceMotion: reduce)
-        } else if let flash {
-            let elapsed = now() - flash.since
-            if PillLook.settled(since: elapsed) {
-                self.flash = nil
-            } else {
-                look = .ready(since: elapsed, reduceMotion: reduce, aura: flash.aura)
-            }
-        }
-        if let since = silentSince, flash == nil {
-            look.glow = PillLook.silentGlow(since: now() - since)
-            look.aura = .red
-        }
-        apply(look)
-        if warmingSince == nil, flash == nil, silentSince == nil, animation != nil {
+        apply(state.look(at: time, reduceMotion: reduceMotion()))
+        if !state.isAnimating, animation != nil {
             animation?.invalidate()
             animation = nil
         }
     }
 
-    /// The pill partway from its listening layout (`from`) to the processing one, centered in the
-    /// window it had while listening.
-    private func layOutNarrowing(_ look: PillLook, from: (since: TimeInterval, width: CGFloat, waveform: NSRect)) {
+    /// The pill partway from its listening layout to the processing one, centered in the window it
+    /// had while listening.
+    private func layOutNarrowing(_ look: PillLook) {
         guard let panel else { return }
-        let h = Self.height, button: CGFloat = 28, pad = (h - button) / 2
-        let lerp = { (a: CGFloat, b: CGFloat) in a + (b - a) * look.narrowing }
-        let width = lerp(from.width, Self.processingWidth)
-        background.frame = NSRect(x: (panel.frame.width - width) / 2, y: Self.glowMargin, width: width, height: h)
-        confirmButton.frame.origin.x = width - pad - button
+        let current = layout.interpolated(to: PillLayout(width: PillLayout.processingWidth, content: .processing), look.narrowing)
+        background.frame = NSRect(x: (panel.frame.width - current.width) / 2, y: Self.glowMargin, width: current.width,
+                                  height: PillLayout.height)
+        place(current)
+        micLabel.frame = layout.caption  // the name fades out where it was
         cancelButton.alphaValue = look.controlsAlpha
         confirmButton.alphaValue = look.controlsAlpha
         micLabel.alphaValue = look.captionAlpha
-        let x = lerp(from.waveform.minX, 14)
-        waveform.frame = NSRect(x: x, y: lerp(from.waveform.minY, 9), width: width - 2 * x, height: lerp(from.waveform.height, h - 18))
         panel.invalidateShadow()
+    }
+
+    /// Every part of the pill where `layout` puts it.
+    private func place(_ layout: PillLayout) {
+        cancelButton.frame = layout.cancel
+        confirmButton.frame = layout.confirm
+        waveform.frame = layout.waveform
+        micLabel.frame = layout.caption
+        label.frame = layout.label
     }
 
     private func apply(_ look: PillLook) {
@@ -347,45 +320,29 @@ class OverlayWindow {
         if newMode != .listening { stopAnimation() }
         background.layer?.transform = CATransform3DIdentity  // laid out unscaled; the look re-applies it
 
-        let h = Self.height
-        let button: CGFloat = 28, pad = (h - button) / 2
-        let width: CGFloat
+        let showControls = newMode == .listening
+        let showMic = showControls && micLabel.attributedStringValue.length > 0
         switch newMode {
         case .message:
             label.sizeToFit()
-            width = min(max(label.frame.width + 36, Self.listeningWidth), 460)
+            layout = PillLayout(width: PillLayout.messageWidth(text: label.frame.width), content: .message,
+                                labelHeight: label.frame.height)
         case .processing:
-            width = Self.processingWidth
+            layout = PillLayout(width: PillLayout.processingWidth, content: .processing)
         default:
             // Wide enough for the whole mic name between the two buttons (and, while the mic starts,
             // for its plain caption too, so the pill doesn't change width when it goes live).
-            let sideInset = pad + button + 5
-            let shown = micLabel.attributedStringValue.length > 0 ? micLabel.attributedStringValue.size().width : 0
-            let needed = max(shown, plainCaptionWidth)
-            let caption = needed > 0 ? ceil(needed) + 6 : 0
-            width = min(max(Self.listeningWidth, caption + 2 * sideInset), Self.maxListeningWidth)
+            let shown = showMic ? micLabel.attributedStringValue.size().width : 0
+            layout = PillLayout(width: PillLayout.listeningWidth(caption: max(shown, plainCaptionWidth)),
+                                content: .listening(caption: showMic))
         }
-
-        let showControls = newMode == .listening
         cancelButton.isHidden = !showControls
         confirmButton.isHidden = !showControls
         waveform.isHidden = newMode == .message
         label.isHidden = newMode != .message
-        let showMic = showControls && micLabel.attributedStringValue.length > 0
         micLabel.isHidden = !showMic
-
-        cancelButton.frame = NSRect(x: pad, y: pad, width: button, height: button)
-        confirmButton.frame = NSRect(x: width - pad - button, y: pad, width: button, height: button)
-        let inset = showControls ? pad + button + 5 : 14
-        if showMic {
-            // Waveform on top, mic caption tucked underneath.
-            waveform.frame = NSRect(x: inset, y: 16, width: width - 2 * inset, height: 18)
-            micLabel.frame = NSRect(x: inset - 2, y: 4, width: width - 2 * inset + 4, height: 12)
-        } else {
-            waveform.frame = NSRect(x: inset, y: 9, width: width - 2 * inset, height: h - 18)
-        }
-        let labelHeight = label.frame.height
-        label.frame = NSRect(x: 18, y: (h - labelHeight) / 2, width: width - 36, height: labelHeight)
+        place(layout)
+        let width = layout.width, h = PillLayout.height
         let m = Self.glowMargin
         background.frame = NSRect(x: m, y: m, width: width, height: h)
 
@@ -410,7 +367,7 @@ class OverlayWindow {
 
     private func build() {
         let m = Self.glowMargin
-        let panel = makePanel(NSRect(x: 0, y: 0, width: Self.listeningWidth + 2 * m, height: Self.height + 2 * m))
+        let panel = makePanel(NSRect(x: 0, y: 0, width: PillLayout.listeningWidth + 2 * m, height: PillLayout.height + 2 * m))
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -426,7 +383,7 @@ class OverlayWindow {
 
         background.wantsLayer = true
         background.layer?.backgroundColor = NSColor(white: 0.06, alpha: 0.92).cgColor
-        background.layer?.cornerRadius = Self.height / 2
+        background.layer?.cornerRadius = PillLayout.height / 2
         background.layer?.borderWidth = 0.5
         background.layer?.borderColor = NSColor(white: 1, alpha: 0.14).cgColor
         content.addSubview(background)
