@@ -34,6 +34,16 @@ final class FakeEngine: DictationEngine {
     func cancel() { cancelled += 1 }
 }
 
+/// The pill, logging each mode it moves to (repeats dropped).
+final class OverlayLog: OverlayWindow {
+    private(set) var shown: [Mode] = []
+    private func log() { if shown.last != mode { shown.append(mode) } }
+    override func showListening(micName: String? = nil, warmingUp: Bool = false) { super.showListening(micName: micName, warmingUp: warmingUp); log() }
+    override func showProcessing() { super.showProcessing(); log() }
+    override func showMessage(_ text: String, hideAfter seconds: TimeInterval = 3) { super.showMessage(text, hideAfter: seconds); log() }
+    override func hide() { super.hide(); log() }
+}
+
 /// Start → stop → polish → paste through the app's real `DictationController`, with a fake engine,
 /// polish and paste, and throwaway History, Insights and recordings.
 final class DictationControllerTests: XCTestCase {
@@ -48,7 +58,7 @@ final class DictationControllerTests: XCTestCase {
     private var idle = 0
 
     /// `realEngines`: the app's own engine choice instead of `engine`.
-    private func makeController(realEngines: Bool = false) -> DictationController {
+    private func makeController(realEngines: Bool = false, overlay: OverlayWindow = OverlayWindow()) -> DictationController {
         settings = makeSettings(self)
         settings.interactionSounds = false
         history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
@@ -65,7 +75,6 @@ final class DictationControllerTests: XCTestCase {
         }
         injector.typeText = { [unowned self] in typed.append($0); keys.append("type:" + $0) }
         injector.postReturn = { [unowned self] in keys.append("return") }
-        let overlay = OverlayWindow()
         overlay.makePanel = { OffscreenPanel(contentRect: $0, styleMask: [.borderless, .nonactivatingPanel],
                                              backing: .buffered, defer: false) }
         addTeardownBlock { overlay.hide() }
@@ -156,6 +165,31 @@ final class DictationControllerTests: XCTestCase {
         engine.onMic?(.switched(to: FakeMics.builtIn))
         XCTAssertEqual(controller.overlay.mode, .hidden)
         XCTAssertEqual(settings.microphoneUID, "", "a finished dictation's late events change nothing")
+    }
+
+    /// Cloud + polish: the pill stays up from stop until the polished text is in. It used to hide
+    /// when the transcript arrived and show again for the polish, a visible blink.
+    func testCloudPolishKeepsThePillUpUntilTheText() {
+        let overlay = OverlayLog()
+        let controller = makeController(overlay: overlay)
+        engine.isBatch = true
+        settings.polishEnabled = true
+        controller.makePolish = { _ in PolishService(backend: FakePolish(delay: 0.1)) }
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(pasted, ["hello world。"])
+        XCTAssertEqual(overlay.shown, [.listening, .processing, .hidden], "no hide and show between transcript and polish")
+    }
+
+    func testCloudWithoutPolishHidesWhenTheTextArrives() {
+        let overlay = OverlayLog()
+        let controller = makeController(overlay: overlay)
+        engine.isBatch = true
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(overlay.shown, [.listening, .processing, .hidden])
     }
 
     func testPolishedTextIsPastedAndTheRawKept() {

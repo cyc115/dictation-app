@@ -237,8 +237,11 @@ final class DictationController {
             let transcribed = ProcessInfo.processInfo.systemUptime - stoppedAt
             note?.transcribed(seconds: transcribed)
             guard let self else { return }
-            if batch { self.overlay.hideUnlessMessage() }
             let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            // With polish to come, the pill stays up until it's done: hiding it here and showing it
+            // again for the polish made it blink.
+            let polishing = output == nil && polisher != nil && !raw.isEmpty
+            if batch && !polishing { self.overlay.hideUnlessMessage() }
             self.insights.record(text: raw, duration: duration)
             if let output = output {
                 // Already typed as you spoke; finish the tail. No polish: it needs the whole text.

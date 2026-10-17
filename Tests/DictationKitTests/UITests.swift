@@ -517,6 +517,42 @@ final class OverlayUITests: XCTestCase {
         XCTAssertTrue(overlay.confirmButton.isHidden)
     }
 
+    /// Cloud Flash's text (~0.5 s) can land while the pill is still narrowing (0.4 s), and polish
+    /// then asks for the processing pill again: the narrowing carries on instead of jumping to its end.
+    func testProcessingAgainDoesntCutTheNarrowingShort() {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        overlay.showListening(micName: "MacBook Pro Microphone")
+        overlay.showProcessing()
+        clock = 0.2
+        overlay.tick()
+        overlay.showProcessing()
+        XCTAssertTrue(overlay.isNarrowing)
+    }
+
+    /// The window keeps its size when the narrowing ends: resizing it then could show the pill a
+    /// frame out of place, a flash.
+    func testNarrowingEndsWithoutResizingTheWindow() throws {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        overlay.showListening(micName: "MacBook Pro Microphone")
+        let window = try XCTUnwrap(overlay.panel?.frame)
+        let center = overlay.pillFrame.midX
+        overlay.showProcessing()
+        clock = 1
+        overlay.tick()
+        XCTAssertFalse(overlay.isNarrowing)
+        XCTAssertEqual(overlay.panel?.frame, window)
+        XCTAssertEqual(overlay.pillFrame.width, PillLayout.processingWidth)
+        XCTAssertEqual(overlay.pillFrame.midX, center, accuracy: 0.5)
+        overlay.showProcessing()  // polish next: still the same pill, same window
+        XCTAssertEqual(overlay.panel?.frame, window)
+    }
+
     func testProcessingFromHiddenAppearsAtOnce() {
         let overlay = OverlayWindow()
         addTeardownBlock { overlay.hide() }

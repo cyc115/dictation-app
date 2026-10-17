@@ -63,8 +63,11 @@ class OverlayWindow {
     var isNarrowing: Bool { state.isNarrowing }
     /// Whether the pill is glowing red for "no audio".
     var isShowingNoAudio: Bool { state.isShowingNoAudio }
-    /// Where the pill itself is on screen (its window is `glowMargin` bigger all round).
-    var pillFrame: NSRect { panel?.frame.insetBy(dx: Self.glowMargin, dy: Self.glowMargin) ?? .zero }
+    /// Where the pill itself is on screen (its window is at least `glowMargin` bigger all round).
+    var pillFrame: NSRect {
+        guard let panel else { return .zero }
+        return background.frame.offsetBy(dx: panel.frame.minX, dy: panel.frame.minY)
+    }
 
     // MARK: - Public
 
@@ -159,8 +162,10 @@ class OverlayWindow {
     }
 
     /// Bars ripple while waiting on something (e.g. AI polish). From the listening pill, it narrows
-    /// into this one rather than jumping.
+    /// into this one rather than jumping. Already showing it (transcribing, then polishing): nothing
+    /// changes, so a narrowing in progress isn't cut short.
     func showProcessing() {
+        guard mode != .processing else { return }
         let fromListening = mode == .listening && panel?.isVisible == true && layout.width > PillLayout.processingWidth
         waveform.processing = true
         guard fromListening else { return present(.processing) }
@@ -233,7 +238,7 @@ class OverlayWindow {
         let time = now()
         if state.isNarrowing {
             if state.isNarrowed(at: time) {
-                present(.processing)  // the final layout, in a window its size
+                finishNarrowing()
             } else {
                 layOutNarrowing(state.look(at: time, reduceMotion: false))
             }
@@ -259,6 +264,18 @@ class OverlayWindow {
         confirmButton.alphaValue = look.controlsAlpha
         micLabel.alphaValue = look.captionAlpha
         panel.invalidateShadow()
+    }
+
+    /// The narrowing is over: the processing pill, left in the window it narrowed in. Resizing the
+    /// window now could show the pill a frame out of place: the window and its contents don't
+    /// always change on the same frame.
+    private func finishNarrowing() {
+        layOutNarrowing(.narrowing(since: PillLook.narrowDuration))
+        layout = PillLayout(width: PillLayout.processingWidth, content: .processing)
+        stopAnimation()
+        cancelButton.isHidden = true
+        confirmButton.isHidden = true
+        micLabel.isHidden = true
     }
 
     /// Every part of the pill where `layout` puts it.
