@@ -42,6 +42,13 @@ cloud models can handle **English mixed into Chinese**, which the built-in macOS
   where the hotkey is paused (e.g. games), mute audio while dictating, launch at login, and
   [your own model setups](docs/custom-setups.md).
 
+## Android keyboard
+
+`android/` is an Android keyboard with the same cloud dictation: one tap to speak, with Cloud Flash
+or Cloud Big and **AI polish on by default**, plus English and 拼音 keys with swipe typing. It
+reads its models and prompts from this app's `Setups.swift`, so the two never drift apart.
+Install, setup and how the sharing works: [docs/android-keyboard.md](docs/android-keyboard.md).
+
 ## Requirements
 
 - macOS 26 or later
@@ -127,7 +134,8 @@ bench/suite.py polish run    # polish quality on tricky dictations
 ```
 
 - `Sources/DictationKit`: all app code. `Sources/DictationApp`: the entry point.
-  `Tests/DictationKitTests`: the tests.
+  `Tests/DictationKitTests`: the tests. `android/`: the Android keyboard
+  (`cd android && ./gradlew testDebugUnitTest assembleDebug`).
 - **UI tests** host the real SwiftUI views in an offscreen window and click through them using
   their accessibility identifiers.
 - **Snapshot tests** compare rendered views with `Tests/DictationKitTests/__Snapshots__/`. After

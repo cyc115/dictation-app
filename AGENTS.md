@@ -1,6 +1,6 @@
 # DictationApp
 
-macOS menu-bar dictation app. Swift package: `Sources/DictationKit` (all app code), `Sources/DictationApp` (entry point), `Tests/DictationKitTests`.
+macOS menu-bar dictation app. Swift package: `Sources/DictationKit` (all app code), `Sources/DictationApp` (entry point), `Tests/DictationKitTests`. `android/`: the Android keyboard (Kotlin, Gradle; see `docs/android-keyboard.md`).
 
 ## Workflow
 - Before implementing a feature or fix, look for refactoring that makes it cleaner and easier to maintain (split out a testable piece, delete a workaround the change makes unnecessary) and do it as part of the change. If a change to app *behavior* would be simpler to maintain long term, don't just make it — propose it to the user with the trade-off and let them decide.
@@ -18,3 +18,9 @@ macOS menu-bar dictation app. Swift package: `Sources/DictationKit` (all app cod
 - After every major feature change: run `./build.sh --keep-running`. It compiles and installs to `/Applications/DictationApp.app` without quitting the running copy, so a dictation in progress is never cut off; the running app relaunches into the new build as soon as it is idle (a copy left running on replaced files gets only silence from the mic). Do it once the change compiles; don't ask first. Plain `./build.sh` (quits and relaunches) only when the user asks for a restart.
 - Builds are signed with a stable self-signed cert ("DictationApp Local Signing", in `~/Library/Keychains/dictationapp-signing.keychain-db`, created by `build.sh` on first run), so permissions survive rebuilds. Don't switch back to ad-hoc signing (`--sign -`): it changes the signature each build and silently voids the Accessibility grant.
 - The cloud API key lives in `~/Library/Application Support/DictationApp/secrets.json` (0600, folder 0700; `FileSecretStore`), not the Keychain: with no Apple team ID the Keychain treats every build as a new app and asks for the login password again. Don't move it back unless builds get a Developer ID.
+
+## Android keyboard (`android/`)
+- The Android build reads `DictationSetup.builtInJSON` and the `PolishPrompt` versions from `Setups.swift` (`ExtractSpec` in `android/app/build.gradle.kts`, the same parsing as `bench/suites/polish.py`). Keep them as multi-line `static let … = """` constants, or update both parsers. A setup or prompt change reaches the phone on its next build; `.github/workflows/android.yml` runs the Android tests on it.
+- The cloud path is ported, not shared: `OpenRouter.kt`, `Race.kt` (FirstAnswer, AdaptiveBackup), `Dictation.kt` (UploadRace, PolishService). A behavior change to the Mac's cloud path or polish needs the same change there, with its test.
+- Before committing Android changes: `cd android && ./gradlew testDebugUnitTest assembleDebug`. UI tests (Robolectric) touch the real views and type into a real `EditText`; they write screenshots to `android/app/build/screenshots/` — look at them after a visual change.
+- Word lists come from AOSP (Apache-2.0) via `android/scripts/build-dicts.py` (pinned commits); don't edit `assets/dict/` by hand.
