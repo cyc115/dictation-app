@@ -200,3 +200,45 @@ final class RecordingArchive {
         NSWorkspace.shared.open(directory)
     }
 }
+
+// MARK: - WAV recording
+
+/// Converts mic buffers (any rate/channels) to 16 kHz mono 16-bit WAV, the format cloud
+/// transcription expects (Meta's endpoint rejects compressed audio).
+final class WAVRecorder {
+    static let sampleRate: Double = 16_000
+    let url: URL
+    private let file: AVAudioFile
+    private let converter = FormatKeeper(format: AVAudioFormat(standardFormatWithSampleRate: WAVRecorder.sampleRate, channels: 1)!)
+    private(set) var framesWritten: AVAudioFramePosition = 0
+    private var finished = false
+    /// append() runs on the audio thread, finish() on main.
+    private let lock = NSLock()
+
+    init(url: URL) throws {
+        self.url = url
+        file = try AVAudioFile(forWriting: url, settings: [
+            AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: Self.sampleRate, AVNumberOfChannelsKey: 1,
+            AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false,
+        ], commonFormat: .pcmFormatFloat32, interleaved: false)
+    }
+
+    var duration: TimeInterval { Double(framesWritten) / Self.sampleRate }
+
+    /// Closes the file so its header declares the real length. Must happen before the file is
+    /// read: until then the header says 0 bytes of audio, which strict providers (Qwen) reject.
+    func finish() {
+        lock.lock(); defer { lock.unlock() }
+        guard !finished else { return }
+        finished = true
+        file.close()
+    }
+
+    func append(_ buffer: AVAudioPCMBuffer) {
+        lock.lock(); defer { lock.unlock() }
+        guard !finished else { return }
+        guard let out = converter.conform(buffer), out.frameLength > 0 else { return }
+        try? file.write(from: out)
+        framesWritten += AVAudioFramePosition(out.frameLength)
+    }
+}

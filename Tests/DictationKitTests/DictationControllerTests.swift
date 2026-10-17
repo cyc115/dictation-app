@@ -73,7 +73,7 @@ final class DictationControllerTests: XCTestCase {
             settings: settings, overlay: overlay, injector: injector, history: history, insights: insights,
             archive: RecordingArchive(directory: makeTempURL(self, "Recordings")), muter: OutputMuter(defaults: makeDefaults(self)))
         if !realEngines { controller.makeEngine = { [unowned self] _ in engine } }
-        controller.activeInput = { _ in MicCaptureTests.wired }  // not this Mac's mics
+        controller.activeInput = { _ in FakeMics.wired }  // not this Mac's mics
         controller.sendDelay = 0.01
         controller.onIdle = { [unowned self] in idle += 1 }
         return controller
@@ -98,7 +98,7 @@ final class DictationControllerTests: XCTestCase {
     /// A Bluetooth mic: the pill shows it starting until the mic reports live, and follows a switch.
     func testBluetoothMicShowsTheWaitUntilLive() {
         let controller = makeController()
-        controller.activeInput = { _ in MicCaptureTests.buds }
+        controller.activeInput = { _ in FakeMics.buds }
         controller.start()
         XCTAssertTrue(controller.overlay.isWarmingUp)
         engine.onMic?(.live)
@@ -110,14 +110,14 @@ final class DictationControllerTests: XCTestCase {
     /// becomes the Microphone setting for next time.
     func testASwitchNamesTheMicAndBecomesTheSetting() {
         let controller = makeController()
-        controller.activeInput = { _ in MicCaptureTests.buds }
-        settings.microphoneUID = MicCaptureTests.buds.uid
+        controller.activeInput = { _ in FakeMics.buds }
+        settings.microphoneUID = FakeMics.buds.uid
         controller.start()
         XCTAssertEqual(engine.backups, true)
-        engine.onMic?(.switched(to: MicCaptureTests.webcam))
+        engine.onMic?(.switched(to: FakeMics.webcam))
         XCTAssertFalse(controller.overlay.isWarmingUp)
         XCTAssertTrue(controller.overlay.micLabel.stringValue.hasSuffix("Logitech BRIO"))
-        XCTAssertEqual(settings.microphoneUID, MicCaptureTests.webcam.uid)
+        XCTAssertEqual(settings.microphoneUID, FakeMics.webcam.uid)
         controller.cancel()
     }
 
@@ -141,7 +141,7 @@ final class DictationControllerTests: XCTestCase {
 
     func testWiredMicStartsReady() {
         let controller = makeController()
-        controller.activeInput = { _ in MicCaptureTests.wired }
+        controller.activeInput = { _ in FakeMics.wired }
         controller.start()
         XCTAssertFalse(controller.overlay.isWarmingUp)
         XCTAssertTrue(controller.overlay.micLabel.stringValue.hasSuffix("USB Mic"))
@@ -150,10 +150,10 @@ final class DictationControllerTests: XCTestCase {
 
     func testMicEventsAfterTheDictationAreIgnored() {
         let controller = makeController()
-        controller.activeInput = { _ in MicCaptureTests.buds }
+        controller.activeInput = { _ in FakeMics.buds }
         controller.start()
         controller.cancel()
-        engine.onMic?(.switched(to: MicCaptureTests.builtIn))
+        engine.onMic?(.switched(to: FakeMics.builtIn))
         XCTAssertEqual(controller.overlay.mode, .hidden)
         XCTAssertEqual(settings.microphoneUID, "", "a finished dictation's late events change nothing")
     }

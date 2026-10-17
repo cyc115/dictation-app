@@ -126,14 +126,10 @@ final class MicCapture {
         return false
     }
 
-    /// RMS of the first channel mapped from -50…-10 dBFS onto 0…1. Runs on the audio queues for
-    /// every buffer, so it uses Accelerate (vDSP) rather than a Swift loop.
+    /// RMS of the first channel (`MicSelector.decibels`) mapped from -50…-10 dBFS onto 0…1, for the
+    /// waveform.
     static func level(of buffer: AVAudioPCMBuffer) -> Float {
-        guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
-        var rms: Float = 0
-        vDSP_rmsqv(samples, 1, &rms, vDSP_Length(buffer.frameLength))
-        let db = 20 * log10(max(rms, 1e-6))
-        return min(max((db + 50) / 40, 0), 1)
+        min(max((MicSelector.decibels(of: buffer) + 50) / 40, 0), 1)
     }
 
     /// `start` for a dictation, reporting a mic that won't open through `onError`. False if it didn't open.
@@ -365,52 +361,5 @@ final class MicCapture {
     private func locked<T>(_ body: () -> T) -> T {
         lock.lock(); defer { lock.unlock() }
         return body()
-    }
-}
-
-/// Keeps audio in one format: `fixed`, or else the first buffer's. A mic switched mid-dictation
-/// (intelligent mic selection, or a restart) can run at another rate, and whatever reads the audio
-/// (Apple Speech, the WAV) is handed a single format for the whole dictation. Runs off the main
-/// queue, on whichever input's queue delivers.
-final class FormatKeeper {
-    private let fixed: AVAudioFormat?
-    private var format: AVAudioFormat?
-    private var converter: AVAudioConverter?
-    private let lock = NSLock()
-
-    init(format: AVAudioFormat? = nil) {
-        fixed = format
-        self.format = format
-    }
-
-    func reset() {
-        lock.lock(); defer { lock.unlock() }
-        format = fixed
-        converter = nil
-    }
-
-    /// `buffer` in this dictation's format; nil if it couldn't be converted.
-    func conform(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        lock.lock(); defer { lock.unlock() }
-        guard let format else {
-            format = buffer.format
-            return buffer
-        }
-        if buffer.format == format { return buffer }
-        if converter == nil || converter?.inputFormat != buffer.format {
-            converter = AVAudioConverter(from: buffer.format, to: format)
-        }
-        guard let converter else { return nil }
-        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * format.sampleRate / buffer.format.sampleRate) + 32
-        guard let out = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else { return nil }
-        var supplied = false
-        var error: NSError?
-        converter.convert(to: out, error: &error) { _, status in
-            if supplied { status.pointee = .noDataNow; return nil }
-            supplied = true
-            status.pointee = .haveData
-            return buffer
-        }
-        return error == nil && out.frameLength > 0 ? out : nil
     }
 }

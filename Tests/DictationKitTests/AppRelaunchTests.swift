@@ -9,14 +9,9 @@ final class MicSilenceTests: XCTestCase {
     /// Starts `mic` on a fake wired mic; returns what feeds it audio.
     private func start(_ mic: MicCapture, onBuffer: @escaping (AVAudioPCMBuffer) -> Void = { _ in }) throws
         -> (AVAudioPCMBuffer) -> Void {
-        var deliver: ((AVAudioPCMBuffer) -> Void)?
-        mic.resolveInput = { _ in MicCaptureTests.wired }
-        mic.openInput = { device, feed, stopped in
-            deliver = feed
-            return MicCaptureTests.FakeInput(device: device, stopped: stopped)
-        }
+        let mics = FakeMics(mic)
         try mic.start(inputUID: "", onBuffer: onBuffer, onError: { XCTFail($0) })
-        return try XCTUnwrap(deliver)
+        return try XCTUnwrap(mics.feeds[FakeMics.wired.id])
     }
 
     private func feed(_ deliver: (AVAudioPCMBuffer) -> Void, amplitude: Float, count: Int) {
@@ -66,14 +61,9 @@ final class MicSilenceTests: XCTestCase {
         let client = FakeTranscriptionClient()
         engine.client = client
         engine.modelID = CloudBackupTests.main
-        var deliver: ((AVAudioPCMBuffer) -> Void)?
-        engine.mic.resolveInput = { _ in MicCaptureTests.wired }
-        engine.mic.openInput = { device, feed, stopped in
-            deliver = feed
-            return MicCaptureTests.FakeInput(device: device, stopped: stopped)
-        }
+        let mics = FakeMics(engine.mic)
         engine.start(inputUID: "", backups: false, onLevel: { _ in }, onMic: { _ in }, onUtterance: nil, onError: { XCTFail($0) })
-        for _ in 0..<47 { deliver?(AudioLevelTests.buffer(amplitude: 0)) }  // 1 s of zeros through the tap path
+        for _ in 0..<47 { mics.feeds[FakeMics.wired.id]?(AudioLevelTests.buffer(amplitude: 0)) }  // 1 s of zeros through the tap path
         let done = expectation(description: "stopped")
         var error: String?
         engine.stop(completion: { XCTFail("got text: \($0)"); done.fulfill() }, failure: { error = $0; done.fulfill() })

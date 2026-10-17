@@ -1,14 +1,63 @@
 import AppKit
+import AVFoundation
 import SwiftUI
 import XCTest
 @testable import DictationKit
 
-/// A throwaway UserDefaults suite, removed when the test ends.
+/// A throwaway UserDefaults suite, removed when the test ends. Its file lives in a temp folder (a
+/// suite named by an absolute path is stored there): suites in ~/Library/Preferences left an empty
+/// plist behind for every test, thousands of them, as macOS writes the file after the removal.
 func makeDefaults(_ test: XCTestCase) -> UserDefaults {
-    let name = "DictationAppTests.\(UUID().uuidString)"
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("DictationAppTests-defaults-\(UUID().uuidString)")
+    try! FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    let name = dir.appendingPathComponent("defaults").path
     let defaults = UserDefaults(suiteName: name)!
-    test.addTeardownBlock { defaults.removePersistentDomain(forName: name) }
+    test.addTeardownBlock {
+        defaults.removePersistentDomain(forName: name)
+        try? FileManager.default.removeItem(at: dir)
+    }
     return defaults
+}
+
+/// Microphones for `MicCapture` without hardware: start() finds `chosen`, intelligent mic
+/// selection finds `backups`, and each opened mic's audio is fed in by hand through `feeds`, as
+/// CoreAudio would. Installing it into a mic keeps it alive as long as the mic.
+final class FakeMics {
+    final class Input: MicInput {
+        let device: AudioDeviceID
+        let stopped: () -> Void
+        var isRunning = true
+        init(device: AudioDeviceID, stopped: @escaping () -> Void) { self.device = device; self.stopped = stopped }
+        func stop() { isRunning = false }
+        /// CoreAudio stopping it.
+        func dropOut() { isRunning = false; stopped() }
+    }
+
+    static let wired = AudioInputDevice(id: 11, uid: "wired", name: "USB Mic")
+    static let buds = AudioInputDevice(id: 12, uid: "buds", name: "Mike’s Pixel Buds Pro", isBluetooth: true)
+    static let builtIn = AudioInputDevice(id: 13, uid: "builtin", name: "MacBook Pro Microphone")
+    static let webcam = AudioInputDevice(id: 14, uid: "webcam", name: "Logitech BRIO")
+
+    /// Every input opened, in order.
+    private(set) var opened: [Input] = []
+    /// Each mic's latest input's audio feed.
+    private(set) var feeds: [AudioDeviceID: (AVAudioPCMBuffer) -> Void] = [:]
+
+    /// `chosen`: nil leaves this Mac's real devices to pick from. `failing`: every open throws.
+    @discardableResult
+    init(_ mic: MicCapture, chosen: AudioInputDevice? = FakeMics.wired, backups: [AudioInputDevice] = [],
+         failing: Bool = false) {
+        if let chosen { mic.resolveInput = { _ in chosen } }
+        mic.backupInputs = { _ in backups }
+        mic.openInBackground = { $0() }
+        mic.openInput = { device, feed, stopped in
+            if failing { throw TranscriptionError.message("no mic") }
+            let input = Input(device: device, stopped: stopped)
+            self.opened.append(input)
+            self.feeds[device] = feed
+            return input
+        }
+    }
 }
 
 /// For AppSettings in tests: no custom setups, never the user's own setups.json.
