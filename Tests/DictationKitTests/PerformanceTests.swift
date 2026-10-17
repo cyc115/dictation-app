@@ -83,6 +83,25 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// 60 times a second for the 0.4 s after you stop, as the pill narrows into the processing one.
+    func testOverlayNarrowingFrame() {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        let view = { overlay.panel!.contentView! }
+        assertFaster(than: 0.004, iterations: 60, "one narrowing animation frame") {
+            if !overlay.isNarrowing {
+                clock = 0
+                overlay.showListening(micName: "MacBook Pro Microphone")
+                overlay.showProcessing()
+            }
+            clock += 1.0 / 60
+            overlay.tick()
+            view().cacheDisplay(in: view().bounds, to: view().bitmapImageRepForCachingDisplay(in: view().bounds)!)
+        }
+    }
+
     /// Runs once per dictation; 10k words is far longer than any single dictation.
     func testWordCountLongMixedText() {
         let text = Array(repeating: "Today 我们 shipped the new 设置 page and it works", count: 1_000).joined(separator: " ")

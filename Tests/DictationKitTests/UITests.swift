@@ -488,6 +488,54 @@ final class OverlayUITests: XCTestCase {
         XCTAssertGreaterThan(overlay.waveform.levels.last ?? 0, 0.5, "bars follow the mic")
     }
 
+    /// Stop: the listening pill narrows into the processing one instead of jumping to it.
+    func testStopNarrowsIntoTheProcessingPill() throws {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        overlay.showListening(micName: "MacBook Pro Microphone")
+        for level in [0.4, 0.8, 0.6] as [Float] { overlay.setLevel(level) }
+        let wide = overlay.pillFrame
+        overlay.showProcessing()
+        XCTAssertEqual(overlay.mode, .processing)
+        XCTAssertTrue(overlay.isNarrowing)
+
+        clock = 0.23
+        overlay.tick()
+        let pill = try XCTUnwrap(overlay.panel?.contentView?.subviews.first)
+        XCTAssertLessThan(pill.frame.width, wide.width)
+        XCTAssertGreaterThan(pill.frame.width, OverlayWindow.processingWidth)
+        XCTAssertEqual(pill.frame.midX, overlay.panel!.contentView!.bounds.midX, accuracy: 0.5, "narrows toward its center")
+        XCTAssertEqual(overlay.confirmButton.alphaValue, 0, accuracy: 0.01)
+
+        clock = PillLook.narrowDuration
+        overlay.tick()
+        XCTAssertFalse(overlay.isNarrowing)
+        XCTAssertEqual(overlay.pillFrame.width, OverlayWindow.processingWidth)
+        XCTAssertEqual(overlay.pillFrame.midX, wide.midX, accuracy: 1, "ends where it narrowed to")
+        XCTAssertTrue(overlay.confirmButton.isHidden)
+    }
+
+    func testProcessingFromHiddenAppearsAtOnce() {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        overlay.showProcessing()
+        XCTAssertFalse(overlay.isNarrowing)
+        XCTAssertEqual(overlay.pillFrame.width, OverlayWindow.processingWidth)
+    }
+
+    func testMessageDuringNarrowingWins() {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        overlay.showListening(micName: "MacBook Pro Microphone")
+        overlay.showProcessing()
+        overlay.showMessage("Couldn't reach the cloud model", hideAfter: 10)
+        XCTAssertFalse(overlay.isNarrowing)
+        XCTAssertEqual(overlay.mode, .message)
+        XCTAssertFalse(overlay.label.isHidden)
+    }
+
     func testFastMicSkipsTheWait() {
         let overlay = OverlayWindow()
         addTeardownBlock { overlay.hide() }
@@ -621,6 +669,21 @@ final class SnapshotTests: XCTestCase {
         clock = 1.08
         overlay.tick()
         assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-mic-ready")
+    }
+
+    /// Partway from listening to processing: ✕/✓ and caption gone, the pill half narrowed.
+    func testOverlayNarrowing() throws {
+        let overlay = snapshotOverlay()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        overlay.showListening(micName: "MacBook Pro Microphone")
+        for level in [0.1, 0.3, 0.7, 0.9, 0.6, 0.4, 0.8, 0.5, 0.2, 0.6, 0.9, 0.3, 0.1] as [Float] { overlay.setLevel(level) }
+        overlay.showProcessing()
+        for _ in 0..<4 { overlay.waveform.tick() }
+        clock = 0.23
+        overlay.tick()
+        assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-narrowing")
     }
 
     func testOverlayMessage() throws {

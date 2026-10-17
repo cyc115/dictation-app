@@ -23,6 +23,21 @@ final class PillLookTests: XCTestCase {
         XCTAssertGreaterThan(PillLook.ready(since: 0.13, reduceMotion: true).glow, 0, "the flash still shows")
     }
 
+    func testNarrowingFadesTheControlsThenNarrows() {
+        let start = PillLook.narrowing(since: 0)
+        XCTAssertEqual(start.narrowing, 0)
+        XCTAssertEqual(start.controlsAlpha, 1)
+        let early = PillLook.narrowing(since: 0.1)
+        XCTAssertLessThan(early.controlsAlpha, 0.5, "✕/✓ mostly gone…")
+        XCTAssertLessThan(early.narrowing, 0.1, "…before the pill has narrowed much")
+        let mid = PillLook.narrowing(since: 0.23)
+        XCTAssertEqual(mid.narrowing, 0.5, accuracy: 0.01)
+        XCTAssertEqual(mid.controlsAlpha, 0)
+        XCTAssertEqual(PillLook.narrowing(since: PillLook.narrowDuration).narrowing, 1)
+        XCTAssertFalse(PillLook.narrowed(since: 0.3))
+        XCTAssertTrue(PillLook.narrowed(since: PillLook.narrowDuration))
+    }
+
     func testReadyFlashesBouncesRipplesThenSettles() throws {
         let start = PillLook.ready(since: 0, reduceMotion: false)
         XCTAssertEqual(start.glow, 1)

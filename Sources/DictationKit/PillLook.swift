@@ -8,6 +8,8 @@ import Foundation
 ///   Words spoken now would be lost.
 /// - Ready: the edge flashes green and the pill bounces once while the bars ripple out from the
 ///   center. That's the cue to talk. Then it's the plain listening pill.
+/// - Narrowing (you stopped, text is on the way): ✕, ✓ and the mic name fade, then the pill narrows
+///   to the small processing pill while the bars turn into its ripple (`WaveformView`).
 struct PillLook: Equatable {
     static let barCount = 13
     /// One sweep of the highlight across the dots.
@@ -17,6 +19,8 @@ struct PillLook: Equatable {
     static let bounceDuration: TimeInterval = 0.26
     /// The green edge fades out over this long; then the look is `plain`.
     static let glowDuration: TimeInterval = 0.65
+    /// Listening → processing, after which the pill is laid out narrow.
+    static let narrowDuration: TimeInterval = 0.4
 
     /// Per bar, 0…1.
     var barAlphas = Array(repeating: CGFloat(1), count: barCount)
@@ -28,6 +32,10 @@ struct PillLook: Equatable {
     var captionAlpha: CGFloat = 1
     /// ✓ button, 1 = normal.
     var confirmEmphasis: CGFloat = 1
+    /// ✕ and ✓ together (fading out as the pill narrows).
+    var controlsAlpha: CGFloat = 1
+    /// 0 = the listening pill's width and layout, 1 = the processing pill's.
+    var narrowing: CGFloat = 0
 
     static let plain = PillLook()
 
@@ -63,8 +71,24 @@ struct PillLook: Equatable {
         return look
     }
 
+    /// `since` seconds after you stopped.
+    static func narrowing(since: TimeInterval) -> PillLook {
+        let s = CGFloat(since)
+        var look = PillLook()
+        look.controlsAlpha = 1 - easeInOut(clamp(s / 0.16))
+        look.captionAlpha = 1 - clamp(s / 0.14)
+        look.narrowing = easeInOut(clamp((s - 0.06) / 0.34))
+        return look
+    }
+
+    /// The narrowing is over.
+    static func narrowed(since: TimeInterval) -> Bool { since >= narrowDuration }
+
     /// The ready animation is over.
     static func settled(since: TimeInterval) -> Bool { since >= glowDuration }
 
     private static func clamp(_ value: CGFloat) -> CGFloat { min(max(value, 0), 1) }
+
+    /// Slow, fast, slow (cubic).
+    private static func easeInOut(_ t: CGFloat) -> CGFloat { t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2 }
 }

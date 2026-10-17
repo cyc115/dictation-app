@@ -15,6 +15,8 @@ class OverlayWindow {
     static let listeningWidth: CGFloat = 164
     /// The pill widens to fit a long mic name, up to this width (then truncates).
     static let maxListeningWidth: CGFloat = 340
+    /// The "working" pill: just the ripple.
+    static let processingWidth: CGFloat = 84
     private static let bottomMargin: CGFloat = 28
     /// The "mic is live" flash.
     private static let green = NSColor(red: 52 / 255, green: 199 / 255, blue: 89 / 255, alpha: 1)
@@ -47,12 +49,16 @@ class OverlayWindow {
     /// When the slow mic started (while it's starting), and when it went live (during the flash).
     private var warmingSince: TimeInterval?
     private var readySince: TimeInterval?
+    /// Since you stopped, while the pill narrows to the processing one: when, and what it started from.
+    private var narrowing: (since: TimeInterval, width: CGFloat, waveform: NSRect)?
     private var animation: Timer?
     /// While the mic is starting: the width its plain caption will need, so the pill keeps one width.
     private var plainCaptionWidth: CGFloat = 0
 
     /// The mic is starting: the pill is showing "Starting <mic>…".
     var isWarmingUp: Bool { warmingSince != nil }
+    /// The listening pill is narrowing into the processing one.
+    var isNarrowing: Bool { narrowing != nil }
     /// Where the pill itself is on screen (its window is `glowMargin` bigger all round).
     var pillFrame: NSRect { panel?.frame.insetBy(dx: Self.glowMargin, dy: Self.glowMargin) ?? .zero }
 
@@ -142,10 +148,18 @@ class OverlayWindow {
         waveform.push(level)
     }
 
-    /// Bars ripple while waiting on something (e.g. AI polish).
+    /// Bars ripple while waiting on something (e.g. AI polish). From the listening pill, it narrows
+    /// into this one rather than jumping.
     func showProcessing() {
+        let from = background.frame.width
+        let fromListening = mode == .listening && panel?.isVisible == true && from > Self.processingWidth
         waveform.processing = true
-        present(.processing)
+        guard fromListening else { return present(.processing) }
+        stopAnimation()
+        autoHide?.cancel()
+        mode = .processing
+        narrowing = (now(), from, waveform.frame)
+        startAnimation()
     }
 
     func showMessage(_ text: String, hideAfter seconds: TimeInterval = 3) {
@@ -195,6 +209,9 @@ class OverlayWindow {
         animation = nil
         warmingSince = nil
         readySince = nil
+        narrowing = nil
+        cancelButton.alphaValue = 1
+        confirmButton.alphaValue = 1
         plainCaptionWidth = 0
         apply(.plain)
         panel?.hasShadow = true
@@ -202,7 +219,14 @@ class OverlayWindow {
 
     private func applyLook() {
         let reduce = reduceMotion()
-        if let since = warmingSince {
+        if let narrowing {
+            let elapsed = now() - narrowing.since
+            if PillLook.narrowed(since: elapsed) {
+                present(.processing)  // the final layout, in a window its size
+            } else {
+                layOutNarrowing(.narrowing(since: elapsed), from: narrowing)
+            }
+        } else if let since = warmingSince {
             apply(.waiting(elapsed: now() - since, reduceMotion: reduce))
         } else if let since = readySince {
             let elapsed = now() - since
@@ -213,6 +237,23 @@ class OverlayWindow {
                 apply(.ready(since: elapsed, reduceMotion: reduce))
             }
         }
+    }
+
+    /// The pill partway from its listening layout (`from`) to the processing one, centered in the
+    /// window it had while listening.
+    private func layOutNarrowing(_ look: PillLook, from: (since: TimeInterval, width: CGFloat, waveform: NSRect)) {
+        guard let panel else { return }
+        let h = Self.height, button: CGFloat = 28, pad = (h - button) / 2
+        let lerp = { (a: CGFloat, b: CGFloat) in a + (b - a) * look.narrowing }
+        let width = lerp(from.width, Self.processingWidth)
+        background.frame = NSRect(x: (panel.frame.width - width) / 2, y: Self.glowMargin, width: width, height: h)
+        confirmButton.frame.origin.x = width - pad - button
+        cancelButton.alphaValue = look.controlsAlpha
+        confirmButton.alphaValue = look.controlsAlpha
+        micLabel.alphaValue = look.captionAlpha
+        let x = lerp(from.waveform.minX, 14)
+        waveform.frame = NSRect(x: x, y: lerp(from.waveform.minY, 9), width: width - 2 * x, height: lerp(from.waveform.height, h - 18))
+        panel.invalidateShadow()
     }
 
     private func apply(_ look: PillLook) {
@@ -264,7 +305,7 @@ class OverlayWindow {
             label.sizeToFit()
             width = min(max(label.frame.width + 36, Self.listeningWidth), 460)
         case .processing:
-            width = 84
+            width = Self.processingWidth
         default:
             // Wide enough for the whole mic name between the two buttons (and, while the mic starts,
             // for its plain caption too, so the pill doesn't change width when it goes live).
@@ -375,6 +416,10 @@ final class WaveformView: NSView {
     private var pushes = 0
     private var timer: Timer?
     private var phase: CGFloat = 0
+    /// Ripple steps over which the bars turn from what they showed into the ripple, and those bars.
+    private static let blendTicks = 10
+    private var blendFrom: [CGFloat]?
+    private var blendTick = 0
     /// The warm-up look's bar heights and opacities (nil: the mic's levels, fully white).
     private var shownLevels: [CGFloat]?
     private var barAlphas: [CGFloat]?
@@ -385,6 +430,10 @@ final class WaveformView: NSView {
             timer?.invalidate()
             timer = nil
             if processing {
+                blendFrom = shownLevels ?? levels
+                blendTick = 0
+                shownLevels = nil
+                barAlphas = nil
                 timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
                     self?.tick()
                 }
@@ -412,6 +461,7 @@ final class WaveformView: NSView {
 
     func reset() {
         levels = Array(repeating: 0, count: barCount)
+        blendFrom = nil
         smoothed = 0
         peak = 0
         pushes = 0
@@ -436,8 +486,15 @@ final class WaveformView: NSView {
     /// One step of the processing ripple (the timer's; the README frames step it by hand).
     func tick() {
         phase += 0.22
-        for i in 0..<barCount {
-            levels[i] = 0.18 + 0.22 * (1 + sin(phase - CGFloat(i) * 0.55)) / 2
+        let ripple = (0..<barCount).map { 0.18 + 0.22 * (1 + sin(phase - CGFloat($0) * 0.55)) / 2 }
+        if let from = blendFrom, blendTick < Self.blendTicks {
+            blendTick += 1
+            let t = CGFloat(blendTick) / CGFloat(Self.blendTicks)
+            let p = t * t * (3 - 2 * t)
+            levels = zip(from, ripple).map { $0 + ($1 - $0) * p }
+        } else {
+            blendFrom = nil
+            levels = ripple
         }
         needsDisplay = true
     }
