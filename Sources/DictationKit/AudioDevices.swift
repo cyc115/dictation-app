@@ -2,22 +2,32 @@ import AppKit
 import AVFoundation
 import AudioToolbox
 import CoreAudio
+import IOKit
 
 struct AudioInputDevice: Hashable {
     let id: AudioDeviceID
     let uid: String
     let name: String
+    /// Bluetooth mics take about a second to send real audio: the headset first switches into its
+    /// call mode. The pill shows that wait (`OverlayWindow.showListening(warmingUp:)`).
+    var isBluetooth = false
 }
 
 /// CoreAudio helpers: list microphones, pick the one to record from, read/write output mute and volume.
 enum AudioDevices {
     static func inputDevices() -> [AudioInputDevice] {
-        allDevices().compactMap { id in
-            guard inputChannelCount(id) > 0,
-                  let uid = stringProperty(id, kAudioDevicePropertyDeviceUID),
-                  let name = stringProperty(id, kAudioObjectPropertyName) else { return nil }
-            return AudioInputDevice(id: id, uid: uid, name: name)
-        }
+        allDevices().compactMap(input)
+    }
+
+    /// The microphone `id`, if it is one.
+    static func input(_ id: AudioDeviceID) -> AudioInputDevice? {
+        guard inputChannelCount(id) > 0,
+              let uid = stringProperty(id, kAudioDevicePropertyDeviceUID),
+              let name = stringProperty(id, kAudioObjectPropertyName) else { return nil }
+        let transport = transportType(id)
+        return AudioInputDevice(id: id, uid: uid, name: name,
+                                isBluetooth: transport == kAudioDeviceTransportTypeBluetooth
+                                    || transport == kAudioDeviceTransportTypeBluetoothLE)
     }
 
     /// The microphone with `uid`, if it's connected (nil for an empty uid).
@@ -27,11 +37,33 @@ enum AudioDevices {
 
     static func defaultInputDevice() -> AudioDeviceID? { defaultDevice(kAudioHardwarePropertyDefaultInputDevice) }
 
-    /// Name of the mic a dictation will actually use: the preferred one if it's connected,
-    /// otherwise the system default input.
-    static func activeInputName(preferredUID: String) -> String? {
-        connectedInput(uid: preferredUID)?.name
-            ?? defaultInputDevice().flatMap { stringProperty($0, kAudioObjectPropertyName) }
+    /// The mic a dictation will actually use: the preferred one if it's connected, otherwise the
+    /// system default input.
+    static func activeInput(preferredUID: String) -> AudioInputDevice? {
+        connectedInput(uid: preferredUID) ?? defaultInputDevice().flatMap(input)
+    }
+
+    /// The mic to move to when `failing` (a Bluetooth mic) stays silent: the Mac's own mic, unless
+    /// the lid is closed (it then records pure silence), else the system default if that's a
+    /// different, non-Bluetooth mic. Nil when there's nothing better.
+    static func fallbackInput(for failing: AudioInputDevice) -> AudioInputDevice? {
+        if !isLidClosed(),
+           let builtIn = allDevices().lazy.filter({ transportType($0) == kAudioDeviceTransportTypeBuiltIn }).compactMap(input).first,
+           builtIn.id != failing.id {
+            return builtIn
+        }
+        guard let system = defaultInputDevice().flatMap(input), system.id != failing.id, !system.isBluetooth,
+              transportType(system.id) != kAudioDeviceTransportTypeBuiltIn else { return nil }
+        return system
+    }
+
+    /// A MacBook with its lid closed (an external display in use), whose own mic is then silent.
+    static func isLidClosed() -> Bool {
+        let root = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPMrootDomain"))
+        guard root != 0 else { return false }
+        defer { IOObjectRelease(root) }
+        let state = IORegistryEntryCreateCFProperty(root, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0)
+        return (state?.takeRetainedValue() as? Bool) ?? false
     }
 
     // MARK: Output (for mute-while-dictating)
@@ -118,6 +150,13 @@ enum AudioDevices {
         guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr,
               let string = value?.takeRetainedValue() else { return nil }
         return string as String
+    }
+
+    private static func transportType(_ id: AudioDeviceID) -> UInt32 {
+        var address = globalAddress(kAudioDevicePropertyTransportType)
+        var value: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        return AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr ? value : 0
     }
 
     private static func inputChannelCount(_ id: AudioDeviceID) -> Int {

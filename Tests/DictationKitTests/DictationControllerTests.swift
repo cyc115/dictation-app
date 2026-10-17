@@ -14,9 +14,13 @@ final class FakeEngine: DictationEngine {
     private(set) var started = 0
     private(set) var cancelled = 0
 
-    func start(inputUID: String, onLevel: @escaping (Float) -> Void,
+    /// The last dictation's mic events, to send as the mic would.
+    private(set) var onMic: ((MicEvent) -> Void)?
+
+    func start(inputUID: String, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
                onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
         started += 1
+        self.onMic = onMic
         utterances.forEach { onUtterance?($0) }
     }
 
@@ -67,6 +71,7 @@ final class DictationControllerTests: XCTestCase {
             settings: settings, overlay: overlay, injector: injector, history: history, insights: insights,
             archive: RecordingArchive(directory: makeTempURL(self, "Recordings")), muter: OutputMuter(defaults: makeDefaults(self)))
         if !realEngines { controller.makeEngine = { [unowned self] _ in engine } }
+        controller.activeInput = { _ in MicCaptureTests.wired }  // not this Mac's mics
         controller.sendDelay = 0.01
         controller.onIdle = { [unowned self] in idle += 1 }
         return controller
@@ -86,6 +91,37 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(history.entries.first?.setup, "on-device")
         XCTAssertEqual(insights.words, 2)
         XCTAssertEqual(idle, 1)
+    }
+
+    /// A Bluetooth mic: the pill shows it starting until the mic reports live, and follows a switch.
+    func testBluetoothMicShowsTheWaitUntilLive() {
+        let controller = makeController()
+        controller.activeInput = { _ in MicCaptureTests.buds }
+        controller.start()
+        XCTAssertTrue(controller.overlay.isWarmingUp)
+        engine.onMic?(.switched(to: "MacBook Pro Microphone"))
+        XCTAssertTrue(controller.overlay.micLabel.stringValue.hasSuffix("Starting MacBook Pro Microphone…"))
+        engine.onMic?(.live)
+        XCTAssertFalse(controller.overlay.isWarmingUp)
+        controller.cancel()
+    }
+
+    func testWiredMicStartsReady() {
+        let controller = makeController()
+        controller.activeInput = { _ in MicCaptureTests.wired }
+        controller.start()
+        XCTAssertFalse(controller.overlay.isWarmingUp)
+        XCTAssertTrue(controller.overlay.micLabel.stringValue.hasSuffix("USB Mic"))
+        controller.cancel()
+    }
+
+    func testMicEventsAfterTheDictationAreIgnored() {
+        let controller = makeController()
+        controller.activeInput = { _ in MicCaptureTests.buds }
+        controller.start()
+        controller.cancel()
+        engine.onMic?(.switched(to: "MacBook Pro Microphone"))
+        XCTAssertEqual(controller.overlay.mode, .hidden)
     }
 
     func testPolishedTextIsPastedAndTheRawKept() {

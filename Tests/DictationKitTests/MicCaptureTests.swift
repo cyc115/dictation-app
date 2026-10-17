@@ -16,16 +16,120 @@ final class MicCaptureTests: XCTestCase {
     }
 
     private var opened: [FakeInput] = []
+    /// What each opened input delivers to (index matches `opened`).
+    private var deliver: [(AVAudioPCMBuffer) -> Void] = []
 
-    private func capture(failing: Bool = false) -> MicCapture {
+    static let wired = AudioInputDevice(id: 11, uid: "wired", name: "USB Mic")
+    static let buds = AudioInputDevice(id: 12, uid: "buds", name: "Mike’s Pixel Buds Pro", isBluetooth: true)
+    static let builtIn = AudioInputDevice(id: 13, uid: "builtin", name: "MacBook Pro Microphone")
+
+    /// `mic`: what start() finds (nil: this Mac's real devices).
+    private func capture(failing: Bool = false, mic chosen: AudioInputDevice? = MicCaptureTests.wired) -> MicCapture {
         let mic = MicCapture()
-        mic.openInput = { [unowned self] device, _, stopped in
+        if let chosen { mic.resolveInput = { _ in chosen } }
+        mic.fallbackInput = { _ in Self.builtIn }
+        mic.openInput = { [unowned self] device, deliver, stopped in
             if failing { throw TranscriptionError.message("no mic") }
             let input = FakeInput(device: device, stopped: stopped)
             opened.append(input)
+            self.deliver.append(deliver)
             return input
         }
         return mic
+    }
+
+    private static func buffer(rate: Double = 48_000, amplitude: Float) -> AVAudioPCMBuffer {
+        let format = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1)!
+        let frames = AVAudioFrameCount(rate * HALInput.chunkSeconds)
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames)!
+        buffer.frameLength = frames
+        for i in 0..<Int(frames) { buffer.floatChannelData![0][i] = amplitude * sin(Float(i) * 0.05) }
+        return buffer
+    }
+
+    func testReportsLiveOnceOnTheFirstRealAudio() throws {
+        let mic = capture()
+        var events: [MicEvent] = []
+        try mic.start(inputUID: "", onBuffer: { _ in }, onEvent: { events.append($0) }, onError: { XCTFail($0) })
+        deliver[0](Self.buffer(amplitude: 0))  // a headset switching modes sends zeros
+        spinRunLoop(0.05)
+        XCTAssertEqual(events, [])
+        XCTAssertFalse(mic.isLive)
+        deliver[0](Self.buffer(amplitude: 0.01))
+        deliver[0](Self.buffer(amplitude: 0.2))
+        spinRunLoop(0.05)
+        XCTAssertEqual(events, [.live])
+        XCTAssertTrue(mic.isLive)
+        mic.stop()
+    }
+
+    /// A Bluetooth mic that never sends audio: the dictation moves to the built-in mic.
+    func testSilentBluetoothMicFallsBackToTheBuiltInMic() throws {
+        let mic = capture(mic: Self.buds)
+        mic.fallbackAfter = 0.05
+        var events: [MicEvent] = []
+        try mic.start(inputUID: "buds", onBuffer: { _ in }, onEvent: { events.append($0) }, onError: { XCTFail($0) })
+        deliver[0](Self.buffer(rate: 16_000, amplitude: 0))
+        waitUntil { events.count == 1 }
+        XCTAssertEqual(events, [.switched(to: "MacBook Pro Microphone")])
+        XCTAssertEqual(opened.map(\.device), [Self.buds.id, Self.builtIn.id])
+        XCTAssertFalse(opened[0].isRunning, "the silent mic is closed")
+        XCTAssertEqual(mic.device, Self.builtIn)
+        opened[1].dropOut()
+        XCTAssertEqual(opened.last?.device, Self.builtIn.id, "a restart reopens the mic it moved to")
+        mic.stop()
+    }
+
+    func testLiveBluetoothMicIsKept() throws {
+        let mic = capture(mic: Self.buds)
+        try mic.start(inputUID: "buds", onBuffer: { _ in }, onError: { XCTFail($0) })
+        deliver[0](Self.buffer(amplitude: 0.1))
+        mic.fallBackIfSilent()
+        XCTAssertEqual(opened.count, 1)
+        mic.stop()
+    }
+
+    func testWiredMicNeverFallsBack() throws {
+        let mic = capture(mic: Self.wired)
+        mic.fallbackAfter = 0.01
+        try mic.start(inputUID: "", onBuffer: { _ in }, onError: { XCTFail($0) })
+        spinRunLoop(0.1)
+        XCTAssertEqual(opened.count, 1, "only Bluetooth mics are given up on")
+        mic.stop()
+    }
+
+    func testStopCancelsTheFallback() throws {
+        let mic = capture(mic: Self.buds)
+        mic.fallbackAfter = 0.05
+        try mic.start(inputUID: "buds", onBuffer: { _ in }, onError: { XCTFail($0) })
+        mic.stop()
+        spinRunLoop(0.15)
+        XCTAssertEqual(opened.count, 1)
+    }
+
+    func testNoFallbackWhenThereIsNoBetterMic() throws {
+        let mic = capture(mic: Self.buds)
+        mic.fallbackInput = { _ in nil }  // e.g. lid closed and no other mic
+        try mic.start(inputUID: "buds", onBuffer: { _ in }, onError: { XCTFail($0) })
+        mic.fallBackIfSilent()
+        XCTAssertEqual(opened.count, 1)
+        XCTAssertTrue(opened[0].isRunning)
+        mic.stop()
+    }
+
+    /// After a switch to a mic at another rate, the engine still gets the dictation's first format.
+    func testAudioKeepsOneFormatAcrossASwitch() throws {
+        let mic = capture(mic: Self.buds)
+        var formats: [Double] = []
+        var frames: [AVAudioFrameCount] = []
+        try mic.start(inputUID: "buds", onBuffer: { formats.append($0.format.sampleRate); frames.append($0.frameLength) },
+                      onError: { XCTFail($0) })
+        deliver[0](Self.buffer(rate: 16_000, amplitude: 0))
+        mic.fallBackIfSilent()
+        for _ in 0..<3 { deliver[1](Self.buffer(rate: 48_000, amplitude: 0.2)) }
+        XCTAssertEqual(formats, [16_000, 16_000, 16_000, 16_000])
+        XCTAssertGreaterThan(frames.dropFirst().reduce(0, +), 2 * frames[0], "converted, not dropped")
+        mic.stop()
     }
 
     func testReopensWhenCoreAudioStopsTheInput() throws {
@@ -85,7 +189,7 @@ final class MicCaptureTests: XCTestCase {
         guard let chosen = devices.first(where: { $0.id != AudioDevices.defaultInputDevice() }) ?? devices.first else {
             throw XCTSkip("no microphones on this Mac")
         }
-        let mic = capture()
+        let mic = capture(mic: nil)
         try mic.start(inputUID: chosen.uid, onBuffer: { _ in }, onError: { XCTFail($0) })
         XCTAssertEqual(opened.last?.device, chosen.id)
         try mic.start(inputUID: "not-connected", onBuffer: { _ in }, onError: { XCTFail($0) })
@@ -97,7 +201,7 @@ final class MicCaptureTests: XCTestCase {
         let engine = CloudEngine()
         engine.mic.openInput = { _, _, _ in throw TranscriptionError.message("no mic") }
         var error: String?
-        engine.start(inputUID: "", onLevel: { _ in }, onUtterance: nil, onError: { error = $0 })
+        engine.start(inputUID: "", onLevel: { _ in }, onMic: { _ in }, onUtterance: nil, onError: { error = $0 })
         XCTAssertEqual(error, "could not open microphone: no mic")
         engine.cancel()
     }

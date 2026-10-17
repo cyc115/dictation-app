@@ -397,11 +397,11 @@ final class OverlayUITests: XCTestCase {
         let panel = try XCTUnwrap(overlay.panel)
         XCTAssertTrue(panel.isVisible)
         XCTAssertEqual(overlay.mode, .listening)
-        XCTAssertEqual(panel.frame.height, OverlayWindow.height)
-        XCTAssertEqual(panel.frame.width, OverlayWindow.listeningWidth)
+        XCTAssertEqual(overlay.pillFrame.height, OverlayWindow.height)
+        XCTAssertEqual(overlay.pillFrame.width, OverlayWindow.listeningWidth)
         let screen = try XCTUnwrap(panel.screen ?? NSScreen.main)
-        XCTAssertEqual(panel.frame.midX, screen.visibleFrame.midX, accuracy: 1, "centered")
-        XCTAssertLessThan(panel.frame.minY - screen.visibleFrame.minY, 60, "near the bottom")
+        XCTAssertEqual(overlay.pillFrame.midX, screen.visibleFrame.midX, accuracy: 1, "centered")
+        XCTAssertLessThan(overlay.pillFrame.minY - screen.visibleFrame.minY, 60, "near the bottom")
         XCTAssertFalse(panel.canBecomeKey, "must not steal focus from the app being typed into")
 
         let buttons = (panel.contentView?.subviews.first?.subviews ?? []).filter { $0.accessibilityRole() == .button }
@@ -430,10 +430,10 @@ final class OverlayUITests: XCTestCase {
         let overlay = OverlayWindow()
         addTeardownBlock { overlay.hide() }
         overlay.showMessage("On-device recognition unavailable — check Dictation languages", hideAfter: 10)
-        let panel = try XCTUnwrap(overlay.panel)
+        XCTAssertNotNil(overlay.panel)
         XCTAssertEqual(overlay.mode, .message)
-        XCTAssertGreaterThan(panel.frame.width, OverlayWindow.listeningWidth)
-        XCTAssertLessThanOrEqual(panel.frame.width, 460)
+        XCTAssertGreaterThan(overlay.pillFrame.width, OverlayWindow.listeningWidth)
+        XCTAssertLessThanOrEqual(overlay.pillFrame.width, 460)
         overlay.hideUnlessMessage()
         XCTAssertEqual(overlay.mode, .message, "messages survive hideUnlessMessage")
     }
@@ -445,13 +445,80 @@ final class OverlayUITests: XCTestCase {
         XCTAssertFalse(overlay.micLabel.isHidden)
         XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("MacBook Pro Microphone"), overlay.micLabel.stringValue)
         XCTAssertLessThan(overlay.micLabel.frame.maxY, overlay.waveform.frame.minY + 1, "caption sits below the bars")
-        XCTAssertEqual(overlay.panel?.frame.height, OverlayWindow.height, "caption doesn't grow the pill")
+        XCTAssertEqual(overlay.pillFrame.height, OverlayWindow.height, "caption doesn't grow the pill")
 
         overlay.showListening(micName: nil)
         XCTAssertTrue(overlay.micLabel.isHidden)
         overlay.showListening(micName: "Studio Display Microphone")
         overlay.showMessage("Error", hideAfter: 10)
         XCTAssertTrue(overlay.micLabel.isHidden, "only shown while listening")
+    }
+
+    /// A Bluetooth mic: the pill says it's starting, with ✓ dimmed, until the first real audio.
+    func testSlowMicShowsStartingUntilLive() throws {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 100
+        overlay.now = { clock }
+        overlay.reduceMotion = { false }
+        overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
+        XCTAssertTrue(overlay.isWarmingUp)
+        XCTAssertEqual(overlay.micLabel.stringValue.hasSuffix("Starting Mike’s Pixel Buds Pro…"), true, overlay.micLabel.stringValue)
+        XCTAssertEqual(overlay.micLabel.accessibilityLabel(), "Microphone starting: Mike’s Pixel Buds Pro")
+        XCTAssertEqual(overlay.confirmButton.emphasis, 0.3, accuracy: 0.001)
+        let width = overlay.pillFrame.width
+
+        clock += 0.9
+        overlay.micLive()
+        XCTAssertFalse(overlay.isWarmingUp)
+        XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("Mike’s Pixel Buds Pro"))
+        XCTAssertFalse(overlay.micLabel.stringValue.contains("Starting"))
+        XCTAssertEqual(overlay.pillFrame.width, width, "one width from start to live")
+        clock += 0.1
+        overlay.tick()
+        XCTAssertLessThan(overlay.confirmButton.emphasis, 1, "✓ still brightening")
+        XCTAssertEqual(overlay.panel?.hasShadow, false, "the green glow stands in for the shadow")
+
+        clock += PillLook.glowDuration
+        overlay.tick()
+        XCTAssertEqual(overlay.confirmButton.emphasis, 1)
+        XCTAssertEqual(overlay.micLabel.alphaValue, 1)
+        XCTAssertEqual(overlay.panel?.hasShadow, true, "plain listening pill again")
+        overlay.setLevel(0.9)
+        XCTAssertGreaterThan(overlay.waveform.levels.last ?? 0, 0.5, "bars follow the mic")
+    }
+
+    func testFastMicSkipsTheWait() {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        overlay.showListening(micName: "MacBook Pro Microphone")
+        XCTAssertFalse(overlay.isWarmingUp)
+        overlay.micLive()  // every mic reports live; only a waiting pill reacts
+        XCTAssertEqual(overlay.panel?.hasShadow, true)
+        XCTAssertEqual(overlay.confirmButton.emphasis, 1)
+    }
+
+    func testSwitchedMicRenamesTheCaption() {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
+        overlay.micSwitched(to: "MacBook Pro Microphone")
+        XCTAssertTrue(overlay.isWarmingUp, "still waiting for the new mic's audio")
+        XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("Starting MacBook Pro Microphone…"), overlay.micLabel.stringValue)
+        overlay.micLive()
+        XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("MacBook Pro Microphone"))
+    }
+
+    func testOtherModesEndTheWait() {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
+        overlay.showMessage("The microphone sent only silence.", hideAfter: 10)
+        XCTAssertFalse(overlay.isWarmingUp)
+        XCTAssertEqual(overlay.confirmButton.emphasis, 1)
+        overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
+        overlay.hide()
+        XCTAssertFalse(overlay.isWarmingUp)
     }
 
     func testFullMicNameFitsWithoutTruncation() throws {
@@ -462,14 +529,13 @@ final class OverlayUITests: XCTestCase {
             let needed = overlay.micLabel.attributedStringValue.size().width
             XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix(name), "full name shown: \(overlay.micLabel.stringValue)")
             XCTAssertGreaterThanOrEqual(overlay.micLabel.frame.width, needed, "\(name) is truncated")
-            let panel = try XCTUnwrap(overlay.panel)
-            XCTAssertEqual(panel.frame.width, overlay.micLabel.frame.maxX + overlay.micLabel.frame.minX, accuracy: 1,
+            XCTAssertEqual(overlay.pillFrame.width, overlay.micLabel.frame.maxX + overlay.micLabel.frame.minX, accuracy: 1,
                            "caption is centered in the pill")
         }
         overlay.showListening(micName: "Mic")
-        XCTAssertEqual(overlay.panel?.frame.width, OverlayWindow.listeningWidth, "short names keep the compact pill")
+        XCTAssertEqual(overlay.pillFrame.width, OverlayWindow.listeningWidth, "short names keep the compact pill")
         overlay.showListening(micName: String(repeating: "Very Long Device Name ", count: 6))
-        XCTAssertEqual(overlay.panel?.frame.width, OverlayWindow.maxListeningWidth, "absurd names are capped")
+        XCTAssertEqual(overlay.pillFrame.width, OverlayWindow.maxListeningWidth, "absurd names are capped")
     }
 
     func testHideFadesOut() throws {
@@ -527,6 +593,34 @@ final class SnapshotTests: XCTestCase {
         overlay.showListening(micName: "Steam Streaming Microphone")
         for level in [0.2, 0.5, 0.8, 0.6, 0.9, 0.4, 0.7, 0.3] as [Float] { overlay.setLevel(level) }
         assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-listening-long-mic")
+    }
+
+    /// A Bluetooth mic starting: dots with the sweep partway across, ✓ dimmed.
+    func testOverlayWarmingUp() throws {
+        let overlay = snapshotOverlay()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        overlay.reduceMotion = { false }
+        overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
+        clock = 0.52
+        overlay.tick()
+        assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-warming-up")
+    }
+
+    /// The moment it goes live: green edge, bounce, bars rippling out from the center.
+    func testOverlayMicReady() throws {
+        let overlay = snapshotOverlay()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        overlay.reduceMotion = { false }
+        overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
+        clock = 0.95
+        overlay.micLive()
+        clock = 1.08
+        overlay.tick()
+        assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-mic-ready")
     }
 
     func testOverlayMessage() throws {

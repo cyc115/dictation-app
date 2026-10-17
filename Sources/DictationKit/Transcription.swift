@@ -11,7 +11,8 @@ protocol DictationEngine: AnyObject {
     var archive: RecordingArchive? { get set }
     /// Set with `archive`, before each dictation: the polish half of its JSON.
     var note: RecordingNote? { get set }
-    func start(inputUID: String, onLevel: @escaping (Float) -> Void,
+    /// `onMic` gets the mic's events (live, switched) on the main queue.
+    func start(inputUID: String, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
                onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void)
     /// Ends recording; exactly one of `completion` / `failure` is called on the main queue.
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void)
@@ -237,10 +238,11 @@ final class CloudEngine: DictationEngine {
         lock.lock(); recording?.append(buffer); lock.unlock()
     }
 
-    func start(inputUID: String, onLevel: @escaping (Float) -> Void,
+    func start(inputUID: String, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
                onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
         guard beginRecording() else { return onError("Couldn't create a recording file.") }
-        mic.start(inputUID: inputUID, onBuffer: { [weak self] in self?.record($0) }, onLevel: onLevel, onError: onError)
+        mic.start(inputUID: inputUID, onBuffer: { [weak self] in self?.record($0) }, onLevel: onLevel, onEvent: onMic,
+                  onError: onError)
     }
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {

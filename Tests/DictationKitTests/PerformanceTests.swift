@@ -67,6 +67,22 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// 60 times a second while a Bluetooth mic starts and as it goes live (~1.5 s per dictation).
+    func testOverlayWarmUpFrame() {
+        let overlay = OverlayWindow()
+        addTeardownBlock { overlay.hide() }
+        var clock: TimeInterval = 0
+        overlay.now = { clock }
+        overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
+        let view = overlay.panel!.contentView!
+        let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+        assertFaster(than: 0.004, iterations: 60, "one warm-up animation frame") {
+            clock += 1.0 / 60
+            overlay.tick()
+            view.cacheDisplay(in: view.bounds, to: rep)
+        }
+    }
+
     /// Runs once per dictation; 10k words is far longer than any single dictation.
     func testWordCountLongMixedText() {
         let text = Array(repeating: "Today 我们 shipped the new 设置 page and it works", count: 1_000).joined(separator: " ")

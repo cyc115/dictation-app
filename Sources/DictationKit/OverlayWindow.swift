@@ -2,6 +2,9 @@ import AppKit
 
 /// Small pill at the bottom of the screen: ✕ cancel · live waveform (+ mic name) · ✓ paste.
 /// Also shows short status text ("Polishing…", errors) in the same pill.
+///
+/// With a slow mic (Bluetooth) the pill first shows that the mic is starting, then flashes when it's
+/// live (`PillLook`), so you know when you can talk.
 class OverlayWindow {
     var onCancel: (() -> Void)?
     var onConfirm: (() -> Void)?
@@ -13,6 +16,10 @@ class OverlayWindow {
     /// The pill widens to fit a long mic name, up to this width (then truncates).
     static let maxListeningWidth: CGFloat = 340
     private static let bottomMargin: CGFloat = 28
+    /// The "mic is live" flash.
+    private static let green = NSColor(red: 52 / 255, green: 199 / 255, blue: 89 / 255, alpha: 1)
+    /// Clear space around the pill inside its window, for the ready glow and bounce to draw into.
+    static let glowMargin: CGFloat = 16
 
     private(set) var panel: NSPanel?
     /// Makes the pill's window. Snapshot tests swap in one with a fixed scale, so the pill renders
@@ -20,6 +27,9 @@ class OverlayWindow {
     var makePanel: (NSRect) -> NSPanel = {
         NSPanel(contentRect: $0, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
     }
+    /// The clock the warm-up animation runs on (tests and the README frames step it by hand).
+    var now: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+    var reduceMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
     private let background = NSView()
     let waveform = WaveformView()
     let label = NSTextField(labelWithString: "")
@@ -28,19 +38,66 @@ class OverlayWindow {
     private lazy var cancelButton = CircleButton(symbol: "xmark", label: "Cancel dictation", fill: NSColor(white: 1, alpha: 0.18), tint: .white) { [weak self] in
         self?.onCancel?()
     }
-    private lazy var confirmButton = CircleButton(symbol: "checkmark", label: "Stop and paste", fill: .white, tint: .black) { [weak self] in
+    private(set) lazy var confirmButton = CircleButton(symbol: "checkmark", label: "Stop and paste", fill: .white, tint: .black) { [weak self] in
         self?.onConfirm?()
     }
     private(set) var mode = Mode.hidden
     private var autoHide: DispatchWorkItem?
+    private var micName = ""
+    /// When the slow mic started (while it's starting), and when it went live (during the flash).
+    private var warmingSince: TimeInterval?
+    private var readySince: TimeInterval?
+    private var animation: Timer?
+    /// While the mic is starting: the width its plain caption will need, so the pill keeps one width.
+    private var plainCaptionWidth: CGFloat = 0
+
+    /// The mic is starting: the pill is showing "Starting <mic>…".
+    var isWarmingUp: Bool { warmingSince != nil }
+    /// Where the pill itself is on screen (its window is `glowMargin` bigger all round).
+    var pillFrame: NSRect { panel?.frame.insetBy(dx: Self.glowMargin, dy: Self.glowMargin) ?? .zero }
 
     // MARK: - Public
 
-    /// `micName` is shown in full under the waveform; nil hides the caption.
-    func showListening(micName: String? = nil) {
+    /// `micName` is shown in full under the waveform; nil hides the caption. `warmingUp`: the mic is
+    /// slow to start (Bluetooth), so the pill says so until `micLive()`.
+    func showListening(micName: String? = nil, warmingUp: Bool = false) {
+        stopAnimation()
         waveform.reset()
         waveform.processing = false
+        self.micName = micName ?? ""
+        warmingSince = warmingUp ? now() : nil
+        plainCaptionWidth = 0
+        if warmingUp, let micName, !micName.isEmpty {
+            plainCaptionWidth = Self.caption(micName, symbol: "mic.fill").size().width
+            setCaption("Starting \(micName)…", symbol: "headphones", accessibility: "Microphone starting: \(micName)")
+        } else {
+            setMicName(micName)
+        }
+        present(.listening)
+        if warmingUp { startAnimation() }
+    }
+
+    /// The mic sent its first real audio: if the pill was showing the wait, it flashes "ready".
+    func micLive() {
+        guard mode == .listening, warmingSince != nil else { return }
+        warmingSince = nil
+        readySince = now()
+        plainCaptionWidth = 0
         setMicName(micName)
+        panel?.hasShadow = false  // the glow stands in for the shadow while it shows
+        applyLook()
+    }
+
+    /// The dictation moved to another mic (the slow one never started).
+    func micSwitched(to name: String) {
+        guard mode == .listening else { return }
+        micName = name
+        if warmingSince != nil {
+            plainCaptionWidth = Self.caption(name, symbol: "mic.fill").size().width
+            setCaption("Starting \(name)…", symbol: "headphones", accessibility: "Microphone starting: \(name)")
+        } else {
+            setMicName(name)
+        }
         present(.listening)
     }
 
@@ -49,10 +106,20 @@ class OverlayWindow {
             micLabel.attributedStringValue = NSAttributedString()
             return
         }
+        setCaption(name, symbol: "mic.fill", accessibility: "Microphone: \(name)")
+    }
+
+    private func setCaption(_ text: String, symbol: String, accessibility: String) {
+        micLabel.attributedStringValue = Self.caption(text, symbol: symbol)
+        micLabel.setAccessibilityLabel(accessibility)
+    }
+
+    /// The caption: a small symbol, then `text`, dimmed.
+    private static func caption(_ string: String, symbol: String) -> NSAttributedString {
         let dim = NSColor(white: 1, alpha: 0.5)
         let font = NSFont.systemFont(ofSize: 9, weight: .medium)
         let text = NSMutableAttributedString()
-        if let icon = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: nil)?
+        if let icon = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
             .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 7, weight: .semibold)
                 .applying(NSImage.SymbolConfiguration(paletteColors: [dim]))) {
             let attachment = NSTextAttachment()
@@ -61,14 +128,13 @@ class OverlayWindow {
             text.append(NSAttributedString(attachment: attachment))
             text.append(NSAttributedString(string: " "))
         }
-        text.append(NSAttributedString(string: name))
+        text.append(NSAttributedString(string: string))
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
         paragraph.lineBreakMode = .byTruncatingTail
         text.addAttributes([.font: font, .foregroundColor: dim, .paragraphStyle: paragraph],
                            range: NSRange(location: 0, length: text.length))
-        micLabel.attributedStringValue = text
-        micLabel.setAccessibilityLabel("Microphone: \(name)")
+        return text
     }
 
     func setLevel(_ level: Float) {
@@ -94,6 +160,7 @@ class OverlayWindow {
         autoHide?.cancel()
         guard mode != .hidden, let panel = panel else { return }
         mode = .hidden
+        stopAnimation()
         waveform.processing = false
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.15
@@ -108,6 +175,76 @@ class OverlayWindow {
         if mode != .message { hide() }
     }
 
+    // MARK: - Warm-up animation
+
+    /// Redraws the warm-up or ready look for `now()` (the timer calls it; tests and the README frames
+    /// call it after moving the clock).
+    func tick() { applyLook() }
+
+    private func startAnimation() {
+        guard animation == nil else { return }
+        let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.tick() }
+        RunLoop.main.add(timer, forMode: .common)
+        animation = timer
+        applyLook()
+    }
+
+    /// Back to the plain pill, with no animation running.
+    private func stopAnimation() {
+        animation?.invalidate()
+        animation = nil
+        warmingSince = nil
+        readySince = nil
+        plainCaptionWidth = 0
+        apply(.plain)
+        panel?.hasShadow = true
+    }
+
+    private func applyLook() {
+        let reduce = reduceMotion()
+        if let since = warmingSince {
+            apply(.waiting(elapsed: now() - since, reduceMotion: reduce))
+        } else if let since = readySince {
+            let elapsed = now() - since
+            if PillLook.settled(since: elapsed) {
+                stopAnimation()
+                panel?.invalidateShadow()
+            } else {
+                apply(.ready(since: elapsed, reduceMotion: reduce))
+            }
+        }
+    }
+
+    private func apply(_ look: PillLook) {
+        waveform.show(look)
+        confirmButton.emphasis = look.confirmEmphasis
+        micLabel.alphaValue = look.captionAlpha
+        let g = look.glow
+        // The view's shadow, not the layer's: AppKit resets a layer-backed view's layer shadow.
+        if g > 0 {
+            let glow = NSShadow()
+            glow.shadowColor = Self.green.withAlphaComponent(0.8 * g)
+            glow.shadowBlurRadius = 14 * g
+            glow.shadowOffset = .zero
+            background.shadow = glow
+        } else if background.shadow != nil {
+            background.shadow = nil
+        }
+        guard let layer = background.layer else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.borderWidth = 0.5 + 1.1 * g
+        // White at 14% (the resting edge) → `green`.
+        layer.borderColor = NSColor(red: (255 - 203 * g) / 255, green: (255 - 56 * g) / 255, blue: (255 - 166 * g) / 255,
+                                    alpha: 0.14 + 0.76 * g).cgColor
+        let bounds = layer.bounds
+        // AppKit puts a view's layer anchor at its corner: scale about the pill's center.
+        var transform = CATransform3DMakeTranslation(-bounds.midX, -bounds.midY, 0)
+        transform = CATransform3DConcat(transform, CATransform3DMakeScale(look.scale, look.scale, 1))
+        layer.transform = CATransform3DConcat(transform, CATransform3DMakeTranslation(bounds.midX, bounds.midY, 0))
+        CATransaction.commit()
+    }
+
     // MARK: - Layout
 
     private func present(_ newMode: Mode) {
@@ -116,6 +253,8 @@ class OverlayWindow {
         guard let panel = panel else { return }
         let wasHidden = mode == .hidden
         mode = newMode
+        if newMode != .listening { stopAnimation() }
+        background.layer?.transform = CATransform3DIdentity  // laid out unscaled; the look re-applies it
 
         let h = Self.height
         let button: CGFloat = 28, pad = (h - button) / 2
@@ -127,9 +266,12 @@ class OverlayWindow {
         case .processing:
             width = 84
         default:
-            // Wide enough for the whole mic name between the two buttons.
+            // Wide enough for the whole mic name between the two buttons (and, while the mic starts,
+            // for its plain caption too, so the pill doesn't change width when it goes live).
             let sideInset = pad + button + 5
-            let caption = micLabel.attributedStringValue.length > 0 ? ceil(micLabel.attributedStringValue.size().width) + 6 : 0
+            let shown = micLabel.attributedStringValue.length > 0 ? micLabel.attributedStringValue.size().width : 0
+            let needed = max(shown, plainCaptionWidth)
+            let caption = needed > 0 ? ceil(needed) + 6 : 0
             width = min(max(Self.listeningWidth, caption + 2 * sideInset), Self.maxListeningWidth)
         }
 
@@ -153,11 +295,14 @@ class OverlayWindow {
         }
         let labelHeight = label.frame.height
         label.frame = NSRect(x: 18, y: (h - labelHeight) / 2, width: width - 36, height: labelHeight)
-        background.frame = NSRect(x: 0, y: 0, width: width, height: h)
+        let m = Self.glowMargin
+        background.frame = NSRect(x: m, y: m, width: width, height: h)
 
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        panel.setFrame(NSRect(x: visible.midX - width / 2, y: visible.minY + Self.bottomMargin, width: width, height: h), display: true)
+        panel.setFrame(NSRect(x: visible.midX - width / 2 - m, y: visible.minY + Self.bottomMargin - m,
+                              width: width + 2 * m, height: h + 2 * m), display: true)
+        applyLook()
 
         if wasHidden {
             panel.alphaValue = 0
@@ -173,7 +318,8 @@ class OverlayWindow {
     }
 
     private func build() {
-        let panel = makePanel(NSRect(x: 0, y: 0, width: Self.listeningWidth, height: Self.height))
+        let m = Self.glowMargin
+        let panel = makePanel(NSRect(x: 0, y: 0, width: Self.listeningWidth + 2 * m, height: Self.height + 2 * m))
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -184,6 +330,7 @@ class OverlayWindow {
 
         let content = NSView(frame: panel.contentRect(forFrameRect: panel.frame))
         content.autoresizingMask = [.width, .height]
+        content.wantsLayer = true  // so the pill's glow and bounce are part of one layer tree
         panel.contentView = content
 
         background.wantsLayer = true
@@ -213,7 +360,7 @@ class OverlayWindow {
 
 /// Mirrored bars driven by the mic level; the newest level enters on the right.
 final class WaveformView: NSView {
-    private let barCount = 13
+    private let barCount = PillLook.barCount
     private let barWidth: CGFloat = 2.5
     private let gap: CGFloat = 2.5
     private(set) var levels: [CGFloat]
@@ -228,6 +375,9 @@ final class WaveformView: NSView {
     private var pushes = 0
     private var timer: Timer?
     private var phase: CGFloat = 0
+    /// The warm-up look's bar heights and opacities (nil: the mic's levels, fully white).
+    private var shownLevels: [CGFloat]?
+    private var barAlphas: [CGFloat]?
 
     var processing = false {
         didSet {
@@ -250,6 +400,15 @@ final class WaveformView: NSView {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    /// Draws `look`'s bars over the mic's levels while the mic starts or goes live.
+    func show(_ look: PillLook) {
+        let alphas = look.barAlphas.allSatisfy { $0 == 1 } ? nil : look.barAlphas
+        guard look.levels != shownLevels || alphas != barAlphas else { return }
+        shownLevels = look.levels
+        barAlphas = alphas
+        needsDisplay = true
+    }
 
     func reset() {
         levels = Array(repeating: 0, count: barCount)
@@ -274,7 +433,8 @@ final class WaveformView: NSView {
         needsDisplay = true
     }
 
-    private func tick() {
+    /// One step of the processing ripple (the timer's; the README frames step it by hand).
+    func tick() {
         phase += 0.22
         for i in 0..<barCount {
             levels[i] = 0.18 + 0.22 * (1 + sin(phase - CGFloat(i) * 0.55)) / 2
@@ -283,6 +443,7 @@ final class WaveformView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        let levels = shownLevels ?? self.levels
         NSColor.white.setFill()
         let total = CGFloat(barCount) * barWidth + CGFloat(barCount - 1) * gap
         var x = (bounds.width - total) / 2
@@ -291,6 +452,7 @@ final class WaveformView: NSView {
             let fromCenter = abs(CGFloat(i) - mid) / mid      // 0 at center, 1 at edges
             let envelope = 1 - 0.45 * fromCenter * fromCenter  // taller in the middle
             let h = max(barWidth, levels[i] * envelope * bounds.height)
+            if let barAlphas { NSColor(white: 1, alpha: barAlphas[i]).setFill() }
             let bar = NSRect(x: x, y: (bounds.height - h) / 2, width: barWidth, height: h)
             NSBezierPath(roundedRect: bar, xRadius: barWidth / 2, yRadius: barWidth / 2).fill()
             x += barWidth + gap
@@ -307,6 +469,10 @@ final class CircleButton: NSView {
     private let tint: NSColor
     private let action: () -> Void
     private var pressed = false
+    /// 1 = normal; lower dims it (✓ while the mic is still starting: nothing to paste yet).
+    var emphasis: CGFloat = 1 {
+        didSet { if emphasis != oldValue { needsDisplay = true } }
+    }
 
     init(symbol: String, label: String, fill: NSColor, tint: NSColor, action: @escaping () -> Void) {
         self.symbol = symbol
@@ -341,8 +507,10 @@ final class CircleButton: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        (pressed ? fill.withAlphaComponent(fill.alphaComponent * 0.6) : fill).setFill()
+        let alpha = fill.alphaComponent * emphasis
+        (pressed ? fill.withAlphaComponent(alpha * 0.6) : fill.withAlphaComponent(alpha)).setFill()
         NSBezierPath(ovalIn: bounds).fill()
+        let tint = emphasis < 1 ? self.tint.withAlphaComponent(0.35 + 0.65 * emphasis) : self.tint
         let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .bold)
             .applying(NSImage.SymbolConfiguration(paletteColors: [tint]))
         guard let image = NSImage(systemSymbolName: symbol, accessibilityDescription: symbol)?

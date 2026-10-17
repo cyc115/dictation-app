@@ -22,6 +22,8 @@ final class DictationController {
     lazy var makePolish: (DictationSetup) -> PolishService = { [unowned self] setup in
         setup.polishService(apiKey: self.settings.openRouterKey, onDevice: self.onDevicePolish(instructions:wrap:))
     }
+    /// The mic a dictation with this preferred UID records from (tests fake it).
+    var activeInput: (String) -> AudioInputDevice? = { AudioDevices.activeInput(preferredUID: $0) }
     /// Whether typed text would come out as typed now (false while a ⌘/⌥/⌃/⇧ hotkey is held).
     var canTypeNow: () -> Bool = { true }
     /// A cloud model was chosen without an API key.
@@ -139,15 +141,12 @@ final class DictationController {
         engine.note = note
         setDictating(true)
         dictationStart = Date()
-        overlay.showListening(micName: AudioDevices.activeInputName(preferredUID: settings.microphoneUID))
-        if settings.interactionSounds { InteractionSound.start.play() }
-        if settings.muteWhileDictating {
-            // Let the start sound finish before silencing output.
-            let delay: TimeInterval = settings.interactionSounds ? 0.25 : 0
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                if self?.dictating == true { self?.muter.mute() }
-            }
-        }
+        let mic = activeInput(settings.microphoneUID)
+        // A Bluetooth mic takes about a second to send audio: the pill shows the wait, and the start
+        // sound waits for it too, so it means "talk now".
+        let warmingUp = mic?.isBluetooth == true
+        overlay.showListening(micName: mic?.name, warmingUp: warmingUp)
+        if !warmingUp { startCue() }
         if settings.effectiveStreaming {
             streaming = StreamingOutput(canTypeNow: { [weak self] in self?.canTypeNow() ?? true },
                                         type: { [weak self] text in self?.injector.type(text) })
@@ -160,6 +159,16 @@ final class DictationController {
             onLevel: { [weak self] level in
                 guard self?.dictating == true else { return }
                 self?.overlay.setLevel(level)
+            },
+            onMic: { [weak self] event in
+                guard let self, self.dictating else { return }
+                switch event {
+                case .live:
+                    if self.overlay.isWarmingUp { self.startCue() }
+                    self.overlay.micLive()
+                case .switched(let name):
+                    self.overlay.micSwitched(to: name)
+                }
             },
             onUtterance: output.map { output in { [weak self] chunk in
                 guard self?.dictating == true else { return }
@@ -178,6 +187,17 @@ final class DictationController {
         let work = DispatchWorkItem { [weak self] in self?.stop() }
         autoStop = work
         DispatchQueue.main.asyncAfter(deadline: .now() + limit, execute: work)
+    }
+
+    /// The start sound, then muting output (after the sound, so it isn't cut off).
+    private func startCue() {
+        if settings.interactionSounds { InteractionSound.start.play() }
+        if settings.muteWhileDictating {
+            let delay: TimeInterval = settings.interactionSounds ? 0.25 : 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                if self?.dictating == true { self?.muter.mute() }
+            }
+        }
     }
 
     /// `send`: press Return after the text is delivered (nothing is sent if no text came).

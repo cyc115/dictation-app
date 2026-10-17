@@ -35,9 +35,10 @@ class SpeechEngine {
     /// Starts listening on the microphone.
     /// - `inputUID` picks a microphone by CoreAudio UID; empty or missing uses the system default.
     /// - `onLevel` gets the mic level (0…1) for each audio buffer, on the main queue.
+    /// - `onMic` gets the mic's events (live, switched), on the main queue.
     /// - `onUtterance` gets each finished utterance (with its leading separator) as soon as you
     ///   pause, on the main queue — for streaming text out while still dictating.
-    func start(inputUID: String = "", onLevel: @escaping (Float) -> Void,
+    func start(inputUID: String = "", onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void = { _ in },
                onUtterance: ((String) -> Void)? = nil, onError: @escaping (String) -> Void) {
         guard let (recognizer, request, id) = prepare(onError: onError) else { return }
 
@@ -45,7 +46,7 @@ class SpeechEngine {
         guard mic.start(inputUID: inputUID, onBuffer: { [weak self] buffer in
             self?.request?.append(buffer)
             recording?.append(buffer)
-        }, onLevel: onLevel, onError: onError) else {
+        }, onLevel: onLevel, onEvent: onMic, onError: onError) else {
             self.request = nil
             finishRecording(transcript: nil)
             return

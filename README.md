@@ -5,14 +5,16 @@
 A small macOS menu-bar app for fast, private dictation. It runs on your Mac by default, and
 cloud models can handle **English mixed into Chinese**, which the built-in macOS dictation can't.
 
-![DictationApp: the recording bar, dictation history and insights](docs/images/screenshot.png)
+![DictationApp: the recording bar starting a Bluetooth mic and going live, with dictation history and insights](docs/images/screenshot.gif)
 
 ## Features
 
 - **Works everywhere.** Hold **Fn** (or Right ⌘ / ⌥ / ⌃ / ⇧, or a mouse button), speak, and let go.
   The text is pasted at your cursor in whatever app you're in.
 - **Live recording bar.** A small bar at the bottom of the screen shows a waveform and which mic
-  is recording. Click ✓ to paste, or ✕ / **Esc** to cancel.
+  is recording. Click ✓ to paste, or ✕ / **Esc** to cancel. Bluetooth headsets take about a second
+  to start their mic: the bar shows the wait, then flashes green when you can talk. If the headset's
+  mic never starts, the dictation moves to the Mac's own mic.
 - **On-device or cloud.** *On-device* uses Apple Speech, and no audio leaves your Mac.
   *Cloud Flash* returns text about 0.5 s after you stop, and *Cloud Big* in about 2 s. Both handle
   English mixed into Chinese.
