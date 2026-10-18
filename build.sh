@@ -4,15 +4,21 @@
 #   ./build.sh --keep-running   installs without quitting the running copy, so a dictation
 #                               in progress isn't cut off; the app relaunches into the new build
 #                               once it's idle (AppRelaunch: a replaced copy loses the microphone).
+#   ./build.sh --bundle <path.app>  only builds and signs the app at <path.app>; nothing is
+#                               installed or quit (scripts/release.sh uses it).
 set -euo pipefail
 cd "$(dirname "$0")"
 
 KEEP_RUNNING=false
-[[ "${1:-}" == "--keep-running" ]] && KEEP_RUNNING=true
+BUNDLE_ONLY=""
+case "${1:-}" in
+  --keep-running) KEEP_RUNNING=true ;;
+  --bundle) BUNDLE_ONLY="${2:?usage: ./build.sh --bundle <path.app>}" ;;
+esac
 
 INSTALLED="/Applications/DictationApp.app"
 # Bundled and signed beside the installed copy, then swapped in with a rename (same volume).
-APP="/Applications/.DictationApp-new.app"
+APP="${BUNDLE_ONLY:-/Applications/.DictationApp-new.app}"
 
 # Signing: a self-signed cert kept in its own keychain. Because the cert stays the
 # same across builds, macOS keeps the Accessibility/Microphone grants after a rebuild
@@ -69,6 +75,11 @@ echo "==> Signing with stable local identity…"
 ensure_signing_identity
 security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
 codesign --force --deep --keychain "$KEYCHAIN" --sign "$SIGN_ID" "$APP"
+
+if [[ -n "$BUNDLE_ONLY" ]]; then
+  echo "==> Built $APP"
+  exit 0
+fi
 
 # A running copy keeps running from the old files, but macOS revokes its microphone access once
 # they're replaced, so it watches for this swap and relaunches itself when no dictation is running.

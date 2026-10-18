@@ -51,7 +51,14 @@ cloud models can handle **English mixed into Chinese**, which the built-in macOS
 
 ## Install
 
-There's no prebuilt download yet. Build from source:
+**Download:** get the latest `DictationApp-*.zip` from
+[Releases](https://github.com/cyc115/dictation-app/releases), unzip it and move
+`DictationApp.app` to `/Applications`. It's signed with a self-signed certificate, not an Apple
+Developer ID, so macOS blocks it the first time: run
+`xattr -dr com.apple.quarantine /Applications/DictationApp.app`, or open it once and then click
+System Settings → Privacy & Security → **Open Anyway**. Releases are built for Apple silicon.
+
+**Or build from source:**
 
 ```sh
 git clone https://github.com/cyc115/dictation-app.git
@@ -122,6 +129,7 @@ asked too and the first answer is used (Settings → *Backup model when slow*).
 ./test.sh --live             # + the real cloud API, both cloud models (needs $OPENROUTER_API_KEY)
 ./test.sh --perf             # + launch time, idle CPU and memory of the installed app
 ./build.sh --keep-running    # install without interrupting a dictation; relaunches when idle
+scripts/release.sh           # test, build and publish a GitHub release (--draft, --dry-run)
 bench/suite.py latency run   # time from stop to text, per speech/polish model
 bench/suite.py polish run    # polish quality on tricky dictations
 ```
