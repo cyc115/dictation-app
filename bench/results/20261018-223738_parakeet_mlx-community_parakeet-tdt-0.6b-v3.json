@@ -1,0 +1,1398 @@
+{
+  "model": "parakeet:mlx-community/parakeet-tdt-0.6b-v3",
+  "run_at": "2026-10-18T22:37:38",
+  "commit": "c4e3f5f",
+  "repeat": 3,
+  "summary": {
+    "all": {
+      "cases": 46,
+      "errors": 0,
+      "accuracy": 0.281,
+      "en_recall": 0.514,
+      "traditional": 0,
+      "latency_min": 0.066,
+      "latency_p50": 0.129,
+      "latency_max": 0.555,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "mixed": {
+      "cases": 21,
+      "errors": 0,
+      "accuracy": 0.1201,
+      "en_recall": 0.514,
+      "traditional": 0,
+      "latency_min": 0.098,
+      "latency_p50": 0.162,
+      "latency_max": 0.555,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "mixed@L1": {
+      "cases": 10,
+      "errors": 0,
+      "accuracy": 0.1288,
+      "en_recall": 0.5933,
+      "traditional": 0,
+      "latency_min": 0.098,
+      "latency_p50": 0.117,
+      "latency_max": 0.151,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "L1": {
+      "cases": 20,
+      "errors": 0,
+      "accuracy": 0.2644,
+      "en_recall": 0.5933,
+      "traditional": 0,
+      "latency_min": 0.066,
+      "latency_p50": 0.112,
+      "latency_max": 0.164,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "chinese": {
+      "cases": 14,
+      "errors": 0,
+      "accuracy": 0.0,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.075,
+      "latency_p50": 0.11,
+      "latency_max": 0.207,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "chinese@L1": {
+      "cases": 6,
+      "errors": 0,
+      "accuracy": 0.0,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.075,
+      "latency_p50": 0.11,
+      "latency_max": 0.164,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "english": {
+      "cases": 11,
+      "errors": 0,
+      "accuracy": 0.946,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.066,
+      "latency_p50": 0.124,
+      "latency_max": 0.358,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "english@L1": {
+      "cases": 4,
+      "errors": 0,
+      "accuracy": 1.0,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.066,
+      "latency_p50": 0.076,
+      "latency_max": 0.091,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "mixed@L2": {
+      "cases": 6,
+      "errors": 0,
+      "accuracy": 0.1413,
+      "en_recall": 0.4809,
+      "traditional": 0,
+      "latency_min": 0.184,
+      "latency_p50": 0.205,
+      "latency_max": 0.555,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "L2": {
+      "cases": 14,
+      "errors": 0,
+      "accuracy": 0.3197,
+      "en_recall": 0.4809,
+      "traditional": 0,
+      "latency_min": 0.123,
+      "latency_p50": 0.193,
+      "latency_max": 0.555,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "chinese@L2": {
+      "cases": 4,
+      "errors": 0,
+      "accuracy": 0.0,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.181,
+      "latency_p50": 0.187,
+      "latency_max": 0.207,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "english@L2": {
+      "cases": 4,
+      "errors": 0,
+      "accuracy": 0.9071,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.123,
+      "latency_p50": 0.138,
+      "latency_max": 0.358,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "mixed@L3": {
+      "cases": 5,
+      "errors": 0,
+      "accuracy": 0.0772,
+      "en_recall": 0.3952,
+      "traditional": 0,
+      "latency_min": 0.161,
+      "latency_p50": 0.181,
+      "latency_max": 0.23,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "L3": {
+      "cases": 12,
+      "errors": 0,
+      "accuracy": 0.2636,
+      "en_recall": 0.3952,
+      "traditional": 0,
+      "latency_min": 0.091,
+      "latency_p50": 0.136,
+      "latency_max": 0.23,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "chinese@L3": {
+      "cases": 4,
+      "errors": 0,
+      "accuracy": 0.0,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.091,
+      "latency_p50": 0.099,
+      "latency_max": 0.102,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    },
+    "english@L3": {
+      "cases": 3,
+      "errors": 0,
+      "accuracy": 0.9259,
+      "en_recall": null,
+      "traditional": 0,
+      "latency_min": 0.12,
+      "latency_p50": 0.125,
+      "latency_max": 0.153,
+      "cost": 0,
+      "cost_per_audio_hour": 0.0
+    }
+  },
+  "cases": [
+    {
+      "id": "mixed-01",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "帮我 build 一个然后 push 到 repository 里。",
+      "hypothesis": "Bang would build eager young hole push that repositorily.",
+      "hypotheses": [
+        "Bang would build eager young hole push that repositorily.",
+        "Bang would build eager young hole push that repositorily.",
+        "Bang would build eager young hole push that repositorily."
+      ],
+      "error_rate": 0.8182,
+      "en_recall": 0.6667,
+      "traditional": false,
+      "latency": 0.101,
+      "latencies": [
+        0.115,
+        0.098,
+        0.101
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.67
+    },
+    {
+      "id": "mixed-02",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+      "hypothesis": "What you the jigger feature the U I hi ugly la ni bongw read as single?",
+      "hypotheses": [
+        "What you the jigger feature the U I hi ugly la ni bongw read as single?",
+        "What you the jigger feature the U I hi ugly la ni bongw read as single?",
+        "What you the jigger feature the U I hi ugly la ni bongw read as single?"
+      ],
+      "error_rate": 0.9412,
+      "en_recall": 0.5,
+      "traditional": false,
+      "latency": 0.15,
+      "latencies": [
+        0.151,
+        0.146,
+        0.15
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.74
+    },
+    {
+      "id": "mixed-03",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "明天的 meeting 我们讨论一下 performance 和 latency 的问题。",
+      "hypothesis": "Mintyan the meeting woman how low is a performance her latency.",
+      "hypotheses": [
+        "Mintyan the meeting woman how low is a performance her latency.",
+        "Mintyan the meeting woman how low is a performance her latency.",
+        "Mintyan the meeting woman how low is a performance her latency."
+      ],
+      "error_rate": 0.8125,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.117,
+      "latencies": [
+        0.114,
+        0.117,
+        0.12
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.94
+    },
+    {
+      "id": "mixed-04",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "这个 bug 在 production 环境里才会出现，你先看一下 log。",
+      "hypothesis": "Jigger Bug Zai Production Huang Li Thai Hui Chusien, Nisien Kai Xia Log.",
+      "hypotheses": [
+        "Jigger Bug Zai Production Huang Li Thai Hui Chusien, Nisien Kai Xia Log.",
+        "Jigger Bug Zai Production Huang Li Thai Hui Chusien, Nisien Kai Xia Log.",
+        "Jigger Bug Zai Production Huang Li Thai Hui Chusien, Nisien Kai Xia Log."
+      ],
+      "error_rate": 0.8333,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.141,
+      "latencies": [
+        0.146,
+        0.141,
+        0.137
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.28
+    },
+    {
+      "id": "mixed-05",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "我们下周要 launch 新的 version，记得更新 README。",
+      "hypothesis": "Woman sa joyo long china version, zi the gong sin readm.",
+      "hypotheses": [
+        "Woman sa joyo long china version, zi the gong sin readm.",
+        "Woman sa joyo long china version, zi the gong sin readm.",
+        "Woman sa joyo long china version, zi the gong sin readm."
+      ],
+      "error_rate": 0.9286,
+      "en_recall": 0.3333,
+      "traditional": false,
+      "latency": 0.109,
+      "latencies": [
+        0.11,
+        0.109,
+        0.107
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.11
+    },
+    {
+      "id": "mixed-06",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "你可以帮我 review 一下这个 pull request 吗？",
+      "hypothesis": "Ik ben wat review isajigaploh ma.",
+      "hypotheses": [
+        "Ik ben wat review isajigaploh ma.",
+        "Ik ben wat review isajigaploh ma.",
+        "Ik ben wat review isajigaploh ma."
+      ],
+      "error_rate": 0.9231,
+      "en_recall": 0.3333,
+      "traditional": false,
+      "latency": 0.11,
+      "latencies": [
+        0.108,
+        0.11,
+        0.11
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.74
+    },
+    {
+      "id": "mixed-07",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+      "hypothesis": "Jigger A P I the response time la woman she outshot.",
+      "hypotheses": [
+        "Jigger A P I the response time la woman she outshot.",
+        "Jigger A P I the response time la woman she outshot.",
+        "Jigger A P I the response time la woman she outshot."
+      ],
+      "error_rate": 0.9412,
+      "en_recall": 0.5,
+      "traditional": false,
+      "latency": 0.142,
+      "latencies": [
+        0.145,
+        0.136,
+        0.142
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.16
+    },
+    {
+      "id": "mixed-08",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "我刚刚 deploy 到 staging，你帮我 test 一下 login 的 flow。",
+      "hypothesis": "Wagangan deployed our staging, nibangwat test is at logging the flow.",
+      "hypotheses": [
+        "Wagangan deployed our staging, nibangwat test is at logging the flow.",
+        "Wagangan deployed our staging, nibangwat test is at logging the flow.",
+        "Wagangan deployed our staging, nibangwat test is at logging the flow."
+      ],
+      "error_rate": 0.8,
+      "en_recall": 0.6,
+      "traditional": false,
+      "latency": 0.116,
+      "latencies": [
+        0.119,
+        0.116,
+        0.114
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.11
+    },
+    {
+      "id": "mixed-09",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "把这个 function refactor 一下，然后写几个 unit test。",
+      "hypothesis": "But aga function refactor is uh, lung ho sietiga unit test.",
+      "hypotheses": [
+        "But aga function refactor is uh, lung ho sietiga unit test.",
+        "But aga function refactor is uh, lung ho sietiga unit test.",
+        "But aga function refactor is uh, lung ho sietiga unit test."
+      ],
+      "error_rate": 0.7143,
+      "en_recall": 1.0,
+      "traditional": false,
+      "latency": 0.116,
+      "latencies": [
+        0.112,
+        0.116,
+        0.116
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.08
+    },
+    {
+      "id": "mixed-10",
+      "category": "mixed",
+      "level": 1,
+      "source": "tts",
+      "reference": "今天的 standup 我会晚一点，先帮我跟 team 说一声。",
+      "hypothesis": "Sintian of standard woohew y dian. Sien bang wokengui sheng.",
+      "hypotheses": [
+        "Sintian of standard woohew y dian. Sien bang wokengui sheng.",
+        "Sintian of standard woohew y dian. Sien bang wokengui sheng.",
+        "Sintian of standard woohew y dian. Sien bang wokengui sheng."
+      ],
+      "error_rate": 1.0,
+      "en_recall": 0.0,
+      "traditional": false,
+      "latency": 0.127,
+      "latencies": [
+        0.127,
+        0.125,
+        0.132
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.95
+    },
+    {
+      "id": "chinese-01",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "今天天气很好，我们下午去公园散步吧。",
+      "hypothesis": "Sintient si hengha, woman Xiao Chi Gung Yuan Sembuba.",
+      "hypotheses": [
+        "Sintient si hengha, woman Xiao Chi Gung Yuan Sembuba.",
+        "Sintient si hengha, woman Xiao Chi Gung Yuan Sembuba.",
+        "Sintient si hengha, woman Xiao Chi Gung Yuan Sembuba."
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.121,
+      "latencies": [
+        0.121,
+        0.116,
+        0.127
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.33
+    },
+    {
+      "id": "chinese-02",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "请帮我把这份文件发给张经理，谢谢。",
+      "hypothesis": "C'est un bon wopajofing Lee, C si e.",
+      "hypotheses": [
+        "C'est un bon wopajofing Lee, C si e.",
+        "C'est un bon wopajofing Lee, C si e.",
+        "C'est un bon wopajofing Lee, C si e."
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.143,
+      "latencies": [
+        0.164,
+        0.143,
+        0.116
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.11
+    },
+    {
+      "id": "chinese-03",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "我觉得这个方案还需要再讨论一下。",
+      "hypothesis": "What you the jig of hai xia outside how lia?",
+      "hypotheses": [
+        "What you the jig of hai xia outside how lia?",
+        "What you the jig of hai xia outside how lia?",
+        "What you the jig of hai xia outside how lia?"
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.107,
+      "latencies": [
+        0.105,
+        0.112,
+        0.107
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.43
+    },
+    {
+      "id": "chinese-04",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "明天早上九点开会，别忘了带电脑。",
+      "hypothesis": "Mingien Zhao Shan Zhu dian kai hui, Bi wang le dian nao.",
+      "hypotheses": [
+        "Mingien Zhao Shan Zhu dian kai hui, Bi wang le dian nao.",
+        "Mingien Zhao Shan Zhu dian kai hui, Bi wang le dian nao.",
+        "Mingien Zhao Shan Zhu dian kai hui, Bi wang le dian nao."
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.112,
+      "latencies": [
+        0.107,
+        0.112,
+        0.113
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.94
+    },
+    {
+      "id": "chinese-05",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "这家餐厅的菜很好吃，但是价格有点贵。",
+      "hypothesis": "",
+      "hypotheses": [
+        "",
+        "",
+        ""
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.078,
+      "latencies": [
+        0.078,
+        0.103,
+        0.075
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.36
+    },
+    {
+      "id": "chinese-06",
+      "category": "chinese",
+      "level": 1,
+      "source": "tts",
+      "reference": "你周末有空吗？我们一起去看电影。",
+      "hypothesis": "Nijonguo yo kungma, wama yi chi to can dear yung.",
+      "hypotheses": [
+        "Nijonguo yo kungma, wama yi chi to can dear yung.",
+        "Nijonguo yo kungma, wama yi chi to can dear yung.",
+        "Nijonguo yo kungma, wama yi chi to can dear yung."
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.103,
+      "latencies": [
+        0.102,
+        0.103,
+        0.107
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.56
+    },
+    {
+      "id": "english-01",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "Can you send me the notes from today's meeting?",
+      "hypothesis": "Can you send me the notes from today's meeting?",
+      "hypotheses": [
+        "Can you send me the notes from today's meeting?",
+        "Can you send me the notes from today's meeting?",
+        "Can you send me the notes from today's meeting?"
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.067,
+      "latencies": [
+        0.067,
+        0.066,
+        0.067
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 2.52
+    },
+    {
+      "id": "english-02",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "Let's push the release to Thursday so we have time to fix the login bug.",
+      "hypothesis": "Let's push the release to Thursday so we have time to fix the login bug.",
+      "hypotheses": [
+        "Let's push the release to Thursday so we have time to fix the login bug.",
+        "Let's push the release to Thursday so we have time to fix the login bug.",
+        "Let's push the release to Thursday so we have time to fix the login bug."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.091,
+      "latencies": [
+        0.091,
+        0.09,
+        0.091
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 4.14
+    },
+    {
+      "id": "english-03",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "I think the new settings page looks much cleaner than the old one.",
+      "hypothesis": "I think the new settings page looks much cleaner than the old one.",
+      "hypotheses": [
+        "I think the new settings page looks much cleaner than the old one.",
+        "I think the new settings page looks much cleaner than the old one.",
+        "I think the new settings page looks much cleaner than the old one."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.081,
+      "latencies": [
+        0.084,
+        0.081,
+        0.079
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.73
+    },
+    {
+      "id": "english-04",
+      "category": "english",
+      "level": 1,
+      "source": "tts",
+      "reference": "Please remind me to call the dentist tomorrow morning.",
+      "hypothesis": "Please remind me to call the dentist tomorrow morning.",
+      "hypotheses": [
+        "Please remind me to call the dentist tomorrow morning.",
+        "Please remind me to call the dentist tomorrow morning.",
+        "Please remind me to call the dentist tomorrow morning."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.072,
+      "latencies": [
+        0.072,
+        0.072,
+        0.074
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 3.16
+    },
+    {
+      "id": "mixed-hard-01",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+      "hypothesis": "Woman back Uber needs the cluster Shang DJ Ho, Postgre SQL, the connection pool e j timeout, latency yield.",
+      "hypotheses": [
+        "Woman back Uber needs the cluster Shang DJ Ho, Postgre SQL, the connection pool e j timeout, latency yield.",
+        "Woman back Uber needs the cluster Shang DJ Ho, Postgre SQL, the connection pool e j timeout, latency yield.",
+        "Woman back Uber needs the cluster Shang DJ Ho, Postgre SQL, the connection pool e j timeout, latency yield."
+      ],
+      "error_rate": 0.7826,
+      "en_recall": 0.7143,
+      "traditional": false,
+      "latency": 0.203,
+      "latencies": [
+        0.207,
+        0.199,
+        0.203
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 10.13
+    },
+    {
+      "id": "mixed-hard-02",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。",
+      "hypothesis": "J R Kilo of the Kalback URL, Hyotype Script the type definition, emerge JM Pao Yi Satzu.",
+      "hypotheses": [
+        "J R Kilo of the Kalback URL, Hyotype Script the type definition, emerge JM Pao Yi Satzu.",
+        "J R Kilo of the Kalback URL, Hyotype Script the type definition, emerge JM Pao Yi Satzu.",
+        "J R Kilo of the Kalback URL, Hyotype Script the type definition, emerge JM Pao Yi Satzu."
+      ],
+      "error_rate": 0.875,
+      "en_recall": 0.3333,
+      "traditional": false,
+      "latency": 0.195,
+      "latencies": [
+        0.221,
+        0.195,
+        0.191
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 9.29
+    },
+    {
+      "id": "mixed-hard-03",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "hypothesis": "Wagongan Sarah Pala Wang Wang, Hashwash, O K R Yo Focus Z retention Shang.",
+      "hypotheses": [
+        "Wagongan Sarah Pala Wang Wang, Hashwash, O K R Yo Focus Z retention Shang.",
+        "Wagongan Sarah Pala Wang Wang, Hashwash, O K R Yo Focus Z retention Shang.",
+        "Wagongan Sarah Pala Wang Wang, Hashwash, O K R Yo Focus Z retention Shang."
+      ],
+      "error_rate": 0.8696,
+      "en_recall": 0.4286,
+      "traditional": false,
+      "latency": 0.187,
+      "latencies": [
+        0.187,
+        0.186,
+        0.223
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.97
+    },
+    {
+      "id": "mixed-hard-04",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。",
+      "hypothesis": "Young read is thought rate limiting the Hua, sliding window B fixed window gung juan, then she memory kai shiao hui diin.",
+      "hypotheses": [
+        "Young read is thought rate limiting the Hua, sliding window B fixed window gung juan, then she memory kai shiao hui diin.",
+        "Young read is thought rate limiting the Hua, sliding window B fixed window gung juan, then she memory kai shiao hui diin.",
+        "Young read is thought rate limiting the Hua, sliding window B fixed window gung juan, then she memory kai shiao hui diin."
+      ],
+      "error_rate": 0.7391,
+      "en_recall": 0.875,
+      "traditional": false,
+      "latency": 0.186,
+      "latencies": [
+        0.195,
+        0.186,
+        0.184
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.36
+    },
+    {
+      "id": "mixed-hard-05",
+      "category": "mixed",
+      "level": 2,
+      "source": "tts",
+      "reference": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。",
+      "hypothesis": "Bang was yay pithan script, du s, sandboatlida, j s o n wentien, lang ho absurd tao dynamo db.",
+      "hypotheses": [
+        "Bang was yay pithan script, du s, sandboatlida, j s o n wentien, lang ho absurd tao dynamo db.",
+        "Bang was yay pithan script, du s, sandboatlida, j s o n wentien, lang ho absurd tao dynamo db.",
+        "Bang was yay pithan script, du s, sandboatlida, j s o n wentien, lang ho absurd tao dynamo db."
+      ],
+      "error_rate": 1.0,
+      "en_recall": 0.1429,
+      "traditional": false,
+      "latency": 0.221,
+      "latencies": [
+        0.222,
+        0.221,
+        0.218
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 10.55
+    },
+    {
+      "id": "chinese-hard-01",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+      "hypothesis": "Jiu Tian Shu Xing Shu Lai Huachang, Woman Hai Xiang Bai and Xi and the Wun Ti Ziela, Thai Zhong Chang Zi Yiba.",
+      "hypotheses": [
+        "Jiu Tian Shu Xing Shu Lai Huachang, Woman Hai Xiang Bai and Xi and the Wun Ti Ziela, Thai Zhong Chang Zi Yiba.",
+        "Jiu Tian Shu Xing Shu Lai Huachang, Woman Hai Xiang Bai and Xi and the Wun Ti Ziela, Thai Zhong Chang Zi Yiba.",
+        "Jiu Tian Shu Xing Shu Lai Huachang, Woman Hai Xiang Bai and Xi and the Wun Ti Ziela, Thai Zhong Chang Zi Yiba."
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.182,
+      "latencies": [
+        0.182,
+        0.182,
+        0.186
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.21
+    },
+    {
+      "id": "chinese-hard-02",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "hypothesis": "Wangqing Li Zhu Tien Tai Hui Xiangxu, Xia Gidu the Yui Sua Yao Yasuo, Suoyo the Chu Chai Shen Ting Dou Yao Ti Tien Shen Pi.",
+      "hypotheses": [
+        "Wangqing Li Zhu Tien Tai Hui Xiangxu, Xia Gidu the Yui Sua Yao Yasuo, Suoyo the Chu Chai Shen Ting Dou Yao Ti Tien Shen Pi.",
+        "Wangqing Li Zhu Tien Tai Hui Xiangxu, Xia Gidu the Yui Sua Yao Yasuo, Suoyo the Chu Chai Shen Ting Dou Yao Ti Tien Shen Pi.",
+        "Wangqing Li Zhu Tien Tai Hui Xiangxu, Xia Gidu the Yui Sua Yao Yasuo, Suoyo the Chu Chai Shen Ting Dou Yao Ti Tien Shen Pi."
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.205,
+      "latencies": [
+        0.205,
+        0.207,
+        0.202
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.44
+    },
+    {
+      "id": "chinese-hard-03",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+      "hypothesis": "Hajigaren to shi siang lei li fengxiung, then shi yo shi hou ka li the buko jo qen, rung yi gui.",
+      "hypotheses": [
+        "Hajigaren to shi siang lei li fengxiung, then shi yo shi hou ka li the buko jo qen, rung yi gui.",
+        "Hajigaren to shi siang lei li fengxiung, then shi yo shi hou ka li the buko jo qen, rung yi gui.",
+        "Hajigaren to shi siang lei li fengxiung, then shi yo shi hou ka li the buko jo qen, rung yi gui."
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.185,
+      "latencies": [
+        0.185,
+        0.186,
+        0.181
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.51
+    },
+    {
+      "id": "chinese-hard-04",
+      "category": "chinese",
+      "level": 2,
+      "source": "tts",
+      "reference": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+      "hypothesis": "Women Jong Woda Swan Chi Hang Zhou Si Hu Fu Zin Juan Juan, Shun Bian Chang Chang Nabi and the Long Zing Sia Yang Hsi Hu Zhu Yu.",
+      "hypotheses": [
+        "Women Jong Woda Swan Chi Hang Zhou Si Hu Fu Zin Juan Juan, Shun Bian Chang Chang Nabi and the Long Zing Sia Yang Hsi Hu Zhu Yu.",
+        "Women Jong Woda Swan Chi Hang Zhou Si Hu Fu Zin Juan Juan, Shun Bian Chang Chang Nabi and the Long Zing Sia Yang Hsi Hu Zhu Yu.",
+        "Women Jong Woda Swan Chi Hang Zhou Si Hu Fu Zin Juan Juan, Shun Bian Chang Chang Nabi and the Long Zing Sia Yang Hsi Hu Zhu Yu."
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.194,
+      "latencies": [
+        0.188,
+        0.199,
+        0.194
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.64
+    },
+    {
+      "id": "english-hard-01",
+      "category": "english",
+      "level": 2,
+      "source": "tts",
+      "reference": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "hypothesis": "Can you ask Priyanka whether the Cuba needs migration is blocked on the post-Gar SQL upgrade or the Oorth changes?",
+      "hypotheses": [
+        "Can you ask Priyanka whether the Cuba needs migration is blocked on the post-Gar SQL upgrade or the Oorth changes?",
+        "Can you ask Priyanka whether the Cuba needs migration is blocked on the post-Gar SQL upgrade or the Oorth changes?",
+        "Can you ask Priyanka whether the Cuba needs migration is blocked on the post-Gar SQL upgrade or the Oorth changes?"
+      ],
+      "error_rate": 0.3333,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.146,
+      "latencies": [
+        0.146,
+        0.146,
+        0.141
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.65
+    },
+    {
+      "id": "english-hard-02",
+      "category": "english",
+      "level": 2,
+      "source": "tts",
+      "reference": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypothesis": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypotheses": [
+        "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+        "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+        "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.124,
+      "latencies": [
+        0.123,
+        0.128,
+        0.124
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.86
+    },
+    {
+      "id": "english-hard-03",
+      "category": "english",
+      "level": 2,
+      "source": "tts",
+      "reference": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypothesis": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypotheses": [
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.133,
+      "latencies": [
+        0.129,
+        0.135,
+        0.133
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.94
+    },
+    {
+      "id": "mixed-noisy-01",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+      "hypothesis": "When I need a cluster, Shang Tj hole, poster, SQ, L, the connection cool need your timeout, later see it on la thing for",
+      "hypotheses": [
+        "When I need a cluster, Shang Tj hole, poster, SQ, L, the connection cool need your timeout, later see it on la thing for",
+        "When I need a cluster, Shang Tj hole, poster, SQ, L, the connection cool need your timeout, later see it on la thing for",
+        "When I need a cluster, Shang Tj hole, poster, SQ, L, the connection cool need your timeout, later see it on la thing for"
+      ],
+      "error_rate": 0.9565,
+      "en_recall": 0.4286,
+      "traditional": false,
+      "latency": 0.181,
+      "latencies": [
+        0.181,
+        0.176,
+        0.181
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.1
+    },
+    {
+      "id": "mixed-noisy-02",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。",
+      "hypothesis": "Tigger T R of the Calback URL, Hyotype Script the type definition, Emerge Kn Sympae Satan.",
+      "hypotheses": [
+        "Tigger T R of the Calback URL, Hyotype Script the type definition, Emerge Kn Sympae Satan.",
+        "Tigger T R of the Calback URL, Hyotype Script the type definition, Emerge Kn Sympae Satan.",
+        "Tigger T R of the Calback URL, Hyotype Script the type definition, Emerge Kn Sympae Satan."
+      ],
+      "error_rate": 0.875,
+      "en_recall": 0.3333,
+      "traditional": false,
+      "latency": 0.194,
+      "latencies": [
+        0.17,
+        0.23,
+        0.194
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 7.41
+    },
+    {
+      "id": "mixed-noisy-03",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "hypothesis": "Walgang Sarah K Wong Wong, Hashwash, O K R Young Focus Fag retention Sha.",
+      "hypotheses": [
+        "Walgang Sarah K Wong Wong, Hashwash, O K R Young Focus Fag retention Sha.",
+        "Walgang Sarah K Wong Wong, Hashwash, O K R Young Focus Fag retention Sha.",
+        "Walgang Sarah K Wong Wong, Hashwash, O K R Young Focus Fag retention Sha."
+      ],
+      "error_rate": 0.8696,
+      "en_recall": 0.4286,
+      "traditional": false,
+      "latency": 0.162,
+      "latencies": [
+        0.162,
+        0.17,
+        0.161
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.35
+    },
+    {
+      "id": "mixed-noisy-04",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。",
+      "hypothesis": "Young read is for each match in the five sliding window V5's window toin. And she memory face your way down here.",
+      "hypotheses": [
+        "Young read is for each match in the five sliding window V5's window toin. And she memory face your way down here.",
+        "Young read is for each match in the five sliding window V5's window toin. And she memory face your way down here.",
+        "Young read is for each match in the five sliding window V5's window toin. And she memory face your way down here."
+      ],
+      "error_rate": 0.913,
+      "en_recall": 0.5,
+      "traditional": false,
+      "latency": 0.186,
+      "latencies": [
+        0.167,
+        0.19,
+        0.186
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.67
+    },
+    {
+      "id": "mixed-noisy-05",
+      "category": "mixed",
+      "level": 3,
+      "source": "tts",
+      "reference": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。",
+      "hypothesis": "Fouse the distance script 2s and bucket j s o and twenty n call up serves out dynamo D B",
+      "hypotheses": [
+        "Fouse the distance script 2s and bucket j s o and twenty n call up serves out dynamo D B",
+        "Fouse the distance script 2s and bucket j s o and twenty n call up serves out dynamo D B",
+        "Fouse the distance script 2s and bucket j s o and twenty n call up serves out dynamo D B"
+      ],
+      "error_rate": 1.0,
+      "en_recall": 0.2857,
+      "traditional": false,
+      "latency": 0.188,
+      "latencies": [
+        0.187,
+        0.193,
+        0.188
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 8.45
+    },
+    {
+      "id": "chinese-noisy-01",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+      "hypothesis": "",
+      "hypotheses": [
+        "",
+        "",
+        ""
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.098,
+      "latencies": [
+        0.099,
+        0.096,
+        0.098
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.73
+    },
+    {
+      "id": "chinese-noisy-02",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+      "hypothesis": "",
+      "hypotheses": [
+        "",
+        "",
+        ""
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.1,
+      "latencies": [
+        0.102,
+        0.1,
+        0.1
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.73
+    },
+    {
+      "id": "chinese-noisy-03",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。",
+      "hypothesis": "",
+      "hypotheses": [
+        "",
+        "",
+        ""
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.1,
+      "latencies": [
+        0.102,
+        0.1,
+        0.099
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.97
+    },
+    {
+      "id": "chinese-noisy-04",
+      "category": "chinese",
+      "level": 3,
+      "source": "tts",
+      "reference": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+      "hypothesis": "",
+      "hypotheses": [
+        "",
+        "",
+        ""
+      ],
+      "error_rate": 1.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.092,
+      "latencies": [
+        0.091,
+        0.092,
+        0.093
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.08
+    },
+    {
+      "id": "english-noisy-01",
+      "category": "english",
+      "level": 3,
+      "source": "tts",
+      "reference": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+      "hypothesis": "Can you ask Priyanka whether the pubernet's migration is blocked on the PostgreSQL upgrade audio or changes?",
+      "hypotheses": [
+        "Can you ask Priyanka whether the pubernet's migration is blocked on the PostgreSQL upgrade audio or changes?",
+        "Can you ask Priyanka whether the pubernet's migration is blocked on the PostgreSQL upgrade audio or changes?",
+        "Can you ask Priyanka whether the pubernet's migration is blocked on the PostgreSQL upgrade audio or changes?"
+      ],
+      "error_rate": 0.2222,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.146,
+      "latencies": [
+        0.153,
+        0.146,
+        0.145
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.29
+    },
+    {
+      "id": "english-noisy-02",
+      "category": "english",
+      "level": 3,
+      "source": "tts",
+      "reference": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypothesis": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+      "hypotheses": [
+        "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+        "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+        "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.122,
+      "latencies": [
+        0.125,
+        0.12,
+        0.122
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 5.45
+    },
+    {
+      "id": "english-noisy-03",
+      "category": "english",
+      "level": 3,
+      "source": "tts",
+      "reference": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypothesis": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypotheses": [
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+      ],
+      "error_rate": 0.0,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.124,
+      "latencies": [
+        0.127,
+        0.124,
+        0.124
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 6.33
+    },
+    {
+      "id": "long-mixed-01",
+      "category": "mixed",
+      "level": 2,
+      "source": "concat",
+      "reference": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。 这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。 我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+      "hypothesis": "Woman back Uber needs the cluster Shangzi Jiho, Postgre SQL, the connection pool e j timeout, latency ye jongla kendu, jigga, P R Kila O of the Kyle back U R L. Hyo type script the type definition, emerge jumpsu. Wagonggan sera kai lagwong wang, hashwash o-kr your focus thai retention sh.",
+      "hypotheses": [
+        "Woman back Uber needs the cluster Shangzi Jiho, Postgre SQL, the connection pool e j timeout, latency ye jongla kendu, jigga, P R Kila O of the Kyle back U R L. Hyo type script the type definition, emerge jumpsu. Wagonggan sera kai lagwong wang, hashwash o-kr your focus thai retention sh.",
+        "Woman back Uber needs the cluster Shangzi Jiho, Postgre SQL, the connection pool e j timeout, latency ye jongla kendu, jigga, P R Kila O of the Kyle back U R L. Hyo type script the type definition, emerge jumpsu. Wagonggan sera kai lagwong wang, hashwash o-kr your focus thai retention sh.",
+        "Woman back Uber needs the cluster Shangzi Jiho, Postgre SQL, the connection pool e j timeout, latency ye jongla kendu, jigga, P R Kila O of the Kyle back U R L. Hyo type script the type definition, emerge jumpsu. Wagonggan sera kai lagwong wang, hashwash o-kr your focus thai retention sh."
+      ],
+      "error_rate": 0.8857,
+      "en_recall": 0.3913,
+      "traditional": false,
+      "latency": 0.539,
+      "latencies": [
+        0.519,
+        0.555,
+        0.539
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 27.8
+    },
+    {
+      "id": "long-english-01",
+      "category": "english",
+      "level": 2,
+      "source": "concat",
+      "reference": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypothesis": "Can you ask Brianka whether the Kubernetes migration is blocked on the PostGoresQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+      "hypotheses": [
+        "Can you ask Brianka whether the Kubernetes migration is blocked on the PostGoresQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "Can you ask Brianka whether the Kubernetes migration is blocked on the PostGoresQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+        "Can you ask Brianka whether the Kubernetes migration is blocked on the PostGoresQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+      ],
+      "error_rate": 0.0385,
+      "en_recall": null,
+      "traditional": false,
+      "latency": 0.336,
+      "latencies": [
+        0.358,
+        0.336,
+        0.331
+      ],
+      "cost": 0.0,
+      "runs": 3,
+      "error": null,
+      "audio_seconds": 21.87
+    }
+  ]
+}

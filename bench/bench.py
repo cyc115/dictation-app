@@ -19,7 +19,9 @@ Compare any OpenRouter transcription model against Apple's on-device models on t
   bench/bench.py verify rec-… --text "what I actually said"   # then they count for accuracy
   bench/bench.py list
 
-Models: "openrouter:<model-id>" or "apple:<locale>". Results: bench/results/*.json.
+Models: "openrouter:<model-id>", "apple:<locale>", or a local one on this Mac's GPU (MLX):
+"parakeet:<hf-id>" (parakeet-mlx, e.g. parakeet:mlx-community/parakeet-tdt-0.6b-v2) or "mlx:<hf-id>"
+(any mlx-audio model, e.g. mlx:mlx-community/Qwen3-ASR-1.7B-8bit). Results: bench/results/*.json.
 Score: token error rate, where each Chinese character and each English word is one token
 (= CER for Chinese, WER for English). "EN recall" = share of the English words in a
 mixed sentence that came out right. Before scoring, speaker tags like <|speaker:0|> are
@@ -380,6 +382,25 @@ def run_apple_once(locale: str, cases: list[dict]) -> list[dict]:
     return results
 
 
+def run_local(engine: str, model_id: str, cases: list[dict], repeat: int) -> list[list[dict]]:
+    """A model running on this Mac (MLX), via local_stt.py in its own uv environment. The model
+    loads and warms up once; each run's latency is decoding from memory, from end of audio to text."""
+    files = [str(AUDIO / f"{c['id']}.wav") for c in cases for _ in range(repeat)]
+    proc = subprocess.run([str(ROOT / "local_stt.py"), engine, model_id, *files], capture_output=True, text=True)
+    lines = [json.loads(line) for line in proc.stdout.splitlines() if line.startswith("{")]
+    if not lines or "warmup" not in lines[0]:
+        sys.exit(f"local_stt.py failed:\n{proc.stderr[-2000:]}")
+    print(f"  loaded in {lines[0]['load']}s, warm-up {lines[0]['warmup']}s", flush=True)
+    results = [{"text": r.get("text", ""), "latency": r.get("latency"), "cost": 0.0, "error": r.get("error")}
+               for r in lines[1:]]
+    results += [{"text": "", "latency": None, "cost": 0.0, "error": "no result"}] * (len(files) - len(results))
+    out = [results[i * repeat:(i + 1) * repeat] for i in range(len(cases))]
+    for c, runs in zip(cases, out):
+        lat = "/".join(f"{x['latency']:.3f}" for x in runs if x["latency"] is not None)
+        print(f"  · {c['id']:<17} {lat}s  {(runs[0]['text'] or runs[0]['error'] or '')[:70]}", flush=True)
+    return out
+
+
 # ---------------------------------------------------------------- run & report
 
 def summarize(rows: list[dict]) -> dict:
@@ -436,8 +457,12 @@ def run_model(model: str, cases: list[dict], args, commit: str) -> Path:
         raw = run_openrouter(name, cases, key, args.repeat, model.split("/")[-1][:18])
     elif kind == "apple":
         raw = run_apple(name or "en-US", cases, args.repeat)
+    elif kind == "parakeet":
+        raw = run_local("parakeet", name or "mlx-community/parakeet-tdt-0.6b-v2", cases, args.repeat)
+    elif kind == "mlx":
+        raw = run_local("mlx", name, cases, args.repeat)
     else:
-        raise SystemExit(f"unknown model {model!r}: use openrouter:<id>[?k=v] or apple:<locale>")
+        raise SystemExit(f"unknown model {model!r}: use openrouter:<id>[?k=v], apple:<locale>, parakeet:<hf-id> or mlx:<hf-id>")
     rows = [score_case(c, runs) for c, runs in zip(cases, raw)]
     result = {"model": model, "run_at": datetime.now().isoformat(timespec="seconds"), "commit": commit,
               "repeat": args.repeat, "summary": summarize(rows), "cases": rows}
@@ -558,7 +583,8 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--force", action="store_true", help="regenerate existing clips")
     s.set_defaults(func=cmd_synth)
     r = sub.add_parser("run", help="transcribe every case with one or more models and score them")
-    r.add_argument("-m", "--model", action="append", required=True, help="openrouter:<id> or apple:<locale>")
+    r.add_argument("-m", "--model", action="append", required=True,
+                   help="openrouter:<id>, apple:<locale>, parakeet:<hf-id> or mlx:<hf-id>")
     r.add_argument("-c", "--category", action="append", choices=CATEGORIES, help="limit to category (repeatable)")
     r.add_argument("-l", "--level", action="append", type=int, choices=[1, 2, 3], help="limit to level (repeatable)")
     r.add_argument("-r", "--repeat", type=int, default=1, help="runs per clip (latency min/median/max)")

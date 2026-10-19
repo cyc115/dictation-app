@@ -143,6 +143,8 @@ bench/bench.py synth                                   # generate missing audio 
 bench/bench.py run -r 3 -m openrouter:<model-id>       # 3 runs per clip → min/median/max wait
 bench/bench.py run -m apple:en-US -m apple:zh-CN        # Apple on-device (needs ./build.sh)
 bench/bench.py run -m "openrouter:deepgram/nova-3?language=zh"   # extra API fields after "?"
+bench/bench.py run -r 3 -m parakeet:mlx-community/parakeet-tdt-0.6b-v2 -m mlx:mlx-community/Qwen3-ASR-1.7B-8bit   # local, on this Mac's GPU
+bench/recordings_compare.py -m mlx:mlx-community/Qwen3-ASR-0.6B-8bit   # a local model vs the cloud on your kept recordings
 bench/bench.py report                                  # terminal table, latest run per model
 bench/bench.py html                                    # visual comparison → results/report.html
 bench/bench.py add clip.m4a --id mixed-real-01 --category mixed --text "帮我 build 一下"
@@ -155,6 +157,9 @@ uv run --with pytest --with opencc-python-reimplemented==0.1.7 pytest bench   # 
   To offer it in the app, add one case to `TranscriptionModel` in `Sources/DictationKit/Transcription.swift`.
 - **Key:** `$OPENROUTER_API_KEY` by default (`--key-env` to change). The account needs credits, and some
   models (Meta Muse) need the 18+ confirmation in OpenRouter's preferences.
+- **Local models** (`parakeet:<hf-id>`, `mlx:<hf-id>`) run on this Mac's GPU through `local_stt.py`
+  (its own uv environment, downloaded from Hugging Face on first use). Their wait is decode time from
+  memory after a warm-up, with no network. Results and verdict: [`results/local/README.md`](results/local/README.md).
 - **Scoring:** token error rate where a token is one Chinese character or one English word. Speaker
   tags are removed and Traditional is converted to Simplified first (flagged separately).
   "EN recall" = English words in mixed sentences that came back right.
