@@ -21,14 +21,12 @@ def fake_durations(monkeypatch):
 
 
 def test_aliases_match_the_apps_models():
-    """flash/big must name the speech models the app's cloud setups use (DictationSetup.builtInJSON)."""
+    """local/flash/big must name the speech models the app's setups use (DictationSetup.builtInJSON)."""
     from suites import polish
-    swift = (REPO / "Sources/DictationKit/Settings.swift").read_text()  # LocalLanguage
     built_in = polish.setups(REPO / "nonexistent.json")
-    shipped = {built_in["cloud-flash"]["speech"], built_in["cloud-big"]["speech"]}
-    assert {latency.STT_ALIASES["flash"][0], latency.STT_ALIASES["big"][0]} == shipped
-    locales = set(re.findall(r'case \w+ = "([a-z]{2}-[A-Z]{2})"', swift))
-    assert {latency.STT_ALIASES["local"][0], latency.STT_ALIASES["local-zh"][0]} == {f"apple:{l}" for l in locales}
+    assert latency.STT_ALIASES["local"][0] == built_in["on-device"]["speech"]
+    assert latency.STT_ALIASES["flash"][0] == built_in["cloud-flash"]["speech"]
+    assert latency.STT_ALIASES["big"][0] == built_in["cloud-big"]["speech"]
 
 
 def test_plan_matches_what_the_app_decodes():
@@ -143,7 +141,7 @@ def test_merge_marks_missing_samples_as_errors():
 
 def test_simulated_run_saves_and_reports(tmp_path, capsys):
     assert SUITES["latency"].main(["run", "--simulate", "-r", "2", "--clip", "english-01", "--clip", "mixed-01",
-                                   "-s", "flash", "-s", "local", "-P", "none", "-P", "apple", "--out", str(tmp_path)]) == 0
+                                   "-s", "flash", "-s", "apple", "-P", "none", "-P", "apple", "--out", str(tmp_path)]) == 0
     saved = list(tmp_path.glob("*.json"))
     assert len(saved) == 1
     result = json.loads(saved[0].read_text())
@@ -209,7 +207,8 @@ def test_only_cloud_flash_by_default(monkeypatch, capsys):
     assert "1 speech model(s)" in capsys.readouterr().out
     planned = []
     monkeypatch.setattr(latency, "plan_trials", lambda stt, *a: planned.append(stt) or [])
-    flash, big, local = ("openrouter:qwen/qwen3-asr-1.7b", "openrouter:meta/muse-voice-transcribe-1.0", "apple:en-US")
+    flash, big, local = ("openrouter:qwen/qwen3-asr-1.7b", "openrouter:meta/muse-voice-transcribe-1.0",
+                         "local:mlx-community/Qwen3-ASR-1.7B-8bit")
     default = flash + "+backup"  # as the app runs Cloud Flash by default
     for argv in ([], ["--big"], ["--local"], ["--local", "--big"], ["-s", "big"], ["-s", "big", "--big"], ["--backup"]):
         latency.main(["run", "--dry-run", "--clip", "english-01", *argv])

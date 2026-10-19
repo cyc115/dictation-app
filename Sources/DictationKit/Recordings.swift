@@ -10,7 +10,7 @@ struct RecordingInfo: Codable, Equatable {
     var transcript: String
     var seconds: Double
     var error: String?
-    /// Whether AI polish ran on this dictation (off in the settings, or streaming, which types as you speak).
+    /// Whether AI polish ran on this dictation (off in the settings).
     /// nil in recordings kept before polish was recorded.
     var polishEnabled: Bool?
     /// Polish model, e.g. "openrouter:openai/gpt-oss-120b" or "apple:on-device".

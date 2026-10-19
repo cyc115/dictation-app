@@ -68,6 +68,9 @@ PLIST="$APP/Contents/Info.plist"
 echo "    version $VERSION ($COMMIT)"
 mkdir -p "$APP/Contents/Resources"
 cp Assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"   # regenerate: swift scripts/make-icon.swift
+# Libraries' resources, e.g. MLX's compiled GPU code (the on-device speech model can't run without
+# it): each library's Bundle.module looks for its bundle in Contents/Resources first.
+cp -R "$(dirname "$BIN")"/*.bundle "$APP/Contents/Resources/"
 cp bench/polish_cases.json bench/polish_cases_holdout.json "$APP/Contents/Resources/"   # the guard when learning a prompt
 chmod +x "$APP/Contents/MacOS/DictationApp"
 

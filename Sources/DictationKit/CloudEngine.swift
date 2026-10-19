@@ -2,15 +2,10 @@ import AVFoundation
 import Foundation
 
 /// Records the mic to WAV while dictating, then uploads it for transcription when you stop.
-final class CloudEngine: DictationEngine {
-    var isBatch: Bool { true }
+final class CloudEngine: RecordingEngine, DictationEngine {
     var modelID = DictationSetup.cloudBig.openRouterID!
     var apiKey = ""
     var client: TranscriptionClient = OpenRouterClient()
-    /// Set while "Keep recordings" is on: finished recordings go here instead of being deleted.
-    var archive: RecordingArchive?
-    /// Set with `archive`, before each dictation: the polish half of its JSON.
-    var note: RecordingNote?
     /// "Backup model when slow": the model also asked when `modelID` is slow, after `backupWait`
     /// (the setup's `backup` / `backupWait`); nil asks only `modelID`.
     var backupModelID: String?
@@ -22,12 +17,9 @@ final class CloudEngine: DictationEngine {
     /// The model whose transcript the last dictation used (the backup, if it answered first).
     var lastAnsweredBy: String? { lastAnswer?.model }
 
-    let mic = MicCapture()
-    private var recording: DictationRecording?
     /// The stopped dictation being uploaded (deleted or kept when its upload finishes).
     private(set) var uploading: DictationRecording?
     private var race: UploadRace?
-    private let lock = NSLock()
 
     /// Set up for `setup`'s speech model as the app runs it; `backupWhenSlow` is the "Backup model
     /// when slow" setting.
@@ -38,49 +30,8 @@ final class CloudEngine: DictationEngine {
         self.apiKey = apiKey
     }
 
-    /// Starts a new recording file. Called by `start`; tests call it directly with `record(_:)`
-    /// to run the real stop/upload path without a microphone.
-    func beginRecording() -> Bool {
-        guard let recording = DictationRecording(archive: archive, note: note) else { return false }
-        lock.lock(); self.recording = recording; lock.unlock()
-        return true
-    }
-
-    /// Appends audio to the current recording (from the mic tap's thread, or a test).
-    func record(_ buffer: AVAudioPCMBuffer) {
-        lock.lock(); recording?.append(buffer); lock.unlock()
-    }
-
-    func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
-               onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
-        guard beginRecording() else { return onError("Couldn't create a recording file.") }
-        mic.startDictation(inputUID: inputUID, backups: backups, onBuffer: { [weak self] in self?.record($0) }, onLevel: onLevel,
-                  onEvent: onMic, onRestart: { [weak self] in self?.restartRecording() ?? false }, onError: onError)
-    }
-
-    /// A better mic won: its audio from the start replaces what was recorded.
-    private func restartRecording() -> Bool {
-        lock.lock()
-        let old = recording
-        recording = DictationRecording(archive: archive, note: note)
-        let started = recording != nil
-        lock.unlock()
-        old?.discard()
-        return started
-    }
-
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
-        mic.stop()
-        lock.lock(); let recording = self.recording; self.recording = nil; lock.unlock()
-        if mic.heardOnlySilence {  // don't upload it: models make up text from silence
-            recording?.discard()
-            return failure(MicCapture.silenceMessage)
-        }
-        guard let recording, recording.isSpeech else {
-            recording?.discard()
-            return completion("")  // too short to be speech
-        }
-        recording.finish()
+        guard let recording = finishRecording(completion: completion, failure: failure) else { return }
         let url = recording.url
         let info = RecordingInfo(date: Date(), model: ModelSpec.openRouter(id: modelID, providers: nil).description, transcript: "", seconds: recording.duration)
         lastAnswer = nil
@@ -115,12 +66,6 @@ final class CloudEngine: DictationEngine {
         race = nil
         uploading?.discard()
         uploading = nil
-    }
-
-    func cancel() {
-        mic.stop()
-        lock.lock(); let recording = self.recording; self.recording = nil; lock.unlock()
-        recording?.discard()
     }
 }
 

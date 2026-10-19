@@ -16,7 +16,7 @@ final class SetupTests: XCTestCase {
             XCTAssertTrue(setup.wrap, setup.id)
             XCTAssertNoThrow(try setup.validate(), setup.id)
         }
-        XCTAssertEqual(DictationSetup.onDevice.speech, "apple")
+        XCTAssertEqual(DictationSetup.onDevice.speech, "local:mlx-community/Qwen3-ASR-1.7B-8bit")
         XCTAssertTrue(DictationSetup.onDevice.polishesOnDevice, "nothing leaves the Mac")
         XCTAssertFalse(DictationSetup.onDevice.usesCloud)
         let flash = DictationSetup.cloudFlash
@@ -160,12 +160,6 @@ final class SetupTests: XCTestCase {
 
     func testCapabilities() {
         XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash", "Cloud Big"])
-        XCTAssertTrue(DictationSetup.onDevice.supportsStreaming)
-        XCTAssertTrue(DictationSetup.onDevice.supportsLanguageChoice)
-        for setup in DictationSetup.builtIns where setup.isCloud {
-            XCTAssertFalse(setup.supportsStreaming, "\(setup.id) is batch")
-            XCTAssertFalse(setup.supportsLanguageChoice, "\(setup.id) detects the language")
-        }
     }
 
     func testModelSpecParsesAndPrintsEveryForm() {

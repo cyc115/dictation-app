@@ -35,6 +35,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var bundleWatcher: BundleWatcher?
     private lazy var exclusion = ExclusionWatcher(excluded: settings.excludedApps)
 
+    /// On power, the on-device model is kept in memory (`KeepLoaded`), so load it soon after launch:
+    /// the first dictation is then as quick as the rest. Never downloads here, and waits a few
+    /// seconds so launch itself isn't slowed.
+    private func preloadLocalModel() {
+        guard let id = settings.setup.localModelID else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            let model = self.settings.localModel(id)
+            if model.isDownloaded && !model.onBattery() { model.prepare() }
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         if Diagnostics.runIfRequested() { return }
         muter.restore()  // undo a mute left behind if the app quit mid-dictation
@@ -49,14 +60,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         dictation.onDictatingChanged = { [weak self] in self?.updateStatusIcon() }
         dictation.onIdle = { [weak self] in self?.relaunch.relaunchIfIdle() }
         dictation.onMissingKey = { [weak self] _ in self?.mainWindow.show(.settings) }
-        // A held ⌘/⌥/⌃/⇧ would turn typed letters into shortcuts/capitals; Fn is harmless.
-        dictation.canTypeNow = { [weak self] in
-            guard let hotkey = self?.hotkey else { return true }
-            return !(hotkey.held && hotkey.hotkey != .fn)
-        }
         settings.onChange = { [weak self] in self?.settingsChanged() }
         exclusion.onChange = { [weak self] in self?.updateStatusIcon(); self?.updateMenu() }
         exclusion.start()
+        preloadLocalModel()
         Permissions.requestAll { [weak self] granted in
             guard let self = self else { return }
             // HotkeyManager prompts for Accessibility itself when needed.

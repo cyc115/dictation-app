@@ -13,7 +13,6 @@ final class SettingsTests: XCTestCase {
         XCTAssertFalse(s.muteWhileDictating)
         XCTAssertEqual(s.appearance, .system)
         XCTAssertFalse(s.showInDock)
-        XCTAssertFalse(s.streamWhileSpeaking, "type-as-you-speak is off by default")
     }
 
     func testChangesPersistAndNotify() {
@@ -30,8 +29,7 @@ final class SettingsTests: XCTestCase {
         s.muteWhileDictating = true
         s.appearance = .dark
         s.showInDock = true
-        s.streamWhileSpeaking = true
-        XCTAssertEqual(changes, 10)
+        XCTAssertEqual(changes, 9)
 
         let r = makeSettings(self, defaults: defaults)
         XCTAssertEqual(r.hotkey, .rightOption)
@@ -43,7 +41,6 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(r.muteWhileDictating)
         XCTAssertEqual(r.appearance, .dark)
         XCTAssertTrue(r.showInDock)
-        XCTAssertTrue(r.streamWhileSpeaking)
     }
 
     func testMouseEnterOnByDefaultWithButton6AndPersists() {
@@ -80,23 +77,9 @@ final class SettingsTests: XCTestCase {
         let defaults = makeDefaults(self)
         let s = makeSettings(self, defaults: defaults)
         XCTAssertEqual(s.setup, .onDevice)
-        XCTAssertEqual(s.localLanguage, .english)
         s.setup = .cloudBig
-        s.localLanguage = .mandarin
         let r = makeSettings(self, defaults: defaults)
         XCTAssertEqual(r.setup, .cloudBig)
-        XCTAssertEqual(r.localLanguage, .mandarin)
-    }
-
-    func testStreamingDisabledForCloudButRemembered() {
-        let s = makeSettings(self)
-        s.streamWhileSpeaking = true
-        XCTAssertTrue(s.effectiveStreaming)
-        s.setup = .cloudBig
-        XCTAssertFalse(s.effectiveStreaming, "batch model can't stream")
-        XCTAssertTrue(s.streamWhileSpeaking, "the saved preference survives")
-        s.setup = .onDevice
-        XCTAssertTrue(s.effectiveStreaming, "and comes back with the local model")
     }
 
     func testAPIKeyGoesToSecretStoreNotDefaults() {

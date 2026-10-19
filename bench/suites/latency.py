@@ -25,8 +25,8 @@ network hits every model alike. The first dictation per model is a warm-up (conn
 load): it's reported as "cold" and kept out of the percentiles. On-device models are one language
 each, so they're timed on clips in their language (repeated to the same count).
 
-Speech models: local (apple:en-US), local-zh (apple:zh-CN), flash, flash+backup, big, or any
-apple:<locale> / openrouter:<model id>. "+backup" has the "Backup model when slow" setting
+Speech models: local (On-device: Qwen3-ASR on this Mac), flash, flash+backup, big, apple / apple-zh
+(Apple Speech, en-US / zh-CN), or any local:<Hugging Face id> / apple:<locale> / openrouter:<model id>. "+backup" has the "Backup model when slow" setting
 on (the app's default) for that model's dictations (AdaptiveBackup in Transcription.swift). Polish: none, apple (on-device), or openrouter:<model id> (any chat model).
 Cloud models use the key saved in the app's Settings, or --key-env VAR to pass one.
 """
@@ -55,10 +55,11 @@ APP = Path("/Applications/DictationApp.app")
 # A current build creates its output file as soon as it launches; an older one never does.
 STARTUP_SECONDS = 15
 
-# The app's models by their short names (DictationSetup in Setups.swift, LocalLanguage in Settings.swift; a test keeps them in sync).
+# The app's models by their short names (DictationSetup in Setups.swift; a test keeps them in sync).
 STT_ALIASES = {
-    "local": ("apple:en-US", "On-device"),
-    "local-zh": ("apple:zh-CN", "On-device 中文"),
+    "local": ("local:mlx-community/Qwen3-ASR-1.7B-8bit", "On-device"),
+    "apple": ("apple:en-US", "Apple Speech"),
+    "apple-zh": ("apple:zh-CN", "Apple Speech 中文"),
     "flash": ("openrouter:qwen/qwen3-asr-1.7b", "Cloud Flash"),
     "flash+backup": ("openrouter:qwen/qwen3-asr-1.7b+backup", "Cloud Flash+backup"),
     "big": ("openrouter:meta/muse-voice-transcribe-1.0", "Cloud Big"),
@@ -71,7 +72,7 @@ DEFAULT_POLISH = ["none", "apple"]
 BACKUP = "+backup"
 LENGTH_BUCKETS = [(0, 5, "< 5 s"), (5, 10, "5–10 s"), (10, float("inf"), "≥ 10 s")]
 
-_STT_SPEC = re.compile(r"^(apple:[A-Za-z]{2,3}(-[A-Za-z0-9]+)*|openrouter:\S+)$")
+_STT_SPEC = re.compile(r"^(apple:[A-Za-z]{2,3}(-[A-Za-z0-9]+)*|local:\S+|openrouter:\S+)$")
 _POLISH_SPEC = re.compile(r"^(none|apple|openrouter:\S+|setup:\S+)$")
 
 
@@ -80,7 +81,7 @@ _POLISH_SPEC = re.compile(r"^(none|apple|openrouter:\S+|setup:\S+)$")
 def resolve_stt(name: str) -> str:
     spec = STT_ALIASES.get(name, (name,))[0]
     if not _STT_SPEC.match(spec):
-        raise SystemExit(f"unknown speech model {name!r}: use {', '.join(STT_ALIASES)}, apple:<locale> or openrouter:<id>")
+        raise SystemExit(f"unknown speech model {name!r}: use {', '.join(STT_ALIASES)}, local:<id>, apple:<locale> or openrouter:<id>")
     return spec
 
 
@@ -578,7 +579,7 @@ def parser() -> argparse.ArgumentParser:
     r = sub.add_parser("run", help="time dictations in the installed app and report percentiles")
     r.add_argument("-s", "--stt", action="append", metavar="MODEL",
                    help=f"speech model (repeatable; default: {' '.join(DEFAULT_STT)})")
-    r.add_argument("--local", action="store_true", help="also time On-device (free; plays each clip in real time)")
+    r.add_argument("--local", action="store_true", help="also time On-device (Qwen on this Mac; free)")
     r.add_argument("--big", action="store_true", help="also time Cloud Big (adds ≈ $0.02 per default-size run)")
     r.add_argument("--backup", action="store_true",
                    help="time Cloud Flash with and without the backup model, interleaved")

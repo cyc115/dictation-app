@@ -5,25 +5,29 @@
 #   ./test.sh --filter Hotkey # subset (passed through to `swift test`)
 #   ./test.sh --perf          # also run the app-level perf check (relaunches the installed app)
 #   ./test.sh --live          # also hit the real OpenRouter API through CloudEngine (needs $OPENROUTER_API_KEY, ~$0.001)
+#   ./test.sh --local         # also run the real on-device model through LocalEngine (first run downloads 2.5 GB)
 #   RECORD_SNAPSHOTS=1 ./test.sh --filter SnapshotTests   # re-record reference images after a UI change
 set -euo pipefail
 cd "$(dirname "$0")"
 
 PERF=0
 LIVE=0
+LOCAL=0
 args=()
 for arg in "$@"; do
   case "$arg" in
     --perf) PERF=1 ;;
     --live) LIVE=1 ;;
-    -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --local) LOCAL=1 ;;
+    -h|--help) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) args+=("$arg") ;;
   esac
 done
 
 (( LIVE )) && export LIVE_OPENROUTER=1
+(( LOCAL )) && export LIVE_LOCAL_MODEL=1
 LOG="${TMPDIR:-/tmp}/dictationapp-test.log"
-swift test "${args[@]}" 2>&1 | tee "$LOG" | grep -E "error:|failed|Executed .* tests|\[perf\]" || true
+swift test "${args[@]}" 2>&1 | tee "$LOG" | grep -E "error:|failed|Executed .* tests|\[perf\]|\[local\]" || true
 if grep -qE "error:|with [1-9][0-9]* failures?" "$LOG"; then
   echo "❌ tests failed (full log: $LOG)"
   exit 1

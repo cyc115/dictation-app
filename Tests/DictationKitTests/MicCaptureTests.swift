@@ -137,8 +137,8 @@ final class MicCaptureTests: XCTestCase {
         mic.stop()
     }
 
-    /// "Type as you speak" already typed text: carry on with the better mic from the switch, so
-    /// nothing is typed twice.
+    /// Text was already handed out: carry on with the better mic from the switch, so nothing is
+    /// heard twice.
     func testWithoutARestartTheBetterMicCarriesOnFromNow() throws {
         let mic = capture()
         var frames = 0
@@ -173,7 +173,7 @@ final class MicCaptureTests: XCTestCase {
         engine.modelID = CloudBackupTests.main
         mics = FakeMics(engine.mic, chosen: FakeMics.buds, backups: [FakeMics.webcam])
         var events: [MicEvent] = []
-        engine.start(inputUID: "buds", backups: true, onLevel: { _ in }, onMic: { events.append($0) }, onUtterance: nil,
+        engine.start(inputUID: "buds", backups: true, onLevel: { _ in }, onMic: { events.append($0) },
                      onError: { XCTFail($0) })
         talk([FakeMics.buds.id: 0.0005, FakeMics.webcam.id: 0.1], seconds: 2)
         waitUntil { events.contains(.switched(to: FakeMics.webcam)) }
@@ -263,7 +263,7 @@ final class MicCaptureTests: XCTestCase {
         let engine = CloudEngine()
         engine.mic.openInput = { _, _, _ in throw TranscriptionError.message("no mic") }
         var error: String?
-        engine.start(inputUID: "", backups: false, onLevel: { _ in }, onMic: { _ in }, onUtterance: nil, onError: { error = $0 })
+        engine.start(inputUID: "", backups: false, onLevel: { _ in }, onMic: { _ in }, onError: { error = $0 })
         XCTAssertEqual(error, "could not open microphone: no mic")
         engine.cancel()
     }

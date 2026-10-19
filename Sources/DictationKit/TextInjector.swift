@@ -9,16 +9,9 @@ class TextInjector {
     var restoreDelay: TimeInterval = 0.8
     var canPaste: () -> Bool = { AXIsProcessTrusted() }
     var paste: () -> Void = TextInjector.postCommandV
-    var typeText: (String) -> Void = TextInjector.postUnicode
 
     /// Tag on every key event this app synthesizes, so its own key monitors can ignore them.
     static let syntheticMarker: Int64 = 0x4449_4354  // "DICT"
-
-    /// Types text straight into the focused app as keystrokes (no clipboard involved).
-    func type(_ text: String) {
-        guard canPaste(), !text.isEmpty else { return }
-        typeText(text)
-    }
 
     /// Presses Return in the focused app (the mouse's Enter button).
     func pressReturn() {
@@ -84,28 +77,6 @@ class TextInjector {
             event.flags = []
             event.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
             event.post(tap: .cghidEventTap)
-        }
-    }
-
-    /// Posts the text as Unicode key events, 16 UTF-16 units per event (some apps drop more),
-    /// never splitting a surrogate pair. Uses a private event source with no modifier flags,
-    /// so keys you're physically holding don't leak into the typed text.
-    static func postUnicode(_ text: String) {
-        let source = CGEventSource(stateID: .privateState)
-        let units = Array(text.utf16)
-        var start = 0
-        while start < units.count {
-            var end = min(start + 16, units.count)
-            if end < units.count, UTF16.isLeadSurrogate(units[end - 1]) { end -= 1 }
-            var chunk = Array(units[start..<end])
-            for keyDown in [true, false] {
-                guard let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: keyDown) else { continue }
-                event.flags = []
-                event.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
-                event.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
-                event.post(tap: .cghidEventTap)
-            }
-            start = end
         }
     }
 }

@@ -42,21 +42,14 @@ struct SettingsView: View {
                         set: { setup in
                             settings.setup = setup
                             if setup.usesCloud && !settings.hasOpenRouterKey { keyDraft = ""; askForKey = true }
+                            // First use: downloads the model now, rather than at the first dictation.
+                            if let id = setup.localModelID { settings.localModel(id).prepare() }
                         })) {
                         ForEach(settings.setups) { Text($0.title).tag($0) }
                     }
                 }
-                SettingRow("Language", settings.setup.supportsLanguageChoice
-                           ? "Language the on-device model listens for."
-                           : "Cloud models detect English and Chinese automatically.",
-                           available: settings.setup.supportsLanguageChoice) {
-                    if settings.setup.supportsLanguageChoice {
-                        Picker("Language", selection: $settings.localLanguage) {
-                            ForEach(LocalLanguage.allCases, id: \.self) { Text($0.title).tag($0) }
-                        }
-                    } else {
-                        Text("Auto-detect").foregroundStyle(.secondary)
-                    }
+                if let id = settings.setup.localModelID {
+                    LocalModelRow(model: settings.localModel(id))
                 }
                 SettingRow("Backup model when slow", settings.setup.backupHelp ?? "Only works with cloud models.",
                            available: settings.setup.backup != nil) {
@@ -160,19 +153,7 @@ struct SettingsView: View {
             }
 
             Section {
-                SettingRow("Type as you speak", settings.setup.supportsStreaming
-                           ? "Insert each phrase into the focused app as soon as you pause, instead of pasting everything when you stop. Cancelling keeps what's already typed. With a held ⌘/⌥/⌃/⇧ hotkey, text is typed when you release it."
-                           : "Only works with the On-device model. Cloud models write the text after you stop.",
-                           available: settings.setup.supportsStreaming) {
-                    // Shown off while unavailable so it doesn't look active; the saved choice is
-                    // kept and comes back with the On-device model.
-                    Toggle("Type as you speak", isOn: Binding(
-                        get: { settings.effectiveStreaming },
-                        set: { settings.streamWhileSpeaking = $0 }))
-                }
-                SettingRow("AI polish", settings.effectiveStreaming
-                           ? "Not used while “Type as you speak” is on — polish needs the whole dictation."
-                           : settings.setup.polishesOnDevice
+                SettingRow("AI polish", settings.setup.polishesOnDevice
                            ? "Removes filler words and fixes self-corrections, on this Mac like the speech model: nothing leaves it. Adds about 1 second to a sentence, up to 3 to a long paragraph."
                            : "Removes filler words and fixes self-corrections with a cloud model, like the speech model. Adds about half a second.") {
                     Toggle("AI polish", isOn: $settings.polishEnabled)
@@ -230,6 +211,40 @@ struct SettingsView: View {
             if found != microphones { microphones = found }
             settings.refreshLoginItem()
             settings.reloadSetups()
+        }
+    }
+}
+
+/// The on-device speech model: downloaded or not, with progress while it downloads.
+private struct LocalModelRow: View {
+    @ObservedObject var model: LocalSpeechModel
+
+    private var detail: String {
+        switch model.state {
+        case .notDownloaded: return "The speech model, 2.5 GB from Hugging Face. Downloads now, or the first time you dictate."
+        case .downloading(let fraction): return "Downloading the speech model from Hugging Face… \(Int(fraction * 100))%"
+        case .failed(let message): return "Download or loading failed: \(message)"
+        case .onDisk, .loading, .ready:
+            return "Downloaded. Stays in memory (2.6 GB) on power; on battery, until 30 minutes after you last dictate."
+        }
+    }
+
+    var body: some View {
+        SettingRow("On-device model", detail) {
+            switch model.state {
+            case .notDownloaded:
+                Button("Download") { model.prepare() }
+            case .failed:
+                Button("Try Again") { model.prepare() }
+            case .downloading(let fraction):
+                ProgressView(value: fraction).frame(width: 120)
+            case .loading:
+                ProgressView().controlSize(.small)
+            case .onDisk:
+                Text("Downloaded").foregroundStyle(.secondary)
+            case .ready:
+                Text("Ready").foregroundStyle(.secondary)
+            }
         }
     }
 }

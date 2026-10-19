@@ -42,6 +42,7 @@ struct ModelAnswer: Codable, Equatable {
     /// A model id for display: "qwen3-asr-1.7b", "deepseek-v4.1-flash · Together, DeepInfra".
     static func displayName(_ id: String) -> String {
         if id.hasPrefix("apple:") { return "Apple on-device" }
+        if id.hasPrefix("local:") { return (id.split(separator: "/").last.map(String.init) ?? id) + " · on this Mac" }
         let spec = id.hasPrefix("openrouter:") ? String(id.dropFirst("openrouter:".count)) : id
         let parts = spec.split(separator: "@", maxSplits: 1).map(String.init)
         let name = parts[0].split(separator: "/").last.map(String.init) ?? parts[0]

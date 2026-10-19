@@ -43,8 +43,9 @@ bench/suite.py latency polish-cost                    # polish time vs words rea
 bench/suite.py latency run --simulate                 # fake timings: try the report without a Mac/key
 ```
 
-- **Models.** Speech: `local` (apple:en-US), `local-zh` (apple:zh-CN), `flash`, `flash+backup`,
-  `big`, or any `apple:<locale>` / `openrouter:<id>`. `+backup` has the "Backup model when slow"
+- **Models.** Speech: `local` (On-device: Qwen3-ASR on this Mac), `flash`, `flash+backup`, `big`,
+  `apple` / `apple-zh` (Apple Speech, en-US / zh-CN), or any `local:<Hugging Face id>` /
+  `apple:<locale>` / `openrouter:<id>`. `+backup` has the "Backup model when slow"
   setting on (the app's default) for those dictations; `--backup` interleaves `flash` and `flash+backup`
   in one run, so both see the same network, and the report counts how often the backup answered. Polish: `none`, `apple`, or any OpenRouter chat model
   `openrouter:<id>` (the app only offers on-device polish today; the benchmark tells you whether a

@@ -40,28 +40,6 @@ final class TextInjectorTests: XCTestCase {
         XCTAssertEqual(pasteboard.string(forType: .string), "untouched")
     }
 
-    func testTypeUsesKeystrokesNotClipboard() {
-        let pasteboard = makePasteboard(self)
-        pasteboard.clearContents()
-        pasteboard.setString("clipboard untouched", forType: .string)
-        let injector = TextInjector()
-        injector.pasteboard = pasteboard
-        injector.canPaste = { true }
-        var typed: [String] = []
-        injector.typeText = { typed.append($0) }
-        injector.paste = { XCTFail("streaming must not paste") }
-        injector.type("Hello, 世界 👋")
-        XCTAssertEqual(typed, ["Hello, 世界 👋"])
-        XCTAssertEqual(pasteboard.string(forType: .string), "clipboard untouched")
-    }
-
-    func testTypeNeedsAccessibility() {
-        let injector = TextInjector()
-        injector.canPaste = { false }
-        injector.typeText = { _ in XCTFail("should not type without Accessibility") }
-        injector.type("x")
-    }
-
     func testPressReturnNeedsAccessibility() {
         let injector = TextInjector()
         var presses = 0

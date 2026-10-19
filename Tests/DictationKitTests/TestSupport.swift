@@ -92,13 +92,61 @@ func noLearnedPrompts(_ test: XCTestCase) -> LearnedPromptStore {
 }
 
 /// A settings store with throwaway defaults, no saved key, no custom setups and no learned prompts.
+/// The on-device speech model is `localModel`, or one per id that never downloads (not yet
+/// downloaded): never this Mac's own, so tests don't depend on whether it has the model.
 func makeSettings(_ test: XCTestCase, defaults: UserDefaults? = nil,
-                  secrets: SecretStore = InMemorySecretStore(), learned: LearnedPromptStore? = nil) -> AppSettings {
-    AppSettings(defaults: defaults ?? makeDefaults(test), secrets: secrets, customSetupsFile: noCustomSetups,
-                learned: learned ?? noLearnedPrompts(test))
+                  secrets: SecretStore = InMemorySecretStore(), learned: LearnedPromptStore? = nil,
+                  localModel: LocalSpeechModel? = nil) -> AppSettings {
+    var models: [String: LocalSpeechModel] = [:]
+    return AppSettings(defaults: defaults ?? makeDefaults(test), secrets: secrets, customSetupsFile: noCustomSetups,
+                       learned: learned ?? noLearnedPrompts(test), localModel: { id in
+        if let localModel { return localModel }
+        if let model = models[id] { return model }
+        let model = LocalSpeechModel(repo: id, runtime: FakeSpeechRuntime())
+        models[id] = model
+        return model
+    })
 }
 
 // MARK: - Fakes for the network and models
+
+/// A model that's never on a GPU: downloads, loads and transcribes as told, and logs each step.
+final class FakeSpeechRuntime: SpeechRuntime {
+    var directory: URL?
+    var text = " 帮我 build 一下 "
+    var error: Error?
+    var log: [String] = []
+    var maxTokens: [Int] = []
+    /// Set: the download waits until `finishDownload()`.
+    var holdDownload = false
+    private var held: CheckedContinuation<Void, Never>?
+
+    func downloaded(_ repo: String) -> URL? { directory }
+
+    func download(_ repo: String, progress: @escaping @MainActor (Double) -> Void) async throws -> URL {
+        log.append("download")
+        await progress(0.5)
+        if holdDownload { await withCheckedContinuation { held = $0 } }
+        if let error { throw error }
+        directory = URL(fileURLWithPath: "/tmp/fake-model")
+        await progress(1)
+        return directory!
+    }
+
+    func finishDownload() { held?.resume(); held = nil }
+
+    func load(_ directory: URL) async throws { log.append("load") }
+
+    func transcribe(_ samples: [Float], maxTokens: Int) async throws -> String {
+        log.append("transcribe")
+        self.maxTokens.append(maxTokens)
+        if let error { throw error }
+        return text
+    }
+
+    func unload() async { log.append("unload") }
+}
+
 
 /// Records what happened, in order, across the fakes.
 final class EventLog {

@@ -2,15 +2,13 @@ import AVFoundation
 import XCTest
 @testable import DictationKit
 
-/// A speech engine that hears `text` (or fails with `error`) and, with `utterances`, sends them
-/// while "speaking" as the on-device model does for type-as-you-speak.
+/// A speech engine that hears `text` (or fails with `error`).
 final class FakeEngine: DictationEngine {
     var isBatch = false
     var archive: RecordingArchive?
     var note: RecordingNote?
     var text = "hello world"
     var error: String?
-    var utterances: [String] = []
     /// Which model "answered", as CloudEngine reports it.
     var lastAnswer: ModelAnswer?
     private(set) var started = 0
@@ -21,11 +19,10 @@ final class FakeEngine: DictationEngine {
     private(set) var backups: Bool?
 
     func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
-               onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
+               onError: @escaping (String) -> Void) {
         started += 1
         self.onMic = onMic
         self.backups = backups
-        utterances.forEach { onUtterance?($0) }
     }
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
@@ -54,8 +51,7 @@ final class DictationControllerTests: XCTestCase {
     private var insights: Insights!
     private var engine: FakeEngine!
     private var pasted: [String] = []
-    private var typed: [String] = []
-    /// What reached the app, in order: "paste:<text>", "type:<text>", "return".
+    /// What reached the app, in order: "paste:<text>", "return".
     private var keys: [String] = []
     private var idle = 0
 
@@ -75,7 +71,6 @@ final class DictationControllerTests: XCTestCase {
             pasted.append(pasteboard.string(forType: .string) ?? "")
             keys.append("paste:" + (pasted.last ?? ""))
         }
-        injector.typeText = { [unowned self] in typed.append($0); keys.append("type:" + $0) }
         injector.postReturn = { [unowned self] in keys.append("return") }
         overlay.makePanel = { OffscreenPanel(contentRect: $0, styleMask: [.borderless, .nonactivatingPanel],
                                              backing: .buffered, defer: false) }
@@ -226,22 +221,6 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(history.entries.first?.polishedBy, ModelAnswer(main: "polish-main", backup: "polish-backup", byBackup: true))
     }
 
-    func testTypeAsYouSpeakTypesPhrasesThenTheTailWithoutPasting() {
-        let controller = makeController()
-        settings.streamWhileSpeaking = true
-        settings.polishEnabled = true  // not used while streaming
-        engine.utterances = ["hello"]
-        controller.start()
-        XCTAssertEqual(typed, ["hello"])
-        controller.stop()
-        waitUntil { !controller.isBusy }
-        XCTAssertEqual(typed, ["hello", " world"])
-        XCTAssertEqual(pasted, [])
-        XCTAssertEqual(history.entries.first?.text, "hello world")
-        XCTAssertEqual(history.entries.first?.setup, "on-device")
-        XCTAssertNotNil(history.entries.first?.transcribeSeconds)
-    }
-
     // MARK: Enter button
 
     func testEnterWhileIdleJustPressesReturn() {
@@ -269,16 +248,6 @@ final class DictationControllerTests: XCTestCase {
         controller.enter()
         waitUntil { keys.count == 2 }
         XCTAssertEqual(keys, ["paste:hello world。", "return"])
-    }
-
-    func testEnterSendsAfterTypeAsYouSpeak() {
-        let controller = makeController()
-        settings.streamWhileSpeaking = true
-        engine.utterances = ["hello"]
-        controller.start()
-        controller.enter()
-        waitUntil { keys.count == 3 }
-        XCTAssertEqual(keys, ["type:hello", "type: world", "return"])
     }
 
     func testEnterAfterAStopWaitsForTheTextThenSends() {

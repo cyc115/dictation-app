@@ -18,15 +18,14 @@ cloud models can handle **English mixed into Chinese**, which the built-in macOS
 - **Intelligent mic selection.** Picked the wrong mic? While you dictate, your wired and built-in
   mics listen too. If one hears you clearly better, the dictation switches to it with nothing lost
   (the bar flashes yellow), and it becomes your mic from then on. On by default; Settings → Audio.
-- **On-device or cloud.** *On-device* uses Apple Speech, and no audio leaves your Mac.
-  *Cloud Flash* returns text about 0.5 s after you stop, and *Cloud Big* in about 2 s. Both handle
-  English mixed into Chinese.
+- **On-device or cloud.** *On-device* runs Qwen3-ASR (Cloud Flash's model) on your Mac's GPU: no
+  audio leaves your Mac, and text comes about a second after you stop, with no network stalls. Its
+  model (2.5 GB) downloads from Hugging Face the first time. *Cloud Flash* returns text about 0.5 s
+  after you stop, and *Cloud Big* in about 2 s. All three handle English mixed into Chinese.
 - **Optional AI polish.** Removes filler words and fixes self-corrections ("Tuesday, no,
   Wednesday") without changing your meaning. On-device setups polish with Apple Intelligence,
   cloud setups with DeepSeek. It's off by default; turn it on from the menu bar. Polish never
   holds you up: if it fails or takes longer than 6 s, you get your unpolished text.
-- **Type as you speak.** Optionally types each phrase as soon as you pause, instead of pasting
-  everything at the end.
 - **History and corrections.** Past dictations, grouped by day and searchable, kept only on your
   Mac. When a dictation comes out wrong, click the pencil and type what you meant. Corrections
   become a test set for comparing models and prompts.
@@ -46,8 +45,8 @@ cloud models can handle **English mixed into Chinese**, which the built-in macOS
 
 ## Requirements
 
-- macOS 26 or later
-- Swift 6 toolchain (Xcode 26 or its Command Line Tools)
+- macOS 26 or later on Apple silicon
+- To build: Xcode 26 or later with its Metal Toolchain (`xcodebuild -downloadComponent MetalToolchain`)
 - For the cloud setups: an [OpenRouter](https://openrouter.ai) API key
 - For on-device AI polish: Apple Intelligence turned on
 
@@ -91,7 +90,7 @@ In **Settings → Model**, pick a setup:
 
 | Setup | Speech | Polish | Notes |
 |---|---|---|---|
-| **On-device** | Apple Speech | Apple Intelligence | Nothing leaves your Mac. English *or* Chinese, one at a time. |
+| **On-device** | Qwen3-ASR 1.7B, on your Mac | Apple Intelligence | Nothing leaves your Mac. Text in about 1 s. Handles mixed English/Chinese. |
 | **Cloud Flash** | Qwen3-ASR 1.7B | DeepSeek V4.1 Flash | Text in about 0.5 s. Handles mixed English/Chinese. |
 | **Cloud Big** | Meta Muse Voice | DeepSeek V4.1 Flash | Text in about 2 s. Handles mixed English/Chinese. |
 
@@ -118,8 +117,10 @@ asked too and the first answer is used (Settings → *Backup model when slow*).
   relaunch the app.
 - **Fn also opens the emoji picker or Apple Dictation.** System Settings → Keyboard → "Press 🌐
   key to" → Do Nothing, or pick a different hotkey.
-- **"On-device recognition unavailable".** System Settings → Keyboard → Dictation: make sure
-  your language is turned on, so its on-device model is downloaded.
+- **"The on-device model is still downloading".** It downloads once (2.5 GB), when you first pick
+  On-device or dictate with it; Settings → Model shows the progress. On power it then stays in
+  memory (2.6 GB); on battery it's let go 30 minutes after your last dictation and reloads (about a
+  second) while you speak the next one.
 - **AI polish does nothing.** On-device polish needs Apple Intelligence. Cloud polish needs a
   valid API key. If polish fails, the unpolished text is pasted.
 - **Text lands in the wrong app.** Click the text field you want first, then hold the hotkey.

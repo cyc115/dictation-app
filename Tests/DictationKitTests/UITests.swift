@@ -17,7 +17,7 @@ final class SettingsUITests: XCTestCase {
         let hosted = host(makeSettings(self))
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
-                      "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep history", "Keep recordings",
+                      "Mouse button", "AI polish", "Model", "On-device model", "Keep history", "Keep recordings",
                       "Backup model when slow", "Pause in these apps", "Show detailed analytics",
                       "Mouse button for Enter", "Enter button"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
@@ -31,7 +31,6 @@ final class SettingsUITests: XCTestCase {
         for (title, read) in [("Interaction sounds", { settings.interactionSounds }),
                               ("Mute when dictating", { settings.muteWhileDictating }),
                               ("Show app in Dock", { settings.showInDock }),
-                              ("Type as you speak", { settings.streamWhileSpeaking }),
                               ("AI polish", { settings.polishEnabled }),
                               ("Keep recordings", { settings.keepRecordings }),
                               ("Show detailed analytics", { settings.showDetailedAnalytics })] as [(String, () -> Bool)] {
@@ -44,7 +43,6 @@ final class SettingsUITests: XCTestCase {
         XCTAssertFalse(reloaded.interactionSounds)
         XCTAssertTrue(reloaded.muteWhileDictating)
         XCTAssertTrue(reloaded.showInDock)
-        XCTAssertTrue(reloaded.streamWhileSpeaking)
         XCTAssertTrue(reloaded.polishEnabled)
         XCTAssertTrue(reloaded.keepRecordings)
         XCTAssertTrue(reloaded.showDetailedAnalytics)
@@ -118,39 +116,16 @@ final class SettingsUITests: XCTestCase {
         XCTAssertNil(hosted.element(id: "setting.Polish model"), "no separate choice: it follows the speech model")
     }
 
-    func testCloudModelDisablesUnsupportedSettingsButKeepsThem() {
+    func testAPIKeyRowOnlyForCloudModels() {
         let settings = makeSettings(self)
-        settings.streamWhileSpeaking = true
-        settings.localLanguage = .mandarin
         let hosted = host(settings)
-        func enabled(_ title: String) -> Bool? {
-            guard let node = hosted.element(id: "setting." + title) else { return nil }
-            return node.object.value(forKey: "accessibilityEnabled") as? Bool
-        }
-        XCTAssertEqual(enabled("Type as you speak"), true)
-        XCTAssertEqual(enabled("Language"), true)
         XCTAssertNil(hosted.element(id: "setting.Cloud API key"), "key row only for cloud models")
-
         settings.setOpenRouterKey("sk-or-v1-test")
-        settings.setup = .cloudBig
-        hosted.settle()
-        XCTAssertEqual(enabled("Type as you speak"), false)
-        XCTAssertEqual(enabled("Language"), false)
-        XCTAssertNotNil(hosted.element(id: "setting.Cloud API key"))
-        XCTAssertTrue(settings.streamWhileSpeaking, "state is remembered while disabled")
-        XCTAssertEqual(settings.localLanguage, .mandarin)
-
-        settings.setup = .cloudFlash
-        hosted.settle()
-        XCTAssertEqual(enabled("Type as you speak"), false)
-        XCTAssertNotNil(hosted.element(id: "setting.Cloud API key"), "same key for every cloud model")
-        XCTAssertTrue(hosted.allText.contains("Unavailable"), "unavailable rows are labeled")
-        let toggle = hosted.element(id: "setting.Type as you speak")
-        XCTAssertEqual(toggle?.value, "0", "unavailable toggle shows off, not the saved on-state")
-        XCTAssertTrue(settings.streamWhileSpeaking)
-        settings.setup = .onDevice
-        hosted.settle()
-        XCTAssertEqual(hosted.element(id: "setting.Type as you speak")?.value, "1", "saved choice comes back")
+        for setup in [DictationSetup.cloudBig, .cloudFlash] {
+            settings.setup = setup
+            hosted.settle()
+            XCTAssertNotNil(hosted.element(id: "setting.Cloud API key"), "same key for every cloud model")
+        }
     }
 
     func testNoVendorOrModelNamesInSettings() {

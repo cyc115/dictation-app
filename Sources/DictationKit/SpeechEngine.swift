@@ -5,7 +5,7 @@ import Speech
 /// The microphone is opened only for the duration of one dictation — never in the background.
 class SpeechEngine {
     /// Recognition language, e.g. "en-US" or "zh-CN" (Apple's models are one language each).
-    var localeIdentifier = LocalLanguage.english.rawValue
+    var localeIdentifier = "en-US"
     private var recognizer: SFSpeechRecognizer? { SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier)) }
     let mic = MicCapture()
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -33,17 +33,17 @@ class SpeechEngine {
     private var recording: DictationRecording?
     /// What a restart (a better mic won) needs to recognize again, for the dictation in progress.
     private var restartWith: (recognizer: SFSpeechRecognizer, onUtterance: ((String) -> Void)?, onError: (String) -> Void)?
-    /// An utterance has been handed out ("type as you speak" typed it), so a restart would repeat it.
+    /// An utterance has been handed out (`onUtterance`), so a restart would repeat it.
     private var handedOut = false
 
     /// Starts listening on the microphone.
     /// - `inputUID` picks a microphone by CoreAudio UID; empty or missing uses the system default.
     /// - `onLevel` gets the mic level (0…1) for each audio buffer, on the main queue.
     /// - `backups`: Intelligent mic selection. If another mic wins, recognition starts over on its
-    ///   audio from the start, unless "type as you speak" already typed something.
+    ///   audio from the start, unless an utterance was already handed out.
     /// - `onMic` gets the mic's events, on the main queue.
     /// - `onUtterance` gets each finished utterance (with its leading separator) as soon as you
-    ///   pause, on the main queue — for streaming text out while still dictating.
+    ///   pause, on the main queue (the latency benchmark records them).
     func start(inputUID: String = "", backups: Bool = false, onLevel: @escaping (Float) -> Void,
                onMic: @escaping (MicEvent) -> Void = { _ in },
                onUtterance: ((String) -> Void)? = nil, onError: @escaping (String) -> Void) {
@@ -65,7 +65,7 @@ class SpeechEngine {
     }
 
     /// Main queue, a better mic won: recognition (and the kept WAV) start over on its audio, unless
-    /// typed text would be repeated or the dictation is already stopping.
+    /// text already handed out would be repeated or the dictation is already stopping.
     private func restart() -> Bool {
         guard let with = restartWith, finishHandler == nil, task != nil, !handedOut else { return false }
         session += 1  // the old task's late results are ignored

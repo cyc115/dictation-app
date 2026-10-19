@@ -140,7 +140,7 @@ class HotkeyManager {
             self?.flagsChanged(event)
         }) { monitors.append(m) }
         if let m = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: { [weak self] event in
-            // Text this app types itself (streaming mode) is not "another key".
+            // Keys this app sends itself (⌘V to paste, Return) are not "another key".
             guard event.cgEvent?.getIntegerValueField(.eventSourceUserData) != TextInjector.syntheticMarker else { return }
             self?.otherKeyPressed()
         }) { monitors.append(m) }

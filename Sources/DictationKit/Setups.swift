@@ -112,16 +112,24 @@ enum PolishPrompt {
     }
 }
 
-/// A model as setups and benchmarks name it: "apple" (on-device; "apple:<locale>" names a speech
-/// language in benchmarks) or "openrouter:<model id>[@Provider[,Provider…]]".
+/// A model as setups and benchmarks name it: "apple" (Apple's on-device models; "apple:<locale>"
+/// names a speech language), "local:<Hugging Face id>" (a speech model run on this Mac with MLX,
+/// `LocalSpeechModel`) or "openrouter:<model id>[@Provider[,Provider…]]".
 enum ModelSpec: Equatable, CustomStringConvertible {
     case apple(locale: String?)
+    case local(id: String)
     /// `providers`: only these OpenRouter hosts, in order, comma-separated; nil lets OpenRouter route.
     case openRouter(id: String, providers: String?)
 
     init?(_ spec: String) {
         if spec == "apple" { self = .apple(locale: nil); return }
         if spec.hasPrefix("apple:") { self = .apple(locale: String(spec.dropFirst("apple:".count))); return }
+        if spec.hasPrefix("local:") {
+            let id = String(spec.dropFirst("local:".count))
+            guard !id.isEmpty else { return nil }
+            self = .local(id: id)
+            return
+        }
         guard spec.hasPrefix("openrouter:") else { return nil }
         let parts = spec.dropFirst("openrouter:".count).split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
         guard let id = parts.first, !id.isEmpty else { return nil }
@@ -136,6 +144,7 @@ enum ModelSpec: Equatable, CustomStringConvertible {
     var description: String {
         switch self {
         case .apple(let locale): return locale.map { "apple:\($0)" } ?? "apple"
+        case .local(let id): return "local:\(id)"
         case .openRouter(let id, let providers): return "openrouter:\(id)" + (providers.map { "@\($0)" } ?? "")
         }
     }
@@ -152,8 +161,9 @@ struct SetupError: LocalizedError, Equatable {
 /// One choice in Settings → Model: which model hears you, which polishes, and with what prompt.
 /// The built-in ones are below; more can be added in `customFile` to try other combinations.
 ///
-/// Models are named as in bench/: speech "apple" (on-device) or "openrouter:<id>"; polish "apple" or
-/// "openrouter:<id>[@Provider]" (`@Groq` pins a fast host).
+/// Models are named as in bench/: speech "local:<Hugging Face id>" (on this Mac), "apple[:<locale>]"
+/// (Apple Speech) or "openrouter:<id>"; polish "apple" or "openrouter:<id>[@Provider]" (`@Groq` pins
+/// a fast host).
 struct DictationSetup: Codable, Hashable, Identifiable {
     let id: String
     let title: String
@@ -209,10 +219,11 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     var openRouterID: String? { ModelSpec(speech)?.openRouterID }
 
     var isCloud: Bool { openRouterID != nil }
-    /// Text appears phrase by phrase while you speak (needed for "Type as you speak").
-    var supportsStreaming: Bool { !isCloud }
-    /// Apple's models are one language each; cloud models detect English/Chinese themselves.
-    var supportsLanguageChoice: Bool { !isCloud }
+    /// Hugging Face id of the speech model run on this Mac; nil otherwise.
+    var localModelID: String? {
+        if case .local(let id) = ModelSpec(speech) { return id }
+        return nil
+    }
     var polishesOnDevice: Bool { ModelSpec(polish) == .apple(locale: nil) }
     /// Speech or polish goes to the cloud, so the cloud API key is needed.
     var usesCloud: Bool { isCloud || !polishesOnDevice }
@@ -252,9 +263,11 @@ struct DictationSetup: Codable, Hashable, Identifiable {
         func check(_ field: String, _ value: String, apple: Bool) throws {
             switch ModelSpec(value) {
             case .apple(locale: nil) where apple, .openRouter: return
+            case .apple, .local where field == "speech": return
             default:
-                let cloud = field == "speech" ? "\"openrouter:<model id>\"" : "\"openrouter:<model id>[@Provider]\""
-                throw SetupError("\(id): \(field) must be " + (apple ? "\"apple\" or " : "") + cloud)
+                let allowed = field == "speech" ? "\"local:<Hugging Face id>\", \"apple[:<locale>]\" or \"openrouter:<model id>\""
+                    : (apple ? "\"apple\" or " : "") + "\"openrouter:<model id>[@Provider]\""
+                throw SetupError("\(id): \(field) must be " + allowed)
             }
         }
         try check("speech", speech, apple: true)
@@ -274,8 +287,8 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     static let builtInJSON = """
         [
           {"id": "on-device", "title": "On-device",
-           "summary": "Runs on this Mac; nothing leaves it. One language at a time.",
-           "speech": "apple", "polish": "apple", "prompt": "v3", "wrap": true},
+           "summary": "Runs on this Mac; nothing leaves it. Hears English and Chinese, mixed too. Text in about a second.",
+           "speech": "local:mlx-community/Qwen3-ASR-1.7B-8bit", "polish": "apple", "prompt": "v3", "wrap": true},
           {"id": "cloud-flash", "title": "Cloud Flash",
            "summary": "Fastest cloud model — text in about half a second. Handles English mixed into Chinese. Audio is sent to the cloud when you stop.",
            "speech": "openrouter:qwen/qwen3-asr-1.7b",

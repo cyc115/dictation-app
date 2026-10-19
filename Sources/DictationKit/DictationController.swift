@@ -24,8 +24,6 @@ final class DictationController {
     }
     /// The mic a dictation with this preferred UID records from (tests fake it).
     var activeInput: (String) -> AudioInputDevice? = { AudioDevices.activeInput(preferredUID: $0) }
-    /// Whether typed text would come out as typed now (false while a ⌘/⌥/⌃/⇧ hotkey is held).
-    var canTypeNow: () -> Bool = { true }
     /// A cloud model was chosen without an API key.
     var onMissingKey: (DictationSetup) -> Void = { _ in }
     /// `dictating` changed (the menu-bar icon follows it).
@@ -44,6 +42,7 @@ final class DictationController {
 
     private let speech = SpeechEngine()
     private let cloud = CloudEngine()
+    private var local: LocalEngine?
     /// Engine for the dictation in progress.
     private var engine: DictationEngine?
     /// Kept across dictations: it holds the prewarmed session. Replaced when the setup's prompt changes.
@@ -56,8 +55,6 @@ final class DictationController {
     private var note: RecordingNote?
     private var autoStop: DispatchWorkItem?
     private var dictationStart = Date()
-    /// Set while a "type as you speak" dictation is running.
-    private var streaming: StreamingOutput?
     /// The last stopped dictation, while its text is still on the way.
     private var lastDelivery: Delivery?
 
@@ -81,13 +78,19 @@ final class DictationController {
 
     /// The app's engines, set up for `setup`.
     private func appEngine(for setup: DictationSetup) -> DictationEngine? {
-        guard setup.isCloud else {
-            speech.localeIdentifier = settings.localLanguage.rawValue
+        switch ModelSpec(setup.speech) {
+        case .local(let id):
+            let model = MainActor.assumeIsolated { settings.localModel(id) }
+            if let local { local.model = model } else { local = LocalEngine(model: model) }
+            return local
+        case .apple(let locale):
+            speech.localeIdentifier = locale ?? "en-US"
             return speech
+        case .openRouter, nil:
+            guard let key = settings.openRouterKey, !key.isEmpty else { return nil }
+            cloud.use(setup, apiKey: key, backupWhenSlow: settings.effectiveBackup)
+            return cloud
         }
-        guard let key = settings.openRouterKey, !key.isEmpty else { return nil }
-        cloud.use(setup, apiKey: key, backupWhenSlow: settings.effectiveBackup)
-        return cloud
     }
 
     /// The on-device polisher for this prompt, reusing the kept one (and its prewarmed session) if it matches.
@@ -133,7 +136,7 @@ final class DictationController {
         self.engine = engine
         dictationSetup = setup
         // Load the polish model while you speak instead of after you stop.
-        polisher = settings.polishEnabled && !settings.effectiveStreaming ? makePolish(setup) : nil
+        polisher = settings.polishEnabled ? makePolish(setup) : nil
         polisher?.prepare()
         let archive = settings.keepRecordings ? archive : nil
         note = archive.map { _ in RecordingNote(polishModel: polisher?.backend.name) }
@@ -148,13 +151,6 @@ final class DictationController {
         overlay.showListening(micName: mic?.name, warmingUp: warmingUp)
         var cuePending = warmingUp
         if !warmingUp { startCue() }
-        if settings.effectiveStreaming {
-            streaming = StreamingOutput(canTypeNow: { [weak self] in self?.canTypeNow() ?? true },
-                                        type: { [weak self] text in self?.injector.type(text) })
-        } else {
-            streaming = nil
-        }
-        let output = streaming
         engine.start(
             inputUID: settings.microphoneUID,
             backups: settings.intelligentMicSelection,
@@ -177,10 +173,6 @@ final class DictationController {
                     self.settings.microphoneUID = device.uid  // the next dictation starts on it
                 }
             },
-            onUtterance: output.map { output in { [weak self] chunk in
-                guard self?.dictating == true else { return }
-                output.utteranceFinished(chunk)
-            } },
             onError: { [weak self] message in
                 DispatchQueue.main.async {
                     guard self?.dictating == true else { return }
@@ -217,8 +209,6 @@ final class DictationController {
         muter.restore()
         if settings.interactionSounds { InteractionSound.stop.play() }
         let duration = Date().timeIntervalSince(dictationStart)
-        let output = streaming
-        streaming = nil
         let note = self.note
         let stoppedAt = ProcessInfo.processInfo.systemUptime
         guard let engine = engine else {
@@ -241,22 +231,11 @@ final class DictationController {
             let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
             // With polish to come, the pill stays up until it's done: hiding it here and showing it
             // again for the polish made it blink.
-            let polishing = output == nil && polisher != nil && !raw.isEmpty
+            let polishing = polisher != nil && !raw.isEmpty
             if batch && !polishing { self.overlay.hideUnlessMessage() }
             self.insights.record(text: raw, duration: duration)
-            if let output = output {
-                // Already typed as you spoke; finish the tail. No polish: it needs the whole text.
-                output.finish(fullText: raw)
-                if !output.typed.isEmpty, delivery.send { self.pressReturnSoon() }
-                if !raw.isEmpty {
-                    self.history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed,
-                                     transcribedBy: transcribedBy)
-                }
-                self.finished(delivery)
-            } else {
-                self.deliver(raw, duration: duration, setup: setup, polisher: polisher, transcribed: transcribed,
-                             transcribedBy: transcribedBy, note: note, delivery: delivery)
-            }
+            self.deliver(raw, duration: duration, setup: setup, polisher: polisher, transcribed: transcribed,
+                         transcribedBy: transcribedBy, note: note, delivery: delivery)
         }, failure: { [weak self] message in
             note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
             self?.overlay.showMessage(message, hideAfter: 5)
@@ -270,7 +249,6 @@ final class DictationController {
         autoStop?.cancel()
         autoStop = nil
         engine?.cancel()
-        streaming = nil  // what's already typed stays; nothing more is added
         overlay.hide()
         muter.restore()
         if settings.interactionSounds { InteractionSound.cancel.play() }

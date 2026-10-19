@@ -19,7 +19,7 @@ struct LatencyTrial: Decodable, Equatable {
     let id: String
     /// Audio clip (16 kHz mono WAV from bench/audio).
     let file: String
-    /// "apple:<locale>", "openrouter:<model id>", or "openrouter:<model id>+backup" for the
+    /// "apple:<locale>", "local:<Hugging Face id>", "openrouter:<model id>", or "openrouter:<model id>+backup" for the
     /// "Backup model when slow" setting on (the app's default).
     let stt: String
     /// Polish to time on this trial's transcript, in order: "apple", "openrouter:<model id>[@<Provider>]",
@@ -62,7 +62,7 @@ struct LatencySample: Encodable, Equatable {
     var polish: [Polish] = []
     /// Cloud only: the model whose transcript was used ("openrouter:<id>"), the backup if it won.
     var answeredBy: String?
-    /// On-device only: each finished utterance as "type as you speak" would type it (scripts/e2e-speech.sh).
+    /// Apple Speech only: each finished utterance as it came, while the clip played (scripts/e2e-speech.sh).
     var utterances: [String]?
 }
 
@@ -160,6 +160,25 @@ final class LatencyRunner {
             let started = clock()
             engine.stop(completion: { [weak engine] raw in
                             sample.answeredBy = engine?.lastAnsweredBy.map { ModelSpec.openRouter(id: $0, providers: nil).description }
+                            finish(raw, started, nil)
+                        },
+                        failure: { message in
+                            sample.error = message
+                            completion(sample)
+                        })
+        case .local(let id):
+            // As the app runs it: the model loads while you speak (here, while the clip goes in),
+            // and the clip goes in at full speed, since recording happens before you press stop.
+            let engine = LocalEngine(model: MainActor.assumeIsolated { .named(id) })
+            MainActor.assumeIsolated { _ = engine.model.prepare() }
+            guard engine.beginRecording(), Self.read(url, into: engine.record) else {
+                engine.cancel()
+                sample.error = "could not read \(url.path)"
+                return completion(sample)
+            }
+            let started = clock()
+            engine.stop(completion: { raw in
+                            sample.answeredBy = "local:\(id)"
                             finish(raw, started, nil)
                         },
                         failure: { message in

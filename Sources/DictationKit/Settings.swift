@@ -37,19 +37,6 @@ enum AppearanceMode: String, CaseIterable {
     }
 }
 
-/// Recognition language for the local (Apple) model.
-enum LocalLanguage: String, CaseIterable {
-    case english = "en-US"
-    case mandarin = "zh-CN"
-
-    var title: String {
-        switch self {
-        case .english: return "English"
-        case .mandarin: return "中文（普通话）"
-        }
-    }
-}
-
 /// A value a `@Setting` can save in UserDefaults.
 protocol SettingValue {
     init?(stored: Any)
@@ -75,7 +62,6 @@ extension Hotkey: SettingValue {}
 extension ActivationMode: SettingValue {}
 extension MouseButton: SettingValue {}
 extension AppearanceMode: SettingValue {}
-extension LocalLanguage: SettingValue {}
 
 /// An `AppSettings` property saved in its UserDefaults under `key` (`fallback` when unset or
 /// unreadable). Setting it updates SwiftUI and calls `onChange`.
@@ -135,10 +121,6 @@ final class AppSettings: ObservableObject {
     @Setting("muteWhileDictating", default: false) var muteWhileDictating: Bool
     @Setting("appearance", default: .system) var appearance: AppearanceMode
     @Setting("showInDock", default: false) var showInDock: Bool
-    /// Type each finished phrase into the focused app while dictating (instead of one paste at the end).
-    @Setting("streamWhileSpeaking", default: false) var streamWhileSpeaking: Bool
-    /// Language for the local model (kept while a cloud model is selected).
-    @Setting("localLanguage", default: .english) var localLanguage: LocalLanguage
     /// Save each dictation's audio and transcript on this Mac, for benchmarks (RecordingArchive).
     @Setting("keepRecordings", default: false) var keepRecordings: Bool
     /// Also ask a faster model when the cloud model is slow (AdaptiveBackup). On by default:
@@ -184,6 +166,9 @@ final class AppSettings: ObservableObject {
     }
 
     private let secrets: SecretStore
+    /// The on-device speech model a setup's `localModelID` names (`LocalSpeechModel.named`; tests
+    /// pass models that never download).
+    let localModel: @MainActor (String) -> LocalSpeechModel
     static let openRouterAccount = "openrouter-api-key"
 
     var openRouterKey: String? { secrets.get(Self.openRouterAccount) }
@@ -195,9 +180,6 @@ final class AppSettings: ObservableObject {
         onChange?()
     }
 
-    /// "Type as you speak" only when the setting is on and the model streams; the saved
-    /// preference is kept either way.
-    var effectiveStreaming: Bool { streamWhileSpeaking && setup.supportsStreaming }
     /// "Backup model when slow" only when it's on and the setup has a backup.
     var effectiveBackup: Bool { backupWhenSlow && setup.backup != nil }
 
@@ -206,9 +188,11 @@ final class AppSettings: ObservableObject {
     @Published private(set) var loginItemNeedsApproval = false
 
     init(defaults: UserDefaults = .standard, secrets: SecretStore = FileSecretStore(),
-         customSetupsFile: URL = DictationSetup.customFile, learned: LearnedPromptStore = .shared) {
+         customSetupsFile: URL = DictationSetup.customFile, learned: LearnedPromptStore = .shared,
+         localModel: @escaping @MainActor (String) -> LocalSpeechModel = { LocalSpeechModel.named($0) }) {
         self.defaults = defaults
         self.secrets = secrets
+        self.localModel = localModel
         self.customSetupsFile = customSetupsFile
         self.learned = learned
         setup = .onDevice

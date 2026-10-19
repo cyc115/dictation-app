@@ -13,7 +13,7 @@ protocol DictationEngine: AnyObject {
     /// `backups`: Intelligent mic selection (also record from the other wired and built-in mics and
     /// move to the one that hears you best). `onMic` gets the mic's events on the main queue.
     func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
-               onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void)
+               onError: @escaping (String) -> Void)
     /// Ends recording; exactly one of `completion` / `failure` is called on the main queue.
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void)
     func cancel()
@@ -28,6 +28,10 @@ extension DictationEngine {
 
 extension SpeechEngine: DictationEngine {
     var isBatch: Bool { false }
+    func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
+               onError: @escaping (String) -> Void) {
+        start(inputUID: inputUID, backups: backups, onLevel: onLevel, onMic: onMic, onUtterance: nil, onError: onError)
+    }
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
         if mic.heardOnlySilence {
             cancel()
