@@ -62,6 +62,22 @@ where its 0.6B backup answered: 84.6% vs 82.2%). Parakeet keeps every "uh"/"um" 
 them), returns nothing on silence where the cloud invented text, and misses a few terms the cloud
 got ("client order flow" → "Klein Orderflow"). Referee run: $0.43.
 
+## In the app (Oct 18, after On-device switched to it)
+
+`bench/suite.py latency run --alongside --local -P none` on the installed build (b154761): the app's
+own `LocalEngine.stop()`, interleaved with Cloud Flash as the app runs it, 9 clips × 5 rounds:
+
+| speech model | p50 | p90 | p95 | worst | cold |
+|:--|--:|--:|--:|--:|--:|
+| On-device, Qwen3-ASR 1.7B 8-bit | 0.42 s | 1.21 s | 1.36 s | 1.45 s | 7.87 s |
+| Cloud Flash + backup | 0.53 s | 1.42 s | 1.75 s | 3.02 s | 2.54 s |
+
+Cloud Flash's backup (the 0.6B) answered 41 of 45: a slow spell. "Cold" is a fresh process loading
+the model as the first clip arrives; the app preloads it on power and loads it while you speak on
+battery. In the app process the model takes 2.5–2.6 GB (peak 2.9 GB while loading). The first decode
+in a process compiles GPU kernels (6.4 s), so loading ends with a warm-up decode; the very first
+load on a Mac took 9 s more while macOS compiled MLX's GPU code, once.
+
 ## Verdict
 
 - **Parakeet v2**: fastest and most predictable (worst 3.4 s), as good as Cloud Flash on English,

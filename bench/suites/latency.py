@@ -192,10 +192,17 @@ def progress(trials: list[dict]):
     return show
 
 
+def pids() -> list[int]:
+    found = subprocess.run(["pgrep", "-x", "DictationApp"], capture_output=True, text=True).stdout.split()
+    return [int(p) for p in found]
+
+
 def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | None, on_sample,
-               plan_extra: dict | None = None) -> list[dict]:
+               plan_extra: dict | None = None, alongside: bool = False) -> list[dict]:
     """Launches the installed app in benchmark mode and collects one sample per trial. `plan_extra`
-    and a trial's "text" are for polish-only runs (suite polish: prompt overrides, no audio)."""
+    and a trial's "text" are for polish-only runs (suite polish: prompt overrides, no audio).
+    `alongside`: a second copy runs beside the one you're using, which is left alone (it shares the
+    Mac, so timings are a little noisier); otherwise yours is quit for the run and reopened after."""
     if platform.system() != "Darwin":
         raise SystemExit("the latency suite runs the installed macOS app — run it on your Mac (or try --simulate)")
     if not APP.exists():
@@ -210,10 +217,16 @@ def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | 
             {k: t[k] for k in ("id", "file", "stt", "polish", "text") if k in t} for t in trials]}, ensure_ascii=False))
         running = lambda: subprocess.run(["pgrep", "-x", "DictationApp"], capture_output=True).returncode == 0
         was_running = running()
-        subprocess.run(["pkill", "-x", "DictationApp"], capture_output=True)
-        time.sleep(0.5)
+        before = set(pids())
+        if not alongside:
+            subprocess.run(["pkill", "-x", "DictationApp"], capture_output=True)
+            time.sleep(0.5)
         subprocess.run(["open", "-n", "--env", f"DICTATIONAPP_LATENCY_PLAN={plan}",
                         "--env", f"DICTATIONAPP_LATENCY_OUT={out}", *env, str(APP)], check=True)
+        if alongside:
+            time.sleep(1)
+            probe = [p for p in pids() if p not in before]
+            running = lambda: bool(set(probe) & set(pids()))
         lines: list[str] = []
         stall = timeout + max(t["audio_seconds"] for t in trials) + 30
         last_change = time.monotonic()
@@ -235,8 +248,12 @@ def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | 
                     print(f"  ! the app stopped answering after {len(lines)} of {len(trials)} trials", flush=True)
                     break
         finally:
-            subprocess.run(["pkill", "-x", "DictationApp"], capture_output=True)
-            if was_running:
+            if alongside:
+                for pid in probe:
+                    subprocess.run(["kill", str(pid)], capture_output=True)
+            else:
+                subprocess.run(["pkill", "-x", "DictationApp"], capture_output=True)
+            if was_running and not alongside:
                 time.sleep(0.5)
                 subprocess.run(["open", str(APP)])
     return [json.loads(line) for line in lines]
@@ -542,7 +559,7 @@ def cmd_run(args) -> int:
         samples = simulate(trials, args.seed, show)
     else:
         extra = {"setupsFile": str(Path(args.setups_file).resolve())} if args.setups_file else None
-        samples = run_in_app(trials, args.pause, args.timeout, args.key_env, show, extra)
+        samples = run_in_app(trials, args.pause, args.timeout, args.key_env, show, extra, alongside=args.alongside)
     if not samples:
         print("\nno dictations finished — nothing saved")
         return 1
@@ -580,6 +597,8 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("-s", "--stt", action="append", metavar="MODEL",
                    help=f"speech model (repeatable; default: {' '.join(DEFAULT_STT)})")
     r.add_argument("--local", action="store_true", help="also time On-device (Qwen on this Mac; free)")
+    r.add_argument("--alongside", action="store_true",
+                   help="run a second copy beside the app you're using instead of quitting it (noisier timings)")
     r.add_argument("--big", action="store_true", help="also time Cloud Big (adds ≈ $0.02 per default-size run)")
     r.add_argument("--backup", action="store_true",
                    help="time Cloud Flash with and without the backup model, interleaved")
