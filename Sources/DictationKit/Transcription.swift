@@ -17,6 +17,13 @@ protocol DictationEngine: AnyObject {
     /// Ends recording; exactly one of `completion` / `failure` is called on the main queue.
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void)
     func cancel()
+    /// Which model gave the transcript just passed to `completion`, for History; nil when there's
+    /// no choice of model (on-device).
+    var lastAnswer: ModelAnswer? { get }
+}
+
+extension DictationEngine {
+    var lastAnswer: ModelAnswer? { nil }
 }
 
 extension SpeechEngine: DictationEngine {

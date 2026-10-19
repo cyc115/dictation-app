@@ -12,10 +12,11 @@ enum FirstAnswer {
 
     /// Runs `main`. `backup` is also run `backupAfter` seconds in (at once when 0), or as soon as
     /// `main` fails. The first success wins and the other is cancelled; if both fail, the first error
-    /// is thrown; after `deadline` seconds, `TimedOut`. Returns the value and whether `backup` gave it.
+    /// is thrown; after `deadline` seconds, `TimedOut`. Returns the value, whether `backup` gave it,
+    /// and whether `backup` was asked at all.
     static func race<T: Sendable>(main: @escaping @Sendable () async throws -> T,
                                   backup: (@Sendable () async throws -> T)? = nil, backupAfter: TimeInterval = 0,
-                                  deadline: TimeInterval? = nil) async throws -> (value: T, byBackup: Bool) {
+                                  deadline: TimeInterval? = nil) async throws -> (value: T, byBackup: Bool, backupAsked: Bool) {
         return try await withThrowingTaskGroup(of: Event<T>.self) { group in
             defer { group.cancelAll() }  // the loser and the timers stop; a returned group waits for them
             group.addTask { do { return .answer(try await main(), byBackup: false) } catch { return .failed(error) } }
@@ -37,7 +38,7 @@ enum FirstAnswer {
             for try await event in group {
                 switch event {
                 case .answer(let value, let byBackup):
-                    return (value, byBackup)
+                    return (value, byBackup, backupAsked)
                 case .failed(let error):
                     running -= 1
                     firstError = firstError ?? error

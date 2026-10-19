@@ -54,10 +54,13 @@ class PolishService {
         backup?.prepare()
     }
 
-    /// The polished text, or the raw text if polishing fails or runs out of time (you always get
-    /// your words), and why.
-    func polishReporting(_ text: String) async -> (text: String, error: String?) {
-        do { return (try await polished(text), nil) } catch { return (text, error.localizedDescription) }
+    /// The polished text and which model gave it, or the raw text if polishing fails or runs out of
+    /// time (you always get your words), and why.
+    func polishReporting(_ text: String) async -> (text: String, error: String?, by: ModelAnswer?) {
+        do {
+            let answer = try await answer(text)
+            return (answer.text, nil, answer.by)
+        } catch { return (text, error.localizedDescription, nil) }
     }
 
     /// The transcript as the model sees it. `wrap` (every backend's default) marks it as data, not a
@@ -69,15 +72,16 @@ class PolishService {
     /// The polished text; throws instead of falling back, so benchmarks see failures.
     func polished(_ text: String) async throws -> String { try await answer(text).text }
 
-    /// The polished text and the name of the model that gave it (the backup's, if it answered first).
-    func answer(_ text: String) async throws -> (text: String, model: String) {
+    /// The polished text and which model gave it (`by.model`: the backup's, if it answered first).
+    func answer(_ text: String) async throws -> (text: String, by: ModelAnswer) {
         let backend = backend, backup = backup
-        let (reply, byBackup) = try await FirstAnswer.race(
+        let (reply, byBackup, backupAsked) = try await FirstAnswer.race(
             main: { try await backend.polish(text) },
             backup: backup.map { backup in { try await backup.polish(text) } },
             backupAfter: backupAfter, deadline: deadline)
         let cleaned = reply.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (cleaned.isEmpty ? text : cleaned, (byBackup ? backup ?? backend : backend).name)
+        let by = ModelAnswer(main: backend.name, backup: backupAsked ? backup?.name : nil, byBackup: byBackup)
+        return (cleaned.isEmpty ? text : cleaned, by)
     }
 }
 

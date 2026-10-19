@@ -4,7 +4,7 @@ import XCTest
 final class PolishServiceTests: XCTestCase {
     func testFailureFallsBackToTheRawTextAndSaysWhy() async {
         let service = PolishService(backend: FakePolish(error: .failed("HTTP 429")))
-        let (text, error) = await service.polishReporting("um hello")
+        let (text, error, _) = await service.polishReporting("um hello")
         XCTAssertEqual(text, "um hello", "you still get your words")
         XCTAssertEqual(error, "HTTP 429")
         do {
@@ -102,7 +102,7 @@ final class PolishFallbackTests: XCTestCase {
         let service = PolishService(backend: fake("main", delay: 0.01), backup: fake("backup", log: log), backupAfter: 0.3)
         let answer = try await service.answer("hi")
         XCTAssertEqual(answer.text, "main")
-        XCTAssertEqual(answer.model, "main")
+        XCTAssertEqual(answer.by, ModelAnswer(main: "main"), "the backup wasn't asked")
         XCTAssertTrue(log.events.isEmpty, "the backup costs nothing when the main model is on time")
     }
 
@@ -111,7 +111,7 @@ final class PolishFallbackTests: XCTestCase {
         let started = Date()
         let answer = try await service.answer("hi")
         XCTAssertEqual(answer.text, "backup")
-        XCTAssertEqual(answer.model, "backup")
+        XCTAssertEqual(answer.by, ModelAnswer(main: "main", backup: "backup", byBackup: true))
         XCTAssertLessThan(Date().timeIntervalSince(started), 1, "the slow main request is cancelled, not waited for")
     }
 
@@ -129,6 +129,7 @@ final class PolishFallbackTests: XCTestCase {
         let result = await service.polishReporting("my words")
         XCTAssertEqual(result.text, "my words")
         XCTAssertEqual(result.error, "main down")
+        XCTAssertNil(result.by, "no model's answer was used")
     }
 
     func testDeadlineGivesYourWordsInsteadOfWaiting() async {

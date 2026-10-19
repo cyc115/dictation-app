@@ -196,7 +196,8 @@ final class LatencyRunner {
                 } else if let backend = backend {
                     let started = clock()
                     do {
-                        (result.text, result.answeredBy) = try await backend.answer(sample.raw)
+                        let answer = try await backend.answer(sample.raw)
+                        (result.text, result.answeredBy) = (answer.text, answer.by.model)
                         result.seconds = clock() - started
                     } catch {
                         result.error = error.localizedDescription

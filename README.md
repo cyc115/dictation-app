@@ -36,7 +36,9 @@ cloud models can handle **English mixed into Chinese**, which the built-in macOS
   correction scores a prompt written from it), and a general test set guards against a prompt that
   only learned your corrections. Each version is kept, with its scores, under Settings → Model.
 - **Insights.** Words dictated, time saved compared with typing, your speaking speed, and where a
-  typical dictation's time goes (speaking, transcribing, polishing).
+  typical dictation's time goes (speaking, transcribing, polishing). Settings → *Show detailed analytics*
+  (off by default) adds your recent dictations one by one, with which model answered each (main or
+  backup) and how often the backup was used, for spotting a slow model.
 - **Your clipboard is kept.** It's saved before each paste and restored about a second later.
 - **Lots of options.** Hold to talk or tap to toggle, a mouse button that presses Return, apps
   where the hotkey is paused (e.g. games), mute audio while dictating, launch at login, and

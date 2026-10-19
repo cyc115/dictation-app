@@ -17,8 +17,10 @@ final class CloudEngine: DictationEngine {
     var backupWait: TimeInterval = 2
     /// When to ask the backup; the app shares one, so a slow spell carries over between dictations.
     var backup = AdaptiveBackup()
+    /// Which model gave the last dictation's transcript, main or backup (set before `completion`).
+    private(set) var lastAnswer: ModelAnswer?
     /// The model whose transcript the last dictation used (the backup, if it answered first).
-    private(set) var lastAnsweredBy: String?
+    var lastAnsweredBy: String? { lastAnswer?.model }
 
     let mic = MicCapture()
     private var recording: DictationRecording?
@@ -81,7 +83,7 @@ final class CloudEngine: DictationEngine {
         recording.finish()
         let url = recording.url
         let info = RecordingInfo(date: Date(), model: ModelSpec.openRouter(id: modelID, providers: nil).description, transcript: "", seconds: recording.duration)
-        lastAnsweredBy = nil
+        lastAnswer = nil
         uploading = recording
         let main = modelID, wait = backupWait, policy = backup, backupModel = backupModelID
         race = UploadRace(wav: url, apiKey: apiKey, client: client, main: main,
@@ -92,7 +94,7 @@ final class CloudEngine: DictationEngine {
             case .text(let text, let model):
                 heard.transcript = text
                 heard.model = ModelSpec.openRouter(id: model, providers: nil).description
-                self?.lastAnsweredBy = model
+                self?.lastAnswer = ModelAnswer(main: main, backup: report.backupAsked ? backupModel : nil, byBackup: model != main)
                 completion(text)
             case .failed(let message):
                 heard.error = message
@@ -182,6 +184,8 @@ final class UploadRace {
         let outcome: Outcome
         /// Upload start → outcome.
         let seconds: TimeInterval
+        /// The backup was asked too (the main model was late or failed).
+        var backupAsked = false
         var answeredBy: String? {
             if case .text(_, let model) = outcome { return model }
             return nil
@@ -285,6 +289,6 @@ final class UploadRace {
         timer?.cancel()
         // Stops the other request (a finished task ignores it); a main request still being judged runs on.
         for (model, task) in tasks where model != main || judged { task.cancel() }
-        onDone(Report(outcome: outcome, seconds: clock() - startedAt))
+        onDone(Report(outcome: outcome, seconds: clock() - startedAt, backupAsked: backupAsked))
     }
 }

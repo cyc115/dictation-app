@@ -144,6 +144,9 @@ final class AppSettings: ObservableObject {
     /// Also ask a faster model when the cloud model is slow (AdaptiveBackup). On by default:
     /// in an interleaved run it cut Cloud Flash's p95 from 9.35 s to 1.20 s (bench/README.md).
     @Setting("backupWhenSlow", default: true) var backupWhenSlow: Bool
+    /// Home also shows recent dictations' waits, model by model (RecentLatencyView). Off by default:
+    /// it's for finding a slow model, not something most people need.
+    @Setting("showDetailedAnalytics", default: false) var showDetailedAnalytics: Bool
 
     private static let setupKey = "transcriptionModel"  // the setup's id
     private static let excludedAppsKey = "excludedApps"

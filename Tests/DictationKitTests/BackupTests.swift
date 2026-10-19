@@ -55,6 +55,7 @@ final class CloudBackupTests: XCTestCase {
         let r = dictate(client, backup: AdaptiveBackup())
         XCTAssertEqual(r.text, "帮我 build 一下")
         XCTAssertEqual(r.engine.lastAnsweredBy, Self.main)
+        XCTAssertEqual(r.engine.lastAnswer, ModelAnswer(main: Self.main), "History: the backup wasn't asked")
         spinRunLoop(0.3)  // past the wait
         XCTAssertEqual(client.asked.map(\.model), [Self.main], "no second request, no extra cost")
     }
@@ -65,6 +66,7 @@ final class CloudBackupTests: XCTestCase {
         let r = dictate(client, backup: AdaptiveBackup(), backupWait: 0.2)
         XCTAssertEqual(r.text, "帮我 build 一下")
         XCTAssertEqual(r.engine.lastAnsweredBy, Self.backup)
+        XCTAssertEqual(r.engine.lastAnswer, ModelAnswer(main: Self.main, backup: Self.backup, byBackup: true))
         XCTAssertEqual(client.asked.map(\.model), [Self.main, Self.backup])
         XCTAssertGreaterThanOrEqual(try XCTUnwrap(client.asked.last).at, 0.2, "only after the wait")
     }
@@ -76,6 +78,8 @@ final class CloudBackupTests: XCTestCase {
         let r = dictate(client, backup: AdaptiveBackup(), backupWait: 0.1)
         XCTAssertEqual(r.text, "from 1.7b")
         XCTAssertEqual(r.engine.lastAnsweredBy, Self.main)
+        XCTAssertEqual(r.engine.lastAnswer, ModelAnswer(main: Self.main, backup: Self.backup, byBackup: false),
+                       "asked, but the main model won")
     }
 
     func testFailureAsksTheBackupRightAway() throws {

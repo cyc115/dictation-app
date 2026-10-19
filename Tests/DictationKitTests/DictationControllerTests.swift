@@ -11,6 +11,8 @@ final class FakeEngine: DictationEngine {
     var text = "hello world"
     var error: String?
     var utterances: [String] = []
+    /// Which model "answered", as CloudEngine reports it.
+    var lastAnswer: ModelAnswer?
     private(set) var started = 0
     private(set) var cancelled = 0
 
@@ -206,6 +208,22 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(history.entries.first?.raw, "hello world")
         XCTAssertNotNil(history.entries.first?.transcribeSeconds)
         XCTAssertGreaterThanOrEqual(history.entries.first?.polishSeconds ?? 0, 0.01, "saved for Insights' time bar")
+    }
+
+    /// Settings → Show detailed analytics shows which model answered each dictation, main or backup.
+    func testHistoryKeepsWhichModelsAnswered() {
+        let controller = makeController()
+        settings.polishEnabled = true
+        engine.lastAnswer = ModelAnswer(main: "speech-main", backup: "speech-backup", byBackup: true)
+        let main = FakePolish(delay: 2), backup = FakePolish(delay: 0.01)
+        main.name = "polish-main"
+        backup.name = "polish-backup"
+        controller.makePolish = { _ in PolishService(backend: main, backup: backup, backupAfter: 0.05) }
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(history.entries.first?.transcribedBy, ModelAnswer(main: "speech-main", backup: "speech-backup", byBackup: true))
+        XCTAssertEqual(history.entries.first?.polishedBy, ModelAnswer(main: "polish-main", backup: "polish-backup", byBackup: true))
     }
 
     func testTypeAsYouSpeakTypesPhrasesThenTheTailWithoutPasting() {

@@ -202,7 +202,12 @@ private struct HomeView: View {
                     Text("Insights").font(.largeTitle.bold())
                     Text(settings.hint + ".").foregroundStyle(.secondary)
                 }
-                InsightsView(insights: .shared, breakdown: TimeBreakdown(history.entries))
+                let breakdown = TimeBreakdown(history.entries)
+                InsightsView(insights: .shared, breakdown: breakdown)
+                if settings.showDetailedAnalytics {
+                    RecentLatencyView(entries: history.entries, usual: breakdown,
+                                      backupWait: settings.effectiveBackup ? settings.setup.backupWait : nil)
+                }
             }
             .padding(24)
             .frame(maxWidth: 720, alignment: .leading)

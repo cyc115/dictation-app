@@ -235,6 +235,7 @@ final class DictationController {
         let setup = dictationSetup, polisher = self.polisher
         engine.stop(completion: { [weak self] text in
             let transcribed = ProcessInfo.processInfo.systemUptime - stoppedAt
+            let transcribedBy = engine.lastAnswer
             note?.transcribed(seconds: transcribed)
             guard let self else { return }
             let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -248,12 +249,13 @@ final class DictationController {
                 output.finish(fullText: raw)
                 if !output.typed.isEmpty, delivery.send { self.pressReturnSoon() }
                 if !raw.isEmpty {
-                    self.history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed)
+                    self.history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed,
+                                     transcribedBy: transcribedBy)
                 }
                 self.finished(delivery)
             } else {
                 self.deliver(raw, duration: duration, setup: setup, polisher: polisher, transcribed: transcribed,
-                             note: note, delivery: delivery)
+                             transcribedBy: transcribedBy, note: note, delivery: delivery)
             }
         }, failure: { [weak self] message in
             note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
@@ -280,19 +282,20 @@ final class DictationController {
     }
 
     private func deliver(_ raw: String, duration: TimeInterval, setup: DictationSetup, polisher: PolishService?,
-                         transcribed: TimeInterval, note: RecordingNote?, delivery: Delivery) {
+                         transcribed: TimeInterval, transcribedBy: ModelAnswer?, note: RecordingNote?, delivery: Delivery) {
         guard !raw.isEmpty else { return finished(delivery) }
         if let polisher {
             overlay.showProcessing()
             let started = ProcessInfo.processInfo.systemUptime
             Task { [weak self] in
                 guard let self = self else { return }
-                let (polished, error) = await polisher.polishReporting(raw)
+                let (polished, error, polishedBy) = await polisher.polishReporting(raw)
                 let seconds = ProcessInfo.processInfo.systemUptime - started
                 await MainActor.run {
                     self.overlay.hide()
                     self.history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt,
-                                     transcribeSeconds: transcribed, polishSeconds: seconds)
+                                     transcribeSeconds: transcribed, polishSeconds: seconds,
+                                     transcribedBy: transcribedBy, polishedBy: polishedBy)
                     self.injector.inject(polished)
                     if delivery.send { self.pressReturnSoon() }
                     // After typing it, so saving it adds nothing to your wait.
@@ -301,7 +304,8 @@ final class DictationController {
                 }
             }
         } else {
-            history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed)
+            history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed,
+                        transcribedBy: transcribedBy)
             injector.inject(raw)
             if delivery.send { pressReturnSoon() }
             finished(delivery)

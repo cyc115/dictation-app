@@ -17,9 +17,37 @@ struct HistoryEntry: Codable, Identifiable, Equatable {
     /// Stop → transcript, and transcript → polished text (nil: not polished, or before these were saved).
     var transcribeSeconds: Double?
     var polishSeconds: Double?
+    /// Which speech and polish model answered, main or backup (nil: on-device speech, not polished,
+    /// polish failed, or before these were saved). Settings → Show detailed analytics shows them.
+    var transcribedBy: ModelAnswer?
+    var polishedBy: ModelAnswer?
 
     /// What polish was given: a test case's input.
     var input: String { raw ?? text }
+}
+
+/// Which model gave a dictation's transcript or polish: the setup's main model, or the backup asked
+/// when the main one was late or failed ("Backup model when slow").
+struct ModelAnswer: Codable, Equatable {
+    /// The setup's model, e.g. "qwen/qwen3-asr-1.7b" or "openrouter:deepseek/deepseek-v4.1-flash@Together".
+    var main: String
+    /// The backup, when it was asked too; nil when the main model answered within its wait.
+    var backup: String?
+    /// The backup answered first, and its answer was used.
+    var byBackup = false
+
+    /// The model whose answer was used.
+    var model: String { byBackup ? backup ?? main : main }
+
+    /// A model id for display: "qwen3-asr-1.7b", "deepseek-v4.1-flash · Together, DeepInfra".
+    static func displayName(_ id: String) -> String {
+        if id.hasPrefix("apple:") { return "Apple on-device" }
+        let spec = id.hasPrefix("openrouter:") ? String(id.dropFirst("openrouter:".count)) : id
+        let parts = spec.split(separator: "@", maxSplits: 1).map(String.init)
+        let name = parts[0].split(separator: "/").last.map(String.init) ?? parts[0]
+        guard parts.count == 2 else { return name }
+        return name + " · " + parts[1].replacingOccurrences(of: ",", with: ", ")
+    }
 }
 
 /// How long history is kept on this Mac.
@@ -80,11 +108,13 @@ final class HistoryStore: ObservableObject {
     }
 
     func add(text: String, duration: TimeInterval, raw: String? = nil, setup: String? = nil, prompt: String? = nil,
-             transcribeSeconds: Double? = nil, polishSeconds: Double? = nil, date: Date = Date()) {
+             transcribeSeconds: Double? = nil, polishSeconds: Double? = nil,
+             transcribedBy: ModelAnswer? = nil, polishedBy: ModelAnswer? = nil, date: Date = Date()) {
         guard retention != .off, !text.isEmpty else { return }
         entries.insert(HistoryEntry(date: date, text: text, duration: duration, raw: raw == text ? nil : raw,
                                     setup: setup, prompt: prompt,
-                                    transcribeSeconds: transcribeSeconds, polishSeconds: polishSeconds), at: 0)
+                                    transcribeSeconds: transcribeSeconds, polishSeconds: polishSeconds,
+                                    transcribedBy: transcribedBy, polishedBy: polishedBy), at: 0)
         save()
     }
 

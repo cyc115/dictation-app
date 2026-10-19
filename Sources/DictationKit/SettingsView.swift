@@ -208,6 +208,9 @@ struct SettingsView: View {
                         Button("Show in Finder") { RecordingArchive.shared.showInFinder() }
                     }
                 }
+                SettingRow("Show detailed analytics", "Adds your recent dictations' wait times to Home, model by model, with how often the backup model answered. For finding a slow model.") {
+                    Toggle("Show detailed analytics", isOn: $settings.showDetailedAnalytics)
+                }
             } header: {
                 Label("History & recordings", systemImage: "internaldrive")
             }

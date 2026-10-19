@@ -8,7 +8,7 @@ import XCTest
 final class SettingsUITests: XCTestCase {
     private func host(_ settings: AppSettings, history: HistoryStore? = nil) -> HostedView<SettingsView> {
         let history = history ?? HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let hosted = HostedView(SettingsView(settings: settings, history: history), size: NSSize(width: 640, height: 1900))
+        let hosted = HostedView(SettingsView(settings: settings, history: history), size: NSSize(width: 640, height: 2100))
         addTeardownBlock { hosted.close() }
         return hosted
     }
@@ -18,7 +18,7 @@ final class SettingsUITests: XCTestCase {
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
                       "Mouse button", "Type as you speak", "AI polish", "Model", "Language", "Keep history", "Keep recordings",
-                      "Backup model when slow", "Pause in these apps",
+                      "Backup model when slow", "Pause in these apps", "Show detailed analytics",
                       "Mouse button for Enter", "Enter button"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
@@ -33,7 +33,8 @@ final class SettingsUITests: XCTestCase {
                               ("Show app in Dock", { settings.showInDock }),
                               ("Type as you speak", { settings.streamWhileSpeaking }),
                               ("AI polish", { settings.polishEnabled }),
-                              ("Keep recordings", { settings.keepRecordings })] as [(String, () -> Bool)] {
+                              ("Keep recordings", { settings.keepRecordings }),
+                              ("Show detailed analytics", { settings.showDetailedAnalytics })] as [(String, () -> Bool)] {
             let before = read()
             guard let toggle = hosted.element(id: "setting." + title) else { XCTFail("no \(title)"); continue }
             XCTAssertTrue(hosted.click(toggle), "\(title) not clickable")
@@ -46,6 +47,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(reloaded.streamWhileSpeaking)
         XCTAssertTrue(reloaded.polishEnabled)
         XCTAssertTrue(reloaded.keepRecordings)
+        XCTAssertTrue(reloaded.showDetailedAnalytics)
     }
 
     func testRecordingsFolderOnlyShownWhileKeepingRecordings() {
@@ -811,6 +813,15 @@ final class SnapshotTests: XCTestCase {
         let hosted = HostedView(InsightsView(insights: insights, breakdown: breakdown).padding(20), size: NSSize(width: 620, height: 400))
         addTeardownBlock { hosted.close() }
         assertSnapshot(of: hosted.hostingView, named: "insights-breakdown")
+    }
+
+    func testRecentLatency() {
+        let usual = TimeBreakdown(speaking: 13.9, transcribing: 1.3, polishing: 0.3, count: 100)
+        let view = RecentLatencyView(entries: RecentLatencyTests.tonight, usual: usual, backupWait: 2, now: RecentLatencyTests.now)
+        // In a ScrollView, as on Home: text wraps to the width there.
+        let hosted = HostedView(ScrollView { view.padding(20) }, size: NSSize(width: 720, height: 1000))
+        addTeardownBlock { hosted.close() }
+        assertSnapshot(of: hosted.hostingView, named: "recent-latency")
     }
 
     func testHistory() {
