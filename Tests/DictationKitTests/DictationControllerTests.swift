@@ -67,6 +67,7 @@ final class DictationControllerTests: XCTestCase {
         injector.pasteboard = pasteboard
         injector.restoreDelay = 0.01
         injector.canPaste = { true }
+        injector.charBeforeCursor = { nil }
         injector.paste = { [unowned self] in
             pasted.append(pasteboard.string(forType: .string) ?? "")
             keys.append("paste:" + (pasted.last ?? ""))

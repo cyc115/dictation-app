@@ -39,6 +39,9 @@ cloud models can handle **English mixed into Chinese**, which the built-in macOS
   (off by default) adds your recent dictations one by one, with which model answered each (main or
   backup) and how often the backup was used, for spotting a slow model.
 - **Your clipboard is kept.** It's saved before each paste and restored about a second later.
+- **A space before it when needed.** Text pasted right after other text gets a space in front
+  (not after a space or line break, not before punctuation, not between two Chinese characters).
+  In apps that don't say what's before the cursor (terminals, some Electron apps), it's pasted as is.
 - **Lots of options.** Hold to talk or tap to toggle, a mouse button that presses Return, apps
   where the hotkey is paused (e.g. games), mute audio while dictating, launch at login, and
   [your own model setups](docs/custom-setups.md).
