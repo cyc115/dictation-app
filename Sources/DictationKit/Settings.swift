@@ -111,6 +111,9 @@ final class AppSettings: ObservableObject {
     @Setting("mouseEnterButton", default: .button6) var mouseEnterButton: MouseButton
     /// The Enter button, pressed when you're not dictating, starts a command (`CommandMode`). On by default.
     @Setting("commandMode", default: true) var commandModeEnabled: Bool
+    /// What picks the command: "jev" (TypeSafe's decision model), or an OpenRouter chat model id
+    /// (bench/suite.py commands compares them). No Settings row: `defaults write com.mikechen.DictationApp commandModel <id>`.
+    @Setting("commandModel", default: "jev") var commandModel: String
     /// The button that presses Return, or `.off`.
     var effectiveEnterButton: MouseButton { mouseEnterEnabled ? mouseEnterButton : .off }
     @Setting("aiPolishEnabled", default: false) var polishEnabled: Bool

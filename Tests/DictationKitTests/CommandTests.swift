@@ -89,6 +89,43 @@ final class CommandTests: XCTestCase {
         XCTAssertThrowsError(try failed.get()) { XCTAssertEqual($0.localizedDescription, "Couldn't pick a command: No credits") }
     }
 
+    // MARK: Chat models
+
+    func testAChatModelIsToldTheCommandsAndLimitedToThem() throws {
+        let commands = [Command.pressReturn, Command.parse(brightness, script: URL(fileURLWithPath: "/tmp/brightness.py"))!]
+        let request = ChatDecider.request("brighter", among: commands, model: "deepseek/deepseek-v4.1-flash", apiKey: "k")
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: request.httpBody!) as? [String: Any])
+        XCTAssertEqual(body["model"] as? String, "deepseek/deepseek-v4.1-flash")
+        let messages = try XCTUnwrap(body["messages"] as? [[String: String]])
+        XCTAssertTrue(messages[0]["content"]!.contains("- brightness: Set the screen brightness.. Choices: +10 = a bit brighter; 50 = half"))
+        XCTAssertEqual(messages[1]["content"], "brighter")
+        let schema = try XCTUnwrap(((body["response_format"] as? [String: Any])?["json_schema"] as? [String: Any])?["schema"] as? [String: Any])
+        let properties = try XCTUnwrap(schema["properties"] as? [String: [String: Any]])
+        XCTAssertEqual(properties["command"]?["enum"] as? [String], ["return", "brightness", "none"])
+        XCTAssertEqual(properties["choice"]?["enum"] as? [String], ["", "+10", "50"])
+    }
+
+    func testReadsAChatModelsAnswer() throws {
+        let commands = [Command.parse(brightness, script: URL(fileURLWithPath: "/tmp/brightness.py"))!]
+        func answer(_ content: String) -> Data {
+            try! JSONSerialization.data(withJSONObject: ["choices": [["message": ["content": content]]]])
+        }
+        XCTAssertEqual(try ChatDecider.parse(data: answer(#"{"command":"brightness","choice":"+10"}"#), status: 200, among: commands).get(),
+                       CommandDecision(command: "brightness", choice: "+10", confidence: 1))
+        XCTAssertEqual(try ChatDecider.parse(data: answer(#"```json {"command":"brightness","choice":"mute"} ```"#), status: 200, among: commands).get(),
+                       CommandDecision(command: "brightness", choice: nil, confidence: 1), "not one of its choices")
+        XCTAssertEqual(try ChatDecider.parse(data: answer(#"{"command":"none","choice":""}"#), status: 200, among: commands).get(),
+                       CommandDecision(command: nil, confidence: 1))
+        XCTAssertThrowsError(try ChatDecider.parse(data: Data(#"{"error":{"message":"No endpoints"}}"#.utf8), status: 404, among: commands).get())
+    }
+
+    func testTheModelSettingPicksTheDecider() {
+        XCTAssertTrue(makeCommandDecider(model: "jev", apiKey: "k") is JevDecider)
+        XCTAssertEqual((makeCommandDecider(model: "google/gemini-3.5-flash-lite", apiKey: "k") as? ChatDecider)?.model,
+                       "google/gemini-3.5-flash-lite")
+        XCTAssertEqual(makeSettings(self).commandModel, "jev")
+    }
+
     // MARK: Running
 
     func testResultIsTheFirstLineOfOutputOrTheLastLineOfErrors() {
@@ -123,7 +160,7 @@ final class CommandTests: XCTestCase {
 
     private func makeMode(_ decision: CommandDecision, log: EventLog = EventLog()) -> CommandMode {
         let mode = CommandMode(folder: folder(["brightness.py": brightness]), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
-        mode.makeDecider = { _ in FakeDecider(decision: decision, log: log) }
+        mode.makeDecider = { _, _ in FakeDecider(decision: decision, log: log) }
         mode.runScript = { [unowned self] url, choice in
             ran.append(url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-"))
             return CommandResult(ok: true, message: "Brightness 60%")
@@ -160,7 +197,7 @@ final class CommandTests: XCTestCase {
     @MainActor
     func testADeciderErrorIsTheResult() async {
         let mode = makeMode(CommandDecision(command: nil, confidence: 0))
-        mode.makeDecider = { _ in FakeDecider(decision: CommandDecision(command: nil, confidence: 0),
+        mode.makeDecider = { _, _ in FakeDecider(decision: CommandDecision(command: nil, confidence: 0),
                                              error: TranscriptionError.message("Couldn't pick a command: HTTP 500")) }
         let run = await mode.handle("brighter", apiKey: "k")
         XCTAssertEqual(run.result, "Couldn't pick a command: HTTP 500")
@@ -230,7 +267,7 @@ final class CommandTests: XCTestCase {
 
     // MARK: Live
 
-    /// The real Jev, through `CommandMode.handle` with the example commands (scripts faked, so
+    /// The real Jev (and a chat model), through `CommandMode.handle` with the example commands (scripts faked, so
     /// nothing on this Mac changes). Opt-in: ./test.sh --live (LIVE_OPENROUTER=1 OPENROUTER_API_KEY=…, ~$0.0002).
     @MainActor
     func testLiveJevPicksTheExampleCommands() async throws {
@@ -242,13 +279,15 @@ final class CommandTests: XCTestCase {
         CommandMode.installExamples(into: mode.folder)
         mode.runScript = { url, choice in CommandResult(ok: true, message: url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-")) }
         mode.pressReturn = {}
+        for model in ["jev", "deepseek/deepseek-v4.1-flash"] {
         for (said, expected) in [("make the screen a bit brighter", "brightness +10"), ("把亮度调到一半", "brightness 50"),
                                  ("声音小一点", "volume -10"), ("mute", "volume mute"), ("send it", "return"),
                                  ("open the pod bay doors", "none")] {
             let started = Date()
-            let run = await mode.handle(said, apiKey: key)
-            print("[live] \(said) → \(run.label) in \(String(format: "%.2f", Date().timeIntervalSince(started))) s")
-            XCTAssertEqual(run.label, expected, said)
+            let run = await mode.handle(said, apiKey: key, model: model)
+            print("[live] \(model): \(said) → \(run.label) in \(String(format: "%.2f", Date().timeIntervalSince(started))) s")
+            XCTAssertEqual(run.label, expected, "\(model): \(said)")
+        }
         }
     }
 

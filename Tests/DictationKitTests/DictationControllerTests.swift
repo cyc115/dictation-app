@@ -84,7 +84,7 @@ final class DictationControllerTests: XCTestCase {
         addTeardownBlock { overlay.hide() }
         commands = CommandMode(folder: makeTempURL(self, "Commands"), history: history)
         CommandMode.installExamples(into: commands.folder)
-        commands.makeDecider = { [unowned self] _ in FakeDecider(decision: decision, log: decided) }
+        commands.makeDecider = { [unowned self] _, _ in FakeDecider(decision: decision, log: decided) }
         commands.runScript = { [unowned self] url, choice in
             ran.append(url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-"))
             return CommandResult(ok: true, message: "Volume 40%")

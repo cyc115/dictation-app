@@ -1,0 +1,225 @@
+{
+  "about": "More commands for `suite.py commands run --catalog`: what a bigger commands folder could hold (things you'd want without a keyboard), so the test shows how a decision model copes with more to choose from. None of them fits the test set's \"none\" cases.",
+  "commands": [
+    {
+      "name": "media",
+      "summary": "Control music or video playback",
+      "choices": {
+        "play": "play / resume",
+        "pause": "pause / stop",
+        "next": "next track",
+        "previous": "previous track",
+        "restart": "start this track over"
+      }
+    },
+    {
+      "name": "lock",
+      "summary": "Lock the screen",
+      "choices": {}
+    },
+    {
+      "name": "sleep_displays",
+      "summary": "Turn the displays off (sleep)",
+      "choices": {}
+    },
+    {
+      "name": "screenshot",
+      "summary": "Take a screenshot",
+      "choices": {
+        "screen": "the whole screen",
+        "window": "the front window",
+        "area": "pick an area"
+      }
+    },
+    {
+      "name": "dark_mode",
+      "summary": "Switch between dark and light appearance",
+      "choices": {
+        "on": "dark",
+        "off": "light",
+        "toggle": "switch"
+      }
+    },
+    {
+      "name": "focus",
+      "summary": "Do Not Disturb / Focus mode",
+      "choices": {
+        "on": "turn on",
+        "off": "turn off"
+      }
+    },
+    {
+      "name": "wifi",
+      "summary": "Turn Wi-Fi on or off",
+      "choices": {
+        "on": "on",
+        "off": "off"
+      }
+    },
+    {
+      "name": "bluetooth",
+      "summary": "Turn Bluetooth on or off",
+      "choices": {
+        "on": "on",
+        "off": "off"
+      }
+    },
+    {
+      "name": "audio_output",
+      "summary": "Switch the sound output device",
+      "choices": {
+        "speakers": "the Mac's speakers",
+        "headphones": "headphones / earbuds",
+        "monitor": "the monitor's speakers"
+      }
+    },
+    {
+      "name": "window",
+      "summary": "Move or resize the front window",
+      "choices": {
+        "left": "left half",
+        "right": "right half",
+        "maximize": "fill the screen",
+        "center": "center it",
+        "next_display": "move to the next display",
+        "minimize": "minimize"
+      }
+    },
+    {
+      "name": "app_switch",
+      "summary": "Switch to the previous app (like ⌘Tab)",
+      "choices": {}
+    },
+    {
+      "name": "mission_control",
+      "summary": "Show all windows (Mission Control)",
+      "choices": {}
+    },
+    {
+      "name": "show_desktop",
+      "summary": "Show the desktop",
+      "choices": {}
+    },
+    {
+      "name": "scroll",
+      "summary": "Scroll the front window",
+      "choices": {
+        "down": "down a page",
+        "up": "up a page",
+        "top": "to the top",
+        "bottom": "to the bottom"
+      }
+    },
+    {
+      "name": "zoom",
+      "summary": "Zoom in or out in the front app",
+      "choices": {
+        "in": "bigger",
+        "out": "smaller",
+        "reset": "actual size"
+      }
+    },
+    {
+      "name": "tab",
+      "summary": "Browser or editor tabs",
+      "choices": {
+        "new": "open a new tab",
+        "close": "close this tab",
+        "next": "next tab",
+        "previous": "previous tab",
+        "reopen": "reopen the closed tab"
+      }
+    },
+    {
+      "name": "undo",
+      "summary": "Undo or redo the last edit",
+      "choices": {
+        "undo": "undo",
+        "redo": "redo"
+      }
+    },
+    {
+      "name": "clipboard",
+      "summary": "Copy, paste or select",
+      "choices": {
+        "copy": "copy",
+        "paste": "paste",
+        "select_all": "select all",
+        "cut": "cut"
+      }
+    },
+    {
+      "name": "delete_dictation",
+      "summary": "Delete the text just dictated",
+      "choices": {
+        "last": "the last dictation",
+        "word": "the last word",
+        "sentence": "the last sentence"
+      }
+    },
+    {
+      "name": "escape",
+      "summary": "Press Escape (cancel / close a dialog)",
+      "choices": {}
+    },
+    {
+      "name": "new_line",
+      "summary": "Insert a line break without sending",
+      "choices": {}
+    },
+    {
+      "name": "save",
+      "summary": "Save the document (⌘S)",
+      "choices": {}
+    },
+    {
+      "name": "quit_app",
+      "summary": "Quit the front app",
+      "choices": {}
+    },
+    {
+      "name": "close_window",
+      "summary": "Close the front window",
+      "choices": {}
+    },
+    {
+      "name": "fullscreen",
+      "summary": "Toggle full screen for the front window",
+      "choices": {}
+    },
+    {
+      "name": "keyboard_brightness",
+      "summary": "Keyboard backlight",
+      "choices": {
+        "+10": "brighter",
+        "-10": "dimmer",
+        "0": "off"
+      }
+    },
+    {
+      "name": "caffeinate",
+      "summary": "Keep the Mac awake",
+      "choices": {
+        "30m": "30 minutes",
+        "1h": "an hour",
+        "off": "stop keeping awake"
+      }
+    },
+    {
+      "name": "polish",
+      "summary": "Switch AI polish on or off for the next dictation",
+      "choices": {
+        "on": "polish on",
+        "off": "polish off"
+      }
+    },
+    {
+      "name": "night_shift",
+      "summary": "Night Shift warmer colors",
+      "choices": {
+        "on": "on",
+        "off": "off"
+      }
+    }
+  ]
+}

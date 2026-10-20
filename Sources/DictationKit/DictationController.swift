@@ -284,7 +284,7 @@ final class DictationController {
         }
         Task { @MainActor [weak self] in
             guard let self else { return }
-            let run = await self.commandMode.handle(said, apiKey: key)
+            let run = await self.commandMode.handle(said, apiKey: key, model: self.settings.commandModel)
             if !self.dictating { self.showResult(run) }  // a new dictation's pill stays
             self.finished(delivery)
         }

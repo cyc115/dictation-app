@@ -133,6 +133,68 @@ struct JevDecider: CommandDecider {
     }
 }
 
+/// Any OpenRouter chat model as the decider (bench/suite.py commands compares them with Jev): told
+/// the commands and their choices, it answers JSON {"command", "choice"}, the command an enum.
+struct ChatDecider: CommandDecider {
+    let model: String
+    let apiKey: String
+    var session: URLSession = .shared
+
+    func decide(_ said: String, among commands: [Command]) async throws -> CommandDecision {
+        let (data, response) = try await session.data(for: Self.request(said, among: commands, model: model, apiKey: apiKey))
+        return try Self.parse(data: data, status: (response as? HTTPURLResponse)?.statusCode ?? 0, among: commands).get()
+    }
+
+    static func prompt(_ commands: [Command]) -> String {
+        var lines = ["You pick the command for what the user said (often transcribed speech, English, Chinese or both).", "Commands:"]
+        for command in commands {
+            let choices = command.choices.map { "\($0.value) = \($0.meaning)" }.joined(separator: "; ")
+            lines.append("- \(command.name): \(command.summary)" + (choices.isEmpty ? "" : ". Choices: " + choices))
+        }
+        lines.append(#"Answer JSON {"command": <name, or "none" if no command does it>, "choice": <one of that command's choices, or "" if it has none>}. If it isn't a request to run one of these, answer none."#)
+        return lines.joined(separator: "\n")
+    }
+
+    static func request(_ said: String, among commands: [Command], model: String, apiKey: String) -> URLRequest {
+        var request = OpenRouter.request(OpenRouterPolish.endpoint, apiKey: apiKey)
+        request.timeoutInterval = 10
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let values = Array(Set(commands.flatMap { $0.choices.map(\.value) } + [""])).sorted()
+        let schema: [String: Any] = ["type": "object", "additionalProperties": false, "required": ["command", "choice"], "properties": [
+            "command": ["type": "string", "enum": commands.map(\.name) + ["none"]],
+            "choice": ["type": "string", "enum": values],
+        ]]
+        let body: [String: Any] = [
+            "model": model, "temperature": 0, "max_tokens": 80, "reasoning": OpenRouterPolish.reasoning(for: model),
+            "messages": [["role": "system", "content": prompt(commands)], ["role": "user", "content": said]],
+            "response_format": ["type": "json_schema", "json_schema": ["name": "command", "strict": true, "schema": schema]],
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        return request
+    }
+
+    /// A command it named that doesn't exist is "none"; a choice that isn't that command's is dropped.
+    static func parse(data: Data, status: Int, among commands: [Command]) -> Result<CommandDecision, Error> {
+        let json = OpenRouter.json(data)
+        guard status == 200, let content = ((json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any])?["content"] as? String,
+              let start = content.firstIndex(of: "{"), let end = content.lastIndex(of: "}"),
+              let picked = OpenRouter.json(Data(content[start...end].utf8)) else {
+            let message = OpenRouter.errorMessage(json) ?? "HTTP \(status)"
+            return .failure(TranscriptionError.message("Couldn't pick a command: \(message)"))
+        }
+        guard let name = picked["command"] as? String, let command = commands.first(where: { $0.name == name }) else {
+            return .success(CommandDecision(command: nil, confidence: 1))
+        }
+        let choice = (picked["choice"] as? String).flatMap { value in command.choices.contains { $0.value == value } ? value : nil }
+        return .success(CommandDecision(command: name, choice: choice, confidence: 1))
+    }
+}
+
+/// The decider for a model setting: "jev" (default), or an OpenRouter chat model id.
+func makeCommandDecider(model: String, apiKey: String) -> CommandDecider {
+    model == "jev" || model == JevDecider.model ? JevDecider(apiKey: apiKey) : ChatDecider(model: model, apiKey: apiKey)
+}
+
 /// How a command went: its script's first line of output ("Brightness 70%"), or why it failed.
 struct CommandResult: Equatable {
     var ok: Bool
@@ -163,7 +225,8 @@ final class CommandMode {
 
     let folder: URL
     let history: HistoryStore
-    var makeDecider: (String) -> CommandDecider = { JevDecider(apiKey: $0) }
+    /// (model, API key) → the decider; tests fake it.
+    var makeDecider: (String, String) -> CommandDecider = { makeCommandDecider(model: $0, apiKey: $1) }
     /// Runs a script with a choice (tests fake it).
     var runScript: (URL, String?) async -> CommandResult = { await CommandMode.run(script: $0, choice: $1) }
     var pressReturn: () -> Void = { TextInjector().pressReturn() }
@@ -188,11 +251,11 @@ final class CommandMode {
 
     /// Decides what `said` asks for and runs it; the run is saved to History.
     @MainActor
-    func handle(_ said: String, apiKey: String) async -> CommandRun {
+    func handle(_ said: String, apiKey: String, model: String = "jev") async -> CommandRun {
         let commands = self.commands
         var run = CommandRun(said: said)
         do {
-            let decision = try await makeDecider(apiKey).decide(said, among: commands)
+            let decision = try await makeDecider(model, apiKey).decide(said, among: commands)
             if let name = decision.command, decision.confidence >= CommandDecision.minConfidence {
                 run.command = name
                 run.choice = decision.choice

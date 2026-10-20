@@ -132,6 +132,22 @@ bench/suite.py polish run -m setup:cloud-flash --corrections --prompt-file ~/Lib
   `result.general`, `result.acted` (must not rise) and `elapsed`. One tune is 16 teacher calls and
   about 300 student calls. Oct 14 results: `results/polish/README.md`.
 
+## Command mode's decision model (`suite.py commands`)
+
+Does what you said run the right command (`command_cases.json`: English, Chinese, mixed, fillers,
+speech-model errors, and things that aren't commands), how fast and how cheaply. `jev` is asked
+exactly as the app's `JevDecider` asks; `openrouter:<id>` as its `ChatDecider`. `--catalog` adds 29
+more commands to choose from. Results and Jev's limits: [`results/commands/`](results/commands/README.md).
+
+```sh
+bench/suite.py commands run                       # Jev and six chat models
+bench/suite.py commands run -m jev -m openrouter:deepseek/deepseek-v4.1-flash -r 3 --catalog
+bench/suite.py commands report --failures jev
+```
+
+The app uses the model in its `commandModel` setting (default `jev`; any OpenRouter chat model id
+works): `defaults write com.mikechen.DictationApp commandModel <id>`.
+
 ## Speech-to-text accuracy (`suite.py accuracy` = `bench.py`)
 
 Compares dictation models on the same audio: **Chinese with English mixed in**, **Chinese only**,

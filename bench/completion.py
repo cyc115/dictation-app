@@ -50,7 +50,9 @@ def _option(p: argparse.ArgumentParser, word: str) -> argparse.Action | None:
 
 
 def _models(suite: str, dest: str) -> list[tuple[str, str]]:
-    from suites import latency, polish
+    from suites import commands, latency, polish
+    if suite == "commands":
+        return [(m, "decision model" + (" (the app's default)" if m == "jev" else "")) for m in commands.DEFAULT_MODELS]
     if suite == "latency" and dest == "stt":
         return [(k, f"{title} ({spec})") for k, (spec, title) in latency.STT_ALIASES.items()]
     known = polish.setups()
