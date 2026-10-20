@@ -337,8 +337,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     /// Your own setups, added after the built-in ones in Settings → Model. Re-read whenever Settings
     /// opens. `{"setups": [ … ]}`, each like an entry of `builtInJSON` (`summary`, `backup…` and
     /// `wrap` are optional; `prompt` can be a file path).
-    static let customFile: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("DictationApp/setups.json")
+    static let customFile = AppPaths.file("setups.json")
 
     /// The valid setups in `url`, and what was wrong with the rest; nothing (and no error) without a file.
     static func loadCustom(from url: URL = customFile) -> (setups: [DictationSetup], error: String?) {

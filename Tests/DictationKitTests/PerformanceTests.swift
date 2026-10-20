@@ -152,9 +152,7 @@ final class PerformanceTests: XCTestCase {
         let entries = (0..<5_000).map {
             HistoryEntry(date: Date().addingTimeInterval(Double(-$0 * 60)), text: sentence, duration: 6)
         }
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(entries).write(to: url)
+        try JSONFile.write(entries, to: url)
 
         assertFaster(than: 0.25, "load 5k-entry history") {
             XCTAssertEqual(HistoryStore(fileURL: url, defaults: defaults).entries.count, 5_000)

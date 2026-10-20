@@ -848,9 +848,7 @@ final class SnapshotTests: XCTestCase {
             HistoryEntry(date: fixedDate(2026, 1, 5, 18, 2), text: "Short one.", duration: 1),
         ]
         entries[2].correction = "Short one, corrected."
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        try? encoder.encode(entries).write(to: url)
+        JSONFile.save(entries, to: url)
         let store = HistoryStore(fileURL: url, defaults: makeDefaults(self))
         let hosted = HostedView(HistoryView(store: store), size: NSSize(width: 760, height: 520))
         addTeardownBlock { hosted.close() }
@@ -876,9 +874,7 @@ final class SnapshotTests: XCTestCase {
                                duration: 2, setup: "on-device")
         mac.correction = "All right. Let's push these changes. 那你想让我看什么？"
         let plain = HistoryEntry(date: fixedDate(2026, 10, 7, 1, 0), text: "Not corrected.", duration: 1)
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        try? encoder.encode([flash, mac, plain]).write(to: url)
+        JSONFile.save([flash, mac, plain], to: url)
         let store = HistoryStore(fileURL: url, defaults: makeDefaults(self))
         let hosted = HostedView(CorrectionsView(store: store), size: NSSize(width: 760, height: 480))
         addTeardownBlock { hosted.close() }

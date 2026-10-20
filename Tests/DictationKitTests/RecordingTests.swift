@@ -17,9 +17,7 @@ final class RecordingArchiveTests: XCTestCase {
     }
 
     private func info(_ url: URL) throws -> RecordingInfo {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(RecordingInfo.self, from: Data(contentsOf: url.deletingPathExtension().appendingPathExtension("json")))
+        try JSONFile.decoder.decode(RecordingInfo.self, from: Data(contentsOf: url.deletingPathExtension().appendingPathExtension("json")))
     }
 
     func testKeepMovesTheWAVAndWritesWhatWasHeard() throws {
@@ -116,7 +114,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
     }
 
     private func info(_ wav: URL) throws -> RecordingInfo {
-        try RecordingArchive.decoder.decode(RecordingInfo.self, from: Data(contentsOf: wav.deletingPathExtension().appendingPathExtension("json")))
+        try JSONFile.decoder.decode(RecordingInfo.self, from: Data(contentsOf: wav.deletingPathExtension().appendingPathExtension("json")))
     }
 
     func testCloudDictationKeepsRawAndPolishedTranscript() throws {
@@ -174,7 +172,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
 
     func testOldRecordingsWithoutPolishStillDecode() throws {
         let json = #"{"date":"2026-10-08T22:57:00Z","model":"apple:en-US","seconds":1,"transcript":"hi"}"#
-        let saved = try RecordingArchive.decoder.decode(RecordingInfo.self, from: Data(json.utf8))
+        let saved = try JSONFile.decoder.decode(RecordingInfo.self, from: Data(json.utf8))
         XCTAssertEqual(saved.transcript, "hi")
         XCTAssertNil(saved.polishEnabled)
     }

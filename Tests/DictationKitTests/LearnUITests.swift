@@ -31,9 +31,7 @@ struct LearnFixture {
             entry.correction = "Can you install Claude Code \(n)?"
             entries.append(entry)
         }
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        try? encoder.encode(entries).write(to: url)
+        JSONFile.save(entries, to: url)
         history = HistoryStore(fileURL: url, defaults: makeDefaults(test))
         let general = [GeneralCase(id: "g1", raw: "general one", expected: "general one"),
                        GeneralCase(id: "g2", raw: "general two", expected: "general two")]

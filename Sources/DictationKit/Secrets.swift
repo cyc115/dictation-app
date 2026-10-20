@@ -10,8 +10,7 @@ protocol SecretStore: AnyObject {
 /// and looser permissions are tightened before every read. Not the Keychain: this app has no Apple
 /// team ID, so the Keychain saw each build as a new app and asked for your password again.
 final class FileSecretStore: SecretStore {
-    static let defaultFile = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("DictationApp/secrets.json")
+    static let defaultFile = AppPaths.file("secrets.json")
     let file: URL
 
     init(file: URL = FileSecretStore.defaultFile) { self.file = file }

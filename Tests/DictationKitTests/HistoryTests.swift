@@ -87,9 +87,7 @@ final class HistoryStoreTests: XCTestCase {
         let url = makeTempURL(self), defaults = makeDefaults(self)
         let old = HistoryEntry(date: Date().addingTimeInterval(-10 * 86_400), text: "old", duration: 1)
         let recent = HistoryEntry(date: Date().addingTimeInterval(-3600), text: "recent", duration: 1)
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode([recent, old]).write(to: url)
+        try JSONFile.write([recent, old], to: url)
         defaults.set(HistoryRetention.days7.rawValue, forKey: "historyRetention")
         let store = HistoryStore(fileURL: url, defaults: defaults)
         XCTAssertEqual(store.entries.map(\.text), ["recent"])
@@ -145,9 +143,7 @@ final class HistoryStoreTests: XCTestCase {
         let url = makeTempURL(self), defaults = makeDefaults(self)
         var old = HistoryEntry(date: Date().addingTimeInterval(-10 * 86_400), text: "old", duration: 1)
         old.correction = "old, fixed"
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode([old]).write(to: url)
+        try JSONFile.write([old], to: url)
         defaults.set(HistoryRetention.days7.rawValue, forKey: "historyRetention")
         XCTAssertEqual(HistoryStore(fileURL: url, defaults: defaults).entries.map(\.text), ["old"])
     }

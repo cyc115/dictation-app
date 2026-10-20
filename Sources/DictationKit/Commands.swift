@@ -217,8 +217,7 @@ final class CommandMode {
     static let shared = CommandMode(history: .shared)
     /// Beside History, so you (or an AI you ask) can add and change commands there; read afresh for
     /// every command.
-    static let defaultFolder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("DictationApp/Commands", isDirectory: true)
+    static let defaultFolder = AppPaths.directory("Commands")
     /// The commands the app comes with (brightness, volume).
     static let examples = Bundle.module.url(forResource: "ExampleCommands", withExtension: nil)
     static let timeout: TimeInterval = 10

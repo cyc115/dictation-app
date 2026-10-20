@@ -109,27 +109,14 @@ final class HistoryStore: ObservableObject {
     }
     private let defaults: UserDefaults
 
-    static let defaultFileURL: URL = {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("DictationApp", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("history.json")
-    }()
+    static let defaultFileURL = AppPaths.file("history.json")
 
     init(fileURL: URL = HistoryStore.defaultFileURL, defaults: UserDefaults = .standard) {
         self.fileURL = fileURL
         self.defaults = defaults
         retention = HistoryRetention(rawValue: defaults.string(forKey: "historyRetention") ?? "") ?? .forever
-        if let data = try? Data(contentsOf: fileURL) {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            entries = (try? decoder.decode([HistoryEntry].self, from: data)) ?? []
-        }
-        if let data = try? Data(contentsOf: commandsURL) {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            commands = (try? decoder.decode([CommandRun].self, from: data)) ?? []
-        }
+        entries = JSONFile.read([HistoryEntry].self, from: fileURL) ?? []
+        commands = JSONFile.read([CommandRun].self, from: commandsURL) ?? []
         prune()
     }
 
@@ -233,20 +220,12 @@ final class HistoryStore: ObservableObject {
         }
     }
 
-    private func saveCommands() {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(commands) else { return }
-        try? data.write(to: commandsURL, options: .atomic)
-    }
+    private func saveCommands() { JSONFile.save(commands, to: commandsURL) }
 
     private func save() {
         pendingSave?.cancel()
         pendingSave = nil
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(entries) else { return }
-        try? data.write(to: fileURL, options: .atomic)
+        JSONFile.save(entries, to: fileURL)
     }
 }
 

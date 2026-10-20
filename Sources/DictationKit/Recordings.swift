@@ -59,10 +59,9 @@ final class RecordingNote {
     private func update(_ change: (RecordingNote) -> Void) {
         lock.lock(); defer { lock.unlock() }
         change(self)
-        guard let json = json, let data = try? Data(contentsOf: json),
-              var info = try? RecordingArchive.decoder.decode(RecordingInfo.self, from: data) else { return }
+        guard let json = json, var info = JSONFile.read(RecordingInfo.self, from: json) else { return }
         apply(to: &info)
-        try? RecordingArchive.encoder.encode(info).write(to: json)
+        JSONFile.save(info, to: json, pretty: true)
     }
 
     /// Called by the archive: writes `info` with the polish so far to `json`.
@@ -70,7 +69,7 @@ final class RecordingNote {
         lock.lock(); defer { lock.unlock() }
         var info = info
         apply(to: &info)
-        try RecordingArchive.encoder.encode(info).write(to: json)
+        try JSONFile.write(info, to: json, pretty: true)
         self.json = json
     }
 
@@ -130,8 +129,7 @@ final class DictationRecording {
 /// Stays on this Mac. Cancelled dictations are never kept.
 final class RecordingArchive {
     static let shared = RecordingArchive()
-    static let defaultDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("DictationApp/Recordings", isDirectory: true)
+    static let defaultDirectory = AppPaths.directory("Recordings")
 
     let directory: URL
 
@@ -160,7 +158,7 @@ final class RecordingArchive {
             try fm.createDirectory(at: directory, withIntermediateDirectories: true)
             try fm.moveItem(at: wav, to: dest)
             let json = directory.appendingPathComponent(name + ".json")
-            if let note = note { try note.keep(info, at: json) } else { try Self.encoder.encode(info).write(to: json) }
+            if let note = note { try note.keep(info, at: json) } else { try JSONFile.write(info, to: json, pretty: true) }
             return dest
         } catch {
             try? fm.removeItem(at: wav)
@@ -171,8 +169,7 @@ final class RecordingArchive {
     /// What was heard for each kept recording.
     var infos: [RecordingInfo] {
         recordings.compactMap { wav in
-            (try? Data(contentsOf: wav.deletingPathExtension().appendingPathExtension("json")))
-                .flatMap { try? Self.decoder.decode(RecordingInfo.self, from: $0) }
+            JSONFile.read(RecordingInfo.self, from: wav.deletingPathExtension().appendingPathExtension("json"))
         }
     }
 
@@ -181,19 +178,6 @@ final class RecordingArchive {
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
         return files.filter { $0.pathExtension == "wav" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
-
-    static let encoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return encoder
-    }()
-
-    static let decoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
-    }()
 
     func showInFinder() {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

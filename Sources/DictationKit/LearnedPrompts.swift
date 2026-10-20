@@ -59,7 +59,7 @@ final class LearnedPromptStore: ObservableObject {
 
     let fileURL: URL
 
-    static let defaultFileURL = HistoryStore.defaultFileURL.deletingLastPathComponent().appendingPathComponent("learned-prompts.json")
+    static let defaultFileURL = AppPaths.file("learned-prompts.json")
 
     private struct File: Codable {
         var active: [String: String]
@@ -69,14 +69,10 @@ final class LearnedPromptStore: ObservableObject {
 
     init(fileURL: URL = LearnedPromptStore.defaultFileURL) {
         self.fileURL = fileURL
-        if let data = try? Data(contentsOf: fileURL) {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            if let file = try? decoder.decode(File.self, from: data) {
-                prompts = file.prompts
-                active = file.active
-                measurements = file.measurements ?? [:]
-            }
+        if let file = JSONFile.read(File.self, from: fileURL) {
+            prompts = file.prompts
+            active = file.active
+            measurements = file.measurements ?? [:]
         }
     }
 
@@ -139,14 +135,9 @@ final class LearnedPromptStore: ObservableObject {
     }
 
     private func save() {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let folder = fileURL.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: folder.appendingPathComponent("prompts"), withIntermediateDirectories: true)
-        if let data = try? encoder.encode(File(active: active, prompts: prompts, measurements: measurements)) {
-            try? data.write(to: fileURL, options: .atomic)
-        }
+        JSONFile.save(File(active: active, prompts: prompts, measurements: measurements), to: fileURL, pretty: true)
         for prompt in prompts {
             try? (prompt.text + "\n").write(to: folder.appendingPathComponent("prompts/\(prompt.version).txt"), atomically: true, encoding: .utf8)
         }
