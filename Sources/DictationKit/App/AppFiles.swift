@@ -53,3 +53,25 @@ enum JSONFile {
         try? write(value, to: url, pretty: pretty)
     }
 }
+
+/// Calls `onChange` (on the main queue) when a file is added, removed or renamed in one of the
+/// folders, which is how editors save, so it also catches most edits. A folder that doesn't exist
+/// yet isn't watched; make a new watcher once it does.
+final class FolderWatcher {
+    private var sources: [DispatchSourceFileSystemObject] = []
+
+    init(_ folders: [URL], onChange: @escaping () -> Void) {
+        for folder in folders {
+            let descriptor = open(folder.path, O_EVTONLY)
+            guard descriptor >= 0 else { continue }
+            let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor,
+                                                                   eventMask: [.write, .rename, .delete], queue: .main)
+            source.setEventHandler(handler: onChange)
+            source.setCancelHandler { close(descriptor) }
+            source.resume()
+            sources.append(source)
+        }
+    }
+
+    deinit { sources.forEach { $0.cancel() } }
+}

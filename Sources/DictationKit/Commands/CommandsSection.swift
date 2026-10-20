@@ -32,13 +32,11 @@ struct CommandsSection: View {
 /// switch to turn a script off (a script that fails is turned off for you).
 struct CommandsList: View {
     let folder: URL
-    @State private var commands: [Command] = []
-    @State private var disabled: [Command] = []
+    @StateObject private var list = CommandsInFolder()
 
-    private func reload() {
-        commands = Command.all(in: folder)
-        disabled = Command.disabled(in: folder)
-    }
+    private var commands: [Command] { list.commands }
+    private var disabled: [Command] { list.disabled }
+    private func reload() { list.load(folder) }
 
     var body: some View {
         SettingRow("Commands folder", (folder.path as NSString).abbreviatingWithTildeInPath) {
@@ -83,5 +81,20 @@ struct CommandsList: View {
         }
         Text("Add a Python script to the folder, or say “create command” and what it should do. A script's docstring's first line says what it does, and lines under “Choices:” what it can be told (value: meaning). It's run with uv; one that fails is turned off.")
             .font(.callout).foregroundStyle(.secondary)
+    }
+}
+
+/// The folder's commands, on and off, read again whenever a script is added, removed or renamed
+/// there (a "create command", a script you save, a switch), so the list is never stale.
+final class CommandsInFolder: ObservableObject {
+    @Published private(set) var commands: [Command] = []
+    @Published private(set) var disabled: [Command] = []
+    private var watcher: FolderWatcher?
+
+    func load(_ folder: URL) {
+        commands = Command.all(in: folder)
+        disabled = Command.disabled(in: folder)
+        // Made afresh each time, so a folder that has only just appeared (Disabled) is watched too.
+        watcher = FolderWatcher([folder, Command.disabledFolder(folder)]) { [weak self] in self?.load(folder) }
     }
 }

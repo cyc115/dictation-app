@@ -42,6 +42,20 @@ final class CommandUITests: XCTestCase {
         XCTAssertNil(hosted.element(id: "command.switch.repeat"), "built-ins can't be turned off")
     }
 
+    func testANewScriptShowsUpWithoutReopening() throws {
+        let folder = makeTempURL(self, "Commands")
+        CommandMode.installExamples(into: folder)
+        let hosted = HostedView(Form { CommandsList(folder: folder) }.formStyle(.grouped), size: NSSize(width: 640, height: 600))
+        addTeardownBlock { hosted.close() }
+        XCTAssertNil(hosted.element(id: "command.open-website"))
+        try "\"\"\"Open a website.\"\"\"\n".write(to: folder.appendingPathComponent("open-website.py"), atomically: true, encoding: .utf8)
+        waitUntil { hosted.element(id: "command.open-website") != nil }
+        XCTAssertNotNil(hosted.element(id: "command.open-website"), "a create command or a saved script shows right away")
+        try FileManager.default.removeItem(at: folder.appendingPathComponent("open-website.py"))
+        waitUntil { hosted.element(id: "command.open-website") == nil }
+        XCTAssertNil(hosted.element(id: "command.open-website"))
+    }
+
     func testASwitchTurnsAScriptOffAndOn() throws {
         let services = makeServices(self)
         let folder = services.commands.folder
