@@ -263,7 +263,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
         func check(_ field: String, _ value: String, apple: Bool) throws {
             switch ModelSpec(value) {
             case .apple(locale: nil) where apple, .openRouter: return
-            case .apple, .local where field == "speech": return
+            case .apple where field == "speech", .local where field == "speech": return
             default:
                 let allowed = field == "speech" ? "\"local:<Hugging Face id>\", \"apple[:<locale>]\" or \"openrouter:<model id>\""
                     : (apple ? "\"apple\" or " : "") + "\"openrouter:<model id>[@Provider]\""

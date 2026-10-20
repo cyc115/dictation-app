@@ -107,6 +107,8 @@ final class SetupTests: XCTestCase {
               {"id": "cloud-flash", "title": "Clash", "speech": "apple", "polish": "apple", "prompt": "v1"},
               {"id": "bad-prompt", "title": "Bad", "speech": "apple", "polish": "apple", "prompt": "v9"},
               {"id": "bad-speech", "title": "Bad", "speech": "whisper", "polish": "apple", "prompt": "v1"},
+              {"id": "bad-polish", "title": "Bad", "speech": "apple", "polish": "apple:en-US", "prompt": "v1"},
+              {"id": "bad-local-polish", "title": "Bad", "speech": "apple", "polish": "local:some/model", "prompt": "v1"},
               {"id": "bad-backup", "title": "Bad", "speech": "apple", "backup": "m", "polish": "apple", "prompt": "v1"},
               {"id": "bad-polish-backup", "title": "Bad", "speech": "apple", "polish": "apple", "polishBackup": "openrouter:m", "prompt": "v1"}
             ]}
@@ -114,7 +116,7 @@ final class SetupTests: XCTestCase {
         let loaded = DictationSetup.loadCustom(from: url)
         XCTAssertEqual(loaded.setups.map(\.id), ["ok"])
         let error = try XCTUnwrap(loaded.error)
-        for part in ["cloud-flash: id already used", "unknown prompt \"v9\"", "bad-speech: speech must be",
+        for part in ["cloud-flash: id already used", "unknown prompt \"v9\"", "bad-speech: speech must be", "bad-polish: polish must be", "bad-local-polish: polish must be",
                      "bad-backup: a backup only works with cloud speech",
                      "bad-polish-backup: a polish backup only works with cloud polish"] {
             XCTAssertTrue(error.contains(part), error)

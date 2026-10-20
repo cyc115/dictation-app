@@ -76,8 +76,8 @@ final class LocalSpeechModel: ObservableObject {
                     directory = found
                 } else {
                     state = .downloading(0)
-                    directory = try await runtime.download(repo) { [weak self] fraction in
-                        if self?.isDownloading == true { self?.state = .downloading(fraction) }
+                    directory = try await runtime.download(repo) { fraction in
+                        if self.isDownloading { self.state = .downloading(fraction) }
                     }
                 }
                 state = .loading
@@ -134,7 +134,7 @@ final class LocalSpeechModel: ObservableObject {
     private func startIdleTimer() {
         idleTimer?.invalidate()
         idleTimer = Timer.scheduledTimer(withTimeInterval: idleCheckEvery, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.unloadIfIdle() }
+            MainActor.assumeIsolated { _ = self?.unloadIfIdle() }
         }
         idleTimer?.tolerance = idleCheckEvery / 2
     }
@@ -244,7 +244,7 @@ final class MLXSpeechRuntime: SpeechRuntime {
             let model = try await Qwen3ASRModel.fromModelDirectory(directory)
             // Buffers MLX keeps for reuse after a transcription; without a limit they hold on to
             // gigabytes between dictations.
-            MLX.GPU.set(cacheLimit: 256 * 1024 * 1024)
+            MLX.Memory.cacheLimit = 256 * 1024 * 1024
             // The first decode compiles the GPU kernels (6.4 s for a 3.5 s clip, then 0.4–0.6 s):
             // pay that here, while loading, rather than on the first dictation.
             _ = model.generate(audio: MLXArray.zeros([8_000]), generationParameters: STTGenerateParameters(maxTokens: 8, temperature: 0))
@@ -261,7 +261,7 @@ final class MLXSpeechRuntime: SpeechRuntime {
 
         func unload() {
             model = nil
-            MLX.GPU.clearCache()
+            MLX.Memory.clearCache()
         }
     }
 }

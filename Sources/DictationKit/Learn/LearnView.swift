@@ -295,7 +295,7 @@ struct CandidateRow: View {
     var body: some View {
         VStack(spacing: 5) {
             HStack {
-                (Text(lens.title).fontWeight(.medium) + Text(" · \(lens.blurb)").foregroundStyle(.secondary)).font(.callout)
+                Text("\(Text(lens.title).fontWeight(.medium))\(Text(" · \(lens.blurb)").foregroundStyle(.secondary))").font(.callout)
                 if state == .won {
                     Text("best").font(.caption2.weight(.semibold)).foregroundStyle(LearnView.good)
                         .padding(.horizontal, 6).padding(.vertical, 1).background(LearnView.good.opacity(0.16), in: Capsule())
