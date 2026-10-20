@@ -37,7 +37,9 @@ final class FakeEngine: DictationEngine {
 final class OverlayLog: OverlayWindow {
     private(set) var shown: [Mode] = []
     private func log() { if shown.last != mode { shown.append(mode) } }
-    override func showListening(micName: String? = nil, warmingUp: Bool = false) { super.showListening(micName: micName, warmingUp: warmingUp); log() }
+    override func showListening(micName: String? = nil, warmingUp: Bool = false, command: Bool = false) {
+        super.showListening(micName: micName, warmingUp: warmingUp, command: command); log()
+    }
     override func showProcessing() { super.showProcessing(); log() }
     override func showMessage(_ text: String, hideAfter seconds: TimeInterval = 3) { super.showMessage(text, hideAfter: seconds); log() }
     override func hide() { super.hide(); log() }
@@ -54,6 +56,10 @@ final class DictationControllerTests: XCTestCase {
     /// What reached the app, in order: "paste:<text>", "return".
     private var keys: [String] = []
     private var idle = 0
+    private var commands: CommandMode!
+    private var decision = CommandDecision(command: "volume", choice: "-10", confidence: 0.99)
+    private let decided = EventLog()
+    private var ran: [String] = []
 
     /// `realEngines`: the app's own engine choice instead of `engine`.
     private func makeController(realEngines: Bool = false, overlay: OverlayWindow = OverlayWindow()) -> DictationController {
@@ -76,9 +82,17 @@ final class DictationControllerTests: XCTestCase {
         overlay.makePanel = { OffscreenPanel(contentRect: $0, styleMask: [.borderless, .nonactivatingPanel],
                                              backing: .buffered, defer: false) }
         addTeardownBlock { overlay.hide() }
+        commands = CommandMode(folder: makeTempURL(self, "Commands"), history: history)
+        CommandMode.installExamples(into: commands.folder)
+        commands.makeDecider = { [unowned self] _ in FakeDecider(decision: decision, log: decided) }
+        commands.runScript = { [unowned self] url, choice in
+            ran.append(url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-"))
+            return CommandResult(ok: true, message: "Volume 40%")
+        }
         let controller = DictationController(
             settings: settings, overlay: overlay, injector: injector, history: history, insights: insights,
-            archive: RecordingArchive(directory: makeTempURL(self, "Recordings")), muter: OutputMuter(defaults: makeDefaults(self)))
+            archive: RecordingArchive(directory: makeTempURL(self, "Recordings")), muter: OutputMuter(defaults: makeDefaults(self)),
+            commandMode: commands)
         if !realEngines { controller.makeEngine = { [unowned self] _ in engine } }
         controller.activeInput = { _ in FakeMics.wired }  // not this Mac's mics
         controller.sendDelay = 0.01
@@ -222,10 +236,105 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(history.entries.first?.polishedBy, ModelAnswer(main: "polish-main", backup: "polish-backup", byBackup: true))
     }
 
+    // MARK: Command mode
+
+    func testEnterWhileIdleStartsACommandAndAgainRunsIt() {
+        let controller = makeController()
+        settings.setOpenRouterKey("test-key")
+        engine.text = "声音小一点"
+        controller.enter()
+        XCTAssertTrue(controller.dictating)
+        XCTAssertTrue(controller.forCommand)
+        XCTAssertTrue(controller.overlay.isCommand)
+        controller.enter()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(decided.events, ["decide: 声音小一点 among return,repeat,brightness,volume"])
+        XCTAssertEqual(ran, ["volume -10"])
+        XCTAssertEqual(pasted, [], "a command isn't typed")
+        XCTAssertEqual(keys, [], "nor sent")
+        XCTAssertEqual(history.entries, [], "nor saved as a dictation")
+        XCTAssertEqual(insights.words, 0)
+        XCTAssertEqual(history.commands.map(\.label), ["volume -10"])
+        XCTAssertEqual(controller.overlay.label.stringValue, "Volume 40%")
+        XCTAssertEqual(idle, 1)
+    }
+
+    func testNotFoundShowsWhatWasHeard() {
+        let controller = makeController()
+        settings.setOpenRouterKey("test-key")
+        engine.text = "open the pod bay doors"
+        decision = CommandDecision(command: nil, confidence: 1)
+        controller.enter()
+        controller.stop()  // the pill's ✓ runs it too
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(ran, [])
+        XCTAssertEqual(controller.overlay.label.stringValue, "Command not found\n“open the pod bay doors”")
+        XCTAssertEqual(history.commands.first?.result, "Command not found")
+    }
+
+    func testAFailedCommandSaysWhichAndWhy() {
+        let controller = makeController()
+        settings.setOpenRouterKey("test-key")
+        decision = CommandDecision(command: "brightness", choice: "+10", confidence: 0.97)
+        commands.runScript = { _, _ in CommandResult(ok: false, message: "No display whose brightness macOS can set") }
+        controller.enter()
+        controller.enter()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(controller.overlay.label.stringValue, "Brightness didn’t work\nNo display whose brightness macOS can set")
+    }
+
+    func testTheDictationButtonDoesNothingDuringACommand() {
+        let controller = makeController()
+        settings.setOpenRouterKey("test-key")
+        controller.enter()
+        controller.toggle()
+        XCTAssertTrue(controller.dictating, "only the Enter button (or ✓) runs it")
+        controller.cancel()
+        XCTAssertEqual(decided.events, [])
+    }
+
+    func testACommandNeedsTheAPIKey() {
+        let controller = makeController()
+        var missing = 0
+        controller.onMissingKey = { _ in missing += 1 }
+        controller.enter()
+        XCTAssertFalse(controller.dictating)
+        XCTAssertEqual(missing, 1)
+        XCTAssertEqual(controller.overlay.label.stringValue, "Add your cloud API key in Settings to use command mode")
+    }
+
+    func testACommandIsNotPolishedOrKept() {
+        let controller = makeController()
+        settings.setOpenRouterKey("test-key")
+        settings.polishEnabled = true
+        settings.keepRecordings = true
+        var polished = 0
+        controller.makePolish = { _ in polished += 1; return PolishService(backend: FakePolish(delay: 0, log: EventLog())) }
+        controller.enter()
+        XCTAssertEqual(polished, 0)
+        XCTAssertNil(engine.archive)
+        controller.enter()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(ran, ["volume -10"])
+    }
+
+    /// Right after a dictation stops, the Enter button still sends it: it doesn't start a command.
+    func testEnterRightAfterADictationStillSends() {
+        let controller = makeController()
+        settings.setOpenRouterKey("test-key")
+        controller.start()
+        controller.stop()
+        controller.enter()
+        XCTAssertFalse(controller.dictating)
+        waitUntil { !controller.isBusy && keys.count == 2 }
+        XCTAssertEqual(keys, ["paste:hello world", "return"])
+    }
+
     // MARK: Enter button
 
-    func testEnterWhileIdleJustPressesReturn() {
+    func testEnterWhileIdleJustPressesReturnWithCommandModeOff() {
         let controller = makeController()
+        settings.commandModeEnabled = false
         controller.enter()
         XCTAssertEqual(keys, ["return"])
         XCTAssertFalse(controller.isBusy)
@@ -253,6 +362,7 @@ final class DictationControllerTests: XCTestCase {
 
     func testEnterAfterAStopWaitsForTheTextThenSends() {
         let controller = makeController()
+        settings.commandModeEnabled = false  // Enter with nothing in progress: a plain Return
         controller.start()
         controller.stop()
         controller.enter()  // text still on the way
@@ -277,6 +387,7 @@ final class DictationControllerTests: XCTestCase {
 
     func testEnterSendsNothingWhenNothingWasHeard() {
         let controller = makeController()
+        settings.commandModeEnabled = false  // Enter with nothing in progress: a plain Return
         engine.text = "  "
         controller.start()
         controller.enter()

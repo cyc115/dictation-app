@@ -38,6 +38,11 @@ cloud models can handle **English mixed into Chinese**, which the built-in macOS
   typical dictation's time goes (speaking, transcribing, polishing). Settings → *Show detailed analytics*
   (off by default) adds your recent dictations one by one, with which model answered each (main or
   backup) and how often the backup was used, for spotting a slow model.
+- **Command mode.** Press the Enter mouse button when you're not dictating, say what you want
+  ("make the screen a bit brighter", "声音小一点", "mute"), and press it again: one of your
+  commands runs. Commands are small Python scripts in a folder you can edit; a fast decision
+  model picks which (about 0.3 s), and anything it isn't sure of shows *Command not found*
+  instead of running. History keeps a separate Commands list, with ↻ to run one again.
 - **Your clipboard is kept.** It's saved before each paste and restored about a second later.
 - **A space before it when needed.** Text pasted right after other text gets a space in front
   (not after a space or line break, not before punctuation, not between two Chinese characters).
@@ -84,6 +89,8 @@ keeps the app's permissions when you rebuild. Then grant three permissions:
 |---|---|
 | Dictate | Hold **Fn**, speak, release |
 | Paste now / cancel | Click ✓ / click ✕ or press **Esc** |
+| Dictate and send | Enter mouse button while dictating: stops, pastes, presses Return |
+| Run a command | Enter mouse button when not dictating, speak, press it again |
 | Toggle AI polish | Menu bar 🎙 → **AI polish** |
 | Insights | Menu bar 🎙 → **Insights…** |
 | History | Menu bar 🎙 → **History…** (⌘Y) |
@@ -102,6 +109,32 @@ Cloud setups send audio to OpenRouter when you stop recording. Your API key is s
 If the cloud model hasn't answered after a couple of seconds, a smaller, faster backup model is
 asked too and the first answer is used (Settings → *Backup model when slow*).
 
+## Commands
+
+Command mode runs the scripts in `~/Library/Application Support/DictationApp/Commands/`
+(Settings → Commands → **Show in Finder**). The app starts you with `brightness` (built-in
+display) and `volume`, plus two built-in commands: `return` ("send it") and `repeat` (the last
+command again). The folder is read afresh for every command, so a new script works right away.
+
+A command is one Python file, run with `uv run --script <file> <choice>`. Its docstring's first
+line says what it does, and the lines under `Choices:` list what it can be told:
+
+```python
+"""Set the sound volume, or mute it.
+
+Choices:
+    +10: a bit louder
+    -10: a bit quieter
+    50: half
+    mute: mute
+"""
+```
+
+What it prints first is shown in the pill (“Volume 40%”); exiting with an error shows the last
+line it wrote to stderr. The decision model, TypeSafe's Jev through OpenRouter's decisions API,
+answers multiple-choice questions, so a command takes one of its listed choices rather than free
+text. It sees what you said and each command's description and choices, never the scripts.
+
 ## Privacy
 
 - The mic is on **only** while you're dictating, never in the background.
@@ -110,6 +143,8 @@ asked too and the first answer is used (Settings → *Backup model when slow*).
   your history, stay in `~/Library/Application Support/DictationApp/`.
 - History is kept for as long as you choose (Settings → *Keep history*), and **Clear All…**
   deletes it.
+- Command mode sends what you said, and your commands' names, descriptions and choices, to
+  OpenRouter to pick one. Commands are saved beside your history, in `history-commands.json`.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted)
   to the cloud models, like any cloud dictation. Learned prompts stay in
   `~/Library/Application Support/DictationApp/learned-prompts.json`.

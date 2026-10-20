@@ -30,7 +30,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let muter = OutputMuter()
     private lazy var dictation = DictationController(
         settings: settings, overlay: overlay, injector: injector, history: .shared, insights: .shared,
-        archive: .shared, muter: muter)
+        archive: .shared, muter: muter, commandMode: .shared)
     private let relaunch = AppRelaunch()
     private var bundleWatcher: BundleWatcher?
     private lazy var exclusion = ExclusionWatcher(excluded: settings.excludedApps)
@@ -50,6 +50,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if Diagnostics.runIfRequested() { return }
         muter.restore()  // undo a mute left behind if the app quit mid-dictation
         HistoryStore.shared.backfillTimings(from: RecordingArchive.shared.infos)  // once
+        CommandMode.installExamples()  // once: the first launch with command mode
         defer { signalReady() }
         watchForNewBuild()
         applyAppearanceAndDock()

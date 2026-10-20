@@ -26,6 +26,19 @@ struct HistoryEntry: Codable, Identifiable, Equatable {
     var input: String { raw ?? text }
 }
 
+/// One command-mode command: what you said, what ran, and how it went (History › Commands).
+struct CommandRun: Codable, Identifiable, Equatable {
+    var id = UUID()
+    var date = Date()
+    var said: String
+    /// The command and its choice; nil: none fitted ("Command not found").
+    var command: String?
+    var choice: String?
+    var ok = false
+    /// Its first line of output ("Brightness 70%"), or why it didn't run.
+    var result = ""
+}
+
 /// Which model gave a dictation's transcript or polish: the setup's main model, or the backup asked
 /// when the main one was late or failed ("Backup model when slow").
 struct ModelAnswer: Codable, Equatable {
@@ -75,10 +88,12 @@ enum HistoryRetention: String, CaseIterable {
 }
 
 /// Dictation history, newest first, saved as JSON in Application Support. Never leaves the Mac.
+/// Command-mode commands are kept beside it, in their own file and list (`commands`).
 final class HistoryStore: ObservableObject {
     static let shared = HistoryStore()
 
     @Published private(set) var entries: [HistoryEntry] = []
+    @Published private(set) var commands: [CommandRun] = []
     @Published var retention: HistoryRetention {
         didSet {
             defaults.set(retention.rawValue, forKey: "historyRetention")
@@ -87,6 +102,11 @@ final class HistoryStore: ObservableObject {
     }
 
     let fileURL: URL
+    /// history.json → history-commands.json.
+    var commandsURL: URL {
+        fileURL.deletingLastPathComponent()
+            .appendingPathComponent(fileURL.deletingPathExtension().lastPathComponent + "-commands.json")
+    }
     private let defaults: UserDefaults
 
     static let defaultFileURL: URL = {
@@ -105,7 +125,28 @@ final class HistoryStore: ObservableObject {
             decoder.dateDecodingStrategy = .iso8601
             entries = (try? decoder.decode([HistoryEntry].self, from: data)) ?? []
         }
+        if let data = try? Data(contentsOf: commandsURL) {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            commands = (try? decoder.decode([CommandRun].self, from: data)) ?? []
+        }
         prune()
+    }
+
+    func addCommand(_ run: CommandRun) {
+        guard retention != .off else { return }
+        commands.insert(run, at: 0)
+        saveCommands()
+    }
+
+    func deleteCommand(_ run: CommandRun) {
+        commands.removeAll { $0.id == run.id }
+        saveCommands()
+    }
+
+    func clearCommands() {
+        commands.removeAll()
+        saveCommands()
     }
 
     func add(text: String, duration: TimeInterval, raw: String? = nil, setup: String? = nil, prompt: String? = nil,
@@ -185,6 +226,18 @@ final class HistoryStore: ObservableObject {
             entries = kept
             save()
         }
+        let keptCommands = commands.filter { $0.date > cutoff }
+        if keptCommands.count != commands.count {
+            commands = keptCommands
+            saveCommands()
+        }
+    }
+
+    private func saveCommands() {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        guard let data = try? encoder.encode(commands) else { return }
+        try? data.write(to: commandsURL, options: .atomic)
     }
 
     private func save() {
@@ -208,51 +261,101 @@ struct HistoryView: View {
     var suggester: CorrectionSuggester?
     /// What's typed in the toolbar's search field (MainView).
     var search = ""
+    /// Runs a command again from its row (nil: no ↻ button).
+    var commandMode: CommandMode?
     @State private var confirmClear = false
+    @State var shown = Shown.dictations
+
+    enum Shown: String, CaseIterable {
+        case dictations = "Dictations", commands = "Commands"
+    }
+
+    /// The Commands list, once there are any; until then the page is just dictations.
+    private var showingCommands: Bool { shown == .commands && !store.commands.isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
-            if filtered.isEmpty {
-                Spacer()
-                Text(!store.entries.isEmpty ? "No matches."
-                     : store.retention == .off ? "History is off. Turn it on in Settings › Keep history."
-                     : "No dictations yet. Hold your hotkey and start talking.")
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("history.empty")
-                    .frame(maxWidth: .infinity)
-                Spacer()
-            } else {
-                List {
-                    ForEach(groups, id: \.title) { group in
-                        Section(group.title) {
-                            ForEach(group.entries) { entry in
-                                HistoryRow(entry: entry, onDelete: { store.delete(entry) }, onCorrect: {
-                                    if entry.correction == nil {
-                                        store.setCorrection(entry.text, for: entry.id)
-                                        suggester?.suggest(for: entry, in: store)
-                                    }
-                                    onCorrect(entry.id)
-                                })
-                            }
+            if showingCommands { commands } else { dictations }
+        }
+        .padding(24)
+    }
+
+    @ViewBuilder private var dictations: some View {
+        if filtered.isEmpty {
+            empty(!store.entries.isEmpty ? "No matches."
+                  : store.retention == .off ? "History is off. Turn it on in Settings › Keep history."
+                  : "No dictations yet. Hold your hotkey and start talking.")
+        } else {
+            List {
+                ForEach(Self.grouped(filtered, by: \.date, dates), id: \.title) { group in
+                    Section(group.title) {
+                        ForEach(group.items) { entry in
+                            HistoryRow(entry: entry, onDelete: { store.delete(entry) }, onCorrect: {
+                                if entry.correction == nil {
+                                    store.setCorrection(entry.text, for: entry.id)
+                                    suggester?.suggest(for: entry, in: store)
+                                }
+                                onCorrect(entry.id)
+                            })
                         }
                     }
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: false))
-                .scrollContentBackground(.hidden)
             }
+            .listStyle(.inset(alternatesRowBackgrounds: false))
+            .scrollContentBackground(.hidden)
         }
-        .padding(24)
+    }
+
+    @ViewBuilder private var commands: some View {
+        if filteredCommands.isEmpty {
+            empty("No matches.")
+        } else {
+            List {
+                ForEach(Self.grouped(filteredCommands, by: \.date, dates), id: \.title) { group in
+                    Section(group.title) {
+                        ForEach(group.items) { run in
+                            CommandRow(run: run, onDelete: { store.deleteCommand(run) },
+                                       onRunAgain: commandMode.map { mode in { Task { @MainActor in _ = await mode.again(run) } } })
+                        }
+                    }
+                }
+            }
+            .listStyle(.inset(alternatesRowBackgrounds: false))
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    private func empty(_ text: String) -> some View {
+        VStack {
+            Spacer()
+            Text(text)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("history.empty")
+                .frame(maxWidth: .infinity)
+            Spacer()
+        }
     }
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             Text("History").font(.largeTitle.bold())
             Spacer()
+            if !store.commands.isEmpty {
+                Picker("Show", selection: $shown) {
+                    ForEach(Shown.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .accessibilityIdentifier("history.list")
+                Spacer()
+            }
             Button("Clear All…") { confirmClear = true }
-                .disabled(store.entries.isEmpty)
-                .confirmationDialog(Self.clearTitle(corrections: store.corrections.count), isPresented: $confirmClear) {
-                    Button("Delete All", role: .destructive) { store.clear() }
+                .disabled(showingCommands ? store.commands.isEmpty : store.entries.isEmpty)
+                .confirmationDialog(showingCommands ? "Delete all command history?" : Self.clearTitle(corrections: store.corrections.count),
+                                    isPresented: $confirmClear) {
+                    Button("Delete All", role: .destructive) { showingCommands ? store.clearCommands() : store.clear() }
                 }
         }
     }
@@ -265,23 +368,110 @@ struct HistoryView: View {
         }
     }
 
+    private var query: String { search.trimmingCharacters(in: .whitespaces) }
+
     private var filtered: [HistoryEntry] {
-        let q = search.trimmingCharacters(in: .whitespaces)
-        return q.isEmpty ? store.entries : store.entries.filter { $0.text.localizedCaseInsensitiveContains(q) }
+        query.isEmpty ? store.entries : store.entries.filter { $0.text.localizedCaseInsensitiveContains(query) }
     }
 
-    private var groups: [(title: String, entries: [HistoryEntry])] {
+    private var filteredCommands: [CommandRun] {
+        query.isEmpty ? store.commands : store.commands.filter {
+            $0.said.localizedCaseInsensitiveContains(query) || $0.label.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    /// Newest first, by day: "Today", "Yesterday", then dates.
+    static func grouped<Item>(_ items: [Item], by date: (Item) -> Date, _ dates: DateContext) -> [(title: String, items: [Item])] {
         let calendar = dates.calendar
-        var result: [(title: String, entries: [HistoryEntry])] = []
-        for entry in filtered {
+        var result: [(title: String, items: [Item])] = []
+        for item in items {
+            let day = date(item)
             let title: String
-            if calendar.isDateInToday(entry.date) { title = "Today" }
-            else if calendar.isDateInYesterday(entry.date) { title = "Yesterday" }
-            else { title = dates.string(entry.date, .dateTime.weekday(.wide).month(.abbreviated).day().year()) }
-            if result.last?.title == title { result[result.count - 1].entries.append(entry) }
-            else { result.append((title, [entry])) }
+            if calendar.isDateInToday(day) { title = "Today" }
+            else if calendar.isDateInYesterday(day) { title = "Yesterday" }
+            else { title = dates.string(day, .dateTime.weekday(.wide).month(.abbreviated).day().year()) }
+            if result.last?.title == title { result[result.count - 1].items.append(item) }
+            else { result.append((title, [item])) }
         }
         return result
+    }
+}
+
+extension CommandRun {
+    /// "brightness +10"; "none" when nothing fitted.
+    var label: String { command.map { [$0, choice].compactMap { $0 }.joined(separator: " ") } ?? "none" }
+}
+
+/// A command in History › Commands: when, what you said, what ran, how it went, and ↻ to run it again.
+struct CommandRow: View {
+    let run: CommandRun
+    let onDelete: () -> Void
+    var onRunAgain: (() -> Void)?
+    @Environment(\.dateContext) private var dates
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 14) {
+            Text(dates.string(run.date, Date.FormatStyle(date: .omitted, time: .shortened)))
+                .font(.callout.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 70, alignment: .leading)
+            Text(run.said)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Label(run.label, systemImage: "chevron.forward")
+                .labelStyle(CommandChip(muted: run.command == nil))
+                .foregroundStyle(run.command == nil ? Color.secondary : Color.accentColor)
+                .frame(width: 150, alignment: .leading)
+                .accessibilityIdentifier("history.command.name")
+            HStack(spacing: 6) {
+                Circle().fill(run.ok ? Color.green : Color.red).frame(width: 7, height: 7)
+                    .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
+                Text(run.result)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(run.ok ? Color.primary : Color.red)
+            }
+            .frame(width: 190, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("history.command.result")
+            Button { onRunAgain?() } label: {
+                Image(systemName: "arrow.clockwise").frame(width: 16, height: 16)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .help("Run again")
+            .accessibilityLabel("Run again")
+            .accessibilityIdentifier("history.runAgain")
+            .disabled(run.command == nil || onRunAgain == nil)
+            .opacity(run.command == nil ? 0 : hovering ? 1 : 0.3)
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("history.command")
+        .onHover { hovering = $0 }
+        .contextMenu {
+            Button("Delete", role: .destructive, action: onDelete)
+        }
+    }
+}
+
+/// The command and its choice in small monospaced type on a tinted chip.
+private struct CommandChip: LabelStyle {
+    /// Grey, for "none".
+    var muted = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.icon.font(.system(size: 8, weight: .bold))
+            configuration.title.font(.caption.monospaced())
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(RoundedRectangle(cornerRadius: 5).fill(muted ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.tint.opacity(0.12))))
     }
 }
 

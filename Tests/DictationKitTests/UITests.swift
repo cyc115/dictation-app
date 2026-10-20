@@ -8,7 +8,10 @@ import XCTest
 final class SettingsUITests: XCTestCase {
     private func host(_ settings: AppSettings, history: HistoryStore? = nil) -> HostedView<SettingsView> {
         let history = history ?? HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let hosted = HostedView(SettingsView(settings: settings, history: history), size: NSSize(width: 640, height: 2100))
+        let commands = makeTempURL(self, "Commands")
+        CommandMode.installExamples(into: commands)
+        let hosted = HostedView(SettingsView(settings: settings, history: history, commandsFolder: commands),
+                                size: NSSize(width: 640, height: 2600))
         addTeardownBlock { hosted.close() }
         return hosted
     }
@@ -19,7 +22,7 @@ final class SettingsUITests: XCTestCase {
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
                       "Mouse button", "AI polish", "Model", "On-device model", "Keep history", "Keep recordings",
                       "Backup model when slow", "Pause in these apps", "Show detailed analytics",
-                      "Mouse button for Enter", "Enter button"] {
+                      "Mouse button for Enter", "Enter button", "Command mode", "Commands folder"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }
@@ -773,6 +776,44 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-message")
     }
 
+    /// Command mode: blue bars and edge, "Command" for the mic name.
+    func testOverlayCommand() throws {
+        let overlay = snapshotOverlay()
+        addTeardownBlock { overlay.hide() }
+        overlay.showListening(micName: "MacBook Pro Microphone", command: true)
+        for level in [0.1, 0.3, 0.7, 0.9, 0.6, 0.4, 0.8, 0.5, 0.2, 0.6, 0.9, 0.3, 0.1] as [Float] { overlay.setLevel(level) }
+        assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-command")
+    }
+
+    func testOverlayCommandDone() throws {
+        let overlay = snapshotOverlay()
+        addTeardownBlock { overlay.hide() }
+        overlay.showResult("Volume 40%", ok: true, hideAfter: 10)
+        assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-command-done")
+    }
+
+    func testOverlayCommandNotFound() throws {
+        let overlay = snapshotOverlay()
+        addTeardownBlock { overlay.hide() }
+        overlay.reduceMotion = { true }  // no shake mid-snapshot
+        overlay.showResult("Command not found", detail: "“open the pod bay doors”", ok: false, hideAfter: 10)
+        assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-command-not-found")
+    }
+
+    func testHistoryCommands() {
+        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        for run in [
+            CommandRun(date: fixedDate(2026, 1, 5, 23, 20), said: "mute", command: "volume", choice: "mute", ok: true, result: "Muted"),
+            CommandRun(date: fixedDate(2026, 1, 6, 18, 12), said: "turn the brightness way up", command: "brightness", choice: "+30",
+                       result: "No display whose brightness macOS can set"),
+            CommandRun(date: fixedDate(2026, 1, 6, 20, 47), said: "open the pod bay doors", result: "Command not found"),
+            CommandRun(date: fixedDate(2026, 1, 6, 21, 2), said: "声音小一点", command: "volume", choice: "-10", ok: true, result: "Volume 40%"),
+        ] { store.addCommand(run) }
+        let hosted = HostedView(HistoryView(store: store, shown: .commands), size: NSSize(width: 760, height: 420))
+        addTeardownBlock { hosted.close() }
+        assertSnapshot(of: hosted.hostingView, named: "history-commands")
+    }
+
     func testInsights() {
         let insights = Insights(defaults: makeDefaults(self))
         insights.record(text: Array(repeating: "w", count: 19_400).joined(separator: " "), duration: 3 * 3600 + 31 * 60)
@@ -1039,5 +1080,46 @@ final class MainWindowTests: XCTestCase {
         XCTAssertTrue(window.titlebarAppearsTransparent)
         XCTAssertEqual(window.titleVisibility, .hidden)
         XCTAssertEqual(window.title, "DictationApp", "still named for the Window menu and Mission Control")
+    }
+}
+
+final class CommandUITests: XCTestCase {
+    func testHistoryShowsTheCommandsSwitchOnlyOnceThereAreCommands() {
+        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        store.add(text: "hello", duration: 1)
+        let hosted = HostedView(HistoryView(store: store), size: NSSize(width: 760, height: 400))
+        addTeardownBlock { hosted.close() }
+        XCTAssertNil(hosted.element(id: "history.list"))
+        store.addCommand(CommandRun(said: "mute", command: "volume", choice: "mute", ok: true, result: "Muted"))
+        spinRunLoop(0.05)
+        XCTAssertNotNil(hosted.element(id: "history.list"))
+        XCTAssertEqual(hosted.elements(id: "history.row").count, 1, "dictations until you switch")
+        XCTAssertEqual(hosted.elements(id: "history.command").count, 0)
+    }
+
+    func testRunAgainRunsTheCommandAsItWas() {
+        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        store.addCommand(CommandRun(said: "brighter", command: "volume", choice: "+10", ok: true, result: "Volume 50%"))
+        let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: store)
+        CommandMode.installExamples(into: mode.folder)
+        var ran: [String?] = []
+        mode.runScript = { _, choice in ran.append(choice); return CommandResult(ok: true, message: "Volume 60%") }
+        let hosted = HostedView(HistoryView(store: store, commandMode: mode, shown: .commands), size: NSSize(width: 760, height: 400))
+        addTeardownBlock { hosted.close() }
+        XCTAssertEqual(hosted.elements(id: "history.command").count, 1)
+        XCTAssertTrue(hosted.click(try! XCTUnwrap(hosted.element(id: "history.runAgain"))))
+        waitUntil { store.commands.count == 2 }
+        XCTAssertEqual(ran, ["+10"])
+        XCTAssertEqual(store.commands.first?.result, "Volume 60%")
+    }
+
+    func testSettingsListsTheCommands() {
+        let folder = makeTempURL(self, "Commands")
+        CommandMode.installExamples(into: folder)
+        let hosted = HostedView(SettingsView(settings: makeSettings(self), commandsFolder: folder), size: NSSize(width: 640, height: 2600))
+        addTeardownBlock { hosted.close() }
+        for name in ["return", "repeat", "brightness", "volume"] {
+            XCTAssertNotNil(hosted.element(id: "command." + name), "missing \(name)")
+        }
     }
 }

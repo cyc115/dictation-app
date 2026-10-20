@@ -42,7 +42,7 @@ final class MainWindowController {
     func show(_ tab: MainTab) {
         selection.tab = tab
         if window == nil {
-            window = Self.makeWindow(rootView: MainView(selection: selection))
+            window = Self.makeWindow(rootView: MainView(selection: selection, commandMode: .shared))
         }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
@@ -77,6 +77,8 @@ struct MainView: View {
     @ObservedObject var history: HistoryStore = .shared
     var settings: AppSettings = .shared
     var learn: LearnController? = .shared
+    /// History's ↻ on a command (nil: no button).
+    var commandMode: CommandMode?
     @State private var visited: Set<MainTab> = []
     @State private var searches: [MainTab: String] = [:]
     @State private var pages = Dictionary(uniqueKeysWithValues: MainTab.allCases.map { ($0, KeptPage()) })
@@ -138,7 +140,7 @@ struct MainView: View {
         case .history: HistoryView(store: history, onCorrect: { id in
             selection.editing = id
             selection.tab = .corrections
-        }, suggester: .shared, search: searches[.history, default: ""])
+        }, suggester: .shared, search: searches[.history, default: ""], commandMode: commandMode)
         case .corrections: CorrectionsView(store: history, learn: learn, editing: selection.editing,
                                            search: searches[.corrections, default: ""])
             .onTabHidden { selection.editing = nil }

@@ -100,9 +100,12 @@ final class WaveformView: NSView {
         needsDisplay = true
     }
 
+    /// The bars' color: white, or blue in command mode.
+    var tint = NSColor.white { didSet { needsDisplay = true } }
+
     override func draw(_ dirtyRect: NSRect) {
         let levels = shownLevels ?? self.levels
-        NSColor.white.setFill()
+        tint.setFill()
         let total = CGFloat(barCount) * barWidth + CGFloat(barCount - 1) * gap
         var x = (bounds.width - total) / 2
         let mid = CGFloat(barCount - 1) / 2
@@ -110,7 +113,7 @@ final class WaveformView: NSView {
             let fromCenter = abs(CGFloat(i) - mid) / mid      // 0 at center, 1 at edges
             let envelope = 1 - 0.45 * fromCenter * fromCenter  // taller in the middle
             let h = max(barWidth, levels[i] * envelope * bounds.height)
-            if let barAlphas { NSColor(white: 1, alpha: barAlphas[i]).setFill() }
+            if let barAlphas { tint.withAlphaComponent(barAlphas[i]).setFill() }
             let bar = NSRect(x: x, y: (bounds.height - h) / 2, width: barWidth, height: h)
             NSBezierPath(roundedRect: bar, xRadius: barWidth / 2, yRadius: barWidth / 2).fill()
             x += barWidth + gap

@@ -5,6 +5,8 @@ struct SettingsView: View {
     @Environment(\.dateContext) private var dates
     @ObservedObject var settings: AppSettings
     @ObservedObject var history: HistoryStore = .shared
+    /// Command mode's folder (tests use their own).
+    var commandsFolder = CommandMode.defaultFolder
     @State private var microphones: [AudioInputDevice] = []
     @State private var askForKey = false
     @State private var keyDraft = ""
@@ -131,7 +133,9 @@ struct SettingsView: View {
                         ForEach(MouseButton.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
                 }
-                SettingRow("Mouse button for Enter", "Press it to send Return. While dictating, it stops instead and presses Return once the text is in — dictate and send in one go.") {
+                SettingRow("Mouse button for Enter", settings.commandModeEnabled
+                           ? "While dictating, it stops and presses Return once the text is in — dictate and send in one go. Otherwise it starts a command (Commands, below)."
+                           : "Press it to send Return. While dictating, it stops instead and presses Return once the text is in — dictate and send in one go.") {
                     Toggle("Mouse button for Enter", isOn: $settings.mouseEnterEnabled)
                 }
                 SettingRow("Enter button", settings.mouseEnterButton == settings.mouseButton
@@ -150,6 +154,18 @@ struct SettingsView: View {
                 }
             } header: {
                 Label("Shortcuts", systemImage: "keyboard")
+            }
+
+            Section {
+                SettingRow("Command mode", "Press the Enter button when you're not dictating, say what you want — “brightness to half”, “声音小一点” — and press it again: it runs one of the commands below. A cloud model picks which, with your API key; a command it isn't sure of doesn't run.",
+                           available: settings.mouseEnterEnabled) {
+                    Toggle("Command mode", isOn: $settings.commandModeEnabled)
+                }
+                CommandsList(folder: commandsFolder)
+                    .disabled(!settings.commandModeEnabled || !settings.mouseEnterEnabled)
+                    .opacity(settings.commandModeEnabled && settings.mouseEnterEnabled ? 1 : 0.4)
+            } header: {
+                Label("Commands", systemImage: "chevron.forward.square")
             }
 
             Section {
@@ -276,6 +292,44 @@ private struct APIKeySheet: View {
         }
         .padding(20)
         .frame(width: 420)
+    }
+}
+
+/// The commands folder and what's in it: each command, what it does and what it can be told.
+struct CommandsList: View {
+    let folder: URL
+    @State private var commands: [Command] = []
+
+    var body: some View {
+        SettingRow("Commands folder", (folder.path as NSString).abbreviatingWithTildeInPath) {
+            Button("Show in Finder") {
+                CommandMode.installExamples(into: folder)
+                NSWorkspace.shared.activateFileViewerSelecting([folder])
+            }
+        }
+        .onAppear { commands = Command.all(in: folder) }
+        ForEach(commands, id: \.name) { command in
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Image(systemName: command.script == nil ? "sparkle" : "chevron.forward")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tint)
+                    .frame(width: 14)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(command.name).font(.body.weight(.medium))
+                    Text(command.summary + (command.script == nil ? " · built in" : ""))
+                        .font(.callout).foregroundStyle(.secondary)
+                    if !command.choices.isEmpty {
+                        Text(command.choices.map(\.value).joined(separator: "  "))
+                            .font(.caption.monospaced()).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("command." + command.name)
+        }
+        Text("Add a Python script to the folder: its docstring's first line says what it does, and lines under “Choices:” what it can be told (value: meaning). It's run with uv.")
+            .font(.callout).foregroundStyle(.secondary)
     }
 }
 

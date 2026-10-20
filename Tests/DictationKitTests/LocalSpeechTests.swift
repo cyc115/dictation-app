@@ -257,7 +257,8 @@ final class LocalSpeechTests: XCTestCase {
         let model = LocalSpeechModel(repo: DictationSetup.onDevice.localModelID!, runtime: runtime)
         state(runtime, model)
         let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let hosted = HostedView(SettingsView(settings: makeSettings(self, localModel: model), history: history),
+        let hosted = HostedView(SettingsView(settings: makeSettings(self, localModel: model), history: history,
+                                             commandsFolder: makeTempURL(self, "Commands")),
                                 size: NSSize(width: 640, height: 2100))
         addTeardownBlock { hosted.close() }
         return hosted

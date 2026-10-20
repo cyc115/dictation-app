@@ -5,7 +5,8 @@ import AppKit
 ///
 /// With a slow mic (Bluetooth) the pill first shows that the mic is starting, then flashes green when
 /// it's live, so you know when you can talk. It flashes yellow when the dictation moves to a mic that
-/// hears you better, and glows red while no audio is coming in. What it's animating is `PillState`,
+/// hears you better, and glows red while no audio is coming in. In command mode it's blue, with
+/// "Command" for the mic name, and ends in a green or red result (`showResult`). What it's animating is `PillState`,
 /// each frame's look `PillLook`, and where things sit `PillLayout`; this class draws them.
 class OverlayWindow {
     var onCancel: (() -> Void)?
@@ -22,6 +23,8 @@ class OverlayWindow {
         case .red: return (255, 59, 48)
         }
     }
+    /// Command mode's bars and edge.
+    static let commandBlue = (red: CGFloat(127), green: CGFloat(160), blue: CGFloat(255))
     /// Clear space around the pill inside its window, for the ready glow and bounce to draw into.
     static let glowMargin: CGFloat = 16
 
@@ -48,6 +51,8 @@ class OverlayWindow {
     private(set) var mode = Mode.hidden
     private var autoHide: DispatchWorkItem?
     private var micName = ""
+    /// Listening for (or deciding) a command: blue bars and edge, "Command" for the mic name.
+    private(set) var isCommand = false
     private(set) var state = PillState()
     /// The layout on screen; while narrowing, the listening one it started from.
     private var layout = PillLayout(width: PillLayout.listeningWidth, content: .listening(caption: false))
@@ -73,10 +78,13 @@ class OverlayWindow {
 
     /// `micName` is shown in full under the waveform; nil hides the caption. `warmingUp`: the mic is
     /// slow to start (Bluetooth), so the pill says so until `micLive()`.
-    func showListening(micName: String? = nil, warmingUp: Bool = false) {
+    func showListening(micName: String? = nil, warmingUp: Bool = false, command: Bool = false) {
+        isCommand = command
         stopAnimation()
         waveform.reset()
         waveform.processing = false
+        let blue = Self.commandBlue
+        waveform.tint = command ? NSColor(red: blue.red / 255, green: blue.green / 255, blue: blue.blue / 255, alpha: 1) : .white
         self.micName = micName ?? ""
         state = .listening(warmingUp: warmingUp, at: now())
         plainCaptionWidth = 0
@@ -121,6 +129,7 @@ class OverlayWindow {
     }
 
     private func setMicName(_ name: String?) {
+        if isCommand { return setCaption("Command", symbol: "chevron.forward", accessibility: "Command mode") }
         guard let name = name, !name.isEmpty else {
             micLabel.attributedStringValue = NSAttributedString()
             return
@@ -177,11 +186,47 @@ class OverlayWindow {
     }
 
     func showMessage(_ text: String, hideAfter seconds: TimeInterval = 3) {
-        label.stringValue = text
+        isCommand = false
+        label.attributedStringValue = Self.message(text, detail: nil)
         present(.message)
+        hide(after: seconds)
+    }
+
+    /// How a command went: `title` ("Brightness 70%", "Command not found") over a dimmer `detail`
+    /// (what was heard, or the error), with a green or red edge. Not found or failed also shakes it.
+    func showResult(_ title: String, detail: String? = nil, ok: Bool, hideAfter seconds: TimeInterval) {
+        isCommand = false
+        label.attributedStringValue = Self.message(title, detail: detail)
+        present(.message)
+        apply(PillLook(glow: 1, aura: ok ? .green : .red))
+        if !ok && !reduceMotion() {
+            let shake = CAKeyframeAnimation(keyPath: "transform.translation.x")
+            shake.values = [0, -6, 6, -4, 4, 0]
+            shake.duration = 0.3
+            shake.isAdditive = true
+            background.layer?.add(shake, forKey: "shake")
+        }
+        hide(after: seconds)
+    }
+
+    private func hide(after seconds: TimeInterval) {
         let work = DispatchWorkItem { [weak self] in self?.hide() }
         autoHide = work
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    /// A message line, and an optional dimmer, smaller line under it.
+    private static func message(_ text: String, detail: String?) -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        paragraph.lineBreakMode = .byTruncatingTail
+        let result = NSMutableAttributedString(string: text, attributes: [
+            .font: NSFont.systemFont(ofSize: 12.5, weight: .medium), .foregroundColor: NSColor.white, .paragraphStyle: paragraph])
+        if let detail, !detail.isEmpty {
+            result.append(NSAttributedString(string: "\n" + detail, attributes: [
+                .font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor(white: 1, alpha: 0.6), .paragraphStyle: paragraph]))
+        }
+        return result
     }
 
     func hide() {
@@ -314,10 +359,12 @@ class OverlayWindow {
         guard let layer = background.layer else { return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        layer.borderWidth = 0.5 + 1.1 * g
-        // White at 14% (the resting edge) → the aura's color.
-        layer.borderColor = NSColor(red: (255 - (255 - r) * g) / 255, green: (255 - (255 - gr) * g) / 255,
-                                    blue: (255 - (255 - b) * g) / 255, alpha: 0.14 + 0.76 * g).cgColor
+        // The resting edge (white at 14%, or command mode's blue) → the aura's color.
+        let rest = isCommand ? (Self.commandBlue.red, Self.commandBlue.green, Self.commandBlue.blue, CGFloat(0.8), CGFloat(1.2))
+                             : (CGFloat(255), CGFloat(255), CGFloat(255), CGFloat(0.14), CGFloat(0.5))
+        layer.borderWidth = rest.4 + (1.6 - rest.4) * g
+        layer.borderColor = NSColor(red: (rest.0 + (r - rest.0) * g) / 255, green: (rest.1 + (gr - rest.1) * g) / 255,
+                                    blue: (rest.2 + (b - rest.2) * g) / 255, alpha: rest.3 + (0.9 - rest.3) * g).cgColor
         let bounds = layer.bounds
         // AppKit puts a view's layer anchor at its corner: scale about the pill's center.
         var transform = CATransform3DMakeTranslation(-bounds.midX, -bounds.midY, 0)
@@ -409,6 +456,7 @@ class OverlayWindow {
         label.textColor = .white
         label.lineBreakMode = .byTruncatingTail
         label.alignment = .center
+        label.maximumNumberOfLines = 2  // a command's result has a second, smaller line
 
         micLabel.lineBreakMode = .byTruncatingTail
         micLabel.cell?.truncatesLastVisibleLine = true

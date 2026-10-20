@@ -209,7 +209,8 @@ final class LearnUITests: XCTestCase {
 
     func testSettingsOffersThePromptVersions() {
         let fx = LearnFixture(self)
-        let hosted = HostedView(SettingsView(settings: fx.settings, history: fx.history), size: NSSize(width: 640, height: 1900))
+        let hosted = HostedView(SettingsView(settings: fx.settings, history: fx.history, commandsFolder: makeTempURL(self, "Commands")),
+                                size: NSSize(width: 640, height: 2300))
         addTeardownBlock { hosted.close() }
         let row = "setting.Polish prompt"
         XCTAssertFalse(fx.settings.polishEnabled)
