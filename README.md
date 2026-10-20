@@ -136,8 +136,8 @@ asked too and the first answer is used (Settings → *Backup model when slow*).
 ## Commands
 
 Command mode runs the scripts in `~/Library/Application Support/DictationApp/Commands/`
-(Settings → Commands → **Show in Finder**). The app starts you with `brightness` (built-in
-display) and `volume`, plus four built-in commands: `return` ("send it"), `repeat` (the last
+(Settings → Commands → **Show in Finder**). The app starts you with `brightness` (the display
+the pointer is on with [BetterDisplay](https://betterdisplay.pro) running, else the built-in one) and `volume`, plus four built-in commands: `return` ("send it"), `repeat` (the last
 command again), `open` (an app in `/Applications` or `~/Applications`, not the ones macOS comes
 with) and `create`. The folder is read afresh for every command, so a new script works right away.
 
