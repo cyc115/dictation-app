@@ -1,5 +1,5 @@
 {
-  "about": "Command mode: what you might say, and the command (name and choice, as History shows it) that should run. expect lists every acceptable answer; \"none\" means nothing should run. Commands: the app's example commands (Sources/DictationKit/ExampleCommands) and the built-in return and repeat.",
+  "about": "Command mode: what you might say, and the command (name and choice, as History shows it) that should run. expect lists every acceptable answer; \"none\" means nothing should run. Commands: the app's example commands (Sources/DictationKit/Commands/ExampleCommands) and the built-in return and repeat.",
   "cases": [
     {"said": "make the screen a bit brighter", "expect": ["brightness +10"], "tags": ["en"]},
     {"said": "dim the screen", "expect": ["brightness -10", "brightness -30"], "tags": ["en"]},

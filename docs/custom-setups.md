@@ -2,7 +2,7 @@
 
 A *setup* is a speech model, an AI polish model and a polish prompt, picked together in
 Settings → Model. The built-in ones are in `DictationSetup.builtInJSON`
-(`Sources/DictationKit/Setups.swift`); how they compare is in [`bench/`](../bench/README.md).
+(`Sources/DictationKit/Polish/Setups.swift`); how they compare is in [`bench/`](../bench/README.md).
 
 To try another combination in the app, add it to
 `~/Library/Application Support/DictationApp/setups.json`. Your setups appear after the built-in

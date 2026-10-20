@@ -175,7 +175,8 @@ bench/suite.py latency run   # time from stop to text, per speech/polish model
 bench/suite.py polish run    # polish quality on tricky dictations
 ```
 
-- `Sources/DictationKit`: all app code. `Sources/DictationApp`: the entry point.
+- `Sources/DictationKit`: all app code, one folder per feature (`Dictation`, `Speech`, `Polish`, `Pill`,
+  `History`, `Commands`, …). `Sources/DictationApp`: the entry point.
   `Tests/DictationKitTests`: the tests.
 - **UI tests** host the real SwiftUI views in an offscreen window and click through them using
   their accessibility identifiers.

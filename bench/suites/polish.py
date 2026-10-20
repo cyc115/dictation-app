@@ -49,7 +49,7 @@ import harness
 NAME = "polish"
 HELP = "AI polish models: quality on tricky dictations, wait and cost, with the app's prompt"
 CASES = harness.ROOT / "polish_cases.json"
-SWIFT = harness.ROOT.parent / "Sources/DictationKit/Setups.swift"
+SWIFT = harness.ROOT.parent / "Sources/DictationKit/Polish/Setups.swift"
 CUSTOM_SETUPS = Path.home() / "Library/Application Support/DictationApp/setups.json"
 HISTORY = Path.home() / "Library/Application Support/DictationApp/history.json"  # your Corrections
 LEARNED = HISTORY.parent / "learned-prompts.json"  # prompts the app learned from them (Corrections → Learn)

@@ -31,7 +31,7 @@ def test_aliases_match_the_apps_models():
 
 def test_plan_matches_what_the_app_decodes():
     """The keys suite.py sends must be exactly LatencyTrial's / LatencyPlan's fields."""
-    swift = (REPO / "Sources/DictationKit/LatencyProbe.swift").read_text()
+    swift = (REPO / "Sources/DictationKit/Debug/LatencyProbe.swift").read_text()
     fields = lambda name: set(re.findall(r"let (\w+):", re.search(rf"struct {name}\b.*?\n}}", swift, re.S).group(0)))
     assert fields("LatencyTrial") == {"id", "file", "stt", "polish"}
     assert fields("LatencyPlan") == {"pause", "timeout", "trials"}

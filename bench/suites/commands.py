@@ -9,7 +9,7 @@
 Each case (command_cases.json) is something you might say — English, Chinese, mixed, with fillers,
 with speech-model errors, or not a command at all — and every answer that counts as right
 ("volume -10", "return", "none"). The commands are the app's: its example scripts' docstrings
-(Sources/DictationKit/ExampleCommands) and the built-in return and repeat; --catalog adds the
+(Sources/DictationKit/Commands/ExampleCommands) and the built-in return and repeat; --catalog adds the
 commands in command_catalog.json, to see how a model copes with more to choose from.
 
 Models:
@@ -43,7 +43,7 @@ NAME = "commands"
 HELP = "command mode's decision models: right command, wrong runs, wait and cost"
 CASES = harness.ROOT / "command_cases.json"
 CATALOG = harness.ROOT / "command_catalog.json"
-EXAMPLES = harness.ROOT.parent / "Sources/DictationKit/ExampleCommands"
+EXAMPLES = harness.ROOT.parent / "Sources/DictationKit/Commands/ExampleCommands"
 SECRETS = Path.home() / "Library/Application Support/DictationApp/secrets.json"
 DECISIONS = "https://openrouter.ai/api/alpha/decisions"
 CHAT = "https://openrouter.ai/api/v1/chat/completions"

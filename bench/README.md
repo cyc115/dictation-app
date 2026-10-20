@@ -21,7 +21,7 @@ Tests: `uv run --with pytest --with opencc-python-reimplemented==0.1.7 pytest be
 ## Turnaround latency (`suite.py latency`)
 
 What you wait for after pressing stop, measured **inside the installed app through its real code
-paths** (`Sources/DictationKit/LatencyProbe.swift`), so it includes everything the app does:
+paths** (`Sources/DictationKit/Debug/LatencyProbe.swift`), so it includes everything the app does:
 
 | stage | from → to | |
 |:--|:--|:--|
@@ -171,7 +171,8 @@ uv run --with pytest --with opencc-python-reimplemented==0.1.7 pytest bench   # 
 - **Trying a new OpenRouter model:** list them with
   `curl -s "https://openrouter.ai/api/v1/models?output_modalities=all"` (transcription models don't
   show in the default list), then `bench/bench.py run -r 3 -m openrouter:<id>` and `bench/bench.py html`.
-  To offer it in the app, add one case to `TranscriptionModel` in `Sources/DictationKit/Transcription.swift`.
+  To offer it in the app, add a setup to `builtInJSON` in `Sources/DictationKit/Polish/Setups.swift`
+  (or to your own `setups.json`, see [`docs/custom-setups.md`](../docs/custom-setups.md)).
 - **Key:** `$OPENROUTER_API_KEY` by default (`--key-env` to change). The account needs credits, and some
   models (Meta Muse) need the 18+ confirmation in OpenRouter's preferences.
 - **Local models** (`parakeet:<hf-id>`, `mlx:<hf-id>`) run on this Mac's GPU through `local_stt.py`
