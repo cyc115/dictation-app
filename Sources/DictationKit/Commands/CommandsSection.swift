@@ -13,7 +13,8 @@ struct CommandsSection: View {
             SettingRow("Command mode", settings.hasOpenRouterKey
                        ? "Press the Enter button when you're not dictating, say what you want — “brightness to half”, “声音小一点” — and press it again: it runs one of the commands below. A cloud model picks which, with your API key; a command it isn't sure of doesn't run."
                        : "Needs the cloud API key: a cloud model picks the command. Add it under Speech model.",
-                       available: settings.mouseEnterEnabled && settings.hasOpenRouterKey) {
+                       available: settings.mouseEnterEnabled && settings.hasOpenRouterKey,
+                       badge: "Online · needs API key") {
                 // Without the key it shows off, as it is: the Enter button just presses Return.
                 Toggle("Command mode", isOn: Binding(get: { settings.commandModeOn },
                                                      set: { settings.commandModeEnabled = $0 }))

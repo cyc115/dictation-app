@@ -163,6 +163,7 @@ final class SettingsUITests: XCTestCase {
         }
         XCTAssertEqual(enabled(), false)
         XCTAssertFalse(settings.commandModeOn)
+        XCTAssertNotNil(hosted.element(id: "badge.Command mode"), "says it's online, not on-device")
         settings.setOpenRouterKey("test-key")
         spinRunLoop(0.1)
         XCTAssertEqual(enabled(), true)
