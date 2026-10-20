@@ -26,6 +26,9 @@ extension CommandRun {
         return PillMessage(title: result, detail: "“\(said)”", tone: .failed, seconds: 2.5)
     }
 
+    /// History's ↻ can run it again: a command ran, and it didn't write one.
+    var canRunAgain: Bool { command != nil && command != Command.create.name }
+
     /// "brightness +10"; "none" when nothing fitted.
     var label: String { command.map { [$0, choice].compactMap { $0 }.joined(separator: " ") } ?? "none" }
 }
@@ -73,8 +76,8 @@ struct CommandRow: View {
             .help("Run again")
             .accessibilityLabel("Run again")
             .accessibilityIdentifier("history.runAgain")
-            .disabled(run.command == nil || onRunAgain == nil)
-            .opacity(run.command == nil ? 0 : hovering ? 1 : 0.3)
+            .disabled(!run.canRunAgain || onRunAgain == nil)
+            .opacity(!run.canRunAgain ? 0 : hovering ? 1 : 0.3)
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())

@@ -57,8 +57,8 @@ final class CommandTests: XCTestCase {
     func testFolderListsBuiltInsThenScriptsByName() {
         let dir = folder(["volume.py": "\"\"\"Set the volume.\"\"\"", "brightness.py": brightness,
                           "return.py": "\"\"\"Mine.\"\"\"", "notes.txt": "\"\"\"Not a script.\"\"\"", "broken.py": "no docstring"])
-        XCTAssertEqual(Command.all(in: dir).map(\.name), ["return", "repeat", "brightness", "volume"])
-        XCTAssertEqual(Command.all(in: dir.appendingPathComponent("missing")).map(\.name), ["return", "repeat"])
+        XCTAssertEqual(Command.all(in: dir).map(\.name), ["return", "repeat", "create", "open", "brightness", "volume"])
+        XCTAssertEqual(Command.all(in: dir.appendingPathComponent("missing")).map(\.name), ["return", "repeat", "create", "open"])
     }
 
     // MARK: Jev
@@ -129,15 +129,14 @@ final class CommandTests: XCTestCase {
     // MARK: Running
 
     func testResultIsTheFirstLineOfOutputOrTheLastLineOfErrors() {
-        XCTAssertEqual(CommandResult.from(status: 0, output: "\nBrightness 70%\nmore\n", errors: "", timedOut: false, name: "b"),
-                       CommandResult(ok: true, message: "Brightness 70%"))
-        XCTAssertEqual(CommandResult.from(status: 0, output: "", errors: "", timedOut: false, name: "b"),
-                       CommandResult(ok: true, message: "Ran b"))
-        XCTAssertEqual(CommandResult.from(status: 1, output: "", errors: "Traceback\n  ...\nValueError: bad\n", timedOut: false, name: "b"),
-                       CommandResult(ok: false, message: "ValueError: bad"))
-        XCTAssertEqual(CommandResult.from(status: 3, output: "", errors: "", timedOut: false, name: "b"),
-                       CommandResult(ok: false, message: "Exited with 3"))
-        XCTAssertEqual(CommandResult.from(status: 15, output: "", errors: "", timedOut: true, name: "b").message, "Took longer than 10 s")
+        func result(_ status: Int32, _ output: String = "", _ errors: String = "", timedOut: Bool = false) -> CommandResult {
+            CommandResult.from(CommandMode.Finished(status: status, output: output, errors: errors, timedOut: timedOut), name: "b")
+        }
+        XCTAssertEqual(result(0, "\nBrightness 70%\nmore\n"), CommandResult(ok: true, message: "Brightness 70%"))
+        XCTAssertEqual(result(0), CommandResult(ok: true, message: "Ran b"))
+        XCTAssertEqual(result(1, "", "Traceback\n  ...\nValueError: bad\n"), CommandResult(ok: false, message: "ValueError: bad", scriptFailed: true))
+        XCTAssertEqual(result(3), CommandResult(ok: false, message: "Exited with 3", scriptFailed: true))
+        XCTAssertEqual(result(15, timedOut: true), CommandResult(ok: false, message: "Took longer than 10 s", scriptFailed: true))
     }
 
     /// The real runner, with uv: the choice reaches the script as one argument, never through a shell.
@@ -150,7 +149,7 @@ final class CommandTests: XCTestCase {
         let echoed = await CommandMode.run(script: dir.appendingPathComponent("echo.py"), choice: "+10; touch /tmp/x")
         XCTAssertEqual(echoed, CommandResult(ok: true, message: "got ['+10; touch /tmp/x']"))
         let failed = await CommandMode.run(script: dir.appendingPathComponent("fail.py"), choice: nil)
-        XCTAssertEqual(failed, CommandResult(ok: false, message: "no display"))
+        XCTAssertEqual(failed, CommandResult(ok: false, message: "no display", scriptFailed: true))
     }
 
     // MARK: Command mode
@@ -166,6 +165,8 @@ final class CommandTests: XCTestCase {
             return CommandResult(ok: true, message: "Brightness 60%")
         }
         mode.pressReturn = { [unowned self] in returns += 1 }
+        mode.apps = { [:] }
+        mode.openApp = { _ in XCTFail("opened an app") }
         return mode
     }
 
@@ -174,7 +175,7 @@ final class CommandTests: XCTestCase {
         let log = EventLog()
         let mode = makeMode(CommandDecision(command: "brightness", choice: "+10", confidence: 0.97), log: log)
         let run = await mode.handle("a bit brighter", apiKey: "k")
-        XCTAssertEqual(log.events, ["decide: a bit brighter among return,repeat,brightness"])
+        XCTAssertEqual(log.events, ["decide: a bit brighter among return,repeat,create,open,brightness"])
         XCTAssertEqual(ran, ["brightness +10"])
         XCTAssertEqual(run.command, "brightness")
         XCTAssertEqual(run.choice, "+10")
@@ -248,6 +249,165 @@ final class CommandTests: XCTestCase {
                        PillMessage(title: "Command not found", detail: "“open the pod bay doors”", tone: .failed, seconds: 2.5))
     }
 
+    // MARK: Turning commands off
+
+    func testATurnedOffScriptIsLeftOutUntilTurnedBackOn() throws {
+        let dir = folder(["brightness.py": brightness, "volume.py": "\"\"\"Set the volume.\"\"\""])
+        let off = try Command.setEnabled(false, script: dir.appendingPathComponent("volume.py"), folder: dir)
+        XCTAssertEqual(off, Command.disabledFolder(dir).appendingPathComponent("volume.py"))
+        XCTAssertEqual(Command.all(in: dir).map(\.name), ["return", "repeat", "create", "open", "brightness"])
+        XCTAssertEqual(Command.disabled(in: dir).map(\.name), ["volume"])
+        try Command.setEnabled(true, script: off, folder: dir)
+        XCTAssertEqual(Command.all(in: dir).map(\.name), ["return", "repeat", "create", "open", "brightness", "volume"])
+        XCTAssertEqual(Command.disabled(in: dir), [])
+    }
+
+    func testTurningOnBesideOneWithTheSameNameKeepsBoth() throws {
+        let dir = folder(["volume.py": "\"\"\"Old.\"\"\""])
+        let off = try Command.setEnabled(false, script: dir.appendingPathComponent("volume.py"), folder: dir)
+        try "\"\"\"New.\"\"\"".write(to: dir.appendingPathComponent("volume.py"), atomically: true, encoding: .utf8)
+        try Command.setEnabled(true, script: off, folder: dir)
+        XCTAssertEqual(Command.all(in: dir).map(\.name), ["return", "repeat", "create", "open", "volume", "volume-2"])
+        XCTAssertEqual(Command.freeURL(for: "create", in: dir).lastPathComponent, "create-2.py", "a built-in's name is taken")
+    }
+
+    @MainActor
+    func testAScriptThatFailsIsTurnedOff() async {
+        let mode = makeMode(CommandDecision(command: "brightness", choice: "+10", confidence: 0.97))
+        mode.runScript = { _, _ in CommandResult(ok: false, message: "No display", scriptFailed: true) }
+        let run = await mode.handle("brighter", apiKey: "k")
+        XCTAssertFalse(run.ok)
+        XCTAssertEqual(run.result, "No display · turned off")
+        XCTAssertEqual(Command.disabled(in: mode.folder).map(\.name), ["brightness"])
+        XCTAssertFalse(mode.commands.contains { $0.name == "brightness" })
+    }
+
+    @MainActor
+    func testUvMissingDoesntTurnTheScriptOff() async {
+        let mode = makeMode(CommandDecision(command: "brightness", choice: "+10", confidence: 0.97))
+        mode.runScript = { _, _ in CommandResult(ok: false, message: "uv isn't installed") }
+        let run = await mode.handle("brighter", apiKey: "k")
+        XCTAssertEqual(run.result, "uv isn't installed")
+        XCTAssertEqual(Command.disabled(in: mode.folder), [])
+    }
+
+    // MARK: Open
+
+    func testInstalledAppsComeFromTheAppFoldersFirstFoundWins() throws {
+        let first = makeTempURL(self, "Applications"), second = makeTempURL(self, "System")
+        for (folder, items) in [(first, ["Safari.app", "Notes.txt"]), (second, ["Safari.app", "Notes.app"])] {
+            for item in items {
+                try FileManager.default.createDirectory(at: folder.appendingPathComponent(item), withIntermediateDirectories: true)
+            }
+        }
+        let apps = Command.installedApps(in: [first, second, first.appendingPathComponent("missing")])
+        XCTAssertEqual(apps.keys.sorted(), ["Notes", "Safari"])
+        XCTAssertEqual(apps["Safari"]?.deletingLastPathComponent().lastPathComponent, "Applications")
+        let open = Command.all(in: folder([:]), apps: ["Notes", "Safari"]).first { $0.name == "open" }
+        XCTAssertEqual(open?.choices, [.init(value: "Notes", meaning: "Notes"), .init(value: "Safari", meaning: "Safari"), Command.noApp])
+        XCTAssertEqual(Command.all(in: folder([:]), apps: (1...300).map(String.init)).first { $0.name == "open" }?.choices.count, 255,
+                       "Jev's most")
+    }
+
+    @MainActor
+    func testOpenOpensTheApp() async {
+        var opened: [URL] = []
+        let safari = URL(fileURLWithPath: "/Applications/Safari.app")
+        for (choice, result) in [("Safari", "Opened Safari"), ("Teleporter", "No app by that name"), ("none", "No app by that name")] {
+            let mode = makeMode(CommandDecision(command: "open", choice: choice, confidence: 0.9))
+            mode.apps = { ["Safari": safari] }
+            mode.openApp = { opened.append($0) }
+            let run = await mode.handle("打开 \(choice)", apiKey: "k")
+            XCTAssertEqual(run.result, result)
+        }
+        XCTAssertEqual(opened, [safari])
+    }
+
+    // MARK: Create
+
+    func testTheWriterIsToldTheCommandsButNotCreate() {
+        let commands = Command.all(in: folder(["brightness.py": brightness]))
+        let prompt = CommandWriter.prompt(commands)
+        XCTAssertTrue(prompt.contains("- brightness: Set the screen brightness. (choices: +10 = a bit brighter, 50 = half)"))
+        XCTAssertTrue(prompt.contains("- repeat: Run the last command again\n"))
+        XCTAssertFalse(prompt.contains("- create:"))
+        XCTAssertTrue(prompt.contains("- open: Open an app\n"), "not the apps: the model would name one as the command")
+        XCTAssertFalse(prompt.contains("{commands}"))
+        XCTAssertTrue(prompt.contains("EXISTING: <its name>"), "the instructions ship with the app")
+    }
+
+    func testReadsTheWritersAnswer() {
+        XCTAssertEqual(CommandWriter.parse("EXISTING: volume\n"), .existing("volume"))
+        XCTAssertEqual(CommandWriter.parse("NAME: battery\n```python\n\"\"\"Battery.\"\"\"\nprint(1)\n```"),
+                       .new(name: "battery", script: "\"\"\"Battery.\"\"\"\nprint(1)\n"))
+        XCTAssertNil(CommandWriter.parse("Sure! Here's a script: print(1)"))
+        XCTAssertTrue(CommandWriter.validName("window-left"))
+        for bad in ["Window", "../x", "a b", "-x", "x-", ""] { XCTAssertFalse(CommandWriter.validName(bad), bad) }
+    }
+
+    private let battery = "\"\"\"Say the battery level.\"\"\"\nprint('Battery 80%')\n"
+
+    @MainActor
+    func testCreateWritesTheCommandForNextTime() async throws {
+        let mode = makeMode(CommandDecision(command: "create", confidence: 0.95))
+        var asked: [String] = []
+        mode.writeCommand = { [battery] said, commands, key in
+            asked.append("\(said) | \(commands.map(\.name).joined(separator: ",")) | \(key)")
+            return .new(name: "battery", script: battery)
+        }
+        let run = await mode.handle("create command tell me the battery", apiKey: "k")
+        XCTAssertEqual(asked, ["create command tell me the battery | return,repeat,create,open,brightness | k"])
+        XCTAssertTrue(run.ok)
+        XCTAssertEqual(run.result, "Created battery")
+        XCTAssertEqual(try String(contentsOf: mode.folder.appendingPathComponent("battery.py"), encoding: .utf8), battery)
+        XCTAssertTrue(mode.commands.contains { $0.name == "battery" && $0.summary == "Say the battery level." })
+        XCTAssertEqual(ran, [], "written, not run")
+        XCTAssertFalse(run.canRunAgain, "↻ and repeat don't write it again")
+        mode.makeDecider = { _, _ in FakeDecider(decision: CommandDecision(command: "repeat", confidence: 0.9)) }
+        let repeated = await mode.handle("again", apiKey: "k")
+        XCTAssertEqual(repeated.result, "Nothing to repeat")
+    }
+
+    @MainActor
+    func testCreateTakesAFreeNameAndRefusesWhatItCantRead() async throws {
+        let mode = makeMode(CommandDecision(command: "create", confidence: 0.95))
+        var reply = CommandWriter.Reply.new(name: "brightness", script: battery)
+        mode.writeCommand = { _, _, _ in reply }
+        let first = await mode.handle("create command battery", apiKey: "k")
+        XCTAssertEqual(first.result, "Created brightness-2")
+        for (bad, why) in [(CommandWriter.Reply.new(name: "../evil", script: battery), "Couldn't write it: “../evil” can't be a command's name"),
+                           (.new(name: "nodoc", script: "print(1)\n"), "Couldn't write it: its description is missing"),
+                           (.existing("teleport"), "Couldn't write it: it named teleport, which isn't a command")] {
+            reply = bad
+            let run = await mode.handle("create command something", apiKey: "k")
+            XCTAssertFalse(run.ok)
+            XCTAssertEqual(run.result, why)
+        }
+        reply = .existing("brightness")
+        let existing = await mode.handle("create command brighter", apiKey: "k")
+        XCTAssertTrue(existing.ok)
+        XCTAssertEqual(existing.result, "brightness already does that")
+        XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: mode.folder.path)), ["brightness.py", "brightness-2.py"])
+    }
+
+    /// The real uv: a script Python can't parse isn't saved.
+    @MainActor
+    func testCreateRefusesAScriptPythonCantParse() async throws {
+        guard CommandMode.uvPaths.contains(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+            throw XCTSkip("uv isn't installed")
+        }
+        let problem = await CommandMode.syntaxProblem("\"\"\"Broken.\"\"\"\nif True print(1)\n")
+        XCTAssertTrue(problem?.contains("SyntaxError") ?? false, problem ?? "nil")
+        let fine = await CommandMode.syntaxProblem(battery)
+        XCTAssertNil(fine)
+        let mode = makeMode(CommandDecision(command: "create", confidence: 0.95))
+        mode.writeCommand = { _, _, _ in .new(name: "broken", script: "\"\"\"Broken.\"\"\"\nif True print(1)\n") }
+        let run = await mode.handle("create command broken", apiKey: "k")
+        XCTAssertFalse(run.ok)
+        XCTAssertTrue(run.result.hasPrefix("Couldn't write it: SyntaxError"), run.result)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: mode.folder.appendingPathComponent("broken.py").path))
+    }
+
     // MARK: History
 
     func testCommandsAreSavedBesideHistoryAndFollowRetention() {
@@ -288,10 +448,13 @@ final class CommandTests: XCTestCase {
         CommandMode.installExamples(into: mode.folder)
         mode.runScript = { url, choice in CommandResult(ok: true, message: url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-")) }
         mode.pressReturn = {}
+        mode.openApp = { _ in }
         for model in ["jev", "deepseek/deepseek-v4.1-flash"] {
         for (said, expected) in [("make the screen a bit brighter", "brightness +10"), ("把亮度调到一半", "brightness 50"),
                                  ("声音小一点", "volume -10"), ("mute", "volume mute"), ("send it", "return"),
-                                 ("open the pod bay doors", "none")] {
+                                 ("打开 Safari", "open Safari"), ("open the pod bay doors", "none")] {
+            // The chat decider (not the default) often leaves out which app: bench/results/commands.
+            if model != "jev" && said == "打开 Safari" { continue }
             let started = Date()
             let run = await mode.handle(said, apiKey: key, model: model)
             print("[live] \(model): \(said) → \(run.label) in \(String(format: "%.2f", Date().timeIntervalSince(started))) s")
@@ -300,15 +463,35 @@ final class CommandTests: XCTestCase {
         }
     }
 
+    /// The real Jev and the real writer, through `CommandMode.handle`: "create command …" writes a
+    /// script into an empty folder, and the app can read it (not run). Opt-in like the one above (~$0.001).
+    @MainActor
+    func testLiveCreateWritesACommand() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_API_KEY"] else {
+            throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_API_KEY to run")
+        }
+        let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
+        CommandMode.installExamples(into: mode.folder)
+        let started = Date()
+        let run = await mode.handle("create command, um, tell me the battery percentage", apiKey: key)
+        print("[live] create: \(run.result) in \(String(format: "%.2f", Date().timeIntervalSince(started))) s")
+        XCTAssertEqual(run.command, "create")
+        XCTAssertTrue(run.ok, run.result)
+        XCTAssertEqual(mode.commands.count, Command.builtIn.count + 3, "brightness, volume and the new one")
+        let existing = await mode.handle("新建命令 静音", apiKey: key)
+        XCTAssertEqual(existing.result, "volume already does that")
+    }
+
     // MARK: Examples
 
     func testExamplesAreCopiedTheFirstTimeOnly() throws {
         let folder = makeTempURL(self, "Commands")
         CommandMode.installExamples(into: folder)
-        XCTAssertEqual(Command.all(in: folder).map(\.name), ["return", "repeat", "brightness", "volume"])
+        XCTAssertEqual(Command.all(in: folder).map(\.name), ["return", "repeat", "create", "open", "brightness", "volume"])
         XCTAssertEqual(Command.all(in: folder).first { $0.name == "volume" }?.choices.last?.value, "unmute")
         try FileManager.default.removeItem(at: folder.appendingPathComponent("volume.py"))
         CommandMode.installExamples(into: folder)
-        XCTAssertEqual(Command.all(in: folder).map(\.name), ["return", "repeat", "brightness"], "a deleted one stays deleted")
+        XCTAssertEqual(Command.all(in: folder).map(\.name), ["return", "repeat", "create", "open", "brightness"], "a deleted one stays deleted")
     }
 }

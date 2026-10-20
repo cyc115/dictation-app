@@ -22,8 +22,11 @@ with nothing lost. **Red**: no sound is coming in. Click ✓ to paste, ✕ or **
 
 Press the Enter mouse button when you're not dictating, say what you want ("make the screen a bit
 brighter", "声音小一点", "mute"), and press it again. A decision model picks one of your commands in
-about 0.3 s and it runs; if nothing fits, nothing runs. Commands are small Python scripts in a folder
-you can edit ([how](#commands)), and History keeps a Commands list with ↻ to run one again.
+about 0.3 s and it runs; if nothing fits, nothing runs. "打开 Safari" opens an app you installed.
+Commands are small Python scripts in a folder you can edit ([how](#commands)), or say "create
+command" and what it should do, and one is written for you (about a second). History keeps a
+Commands list with ↻ to run one again. Command mode is online: it needs your API key, whatever the
+speech setup.
 
 ![Command mode: "声音小一点" runs volume −10; "open the pod bay doors" fits no command, so nothing runs](docs/images/commands.gif)
 
@@ -134,8 +137,15 @@ asked too and the first answer is used (Settings → *Backup model when slow*).
 
 Command mode runs the scripts in `~/Library/Application Support/DictationApp/Commands/`
 (Settings → Commands → **Show in Finder**). The app starts you with `brightness` (built-in
-display) and `volume`, plus two built-in commands: `return` ("send it") and `repeat` (the last
-command again). The folder is read afresh for every command, so a new script works right away.
+display) and `volume`, plus four built-in commands: `return` ("send it"), `repeat` (the last
+command again), `open` (an app in `/Applications` or `~/Applications`, not the ones macOS comes
+with) and `create`. The folder is read afresh for every command, so a new script works right away.
+
+`create` ("create command, tile the window to the left half", "新建命令 现在几点") has DeepSeek V4.1
+Flash write the script into the folder, ready next time; if one of your commands already does it,
+it says which instead. The script isn't run when it's written. A script that fails (exits non-zero
+or takes over 10 s) is turned off: it moves to `Commands/Disabled/`, and Settings → Commands has a
+switch beside each script to turn it back on (or off).
 
 A command is one Python file, run with `uv run --script <file> <choice>`. Its docstring's first
 line says what it does, and the lines under `Choices:` list what it can be told:
@@ -164,8 +174,9 @@ text. It sees what you said and each command's description and choices, never th
   your history, stay in `~/Library/Application Support/DictationApp/`.
 - History is kept for as long as you choose (Settings → *Keep history*), and **Clear All…**
   deletes it.
-- Command mode sends what you said, and your commands' names, descriptions and choices, to
-  OpenRouter to pick one. Commands are saved beside your history, in `history-commands.json`.
+- Command mode sends what you said, and your commands' names, descriptions and choices (with your
+  installed apps' names, for `open`), to OpenRouter to pick one; `create` also sends it to
+  DeepSeek to write the script. Commands are saved beside your history, in `history-commands.json`.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted)
   to the cloud models, like any cloud dictation. Learned prompts stay in
   `~/Library/Application Support/DictationApp/learned-prompts.json`.

@@ -21,7 +21,7 @@ let package = Package(
                 .product(name: "HuggingFace", package: "swift-huggingface"),
             ],
             // Command mode's example commands, copied into the commands folder the first time.
-            resources: [.copy("Commands/ExampleCommands")],
+            resources: [.copy("Commands/ExampleCommands"), .copy("Commands/WriteCommand.txt")],
             swiftSettings: [.swiftLanguageMode(.v5)],
             linkerSettings: [
                 // Apple Intelligence is optional at runtime (AI polish falls back to raw text).

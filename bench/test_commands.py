@@ -6,7 +6,7 @@ from suites import commands
 
 def test_reads_the_app_example_commands_like_the_app():
     found = {c["name"]: c for c in commands.app_commands()}
-    assert list(found) == ["return", "repeat", "brightness", "volume"]
+    assert list(found) == ["return", "repeat", "create", "open", "brightness", "volume"]
     assert found["volume"]["choices"]["mute"] == "mute"
     assert list(found["brightness"]["choices"])[:2] == ["+10", "-10"]
 
@@ -21,7 +21,7 @@ def test_jev_is_asked_what_the_app_asks():
     body = commands.jev_body("mute", commands.app_commands())
     assert body["model"] == "~typesafe/jev-latest"
     assert body["state"] == "The user said: mute"
-    assert set(body["questions"]) == {"command", "choice:brightness", "choice:volume"}
+    assert set(body["questions"]) == {"command", "choice:open", "choice:brightness", "choice:volume"}
     assert body["questions"]["command"]["criteria"]["none"] == "None of these does what the user asked"
 
 
@@ -46,4 +46,12 @@ def test_every_case_expects_commands_that_exist():
 
 def test_the_catalog_adds_distinct_commands():
     names = [c["name"] for c in commands.commands_for(catalog=True)]
-    assert len(names) == len(set(names)) == 33
+    assert len(names) == len(set(names)) == 35
+
+
+def test_open_lists_the_installed_apps(tmp_path):
+    (tmp_path / "Safari.app").mkdir()
+    (tmp_path / "notes.txt").write_text("")
+    assert commands.installed_apps([tmp_path, tmp_path / "missing"]) == ["Safari"]
+    found = {c["name"]: c for c in commands.app_commands(apps=["Ghostty", "Safari"])}
+    assert found["open"]["choices"] == {"Ghostty": "Ghostty", "Safari": "Safari", "none": commands.NO_APP}

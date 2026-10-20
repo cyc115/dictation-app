@@ -1,0 +1,25 @@
+{
+  "about": "Requests for command mode's create command, as you'd say them; expect is the existing command that already does it, or \"new\" (a list: either is right). \"safe\" cases only read things, so `create run --try` runs their scripts.",
+  "cases": [
+    {"said": "create command, um, tell me the battery percentage", "expect": "new", "tags": ["en", "safe"]},
+    {"said": "新建命令 现在几点了", "expect": "new", "tags": ["zh", "safe"]},
+    {"said": "create command 显示一下硬盘还剩多少空间", "expect": "new", "tags": ["mixed", "safe"]},
+    {"said": "create command what wifi network am I connected to", "expect": "new", "tags": ["en", "safe"]},
+    {"said": "create command, uh, how long has my Mac been on since the last restart", "expect": "new", "tags": ["en", "safe"]},
+    {"said": "create command 看一下现在是哪个 app 在最前面", "expect": "new", "tags": ["mixed", "safe"]},
+    {"said": "create command what's my IP address on the local network", "expect": "new", "tags": ["en", "safe"]},
+    {"said": "create command 把当前窗口铺满左半边屏幕，也可以右半边", "expect": "new", "tags": ["mixed"]},
+    {"said": "create command open a new Safari window", "expect": ["new", "open"], "tags": ["en"]},
+    {"said": "create command toggle dark mode", "expect": "new", "tags": ["en"]},
+    {"said": "create command 锁屏", "expect": "new", "tags": ["zh"]},
+    {"said": "create command play or pause the music", "expect": "new", "tags": ["en"]},
+    {"said": "create command copy today's date to the clipboard", "expect": "new", "tags": ["en"]},
+    {"said": "create command open my downloads folder in Finder", "expect": "new", "tags": ["en"]},
+    {"said": "create command 打开 Slack 或者 Zed 或者 Ghostty，我说哪个就打开哪个", "expect": "new", "tags": ["mixed"]},
+    {"said": "create command, the, uh, keep the Mac awake for an hour", "expect": "new", "tags": ["en"]},
+    {"said": "create command 静音", "expect": "volume", "tags": ["zh", "existing"]},
+    {"said": "create command make the screen a bit brighter", "expect": "brightness", "tags": ["en", "existing"]},
+    {"said": "create command, set the volume to fifty percent", "expect": "volume", "tags": ["en", "existing"]},
+    {"said": "新建命令 把屏幕调暗一点", "expect": "brightness", "tags": ["zh", "existing"]}
+  ]
+}

@@ -9,7 +9,7 @@
 Each case (command_cases.json) is something you might say — English, Chinese, mixed, with fillers,
 with speech-model errors, or not a command at all — and every answer that counts as right
 ("volume -10", "return", "none"). The commands are the app's: its example scripts' docstrings
-(Sources/DictationKit/Commands/ExampleCommands) and the built-in return and repeat; --catalog adds the
+(Sources/DictationKit/Commands/ExampleCommands) and the built-in return, repeat, create and open (its choices: this Mac's apps); --catalog adds the
 commands in command_catalog.json, to see how a model copes with more to choose from.
 
 Models:
@@ -49,7 +49,18 @@ DEFAULT_MODELS = ["jev", "openrouter:google/gemini-3.5-flash-lite", "openrouter:
                   "openrouter:deepseek/deepseek-v4.1-flash", "openrouter:z-ai/glm-5.3-flash",
                   "openrouter:inception/mercury-3"]
 BUILT_IN = [{"name": "return", "summary": "Press Return (send) in the front app", "choices": {}},
-            {"name": "repeat", "summary": "Run the last command again", "choices": {}}]
+            {"name": "repeat", "summary": "Run the last command again", "choices": {}},
+            {"name": "create", "summary": "Create a new command: the user asks for a new command (“create command”, "
+                                          "“新建命令”, “写一个命令”) and describes what it should do", "choices": {}},
+            {"name": "open", "summary": "Open an app", "choices": {}}]
+APP_FOLDERS = [Path("/Applications"), Path.home() / "Applications"]  # Command.appFolders
+MAX_APPS = 254  # Command.maxApps
+NO_APP = "Not one of these apps"  # Command.noApp: "open none" runs nothing
+
+
+def installed_apps(folders: list[Path] = APP_FOLDERS) -> list[str]:
+    """The apps you installed, by name (Command.installedApps): open's choices."""
+    return sorted({p.stem for folder in folders if folder.is_dir() for p in folder.glob("*.app")})
 
 
 # ---------------------------------------------------------------- commands, as the app reads them
@@ -75,10 +86,13 @@ def parse_script(text: str, name: str) -> dict | None:
     return {"name": name, "summary": summary, "choices": choices}
 
 
-def app_commands(examples: Path = EXAMPLES) -> list[dict]:
-    """Built-ins, then the example scripts by name (Command.all)."""
+def app_commands(examples: Path = EXAMPLES, apps: list[str] | None = None) -> list[dict]:
+    """Built-ins (open's choices: this Mac's apps), then the example scripts by name (Command.all)."""
+    apps = installed_apps() if apps is None else apps
+    open_choices = {a: a for a in apps[:MAX_APPS]} | {"none": NO_APP}
+    built_in = [{**c, "choices": open_choices} if c["name"] == "open" else c for c in BUILT_IN]
     scripts = [parse_script(p.read_text(), p.stem) for p in sorted(examples.glob("*.py"))]
-    return BUILT_IN + [s for s in scripts if s]
+    return built_in + [s for s in scripts if s]
 
 
 def commands_for(catalog: bool) -> list[dict]:
@@ -165,10 +179,12 @@ def ask_chat(model: str, said: str, commands: list[dict], key: str) -> tuple[str
 
 def ask(model: str, said: str, commands: list[dict], key: str):
     if model == "jev":
-        return ask_jev(said, commands, key)
-    if model.startswith("openrouter:"):
-        return ask_chat(model[len("openrouter:"):], said, commands, key)
-    raise SystemExit(f"unknown model {model!r}: use jev or openrouter:<id>")
+        got, cost, extra = ask_jev(said, commands, key)
+    elif model.startswith("openrouter:"):
+        got, cost, extra = ask_chat(model[len("openrouter:"):], said, commands, key)
+    else:
+        raise SystemExit(f"unknown model {model!r}: use jev or openrouter:<id>")
+    return ("none" if got == "open none" else got), cost, extra
 
 
 # ---------------------------------------------------------------- run, score, report

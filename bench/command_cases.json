@@ -1,5 +1,5 @@
 {
-  "about": "Command mode: what you might say, and the command (name and choice, as History shows it) that should run. expect lists every acceptable answer; \"none\" means nothing should run. Commands: the app's example commands (Sources/DictationKit/Commands/ExampleCommands) and the built-in return and repeat.",
+  "about": "Command mode: what you might say, and the command (name and choice, as History shows it) that should run. expect lists every acceptable answer; \"none\" means nothing should run. Commands: the app's example commands (Sources/DictationKit/Commands/ExampleCommands) and the built-in return, repeat, create and open (its choices: this Mac's apps; the open cases expect apps installed here).",
   "cases": [
     {"said": "make the screen a bit brighter", "expect": ["brightness +10"], "tags": ["en"]},
     {"said": "dim the screen", "expect": ["brightness -10", "brightness -30"], "tags": ["en"]},
@@ -66,6 +66,20 @@
     {"said": "hello", "expect": ["none"], "tags": ["none"]},
     {"said": "这个 brightness 的问题我们明天再讨论", "expect": ["none"], "tags": ["none", "tricky", "mixed"]},
 
-    {"said": "make it brighter and turn the volume down", "expect": ["brightness +10", "volume -10"], "tags": ["two-in-one"]}
+    {"said": "make it brighter and turn the volume down", "expect": ["brightness +10", "volume -10"], "tags": ["two-in-one"]},
+
+    {"said": "create command tell me the battery percentage", "expect": ["create"], "tags": ["create", "en"]},
+    {"said": "新建命令 现在几点了", "expect": ["create"], "tags": ["create", "zh"]},
+    {"said": "create command 把窗口铺满左半边", "expect": ["create"], "tags": ["create", "mixed"]},
+    {"said": "um, create a command that opens my downloads folder", "expect": ["create"], "tags": ["create", "en", "filler"]},
+    {"said": "make a new command to toggle dark mode", "expect": ["create"], "tags": ["create", "en"]},
+    {"said": "帮我写一个命令，锁屏", "expect": ["create"], "tags": ["create", "zh"]},
+
+    {"said": "打开 Safari", "expect": ["open Safari"], "tags": ["open", "mixed"]},
+    {"said": "open chrome", "expect": ["open Google Chrome"], "tags": ["open", "en"]},
+    {"said": "launch ghostty", "expect": ["open Ghostty"], "tags": ["open", "en"]},
+    {"said": "open obsidian", "expect": ["open Obsidian"], "tags": ["open", "en", "tricky"]},
+    {"said": "嗯，帮我打开一下 discord", "expect": ["open Discord"], "tags": ["open", "mixed", "filler"]},
+    {"said": "打开那个下载的文件夹", "expect": ["none", "create"], "tags": ["open", "zh", "tricky"]}
   ]
 }

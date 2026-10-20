@@ -148,6 +148,24 @@ bench/suite.py commands report --failures jev
 The app uses the model in its `commandModel` setting (default `jev`; any OpenRouter chat model id
 works): `defaults write com.mikechen.DictationApp commandModel <id>`.
 
+## Writing a command (`suite.py create`)
+
+Does "create command …" get a working script in one go (`create_cases.json`: 16 new commands, 4
+that already exist)? The model is asked exactly as the app's `CommandWriter` asks
+(`Sources/DictationKit/Commands/WriteCommand.txt`), and each reply is checked like the app checks
+it: the format, finding the existing command, the name, the docstring, Python syntax. `--try` also
+runs the scripts of the "safe" cases (they only read: battery, time, Wi-Fi) as the app would.
+
+```sh
+bench/suite.py create run --try                   # the app's model: DeepSeek V4.1 Flash
+bench/suite.py create run -m openrouter:deepseek/deepseek-v4.1-flash+think -r 2
+bench/suite.py create show 窗口                    # what it wrote for a case
+```
+
+Oct 20, 2026, DeepSeek V4.1 Flash, reasoning off, 2 rounds: every case right, and 13 of 14 safe
+scripts ran (the other reported, correctly, that this Mac wasn't on Wi-Fi); 0.7 s, $0.23 per 1000.
+Reasoning on scored the same, twice as slow and dear.
+
 ## Speech-to-text accuracy (`suite.py accuracy` = `bench.py`)
 
 Compares dictation models on the same audio: **Chinese with English mixed in**, **Chinese only**,

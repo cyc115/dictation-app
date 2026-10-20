@@ -36,8 +36,23 @@ final class CommandUITests: XCTestCase {
     func testSettingsListsTheCommands() {
         let hosted = HostedView(SettingsView(services: makeServices(self)), size: NSSize(width: 640, height: 2600))
         addTeardownBlock { hosted.close() }
-        for name in ["return", "repeat", "brightness", "volume"] {
+        for name in ["return", "repeat", "create", "open", "brightness", "volume"] {
             XCTAssertNotNil(hosted.element(id: "command." + name), "missing \(name)")
         }
+        XCTAssertNil(hosted.element(id: "command.switch.repeat"), "built-ins can't be turned off")
+    }
+
+    func testASwitchTurnsAScriptOffAndOn() throws {
+        let services = makeServices(self)
+        let folder = services.commands.folder
+        CommandMode.installExamples(into: folder)
+        let hosted = HostedView(Form { CommandsList(folder: folder) }.formStyle(.grouped), size: NSSize(width: 640, height: 600))
+        addTeardownBlock { hosted.close() }
+        XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "command.switch.volume"))))
+        XCTAssertEqual(Command.disabled(in: folder).map(\.name), ["volume"])
+        XCTAssertNotNil(hosted.element(id: "command.volume"), "still listed, to turn back on")
+        XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "command.switch.volume"))))
+        XCTAssertEqual(Command.disabled(in: folder), [])
+        XCTAssertTrue(Command.all(in: folder).contains { $0.name == "volume" })
     }
 }

@@ -248,7 +248,7 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertTrue(controller.overlay.isCommand)
         controller.enter()
         waitUntil { !controller.isBusy }
-        XCTAssertEqual(decided.events, ["decide: 声音小一点 among return,repeat,brightness,volume"])
+        XCTAssertEqual(decided.events, ["decide: 声音小一点 among return,repeat,create,open,brightness,volume"])
         XCTAssertEqual(ran, ["volume -10"])
         XCTAssertEqual(pasted, [], "a command isn't typed")
         XCTAssertEqual(keys, [], "nor sent")

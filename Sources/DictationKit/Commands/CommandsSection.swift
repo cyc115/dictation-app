@@ -28,10 +28,17 @@ struct CommandsSection: View {
     }
 }
 
-/// The commands folder and what's in it: each command, what it does and what it can be told.
+/// The commands folder and what's in it: each command, what it does and what it can be told, with a
+/// switch to turn a script off (a script that fails is turned off for you).
 struct CommandsList: View {
     let folder: URL
     @State private var commands: [Command] = []
+    @State private var disabled: [Command] = []
+
+    private func reload() {
+        commands = Command.all(in: folder)
+        disabled = Command.disabled(in: folder)
+    }
 
     var body: some View {
         SettingRow("Commands folder", (folder.path as NSString).abbreviatingWithTildeInPath) {
@@ -40,8 +47,9 @@ struct CommandsList: View {
                 NSWorkspace.shared.activateFileViewerSelecting([folder])
             }
         }
-        .onAppear { commands = Command.all(in: folder) }
-        ForEach(commands, id: \.name) { command in
+        .onAppear(perform: reload)
+        ForEach(commands + disabled, id: \.self) { command in
+            let on = !disabled.contains(command)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Image(systemName: command.script == nil ? "sparkle" : "chevron.forward")
                     .font(.caption.weight(.bold))
@@ -49,19 +57,31 @@ struct CommandsList: View {
                     .frame(width: 14)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(command.name).font(.body.weight(.medium))
-                    Text(command.summary + (command.script == nil ? " · built in" : ""))
+                    Text(command.summary + (command.name == Command.openApp.name ? " you installed (\(command.choices.count - 1))" : "")
+                         + (command.script == nil ? " · built in" : ""))
                         .font(.callout).foregroundStyle(.secondary)
-                    if !command.choices.isEmpty {
+                    if command.script != nil, !command.choices.isEmpty {
                         Text(command.choices.map(\.value).joined(separator: "  "))
                             .font(.caption.monospaced()).foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
+                if let script = command.script {
+                    Toggle(command.name, isOn: Binding(get: { on }, set: { enable in
+                        _ = try? Command.setEnabled(enable, script: script, folder: folder)
+                        reload()
+                    }))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("command.switch." + command.name)
+                }
             }
-            .accessibilityElement(children: .combine)
+            .opacity(on ? 1 : 0.5)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("command." + command.name)
         }
-        Text("Add a Python script to the folder: its docstring's first line says what it does, and lines under “Choices:” what it can be told (value: meaning). It's run with uv.")
+        Text("Add a Python script to the folder, or say “create command” and what it should do. A script's docstring's first line says what it does, and lines under “Choices:” what it can be told (value: meaning). It's run with uv; one that fails is turned off.")
             .font(.callout).foregroundStyle(.secondary)
     }
 }
