@@ -23,7 +23,7 @@ final class CommandUITests: XCTestCase {
         let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: store)
         CommandMode.installExamples(into: mode.folder)
         var ran: [String?] = []
-        mode.runScript = { _, choice in ran.append(choice); return CommandResult(ok: true, message: "Volume 60%") }
+        mode.runScript = { _, choice, _ in ran.append(choice); return CommandResult(ok: true, message: "Volume 60%") }
         let hosted = HostedView(HistoryView(store: store, commandMode: mode, shown: .commands), size: NSSize(width: 760, height: 400))
         addTeardownBlock { hosted.close() }
         XCTAssertEqual(hosted.elements(id: "history.command").count, 1)

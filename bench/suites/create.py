@@ -30,6 +30,7 @@ import argparse
 import ast
 import concurrent.futures
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -100,7 +101,7 @@ def ask(model: str, said: str, cmds: list[dict], key: str) -> tuple[str, float |
     return answer["choices"][0]["message"].get("content") or "", answer.get("usage", {}).get("cost")
 
 
-def try_script(script: str, name: str, choice: str | None) -> tuple[bool, str]:
+def try_script(script: str, name: str, choice: str | None, said: str = "") -> tuple[bool, str]:
     """Runs it as the app does (CommandMode.run); (exit 0 and printed something, what it printed)."""
     uv = shutil.which("uv")
     if not uv:
@@ -110,7 +111,8 @@ def try_script(script: str, name: str, choice: str | None) -> tuple[bool, str]:
         path.write_text(script)
         try:
             done = subprocess.run([uv, "run", "--quiet", "--script", str(path)] + ([choice] if choice else []),
-                                  capture_output=True, text=True, timeout=TIMEOUT, stdin=subprocess.DEVNULL)
+                                  capture_output=True, text=True, timeout=TIMEOUT, stdin=subprocess.DEVNULL,
+                                  env={**os.environ, "COMMAND_SAID": said})
         except subprocess.TimeoutExpired:
             return False, f"took longer than {TIMEOUT} s"
     out = done.stdout.strip().splitlines()
@@ -142,8 +144,8 @@ def check(case: dict, reply: str, cmds: list[dict], run_it: bool) -> dict:
         return {**found, "score": "syntax", "detail": str(e)}
     if run_it:
         choice = next(iter(command["choices"]), None)
-        ok, said = try_script(parsed["script"], parsed["name"], choice)
-        return {**found, "score": "ok" if ok else "runs", "ran": choice or "", "detail": said}
+        ok, printed = try_script(parsed["script"], parsed["name"], choice, case["said"])
+        return {**found, "score": "ok" if ok else "runs", "ran": choice or "", "detail": printed}
     return {**found, "score": "ok"}
 
 

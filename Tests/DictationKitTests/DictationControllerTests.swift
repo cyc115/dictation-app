@@ -85,7 +85,7 @@ final class DictationControllerTests: XCTestCase {
         commands = CommandMode(folder: makeTempURL(self, "Commands"), history: history)
         CommandMode.installExamples(into: commands.folder)
         commands.makeDecider = { [unowned self] _, _ in FakeDecider(decision: decision, log: decided) }
-        commands.runScript = { [unowned self] url, choice in
+        commands.runScript = { [unowned self] url, choice, _ in
             ran.append(url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-"))
             return CommandResult(ok: true, message: "Volume 40%")
         }
@@ -276,7 +276,7 @@ final class DictationControllerTests: XCTestCase {
         let controller = makeController()
         settings.setOpenRouterKey("test-key")
         decision = CommandDecision(command: "brightness", choice: "+10", confidence: 0.97)
-        commands.runScript = { _, _ in CommandResult(ok: false, message: "No display whose brightness macOS can set") }
+        commands.runScript = { _, _, _ in CommandResult(ok: false, message: "No display whose brightness macOS can set") }
         controller.enter()
         controller.enter()
         waitUntil { !controller.isBusy }

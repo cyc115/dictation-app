@@ -52,7 +52,7 @@ BUILT_IN = [{"name": "return", "summary": "Press Return (send) in the front app"
             {"name": "repeat", "summary": "Run the last command again", "choices": {}},
             {"name": "create", "summary": "Create a new command: the user asks for a new command (“create command”, "
                                           "“新建命令”, “写一个命令”) and describes what it should do", "choices": {}},
-            {"name": "open", "summary": "Open an app", "choices": {}}]
+            {"name": "open", "summary": "Open an app installed on this Mac (not a website)", "choices": {}}]
 APP_FOLDERS = [Path("/Applications"), Path.home() / "Applications"]  # Command.appFolders
 MAX_APPS = 254  # Command.maxApps
 NO_APP = "Not one of these apps"  # Command.noApp: "open none" runs nothing

@@ -147,8 +147,10 @@ it says which instead. The script isn't run when it's written. A script that fai
 or takes over 10 s) is turned off: it moves to `Commands/Disabled/`, and Settings → Commands has a
 switch beside each script to turn it back on (or off).
 
-A command is one Python file, run with `uv run --script <file> <choice>`. Its docstring's first
-line says what it does, and the lines under `Choices:` list what it can be told:
+A command is one Python file, run with `uv run --script <file> <choice>`, with what you said in
+`$COMMAND_SAID` (for free text a choice can't hold: a website that isn't listed, something to
+search for). Its docstring's first line says what it does, and the lines under `Choices:` list
+what it can be told:
 
 ```python
 """Set the sound volume, or mute it.

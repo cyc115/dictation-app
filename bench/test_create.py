@@ -6,7 +6,7 @@ def test_the_prompt_is_the_apps_with_the_commands_but_not_create():
     prompt = create.system_prompt(commands.app_commands())
     assert "- volume: " + commands.app_commands()[-1]["summary"] in prompt
     assert "- create:" not in prompt
-    assert "- open: Open an app\n" in prompt
+    assert "- open: Open an app installed on this Mac (not a website)\n" in prompt
     assert "{commands}" not in prompt
     assert prompt.startswith(create.PROMPT.read_text().split("{commands}")[0])
 

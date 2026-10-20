@@ -34,8 +34,8 @@ final class CommandMode {
     let history: HistoryStore
     /// (model, API key) → the decider; tests fake it.
     var makeDecider: (String, String) -> CommandDecider = { makeCommandDecider(model: $0, apiKey: $1) }
-    /// Runs a script with a choice (tests fake it).
-    var runScript: (URL, String?) async -> CommandResult = { await CommandMode.run(script: $0, choice: $1) }
+    /// Runs a script with a choice and what you said (tests fake it).
+    var runScript: (URL, String?, String) async -> CommandResult = { await CommandMode.run(script: $0, choice: $1, said: $2) }
     /// (what you said, the commands, API key) → the new script, or the command that already does it.
     var writeCommand: (String, [Command], String) async throws -> CommandWriter.Reply = {
         try await CommandWriter(apiKey: $2).write($0, among: $1)
@@ -125,7 +125,7 @@ final class CommandMode {
             guard let script = commands.first(where: { $0.name == name })?.script else {
                 return CommandResult(ok: false, message: "No \(name) script")
             }
-            let result = await runScript(script, choice)
+            let result = await runScript(script, choice, said)
             // A command that fails is turned off until you turn it back on (Settings › Commands).
             guard result.scriptFailed, (try? Command.setEnabled(false, script: script, folder: folder)) != nil else { return result }
             return CommandResult(ok: false, message: result.message + " · turned off", scriptFailed: true)
@@ -169,20 +169,23 @@ final class CommandMode {
     }
 
     /// `uv run --script <script> <choice>`, with no shell (what you said can't become another command)
-    /// and a time limit.
-    static func run(script: URL, choice: String?) async -> CommandResult {
+    /// and a time limit. What you said is in $COMMAND_SAID, for free text a choice can't hold (a
+    /// website that isn't listed, something to search for).
+    static func run(script: URL, choice: String?, said: String = "") async -> CommandResult {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                continuation.resume(returning: runNow(script: script, choice: choice))
+                continuation.resume(returning: runNow(script: script, choice: choice, said: said))
             }
         }
     }
 
     static let uvPaths = ["/opt/homebrew/bin/uv", NSHomeDirectory() + "/.local/bin/uv", "/usr/local/bin/uv"]
 
-    private static func runNow(script: URL, choice: String?) -> CommandResult {
+    static let saidVariable = "COMMAND_SAID"
+
+    private static func runNow(script: URL, choice: String?, said: String) -> CommandResult {
         let name = script.deletingPathExtension().lastPathComponent
-        switch uv(["run", "--quiet", "--script", script.path] + (choice.map { [$0] } ?? [])) {
+        switch uv(["run", "--quiet", "--script", script.path] + (choice.map { [$0] } ?? []), environment: [saidVariable: said]) {
         case .success(let finished): return CommandResult.from(finished, name: name)
         case .failure(.notInstalled): return CommandResult(ok: false, message: "uv isn't installed")
         case .failure(.couldNotStart(let why)): return CommandResult(ok: false, message: "Couldn't start \(name): \(why)")
@@ -202,8 +205,8 @@ final class CommandMode {
         case couldNotStart(String)
     }
 
-    /// Runs uv with `arguments`, with no shell and the time limit.
-    static func uv(_ arguments: [String]) -> Result<Finished, StartError> {
+    /// Runs uv with `arguments` (and `environment` added), with no shell and the time limit.
+    static func uv(_ arguments: [String], environment extra: [String: String] = [:]) -> Result<Finished, StartError> {
         guard let uv = uvPaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             return .failure(.notInstalled)
         }
@@ -212,6 +215,7 @@ final class CommandMode {
         process.arguments = arguments
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        environment.merge(extra) { _, new in new }
         process.environment = environment
         let output = Pipe(), errors = Pipe()
         process.standardOutput = output

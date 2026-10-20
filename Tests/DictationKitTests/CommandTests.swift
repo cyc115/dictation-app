@@ -144,10 +144,10 @@ final class CommandTests: XCTestCase {
         guard CommandMode.uvPaths.contains(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             throw XCTSkip("uv isn't installed")
         }
-        let dir = folder(["echo.py": "\"\"\"Echo.\"\"\"\nimport sys\nprint('got', sys.argv[1:])\n",
+        let dir = folder(["echo.py": "\"\"\"Echo.\"\"\"\nimport os, sys\nprint('got', sys.argv[1:], os.environ['COMMAND_SAID'])\n",
                           "fail.py": "\"\"\"Fail.\"\"\"\nimport sys\nsys.exit('no display')\n"])
-        let echoed = await CommandMode.run(script: dir.appendingPathComponent("echo.py"), choice: "+10; touch /tmp/x")
-        XCTAssertEqual(echoed, CommandResult(ok: true, message: "got ['+10; touch /tmp/x']"))
+        let echoed = await CommandMode.run(script: dir.appendingPathComponent("echo.py"), choice: "+10; touch /tmp/x", said: "打开 Swift 论坛")
+        XCTAssertEqual(echoed, CommandResult(ok: true, message: "got ['+10; touch /tmp/x'] 打开 Swift 论坛"))
         let failed = await CommandMode.run(script: dir.appendingPathComponent("fail.py"), choice: nil)
         XCTAssertEqual(failed, CommandResult(ok: false, message: "no display", scriptFailed: true))
     }
@@ -155,13 +155,15 @@ final class CommandTests: XCTestCase {
     // MARK: Command mode
 
     private var ran: [String] = []
+    private var heard: [String] = []
     private var returns = 0
 
     private func makeMode(_ decision: CommandDecision, log: EventLog = EventLog()) -> CommandMode {
         let mode = CommandMode(folder: folder(["brightness.py": brightness]), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
         mode.makeDecider = { _, _ in FakeDecider(decision: decision, log: log) }
-        mode.runScript = { [unowned self] url, choice in
+        mode.runScript = { [unowned self] url, choice, said in
             ran.append(url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-"))
+            heard.append(said)
             return CommandResult(ok: true, message: "Brightness 60%")
         }
         mode.pressReturn = { [unowned self] in returns += 1 }
@@ -177,6 +179,7 @@ final class CommandTests: XCTestCase {
         let run = await mode.handle("a bit brighter", apiKey: "k")
         XCTAssertEqual(log.events, ["decide: a bit brighter among return,repeat,create,open,brightness"])
         XCTAssertEqual(ran, ["brightness +10"])
+        XCTAssertEqual(heard, ["a bit brighter"], "what you said goes along, for free text")
         XCTAssertEqual(run.command, "brightness")
         XCTAssertEqual(run.choice, "+10")
         XCTAssertTrue(run.ok)
@@ -274,7 +277,7 @@ final class CommandTests: XCTestCase {
     @MainActor
     func testAScriptThatFailsIsTurnedOff() async {
         let mode = makeMode(CommandDecision(command: "brightness", choice: "+10", confidence: 0.97))
-        mode.runScript = { _, _ in CommandResult(ok: false, message: "No display", scriptFailed: true) }
+        mode.runScript = { _, _, _ in CommandResult(ok: false, message: "No display", scriptFailed: true) }
         let run = await mode.handle("brighter", apiKey: "k")
         XCTAssertFalse(run.ok)
         XCTAssertEqual(run.result, "No display · turned off")
@@ -285,7 +288,7 @@ final class CommandTests: XCTestCase {
     @MainActor
     func testUvMissingDoesntTurnTheScriptOff() async {
         let mode = makeMode(CommandDecision(command: "brightness", choice: "+10", confidence: 0.97))
-        mode.runScript = { _, _ in CommandResult(ok: false, message: "uv isn't installed") }
+        mode.runScript = { _, _, _ in CommandResult(ok: false, message: "uv isn't installed") }
         let run = await mode.handle("brighter", apiKey: "k")
         XCTAssertEqual(run.result, "uv isn't installed")
         XCTAssertEqual(Command.disabled(in: mode.folder), [])
@@ -331,7 +334,7 @@ final class CommandTests: XCTestCase {
         XCTAssertTrue(prompt.contains("- brightness: Set the screen brightness. (choices: +10 = a bit brighter, 50 = half)"))
         XCTAssertTrue(prompt.contains("- repeat: Run the last command again\n"))
         XCTAssertFalse(prompt.contains("- create:"))
-        XCTAssertTrue(prompt.contains("- open: Open an app\n"), "not the apps: the model would name one as the command")
+        XCTAssertTrue(prompt.contains("- open: Open an app installed on this Mac (not a website)\n"), "not the apps: the model would name one as the command")
         XCTAssertFalse(prompt.contains("{commands}"))
         XCTAssertTrue(prompt.contains("EXISTING: <its name>"), "the instructions ship with the app")
     }
@@ -446,7 +449,7 @@ final class CommandTests: XCTestCase {
         }
         let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
         CommandMode.installExamples(into: mode.folder)
-        mode.runScript = { url, choice in CommandResult(ok: true, message: url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-")) }
+        mode.runScript = { url, choice, _ in CommandResult(ok: true, message: url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-")) }
         mode.pressReturn = {}
         mode.openApp = { _ in }
         for model in ["jev", "deepseek/deepseek-v4.1-flash"] {

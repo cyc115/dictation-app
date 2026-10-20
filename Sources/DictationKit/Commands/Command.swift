@@ -32,7 +32,7 @@ struct Command: Hashable {
     static let create = Command(name: "create", summary: "Create a new command: the user asks for a new command (“create command”, “新建命令”, “写一个命令”) and describes what it should do",
                                 choices: [], script: nil)
     /// Opens an app; its choices are the installed apps (`installedApps`), filled in by `all(in:apps:)`.
-    static let openApp = Command(name: "open", summary: "Open an app", choices: [], script: nil)
+    static let openApp = Command(name: "open", summary: "Open an app installed on this Mac (not a website)", choices: [], script: nil)
     static let builtIn = [pressReturn, again, create, openApp]
 
     /// Where the apps you installed are, in order: an app's name means the first one found. Not the
