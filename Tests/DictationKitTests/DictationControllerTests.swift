@@ -244,7 +244,7 @@ final class DictationControllerTests: XCTestCase {
         engine.text = "声音小一点"
         controller.enter()
         XCTAssertTrue(controller.dictating)
-        XCTAssertTrue(controller.forCommand)
+        XCTAssertEqual(controller.kind, .command)
         XCTAssertTrue(controller.overlay.isCommand)
         controller.enter()
         waitUntil { !controller.isBusy }

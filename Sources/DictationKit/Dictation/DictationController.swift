@@ -6,7 +6,8 @@ import Foundation
 /// last one is still being transcribed or polished (`finishing`).
 ///
 /// A dictation can also be a command (`enter()` when nothing's in progress): its transcript goes
-/// to `CommandMode`, which picks one of your commands and runs it, instead of being typed.
+/// to `CommandMode`, which picks one of your commands and runs it, instead of being typed. What
+/// differs by kind is in `DictationKind`.
 ///
 /// Everything it touches is passed in, so tests can run start → stop → polish → paste with fake
 /// engines and polish (`makeEngine`, `makePolish`) and a fake paste.
@@ -40,8 +41,8 @@ final class DictationController {
     var sendDelay: TimeInterval = 0.15
 
     private(set) var dictating = false
-    /// The dictation in progress is a command.
-    private(set) var forCommand = false
+    /// What the dictation in progress is for.
+    private(set) var kind = DictationKind.text
     /// Stopped dictations whose text hasn't been delivered yet.
     private(set) var finishing = 0
     var isBusy: Bool { dictating || finishing > 0 }
@@ -125,7 +126,7 @@ final class DictationController {
 
     /// The dictation button (or a hotkey tap). Ignored during a command: the Enter button runs it.
     func toggle() {
-        if dictating { if !forCommand { stop() } } else { start() }
+        if dictating { if kind.stopsWithDictationButton { stop() } } else { start() }
     }
 
     /// The mouse's Enter button: during a dictation, stop it and press Return once the text is
@@ -133,30 +134,29 @@ final class DictationController {
     /// waits for the text instead of sending without it. During a command, run it. Otherwise
     /// start a command (or, with command mode off, just press Return).
     func enter() {
-        if dictating { return forCommand ? stop() : stop(send: true) }
+        if dictating { return stop(send: kind.canBeSent) }
         if let delivery = lastDelivery, !delivery.done { return delivery.send = true }
-        if settings.commandModeEnabled { start(command: true) } else { injector.pressReturn() }
+        if settings.commandModeEnabled { start(.command) } else { injector.pressReturn() }
     }
 
-    /// `command`: what you say is a command to run, not text to type.
-    func start(command: Bool = false) {
+    func start(_ kind: DictationKind = .text) {
         guard !dictating else { return }
         let setup = settings.setup
         guard let engine = makeEngine(setup) else {
             overlay.show(.plain("Add your cloud API key in Settings to use \(setup.title)", seconds: 4))
             return onMissingKey(setup)
         }
-        if command, settings.openRouterKey?.isEmpty ?? true {
+        if kind.needsCloudKey, settings.openRouterKey?.isEmpty ?? true {
             overlay.show(.plain("Add your cloud API key in Settings to use command mode", seconds: 4))
             return onMissingKey(setup)
         }
         self.engine = engine
         dictationSetup = setup
-        forCommand = command
+        self.kind = kind
         // Load the polish model while you speak instead of after you stop.
-        polisher = settings.polishEnabled && !command ? makePolish(setup) : nil
+        polisher = settings.polishEnabled && kind.polishes ? makePolish(setup) : nil
         polisher?.prepare()
-        let archive = settings.keepRecordings && !command ? archive : nil
+        let archive = settings.keepRecordings && kind.keepsRecording ? archive : nil
         note = archive.map { _ in RecordingNote(polishModel: polisher?.backend.name) }
         engine.archive = archive
         engine.note = note
@@ -166,7 +166,7 @@ final class DictationController {
         // A Bluetooth mic takes about a second to send audio: the pill shows the wait, and the start
         // sound waits for it too, so it means "talk now".
         let warmingUp = mic?.isBluetooth == true
-        overlay.showListening(micName: mic?.name, warmingUp: warmingUp, command: command)
+        overlay.showListening(micName: mic?.name, warmingUp: warmingUp, command: kind == .command)
         var cuePending = warmingUp
         if !warmingUp { startCue() }
         engine.start(
@@ -235,11 +235,11 @@ final class DictationController {
         }
         finishing += 1
         let delivery = Delivery(send: send)
-        let command = forCommand
-        if !command { lastDelivery = delivery }
+        let kind = self.kind
+        if kind.canBeSent { lastDelivery = delivery }
         // Cloud models transcribe after you stop: keep the pill up ("working") until text arrives.
         // A command keeps it up until it has run.
-        let batch = engine.isBatch || command
+        let batch = engine.isBatch || kind.waitsInThePill
         if batch { overlay.showProcessing() } else { overlay.hideUnlessMessage() }
         // A new dictation may start before this one is delivered.
         let setup = dictationSetup, polisher = self.polisher
@@ -249,14 +249,18 @@ final class DictationController {
             note?.transcribed(seconds: transcribed)
             guard let self else { return }
             let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            if command { return self.runCommand(raw, delivery: delivery) }
-            // With polish to come, the pill stays up until it's done: hiding it here and showing it
-            // again for the polish made it blink.
-            let polishing = polisher != nil && !raw.isEmpty
-            if batch && !polishing { self.overlay.hideUnlessMessage() }
-            self.insights.record(text: raw, duration: duration)
-            self.deliver(raw, duration: duration, setup: setup, polisher: polisher, transcribed: transcribed,
-                         transcribedBy: transcribedBy, note: note, delivery: delivery)
+            switch kind {
+            case .command:
+                self.runCommand(raw, delivery: delivery)
+            case .text:
+                // With polish to come, the pill stays up until it's done: hiding it here and showing it
+                // again for the polish made it blink.
+                let polishing = polisher != nil && !raw.isEmpty
+                if batch && !polishing { self.overlay.hideUnlessMessage() }
+                self.insights.record(text: raw, duration: duration)
+                self.deliver(raw, duration: duration, setup: setup, polisher: polisher, transcribed: transcribed,
+                             transcribedBy: transcribedBy, note: note, delivery: delivery)
+            }
         }, failure: { [weak self] message in
             note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
             self?.overlay.show(.plain(message, seconds: 5))
