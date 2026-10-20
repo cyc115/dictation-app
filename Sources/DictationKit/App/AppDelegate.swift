@@ -8,6 +8,7 @@ public enum DictationAppMain {
     /// NSApplication holds its delegate weakly, so keep it alive here.
     private static var delegate: AppDelegate?
 
+    @MainActor
     public static func run() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
@@ -18,6 +19,7 @@ public enum DictationAppMain {
 }
 
 // MARK: - App delegate: menu bar + orchestration
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var polishItem: NSMenuItem!
@@ -25,12 +27,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkey: HotkeyManager?
     private let overlay = OverlayWindow()
     private let injector = TextInjector()
-    private let settings = AppSettings.shared
-    private let mainWindow = MainWindowController()
+    /// Your settings, History, Insights, recordings and commands: made here, once, and handed out.
+    private let services = AppServices.live()
+    private var settings: AppSettings { services.settings }
+    private lazy var mainWindow = MainWindowController(services: services)
     private let muter = OutputMuter()
     private lazy var dictation = DictationController(
-        settings: settings, overlay: overlay, injector: injector, history: .shared, insights: .shared,
-        archive: .shared, muter: muter, commandMode: .shared)
+        settings: settings, overlay: overlay, injector: injector, history: services.history, insights: services.insights,
+        archive: services.archive, muter: muter, commandMode: services.commands)
     private let relaunch = AppRelaunch()
     private var bundleWatcher: BundleWatcher?
     private lazy var exclusion = ExclusionWatcher(excluded: settings.excludedApps)
@@ -49,7 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         if Diagnostics.runIfRequested() { return }
         muter.restore()  // undo a mute left behind if the app quit mid-dictation
-        HistoryStore.shared.backfillTimings(from: RecordingArchive.shared.infos)  // once
+        services.history.backfillTimings(from: services.archive.infos)  // once
         CommandMode.installExamples()  // once: the first launch with command mode
         defer { signalReady() }
         watchForNewBuild()
@@ -156,7 +160,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         muter.restore()
-        HistoryStore.shared.flush()
+        services.history.flush()
     }
 
     /// Menu-bar apps have no main menu, so ⌘C / ⌘A / ⌘F wouldn't work in the window without this.

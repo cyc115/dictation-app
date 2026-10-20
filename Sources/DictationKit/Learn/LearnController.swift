@@ -7,8 +7,6 @@ import SwiftUI
 /// their changes so one `@ObservedObject` is enough for the tile.
 @MainActor
 final class LearnController: ObservableObject {
-    static let shared = LearnController(settings: .shared, history: .shared, store: .shared, general: GeneralCase.app ?? [])
-
     /// Corrections needed before the first tune.
     static let minimum = 10
     /// The teacher: Claude Sonnet 5.5, thinking at medium effort. In the Oct 14 bake-off

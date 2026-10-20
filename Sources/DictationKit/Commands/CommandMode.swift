@@ -19,7 +19,6 @@ struct CommandResult: Equatable {
 
 /// Command mode: what you said → a command (`CommandDecider`) → run it → History's Commands list.
 final class CommandMode {
-    static let shared = CommandMode(history: .shared)
     /// Beside History, so you (or an AI you ask) can add and change commands there; read afresh for
     /// every command.
     static let defaultFolder = AppPaths.directory("Commands")

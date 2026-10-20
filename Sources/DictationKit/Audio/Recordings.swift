@@ -128,7 +128,6 @@ final class DictationRecording {
 /// 16 kHz mono WAVs, each with a JSON of what the app heard (`bench/bench.py import-recordings`).
 /// Stays on this Mac. Cancelled dictations are never kept.
 final class RecordingArchive {
-    static let shared = RecordingArchive()
     static let defaultDirectory = AppPaths.directory("Recordings")
 
     let directory: URL

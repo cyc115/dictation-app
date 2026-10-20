@@ -38,11 +38,14 @@ enum MainTab: String, CaseIterable, Identifiable {
 final class MainWindowController {
     private var window: NSWindow?
     private let selection = TabSelection()
+    private let services: AppServices
+
+    init(services: AppServices) { self.services = services }
 
     func show(_ tab: MainTab) {
         selection.tab = tab
         if window == nil {
-            window = Self.makeWindow(rootView: MainView(selection: selection, commandMode: .shared))
+            window = Self.makeWindow(rootView: MainView(selection: selection, services: services))
         }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
@@ -74,14 +77,19 @@ final class TabSelection: ObservableObject {
 
 struct MainView: View {
     @ObservedObject var selection: TabSelection
-    @ObservedObject var history: HistoryStore = .shared
-    var settings: AppSettings = .shared
-    var learn: LearnController? = .shared
-    /// History's ↻ on a command (nil: no button).
-    var commandMode: CommandMode?
+    let services: AppServices
+    @ObservedObject private var history: HistoryStore
     @State private var visited: Set<MainTab> = []
     @State private var searches: [MainTab: String] = [:]
     @State private var pages = Dictionary(uniqueKeysWithValues: MainTab.allCases.map { ($0, KeptPage()) })
+
+    init(selection: TabSelection, services: AppServices) {
+        self.selection = selection
+        self.services = services
+        history = services.history
+    }
+
+    private var settings: AppSettings { services.settings }
 
     var body: some View {
         NavigationSplitView {
@@ -136,15 +144,15 @@ struct MainView: View {
 
     @ViewBuilder private func page(_ tab: MainTab) -> some View {
         switch tab {
-        case .home: HomeView(settings: settings, history: history)
+        case .home: HomeView(settings: settings, history: history, insights: services.insights)
         case .history: HistoryView(store: history, onCorrect: { id in
             selection.editing = id
             selection.tab = .corrections
-        }, suggester: .shared, search: searches[.history, default: ""], commandMode: commandMode)
-        case .corrections: CorrectionsView(store: history, learn: learn, editing: selection.editing,
-                                           search: searches[.corrections, default: ""])
+        }, suggester: services.suggester, search: searches[.history, default: ""], commandMode: services.commands)
+        case .corrections: CorrectionsView(store: history, suggester: services.suggester, learn: services.learn,
+                                           editing: selection.editing, search: searches[.corrections, default: ""])
             .onTabHidden { selection.editing = nil }
-        case .settings: SettingsView(settings: settings, history: history)
+        case .settings: SettingsView(services: services)
         }
     }
 }
@@ -196,6 +204,7 @@ private struct OnTabShown: ViewModifier {
 private struct HomeView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var history: HistoryStore
+    let insights: Insights
 
     var body: some View {
         ScrollView {
@@ -205,7 +214,7 @@ private struct HomeView: View {
                     Text(settings.hint + ".").foregroundStyle(.secondary)
                 }
                 let breakdown = TimeBreakdown(history.entries)
-                InsightsView(insights: .shared, breakdown: breakdown)
+                InsightsView(insights: insights, breakdown: breakdown)
                 if settings.showDetailedAnalytics {
                     RecentLatencyView(entries: history.entries, usual: breakdown,
                                       backupWait: settings.effectiveBackup ? settings.setup.backupWait : nil)

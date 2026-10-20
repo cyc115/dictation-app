@@ -2,10 +2,11 @@
 
 macOS menu-bar dictation app. Swift package: `Sources/DictationKit` (all app code), `Sources/DictationApp` (entry point), `Tests/DictationKitTests`.
 
-`Sources/DictationKit` is one folder per feature: `App` (launch, main window, where files live), `Dictation` (the controller, hotkeys, typing the text), `Audio` (mics, recording, kept recordings), `Speech` (the engines: cloud, Apple, on-device), `Polish` (AI polish, setups), `Pill` (the recording bar), `History` (History, Insights, analytics, Corrections), `Learn` (learning a prompt), `Commands` (command mode), `Settings`, `Debug` (latency probe, diagnostics). A new feature gets its own folder, with its Settings section and History view next to its logic.
+`Sources/DictationKit` is one folder per feature: `App` (launch, main window, `AppServices`, where files live), `Dictation` (the controller, hotkeys, typing the text), `Audio` (mics, recording, kept recordings), `Speech` (the engines: cloud, Apple, on-device), `Polish` (AI polish, setups), `Pill` (the recording bar), `History` (History, Insights, analytics, Corrections), `Learn` (learning a prompt), `Commands` (command mode), `Settings`, `Debug` (latency probe, diagnostics). A new feature gets its own folder, with its Settings section and History view next to its logic.
 
 ## Workflow
 - Before implementing a feature or fix, look for refactoring that makes it cleaner and easier to maintain (split out a testable piece, delete a workaround the change makes unnecessary) and do it as part of the change. If a change to app *behavior* would be simpler to maintain long term, don't just make it — propose it to the user with the trade-off and let them decide.
+- Shared objects (settings, History, Insights, recordings, commands, Learn) are made once in `AppServices.live()` and handed in; no `static let shared` and no `= .shared` defaults (`ArchitectureTests` checks). Tests build theirs with `makeServices(self)`, which uses temporary files, so they never touch the user's data.
 - Before building or committing: `./test.sh` (unit, UI, snapshot and perf-budget tests). Every new feature or fix gets tests in the same change:
   - logic → unit tests with injected `UserDefaults` / file URLs / pasteboards (see `TestSupport.swift`), never the user's real ones;
   - UI → `HostedView` + accessibility identifiers (`.accessibilityIdentifier`), driven with `click(_:)`; add a snapshot for new visual surfaces;

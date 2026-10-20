@@ -6,7 +6,7 @@ import SwiftUI
 /// AI polish (`bench/suite.py polish run --corrections`); they live on their History entries.
 struct CorrectionsView: View {
     @ObservedObject var store: HistoryStore
-    @ObservedObject var suggester: CorrectionSuggester = .shared
+    @ObservedObject var suggester: CorrectionSuggester = .off
     /// Learns the polish prompt from these corrections (`LearnView`); nil hides the tile.
     var learn: LearnController?
     /// The correction to put the cursor in when the tab opens (the one just made from History).

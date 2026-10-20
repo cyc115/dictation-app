@@ -12,7 +12,7 @@ final class SidebarTests: XCTestCase {
             let selection = TabSelection()
             selection.tab = tab
             let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-            let hosted = HostedView(MainView(selection: selection, history: history), size: NSSize(width: 860, height: 620))
+            let hosted = HostedView(MainView(selection: selection, services: makeServices(self, history: history)), size: NSSize(width: 860, height: 620))
             let sidebar = hosted.elements { $0.object is NSTableView }.first?.object as? NSTableView
             XCTAssertEqual(sidebar?.numberOfRows, MainTab.allCases.count)
             XCTAssertEqual(sidebar?.selectedRow, MainTab.allCases.firstIndex(of: tab), "\(tab.title) row highlighted")
@@ -27,7 +27,7 @@ final class KeptPagesTests: XCTestCase {
         let selection = TabSelection()
         selection.tab = tab
         let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let hosted = HostedView(MainView(selection: selection, history: history, settings: settings ?? makeSettings(self)),
+        let hosted = HostedView(MainView(selection: selection, services: makeServices(self, settings: settings, history: history)),
                                 size: NSSize(width: 860, height: 620))
         addTeardownBlock { hosted.close() }
         return (hosted, selection)
@@ -61,7 +61,7 @@ final class KeptPagesTests: XCTestCase {
         let selection = TabSelection()
         selection.tab = .history
         let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let window = MainWindowController.makeWindow(rootView: MainView(selection: selection, history: history, settings: makeSettings(self), learn: nil))
+        let window = MainWindowController.makeWindow(rootView: MainView(selection: selection, services: makeServices(self, history: history)))
         window.setFrameOrigin(NSPoint(x: -10_000, y: -10_000))
         window.orderFront(nil)
         addTeardownBlock { window.close() }

@@ -22,3 +22,22 @@ final class AppFilesTests: XCTestCase {
         }
     }
 }
+
+/// The app's shared objects come from `AppServices`, handed in: a `static let shared` or a `= .shared`
+/// default lets a view or test reach your real History, settings or commands without saying so.
+final class ArchitectureTests: XCTestCase {
+    func testNoSharedSingletonsInTheApp() throws {
+        let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../Sources/DictationKit").standardizedFileURL
+        let files = try XCTUnwrap(FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil))
+            .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" }
+        XCTAssertGreaterThan(files.count, 30)
+        let systemShared = ["URLSession", "NSWorkspace", "NSApplication"]
+        for file in files {
+            for (n, line) in try String(contentsOf: file, encoding: .utf8).components(separatedBy: .newlines).enumerated()
+            where line.contains("static let shared") || (line.contains(".shared") && !systemShared.contains { line.contains($0) }) {
+                XCTFail("\(file.lastPathComponent):\(n + 1): \(line.trimmingCharacters(in: .whitespaces))")
+            }
+        }
+    }
+}

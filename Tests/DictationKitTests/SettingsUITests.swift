@@ -8,9 +8,7 @@ import XCTest
 final class SettingsUITests: XCTestCase {
     private func host(_ settings: AppSettings, history: HistoryStore? = nil) -> HostedView<SettingsView> {
         let history = history ?? HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let commands = makeTempURL(self, "Commands")
-        CommandMode.installExamples(into: commands)
-        let hosted = HostedView(SettingsView(settings: settings, history: history, commandsFolder: commands),
+        let hosted = HostedView(SettingsView(services: makeServices(self, settings: settings, history: history)),
                                 size: NSSize(width: 640, height: 2600))
         addTeardownBlock { hosted.close() }
         return hosted

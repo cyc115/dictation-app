@@ -28,9 +28,8 @@ enum WordDiff {
 final class CorrectionSuggester: ObservableObject {
     static let model = "openrouter:openai/gpt-6.1-sol-pro"
     static let modelName = "GPT-6.1 Sol Pro"
-    static let shared = CorrectionSuggester {
-        AppSettings.shared.openRouterKey.flatMap { backend(apiKey: $0, setup: AppSettings.shared.setup) }
-    }
+    /// Suggests nothing (no model): the default where no suggester is handed in.
+    static var off: CorrectionSuggester { CorrectionSuggester { nil } }
 
     /// The model with the AI polish prompt of the setup chosen in Settings, so it polishes the way the app does.
     static func backend(apiKey: String, setup: DictationSetup) -> PolishBackend? {

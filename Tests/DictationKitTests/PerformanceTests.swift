@@ -176,7 +176,7 @@ final class PerformanceTests: XCTestCase {
         let selection = TabSelection()
         selection.tab = .settings
         let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let hosted = HostedView(MainView(selection: selection, history: history, settings: makeSettings(self)),
+        let hosted = HostedView(MainView(selection: selection, services: makeServices(self, history: history)),
                                 size: NSSize(width: 860, height: 620))
         addTeardownBlock { hosted.close() }
         // Without the accessibility tree HostedView turns on (as when no assistive app is running).

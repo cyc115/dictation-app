@@ -91,6 +91,16 @@ func noLearnedPrompts(_ test: XCTestCase) -> LearnedPromptStore {
     LearnedPromptStore(fileURL: makeTempURL(test, "learned-prompts.json"))
 }
 
+/// The app's shared objects with nothing of yours in them: `settings` (else `makeSettings`), a
+/// throwaway History, Insights and recordings folder, and a commands folder with the examples.
+func makeServices(_ test: XCTestCase, settings: AppSettings? = nil, history: HistoryStore? = nil) -> AppServices {
+    let history = history ?? HistoryStore(fileURL: makeTempURL(test), defaults: makeDefaults(test))
+    let commands = CommandMode(folder: makeTempURL(test, "Commands"), history: history)
+    CommandMode.installExamples(into: commands.folder)
+    return AppServices(settings: settings ?? makeSettings(test), history: history, insights: Insights(defaults: makeDefaults(test)),
+                       archive: RecordingArchive(directory: makeTempURL(test, "Recordings")), commands: commands, general: [])
+}
+
 /// A settings store with throwaway defaults, no saved key, no custom setups and no learned prompts.
 /// The on-device speech model is `localModel`, or one per id that never downloads (not yet
 /// downloaded): never this Mac's own, so tests don't depend on whether it has the model.

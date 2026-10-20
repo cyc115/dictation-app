@@ -76,8 +76,6 @@ enum HistoryRetention: String, CaseIterable {
 /// Dictation history, newest first, saved as JSON in Application Support. Never leaves the Mac.
 /// Command-mode commands are kept beside it, in their own file and list (`commands`).
 final class HistoryStore: ObservableObject {
-    static let shared = HistoryStore()
-
     @Published private(set) var entries: [HistoryEntry] = []
     @Published private(set) var commands: [CommandRun] = []
     @Published var retention: HistoryRetention {

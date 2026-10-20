@@ -49,8 +49,6 @@ struct PromptMeasurement: Codable, Equatable {
 /// (learned-prompts.json; each prompt's text also in prompts/<version>.txt for bench/suite.py
 /// polish run --prompt-file). `AppSettings` applies the active one to its setups.
 final class LearnedPromptStore: ObservableObject {
-    static let shared = LearnedPromptStore()
-
     @Published private(set) var prompts: [LearnedPrompt] = []
     /// Setup id → the version it polishes with (absent: its built-in prompt).
     @Published private(set) var active: [String: String] = [:]

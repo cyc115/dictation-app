@@ -3,8 +3,6 @@ import SwiftUI
 
 /// Running totals across all pasted dictations, saved in UserDefaults.
 final class Insights: ObservableObject {
-    static let shared = Insights()
-
     /// Typing speed used to estimate time saved.
     static let typingWPM: Double = 40
 

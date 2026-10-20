@@ -34,9 +34,7 @@ final class CommandUITests: XCTestCase {
     }
 
     func testSettingsListsTheCommands() {
-        let folder = makeTempURL(self, "Commands")
-        CommandMode.installExamples(into: folder)
-        let hosted = HostedView(SettingsView(settings: makeSettings(self), commandsFolder: folder), size: NSSize(width: 640, height: 2600))
+        let hosted = HostedView(SettingsView(services: makeServices(self)), size: NSSize(width: 640, height: 2600))
         addTeardownBlock { hosted.close() }
         for name in ["return", "repeat", "brightness", "volume"] {
             XCTAssertNotNil(hosted.element(id: "command." + name), "missing \(name)")

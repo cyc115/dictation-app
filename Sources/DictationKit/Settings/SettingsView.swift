@@ -4,12 +4,20 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dateContext) private var dates
     @ObservedObject var settings: AppSettings
-    @ObservedObject var history: HistoryStore = .shared
-    /// Command mode's folder (tests use their own).
-    var commandsFolder = CommandMode.defaultFolder
+    @ObservedObject var history: HistoryStore
+    let archive: RecordingArchive
+    /// Command mode's folder.
+    let commandsFolder: URL
     @State private var microphones: [AudioInputDevice] = []
     @State private var askForKey = false
     @State private var keyDraft = ""
+
+    init(services: AppServices) {
+        settings = services.settings
+        history = services.history
+        archive = services.archive
+        commandsFolder = services.commands.folder
+    }
 
     private var cloud: Bool { settings.setup.usesCloud }
 
@@ -202,7 +210,7 @@ struct SettingsView: View {
                 }
                 if settings.keepRecordings {
                     SettingRow("Recordings folder", "Application Support › DictationApp › Recordings. Cancelled dictations aren't kept.") {
-                        Button("Show in Finder") { RecordingArchive.shared.showInFinder() }
+                        Button("Show in Finder") { archive.showInFinder() }
                     }
                 }
                 SettingRow("Show detailed analytics", "Adds your recent dictations' wait times to Home, model by model, with how often the backup model answered. For finding a slow model.") {

@@ -98,8 +98,6 @@ struct Setting<Value: SettingValue> {
 
 /// User settings, saved in UserDefaults. `onChange` fires after any change.
 final class AppSettings: ObservableObject {
-    static let shared = AppSettings(secrets: FileSecretStore())
-
     var onChange: (() -> Void)?
     fileprivate let defaults: UserDefaults
 
@@ -193,7 +191,7 @@ final class AppSettings: ObservableObject {
     @Published private(set) var loginItemNeedsApproval = false
 
     init(defaults: UserDefaults = .standard, secrets: SecretStore = FileSecretStore(),
-         customSetupsFile: URL = DictationSetup.customFile, learned: LearnedPromptStore = .shared,
+         customSetupsFile: URL = DictationSetup.customFile, learned: LearnedPromptStore,
          localModel: @escaping @MainActor (String) -> LocalSpeechModel = { LocalSpeechModel.named($0) }) {
         self.defaults = defaults
         self.secrets = secrets
