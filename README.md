@@ -5,51 +5,72 @@
 A small macOS menu-bar app for fast, private dictation. It runs on your Mac by default, and
 cloud models can handle **English mixed into Chinese**, which the built-in macOS dictation can't.
 
-![DictationApp: the recording bar starting a Bluetooth mic and going live, with dictation history and insights](docs/images/screenshot.gif)
+![Dictating: the recording bar starts a Bluetooth mic, goes live, and polishes the text, with History and Insights behind](docs/images/hero.gif)
 
-## Features
+## What it does
 
-- **Works everywhere.** Hold **Fn** (or Right ⌘ / ⌥ / ⌃ / ⇧, or a mouse button), speak, and let go.
-  The text is pasted at your cursor in whatever app you're in.
-- **Live recording bar.** A small bar at the bottom of the screen shows a waveform and which mic
-  is recording. Click ✓ to paste, or ✕ / **Esc** to cancel. Bluetooth headsets take about a second
-  to start their mic: the bar shows the wait, then flashes green when you can talk. It glows red if
-  no audio is coming in.
-- **Intelligent mic selection.** Picked the wrong mic? While you dictate, your wired and built-in
-  mics listen too. If one hears you clearly better, the dictation switches to it with nothing lost
-  (the bar flashes yellow), and it becomes your mic from then on. On by default; Settings → Audio.
-- **On-device or cloud.** *On-device* runs Qwen3-ASR (Cloud Flash's model) on your Mac's GPU: no
-  audio leaves your Mac, and text comes about a second after you stop, with no network stalls. Its
-  model (2.5 GB) downloads from Hugging Face the first time. *Cloud Flash* returns text about 0.5 s
-  after you stop, and *Cloud Big* in about 2 s. All three handle English mixed into Chinese.
+### The recording bar tells you what's happening
+
+A small bar at the bottom of the screen shows a waveform and which mic is recording. Bluetooth
+headsets take about a second to start: the bar shows the wait, then flashes **green** when you can
+talk. **Yellow**: it moved to a mic that hears you better (your wired and built-in mics listen too),
+with nothing lost. **Red**: no sound is coming in. Click ✓ to paste, ✕ or **Esc** to cancel.
+
+![The recording bar: a Bluetooth mic starting, going live (green), moving to a better mic (yellow), no sound (red), then transcribing](docs/images/pill.gif)
+
+### Command mode: say it, it runs
+
+Press the Enter mouse button when you're not dictating, say what you want ("make the screen a bit
+brighter", "声音小一点", "mute"), and press it again. A decision model picks one of your commands in
+about 0.3 s and it runs; if nothing fits, nothing runs. Commands are small Python scripts in a folder
+you can edit ([how](#commands)), and History keeps a Commands list with ↻ to run one again.
+
+![Command mode: "声音小一点" runs volume −10; "open the pod bay doors" fits no command, so nothing runs](docs/images/commands.gif)
+
+### On-device: nothing leaves your Mac
+
+The *On-device* setup runs Qwen3-ASR on your Mac's GPU: text about a second after you stop, no
+network stalls, English, Chinese and both mixed. The model (2.5 GB) downloads once from Hugging
+Face, with progress in Settings. Prefer the cloud? *Cloud Flash* is about 0.5 s and *Cloud Big*
+about 2 s ([setups](#usage)).
+
+![Settings: picking On-device downloads the speech model, then it's ready](docs/images/on-device.gif)
+
+### A space where it belongs
+
+The text is pasted at your cursor in any app. When the cursor follows other text, a space goes in
+first, but not after a space or line break, not before punctuation, and not between two Chinese
+characters. Your clipboard is put back about a second later.
+
+![Pasting: "Be there in 10." gets a space after "Running a bit late."; "开会吧。" after "我们明天" doesn't](docs/images/paste.gif)
+
+### Learns from your corrections
+
+When a dictation comes out wrong, click the pencil in History and type what you meant. With ten
+corrections, one click tunes the cloud setups' polish prompt from them: a strong model rewrites it
+three ways, your own polish model runs each, and the best becomes the next version. You see its
+score on your corrections (cross-validated) and on a general test set before you keep it.
+
+![Corrections: correct a few dictations, Learn writes a new polish prompt, and it's scored before you keep it](docs/images/learn.gif)
+
+### Detailed analytics: where the wait went
+
+Home shows words dictated, time saved and where a typical dictation's time goes. Settings → *Show
+detailed analytics* adds your recent dictations one by one: transcribing and polishing time,
+which model answered (main or backup), and how often the backup was needed.
+
+![Detailed analytics: recent dictations' waits, and each model's typical and slowest times](docs/images/analytics.gif)
+
+### And also
+
+- **Works everywhere.** Hold **Fn** (or Right ⌘ / ⌥ / ⌃ / ⇧, or a mouse button), speak, let go.
 - **Optional AI polish.** Removes filler words and fixes self-corrections ("Tuesday, no,
-  Wednesday") without changing your meaning. On-device setups polish with Apple Intelligence,
-  cloud setups with DeepSeek. It's off by default; turn it on from the menu bar. Polish never
-  holds you up: if it fails or takes longer than 6 s, you get your unpolished text.
-- **History and corrections.** Past dictations, grouped by day and searchable, kept only on your
-  Mac. When a dictation comes out wrong, click the pencil and type what you meant. Corrections
-  become a test set for comparing models and prompts.
-- **Learn from your corrections.** With ten corrections, one click tunes the cloud setups' polish
-  prompt from them: a strong model rewrites the prompt three ways, your own polish model runs each,
-  and the best becomes the next prompt version. The score you see is cross-validated (no
-  correction scores a prompt written from it), and a general test set guards against a prompt that
-  only learned your corrections. Each version is kept, with its scores, under Settings → Model.
-- **Insights.** Words dictated, time saved compared with typing, your speaking speed, and where a
-  typical dictation's time goes (speaking, transcribing, polishing). Settings → *Show detailed analytics*
-  (off by default) adds your recent dictations one by one, with which model answered each (main or
-  backup) and how often the backup was used, for spotting a slow model.
-- **Command mode.** Press the Enter mouse button when you're not dictating, say what you want
-  ("make the screen a bit brighter", "声音小一点", "mute"), and press it again: one of your
-  commands runs. Commands are small Python scripts in a folder you can edit; a fast decision
-  model picks which (about 0.3 s), and anything it isn't sure of shows *Command not found*
-  instead of running. History keeps a separate Commands list, with ↻ to run one again.
-- **Your clipboard is kept.** It's saved before each paste and restored about a second later.
-- **A space before it when needed.** Text pasted right after other text gets a space in front
-  (not after a space or line break, not before punctuation, not between two Chinese characters).
-  In apps that don't say what's before the cursor (terminals, some Electron apps), it's pasted as is.
-- **Lots of options.** Hold to talk or tap to toggle, a mouse button that presses Return, apps
-  where the hotkey is paused (e.g. games), mute audio while dictating, launch at login, and
-  [your own model setups](docs/custom-setups.md).
+  Wednesday") without changing your meaning: Apple Intelligence on-device, DeepSeek in the cloud.
+  Off by default (menu bar → AI polish). If it fails or takes over 6 s, you get your unpolished text.
+- **Dictate and send.** The Enter mouse button, while dictating, stops, pastes and presses Return.
+- **History**, grouped by day and searchable, kept only on your Mac for as long as you choose.
+- **Lots of options.** Hold to talk or tap to toggle, apps where the hotkey is paused (e.g. games),
+  mute audio while dictating, launch at login, and [your own model setups](docs/custom-setups.md).
 
 ## Requirements
 
@@ -182,7 +203,8 @@ bench/suite.py polish run    # polish quality on tricky dictations
   their accessibility identifiers.
 - **Snapshot tests** compare rendered views with `Tests/DictationKitTests/__Snapshots__/`. After
   a deliberate UI change, run `RECORD_SNAPSHOTS=1 ./test.sh --filter SnapshotTests`, then
-  `scripts/readme-screenshot.py` to rebuild the screenshot above.
+  `scripts/readme-gifs.py render` to rebuild the animations above (from the real pill and views,
+  with fixture data; `list` shows the scenes).
 - **Performance tests** fail when hot paths (audio processing, the recording bar, saving and
   loading history) go over their time budgets.
 - **Benchmarks** in [`bench/`](bench/README.md) compare speech models, polish models and prompts
