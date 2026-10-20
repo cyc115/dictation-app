@@ -15,6 +15,17 @@ struct CommandRun: Codable, Identifiable, Equatable {
 
 
 extension CommandRun {
+    /// How it went, for the pill: what the script printed ("Brightness 70%"); "Brightness didn't
+    /// work" over why; or "Command not found" over what was heard, so you can tell a mishearing.
+    var message: PillMessage {
+        if ok { return PillMessage(title: result, tone: .done, seconds: 1.5) }
+        if let name = command {
+            return PillMessage(title: "\(name.prefix(1).uppercased() + name.dropFirst()) didn’t work", detail: result,
+                               tone: .failed, seconds: 3)
+        }
+        return PillMessage(title: result, detail: "“\(said)”", tone: .failed, seconds: 2.5)
+    }
+
     /// "brightness +10"; "none" when nothing fitted.
     var label: String { command.map { [$0, choice].compactMap { $0 }.joined(separator: " ") } ?? "none" }
 }

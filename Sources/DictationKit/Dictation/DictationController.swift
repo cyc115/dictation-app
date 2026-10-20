@@ -143,11 +143,11 @@ final class DictationController {
         guard !dictating else { return }
         let setup = settings.setup
         guard let engine = makeEngine(setup) else {
-            overlay.showMessage("Add your cloud API key in Settings to use \(setup.title)", hideAfter: 4)
+            overlay.show(.plain("Add your cloud API key in Settings to use \(setup.title)", seconds: 4))
             return onMissingKey(setup)
         }
         if command, settings.openRouterKey?.isEmpty ?? true {
-            overlay.showMessage("Add your cloud API key in Settings to use command mode", hideAfter: 4)
+            overlay.show(.plain("Add your cloud API key in Settings to use command mode", seconds: 4))
             return onMissingKey(setup)
         }
         self.engine = engine
@@ -194,7 +194,7 @@ final class DictationController {
             onError: { [weak self] message in
                 DispatchQueue.main.async {
                     guard self?.dictating == true else { return }
-                    self?.overlay.showMessage(message)
+                    self?.overlay.show(.plain(message))
                 }
             }
         )
@@ -259,7 +259,7 @@ final class DictationController {
                          transcribedBy: transcribedBy, note: note, delivery: delivery)
         }, failure: { [weak self] message in
             note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
-            self?.overlay.showMessage(message, hideAfter: 5)
+            self?.overlay.show(.plain(message, seconds: 5))
             self?.finished(delivery)
         })
     }
@@ -285,18 +285,8 @@ final class DictationController {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let run = await self.commandMode.handle(said, apiKey: key, model: self.settings.commandModel)
-            if !self.dictating { self.showResult(run) }  // a new dictation's pill stays
+            if !self.dictating { self.overlay.show(run.message) }  // a new dictation's pill stays
             self.finished(delivery)
-        }
-    }
-
-    private func showResult(_ run: CommandRun) {
-        if run.ok {
-            overlay.showResult(run.result, ok: true, hideAfter: 1.5)
-        } else if let name = run.command {
-            overlay.showResult("\(name.prefix(1).uppercased() + name.dropFirst()) didn’t work", detail: run.result, ok: false, hideAfter: 3)
-        } else {
-            overlay.showResult(run.result, detail: "“\(run.said)”", ok: false, hideAfter: 2.5)
         }
     }
 

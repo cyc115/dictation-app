@@ -117,7 +117,7 @@ final class SnapshotTests: XCTestCase {
     func testOverlayMessage() throws {
         let overlay = snapshotOverlay()
         addTeardownBlock { overlay.hide() }
-        overlay.showMessage("Speech recognizer unavailable", hideAfter: 10)
+        overlay.show(.plain("Speech recognizer unavailable", seconds: 10))
         assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-message")
     }
 
@@ -133,7 +133,7 @@ final class SnapshotTests: XCTestCase {
     func testOverlayCommandDone() throws {
         let overlay = snapshotOverlay()
         addTeardownBlock { overlay.hide() }
-        overlay.showResult("Volume 40%", ok: true, hideAfter: 10)
+        overlay.show(PillMessage(title: "Volume 40%", tone: .done, seconds: 10))
         assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-command-done")
     }
 
@@ -141,7 +141,7 @@ final class SnapshotTests: XCTestCase {
         let overlay = snapshotOverlay()
         addTeardownBlock { overlay.hide() }
         overlay.reduceMotion = { true }  // no shake mid-snapshot
-        overlay.showResult("Command not found", detail: "“open the pod bay doors”", ok: false, hideAfter: 10)
+        overlay.show(PillMessage(title: "Command not found", detail: "“open the pod bay doors”", tone: .failed, seconds: 10))
         assertSnapshot(of: try XCTUnwrap(overlay.panel?.contentView), named: "overlay-command-not-found")
     }
 

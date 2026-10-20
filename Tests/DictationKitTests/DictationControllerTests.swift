@@ -41,7 +41,7 @@ final class OverlayLog: OverlayWindow {
         super.showListening(micName: micName, warmingUp: warmingUp, command: command); log()
     }
     override func showProcessing() { super.showProcessing(); log() }
-    override func showMessage(_ text: String, hideAfter seconds: TimeInterval = 3) { super.showMessage(text, hideAfter: seconds); log() }
+    override func show(_ message: PillMessage) { super.show(message); log() }
     override func hide() { super.hide(); log() }
 }
 

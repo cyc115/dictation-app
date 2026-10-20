@@ -239,6 +239,15 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(mode.history.commands, [again])
     }
 
+    func testThePillSaysHowItWent() {
+        XCTAssertEqual(CommandRun(said: "mute", command: "volume", choice: "mute", ok: true, result: "Muted").message,
+                       PillMessage(title: "Muted", tone: .done, seconds: 1.5))
+        XCTAssertEqual(CommandRun(said: "brighter", command: "brightness", choice: "+10", result: "No display").message,
+                       PillMessage(title: "Brightness didn’t work", detail: "No display", tone: .failed, seconds: 3))
+        XCTAssertEqual(CommandRun(said: "open the pod bay doors", result: "Command not found").message,
+                       PillMessage(title: "Command not found", detail: "“open the pod bay doors”", tone: .failed, seconds: 2.5))
+    }
+
     // MARK: History
 
     func testCommandsAreSavedBesideHistoryAndFollowRetention() {

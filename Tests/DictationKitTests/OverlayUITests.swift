@@ -40,7 +40,7 @@ final class OverlayUITests: XCTestCase {
         overlay.setLevel(0.9)
         let afterSpeech = overlay.waveform.levels
         XCTAssertGreaterThan(afterSpeech.last ?? 0, 0.5)
-        overlay.showMessage("Error")
+        overlay.show(.plain("Error"))
         overlay.setLevel(0.5)
         XCTAssertEqual(overlay.waveform.levels, afterSpeech, "ignored outside listening")
     }
@@ -48,7 +48,7 @@ final class OverlayUITests: XCTestCase {
     func testMessageModeWidensAndHidesButtons() throws {
         let overlay = OverlayWindow()
         addTeardownBlock { overlay.hide() }
-        overlay.showMessage("On-device recognition unavailable — check Dictation languages", hideAfter: 10)
+        overlay.show(.plain("On-device recognition unavailable — check Dictation languages", seconds: 10))
         XCTAssertNotNil(overlay.panel)
         XCTAssertEqual(overlay.mode, .message)
         XCTAssertGreaterThan(overlay.pillFrame.width, PillLayout.listeningWidth)
@@ -69,7 +69,7 @@ final class OverlayUITests: XCTestCase {
         overlay.showListening(micName: nil)
         XCTAssertTrue(overlay.micLabel.isHidden)
         overlay.showListening(micName: "Studio Display Microphone")
-        overlay.showMessage("Error", hideAfter: 10)
+        overlay.show(.plain("Error", seconds: 10))
         XCTAssertTrue(overlay.micLabel.isHidden, "only shown while listening")
     }
 
@@ -185,7 +185,7 @@ final class OverlayUITests: XCTestCase {
         addTeardownBlock { overlay.hide() }
         overlay.showListening(micName: "MacBook Pro Microphone")
         overlay.showProcessing()
-        overlay.showMessage("Couldn't reach the cloud model", hideAfter: 10)
+        overlay.show(.plain("Couldn't reach the cloud model", seconds: 10))
         XCTAssertFalse(overlay.isNarrowing)
         XCTAssertEqual(overlay.mode, .message)
         XCTAssertFalse(overlay.label.isHidden)
@@ -255,7 +255,7 @@ final class OverlayUITests: XCTestCase {
         let overlay = OverlayWindow()
         addTeardownBlock { overlay.hide() }
         overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
-        overlay.showMessage("The microphone sent only silence.", hideAfter: 10)
+        overlay.show(.plain("The microphone sent only silence.", seconds: 10))
         XCTAssertFalse(overlay.isWarmingUp)
         XCTAssertEqual(overlay.confirmButton.emphasis, 1)
         overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
@@ -291,7 +291,7 @@ final class OverlayUITests: XCTestCase {
 
     func testMessageAutoHides() {
         let overlay = OverlayWindow()
-        overlay.showMessage("Polishing failed", hideAfter: 0.1)
+        overlay.show(.plain("Polishing failed", seconds: 0.1))
         spinRunLoop(0.5)
         XCTAssertEqual(overlay.mode, .hidden)
     }

@@ -6,7 +6,7 @@ import AppKit
 /// With a slow mic (Bluetooth) the pill first shows that the mic is starting, then flashes green when
 /// it's live, so you know when you can talk. It flashes yellow when the dictation moves to a mic that
 /// hears you better, and glows red while no audio is coming in. In command mode it's blue, with
-/// "Command" for the mic name, and ends in a green or red result (`showResult`). What it's animating is `PillState`,
+/// "Command" for the mic name, and ends in a green or red message (`PillMessage`). What it's animating is `PillState`,
 /// each frame's look `PillLook`, and where things sit `PillLayout`; this class draws them.
 class OverlayWindow {
     var onCancel: (() -> Void)?
@@ -185,28 +185,21 @@ class OverlayWindow {
         startAnimation()
     }
 
-    func showMessage(_ text: String, hideAfter seconds: TimeInterval = 3) {
+    /// A message for `message.seconds`: its title over a dimmer detail, with a green edge when
+    /// something worked, or a red one and a small shake when it didn't.
+    func show(_ message: PillMessage) {
         isCommand = false
-        label.attributedStringValue = Self.message(text, detail: nil)
+        label.attributedStringValue = Self.message(message.title, detail: message.detail)
         present(.message)
-        hide(after: seconds)
-    }
-
-    /// How a command went: `title` ("Brightness 70%", "Command not found") over a dimmer `detail`
-    /// (what was heard, or the error), with a green or red edge. Not found or failed also shakes it.
-    func showResult(_ title: String, detail: String? = nil, ok: Bool, hideAfter seconds: TimeInterval) {
-        isCommand = false
-        label.attributedStringValue = Self.message(title, detail: detail)
-        present(.message)
-        apply(PillLook(glow: 1, aura: ok ? .green : .red))
-        if !ok && !reduceMotion() {
+        if message.tone != .plain { apply(PillLook(glow: 1, aura: message.tone == .done ? .green : .red)) }
+        if message.tone == .failed && !reduceMotion() {
             let shake = CAKeyframeAnimation(keyPath: "transform.translation.x")
             shake.values = [0, -6, 6, -4, 4, 0]
             shake.duration = 0.3
             shake.isAdditive = true
             background.layer?.add(shake, forKey: "shake")
         }
-        hide(after: seconds)
+        hide(after: message.seconds)
     }
 
     private func hide(after seconds: TimeInterval) {
