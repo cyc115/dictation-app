@@ -28,25 +28,21 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
-import os
 import re
-import sys
 import time
-import urllib.error
-import urllib.request
 from datetime import datetime
 from pathlib import Path
 
 import harness
+import openrouter
+from openrouter import CHAT, REASONING_FALLBACKS, post_json
 
 NAME = "commands"
 HELP = "command mode's decision models: right command, wrong runs, wait and cost"
 CASES = harness.ROOT / "command_cases.json"
 CATALOG = harness.ROOT / "command_catalog.json"
 EXAMPLES = harness.ROOT.parent / "Sources/DictationKit/Commands/ExampleCommands"
-SECRETS = Path.home() / "Library/Application Support/DictationApp/secrets.json"
 DECISIONS = "https://openrouter.ai/api/alpha/decisions"
-CHAT = "https://openrouter.ai/api/v1/chat/completions"
 JEV = "~typesafe/jev-latest"
 MIN_CONFIDENCE = 0.5  # CommandDecision.minConfidence
 DEFAULT_MODELS = ["jev", "openrouter:google/gemini-3.5-flash-lite", "openrouter:anthropic/claude-haiku-5.5",
@@ -97,26 +93,6 @@ def label(command: str | None, choice: str | None) -> str:
 
 # ---------------------------------------------------------------- deciders
 
-def api_key() -> str:
-    key = os.environ.get("OPENROUTER_API_KEY")
-    if not key and SECRETS.exists():
-        key = json.loads(SECRETS.read_text()).get("openrouter-api-key")
-    if not key:
-        raise SystemExit("no OpenRouter key: set OPENROUTER_API_KEY or add one in the app's Settings")
-    return key
-
-
-def post(url: str, body: dict, key: str, timeout: float = 30) -> dict:
-    request = urllib.request.Request(url, json.dumps(body).encode(), {
-        "Authorization": f"Bearer {key}", "Content-Type": "application/json", "X-Title": "DictationApp bench"})
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return json.load(response)
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode(errors="replace")[:300]
-        raise RuntimeError(f"HTTP {e.code}: {detail}") from None
-
-
 def jev_body(said: str, commands: list[dict]) -> dict:
     """JevDecider.request's body."""
     which = {c["name"]: c["summary"] for c in commands}
@@ -132,7 +108,7 @@ def jev_body(said: str, commands: list[dict]) -> dict:
 
 
 def ask_jev(said: str, commands: list[dict], key: str) -> tuple[str, float | None, dict]:
-    answer = post(DECISIONS, jev_body(said, commands), key)
+    answer = post_json(DECISIONS, jev_body(said, commands), key)
     answers = answer["answers"]
     pick = answers["command"]
     name = pick["choice"]
@@ -164,14 +140,13 @@ def chat_body(model: str, said: str, commands: list[dict], reasoning: dict) -> d
 
 
 _reasoning: dict[str, dict] = {}  # what each model accepted
-REASONING = [{"enabled": False}, {"effort": "minimal"}, {"effort": "low"}]
 
 
 def ask_chat(model: str, said: str, commands: list[dict], key: str) -> tuple[str, float | None, dict]:
-    tries = [_reasoning[model]] if model in _reasoning else REASONING
+    tries = [_reasoning[model]] if model in _reasoning else REASONING_FALLBACKS
     for i, reasoning in enumerate(tries):
         try:
-            answer = post(CHAT, chat_body(model, said, commands, reasoning), key)
+            answer = post_json(CHAT, chat_body(model, said, commands, reasoning), key)
             _reasoning[model] = reasoning
             break
         except RuntimeError as e:
@@ -206,7 +181,7 @@ def score(case: dict, got: str) -> str:
 
 
 def run(models: list[str], cases: list[dict], commands: list[dict], rounds: int, workers: int) -> dict:
-    key = api_key()
+    key = openrouter.key()
     results: dict[str, list[dict]] = {m: [] for m in models}
 
     def one(model: str, case: dict) -> dict:

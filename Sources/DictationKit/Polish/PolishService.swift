@@ -129,7 +129,6 @@ final class OnDevicePolish: PolishBackend {
 /// A cloud LLM through OpenRouter's chat completions API: the cloud setups' polish, and any
 /// OpenRouter model in benchmarks.
 struct OpenRouterPolish: PolishBackend {
-    static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
     let model: String
     let apiKey: String
     var session: URLSession = .shared
@@ -138,8 +137,8 @@ struct OpenRouterPolish: PolishBackend {
     /// Only these OpenRouter providers, in order, comma-separated ("Together,DeepInfra": the second
     /// if the first fails); nil lets OpenRouter route.
     var provider: String?
-    /// The request's "reasoning" field; nil is the cleanup rule below (off, or minimal). The prompt
-    /// tuner's teacher model sets it high.
+    /// The request's "reasoning" field; nil is `OpenRouter.reasoning(for:)` (off, or minimal). The
+    /// prompt tuner's teacher model sets it high.
     var reasoning: [String: Any]?
 
     var name: String { ModelSpec.openRouter(id: model, providers: provider).description }
@@ -147,38 +146,24 @@ struct OpenRouterPolish: PolishBackend {
     func polish(_ text: String) async throws -> String {
         let request = Self.request(model: model, apiKey: apiKey, text: PolishService.userMessage(text, wrap: wrap),
                                    instructions: instructions, provider: provider, reasoning: reasoning)
-        let (data, response) = try await session.data(for: request)
-        return try Self.parse(data: data, status: (response as? HTTPURLResponse)?.statusCode ?? 0).get()
-    }
-
-    /// Thinking adds seconds and nothing to a cleanup: off where the model allows it, else the lowest
-    /// effort (gpt-oss, gpt-5 and gpt-6 models can't turn it off). Same settings as bench/suite.py polish.
-    static let mustThink = ["openai/gpt-oss", "openai/gpt-5", "openai/gpt-6"]
-    static func reasoning(for model: String) -> [String: Any] {
-        mustThink.contains { model.hasPrefix($0) } ? ["effort": "minimal"] : ["enabled": false]
+        let (data, status) = try await OpenRouter.send(request, session: session)
+        return try Self.parse(data: data, status: status).get()
     }
 
     static func request(model: String, apiKey: String, text: String,
                         instructions: String, provider: String? = nil, reasoning: [String: Any]? = nil) -> URLRequest {
-        var request = OpenRouter.request(endpoint, apiKey: apiKey)
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        var body: [String: Any] = ["model": model, "temperature": 0, "reasoning": reasoning ?? Self.reasoning(for: model), "messages": [
-            ["role": "system", "content": instructions],
-            ["role": "user", "content": text],
-        ]]
-        if let provider = provider {
-            body["provider"] = ["order": provider.split(separator: ",").map(String.init), "allow_fallbacks": false]
-        }
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        return request
+        // `provider`: only these, in order, no others.
+        let pinned: [String: Any] = provider.map {
+            ["provider": ["order": $0.split(separator: ",").map(String.init), "allow_fallbacks": false]]
+        } ?? [:]
+        return OpenRouter.chat(model: model, system: instructions, user: text, apiKey: apiKey, reasoning: reasoning, extra: pinned)
     }
 
     static func parse(data: Data, status: Int) -> Result<String, Error> {
         let json = OpenRouter.json(data)
-        if (200..<300).contains(status), let choices = json?["choices"] as? [[String: Any]],
-           let message = choices.first?["message"] as? [String: Any], let content = message["content"] as? String {
-            return .success(content)
+        guard let content = OpenRouter.content(json, status: status) else {
+            return .failure(PolishError.failed(OpenRouter.errorMessage(json) ?? "Polish failed (HTTP \(status))."))
         }
-        return .failure(PolishError.failed(OpenRouter.errorMessage(json) ?? "Polish failed (HTTP \(status))."))
+        return .success(content)
     }
 }

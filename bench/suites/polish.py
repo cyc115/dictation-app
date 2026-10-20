@@ -45,6 +45,7 @@ from datetime import datetime
 from pathlib import Path
 
 import harness
+from openrouter import REASONING_FALLBACKS, key_problem, saved_key  # noqa: F401 (saved_key: tests)
 
 NAME = "polish"
 HELP = "AI polish models: quality on tricky dictations, wait and cost, with the app's prompt"
@@ -55,8 +56,6 @@ HISTORY = Path.home() / "Library/Application Support/DictationApp/history.json" 
 LEARNED = HISTORY.parent / "learned-prompts.json"  # prompts the app learned from them (Corrections → Learn)
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MAX_ERROR = 0.25  # words off from the expected text, as a share of its words
-# Lowest reasoning settings to try, in order, for models that can't turn it off.
-REASONING_FALLBACKS = [{"enabled": False}, {"effort": "minimal"}, {"effort": "low"}]
 
 _CJK = harness.CJK
 
@@ -454,34 +453,6 @@ def failures_text(result: dict, spec: str) -> str:
 
 
 # ---------------------------------------------------------------- commands
-
-SECRETS = Path.home() / "Library/Application Support/DictationApp/secrets.json"
-
-
-def saved_key(secrets: Path = SECRETS) -> str:
-    """The cloud key saved in the app's Settings (FileSecretStore), if any."""
-    try:
-        return json.loads(secrets.read_text()).get("openrouter-api-key", "")
-    except (OSError, ValueError):
-        return ""
-
-
-def key_problem(key: str) -> str | None:
-    """Why OpenRouter won't take this key, checked once before any polish request; None if it's fine
-    (or OpenRouter couldn't be reached, which the requests themselves will report)."""
-    req = urllib.request.Request("https://openrouter.ai/api/v1/key", headers={"Authorization": f"Bearer {key}"})
-    try:
-        urllib.request.urlopen(req, timeout=15).close()
-        return None
-    except urllib.error.HTTPError as e:
-        try:
-            message = json.loads(e.read()).get("error", {}).get("message", "")
-        except Exception:
-            message = ""
-        return f"HTTP {e.code}{': ' + message if message else ''}" if e.code in (401, 402, 403) else None
-    except Exception:
-        return None
-
 
 def read_specs(args) -> list[str]:
     specs = list(args.model or [])

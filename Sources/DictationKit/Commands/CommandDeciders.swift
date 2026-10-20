@@ -26,14 +26,11 @@ struct JevDecider: CommandDecider {
     var session: URLSession = .shared
 
     func decide(_ said: String, among commands: [Command]) async throws -> CommandDecision {
-        let (data, response) = try await session.data(for: Self.request(said, among: commands, apiKey: apiKey))
-        return try Self.parse(data: data, status: (response as? HTTPURLResponse)?.statusCode ?? 0).get()
+        let (data, status) = try await OpenRouter.send(Self.request(said, among: commands, apiKey: apiKey), session: session)
+        return try Self.parse(data: data, status: status).get()
     }
 
     static func request(_ said: String, among commands: [Command], apiKey: String) -> URLRequest {
-        var request = OpenRouter.request(endpoint, apiKey: apiKey)
-        request.timeoutInterval = 10
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         var which = Dictionary(uniqueKeysWithValues: commands.map { ($0.name, $0.summary) })
         which["none"] = "None of these does what the user asked"
         var questions: [String: Any] = ["command": [
@@ -46,9 +43,8 @@ struct JevDecider: CommandDecider {
                 "criteria": Dictionary(command.choices.map { ($0.value, $0.meaning) }, uniquingKeysWith: { a, _ in a }),
             ]
         }
-        let body: [String: Any] = ["model": model, "state": "The user said: " + said, "questions": questions]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        return request
+        return OpenRouter.post(endpoint, body: ["model": model, "state": "The user said: " + said, "questions": questions],
+                               apiKey: apiKey, timeout: 10)
     }
 
     static func parse(data: Data, status: Int) -> Result<CommandDecision, Error> {
@@ -72,8 +68,8 @@ struct ChatDecider: CommandDecider {
     var session: URLSession = .shared
 
     func decide(_ said: String, among commands: [Command]) async throws -> CommandDecision {
-        let (data, response) = try await session.data(for: Self.request(said, among: commands, model: model, apiKey: apiKey))
-        return try Self.parse(data: data, status: (response as? HTTPURLResponse)?.statusCode ?? 0, among: commands).get()
+        let (data, status) = try await OpenRouter.send(Self.request(said, among: commands, model: model, apiKey: apiKey), session: session)
+        return try Self.parse(data: data, status: status, among: commands).get()
     }
 
     static func prompt(_ commands: [Command]) -> String {
@@ -87,28 +83,21 @@ struct ChatDecider: CommandDecider {
     }
 
     static func request(_ said: String, among commands: [Command], model: String, apiKey: String) -> URLRequest {
-        var request = OpenRouter.request(OpenRouterPolish.endpoint, apiKey: apiKey)
-        request.timeoutInterval = 10
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let values = Array(Set(commands.flatMap { $0.choices.map(\.value) } + [""])).sorted()
         let schema: [String: Any] = ["type": "object", "additionalProperties": false, "required": ["command", "choice"], "properties": [
             "command": ["type": "string", "enum": commands.map(\.name) + ["none"]],
             "choice": ["type": "string", "enum": values],
         ]]
-        let body: [String: Any] = [
-            "model": model, "temperature": 0, "max_tokens": 80, "reasoning": OpenRouterPolish.reasoning(for: model),
-            "messages": [["role": "system", "content": prompt(commands)], ["role": "user", "content": said]],
+        return OpenRouter.chat(model: model, system: prompt(commands), user: said, apiKey: apiKey, extra: [
+            "max_tokens": 80,
             "response_format": ["type": "json_schema", "json_schema": ["name": "command", "strict": true, "schema": schema]],
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        return request
+        ], timeout: 10)
     }
 
     /// A command it named that doesn't exist is "none"; a choice that isn't that command's is dropped.
     static func parse(data: Data, status: Int, among commands: [Command]) -> Result<CommandDecision, Error> {
         let json = OpenRouter.json(data)
-        guard status == 200, let content = ((json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any])?["content"] as? String,
-              let start = content.firstIndex(of: "{"), let end = content.lastIndex(of: "}"),
+        guard let content = OpenRouter.content(json, status: status), let start = content.firstIndex(of: "{"), let end = content.lastIndex(of: "}"),
               let picked = OpenRouter.json(Data(content[start...end].utf8)) else {
             let message = OpenRouter.errorMessage(json) ?? "HTTP \(status)"
             return .failure(TranscriptionError.message("Couldn't pick a command: \(message)"))

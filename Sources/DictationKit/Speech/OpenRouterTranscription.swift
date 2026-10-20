@@ -7,28 +7,6 @@ protocol TranscriptionClient {
                     completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask?
 }
 
-/// What every OpenRouter call shares (speech and polish).
-enum OpenRouter {
-    /// A POST to `url` with the API key and the app's name.
-    static func request(_ url: URL, apiKey: String) -> URLRequest {
-        var request = URLRequest(url: url, timeoutInterval: 60)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("DictationApp", forHTTPHeaderField: "X-Title")
-        return request
-    }
-
-    /// A response body as a JSON object, or nil.
-    static func json(_ data: Data) -> [String: Any]? {
-        (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-    }
-
-    /// The `error.message` OpenRouter puts in a failed response.
-    static func errorMessage(_ json: [String: Any]?) -> String? {
-        (json?["error"] as? [String: Any])?["message"] as? String
-    }
-}
-
 /// Minimal client for OpenRouter's speech-to-text endpoint (multipart WAV upload).
 final class OpenRouterClient: TranscriptionClient {
     static let endpoint = URL(string: "https://openrouter.ai/api/v1/audio/transcriptions")!

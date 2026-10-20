@@ -38,7 +38,6 @@ import random
 import struct
 import wave
 import json
-import os
 import re
 import statistics
 import subprocess
@@ -53,6 +52,7 @@ from datetime import datetime
 from pathlib import Path
 
 import harness
+import openrouter
 from harness import AUDIO, CASES, ROOT, error_rate, tokens, wav_seconds  # noqa: F401 (tests use bench.*)
 
 # Your own recordings (import-recordings): git-ignored, like audio/rec-*.wav — your voice stays local.
@@ -308,9 +308,8 @@ def openrouter_once(model_id: str, options: dict, audio: bytes, name: str, key: 
                        for k, v in fields.items()).encode()
         body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{name}.wav\"\r\n"
                  f"Content-Type: audio/wav\r\n\r\n").encode() + audio + f"\r\n--{boundary}--\r\n".encode()
-        req = urllib.request.Request(OPENROUTER_URL, data=body, method="POST", headers={
-            "Authorization": f"Bearer {key}", "Content-Type": f"multipart/form-data; boundary={boundary}",
-            "X-Title": "DictationApp benchmark"})
+        req = urllib.request.Request(OPENROUTER_URL, data=body, method="POST",
+                                     headers=openrouter.headers(key, f"multipart/form-data; boundary={boundary}"))
         start = time.monotonic()
         try:
             with urllib.request.urlopen(req, timeout=120) as r:
@@ -451,9 +450,7 @@ def score_case(c: dict, runs: list[dict]) -> dict:
 def run_model(model: str, cases: list[dict], args, commit: str) -> Path:
     kind, _, name = model.partition(":")
     if kind == "openrouter":
-        key = os.environ.get(args.key_env)
-        if not key:
-            raise SystemExit(f"${args.key_env} is not set (choose another with --key-env)")
+        key = openrouter.key(args.key_env)
         raw = run_openrouter(name, cases, key, args.repeat, model.split("/")[-1][:18])
     elif kind == "apple":
         raw = run_apple(name or "en-US", cases, args.repeat)
@@ -589,7 +586,7 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("-l", "--level", action="append", type=int, choices=[1, 2, 3], help="limit to level (repeatable)")
     r.add_argument("-r", "--repeat", type=int, default=1, help="runs per clip (latency min/median/max)")
     r.add_argument("-p", "--parallel", type=int, default=12, help="cloud models to run at once")
-    r.add_argument("--key-env", default="OPENROUTER_API_KEY", help="env var holding the OpenRouter key")
+    r.add_argument("--key-env", default="OPENROUTER_API_KEY", help="env var holding the OpenRouter key (else the app's saved key)")
     r.add_argument("--json", action="store_true", help="print the summary as JSON")
     r.add_argument("--include-unverified", action="store_true",
                    help="also score recordings whose text hasn't been checked (biased toward the model that heard them)")

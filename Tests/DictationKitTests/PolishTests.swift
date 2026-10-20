@@ -37,7 +37,7 @@ final class PolishServiceTests: XCTestCase {
 final class OpenRouterPolishTests: XCTestCase {
     func testRequestSendsInstructionsAndTranscript() throws {
         let request = OpenRouterPolish.request(model: "anthropic/claude-haiku-5.5", apiKey: "sk-test", text: "um 帮我 build", instructions: PolishPrompt.v3)
-        XCTAssertEqual(request.url, OpenRouterPolish.endpoint)
+        XCTAssertEqual(request.url, OpenRouter.chatEndpoint)
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-test")
         let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
@@ -59,7 +59,7 @@ final class OpenRouterPolishTests: XCTestCase {
         XCTAssertEqual(provider["order"] as? [String], ["Groq"])
         XCTAssertEqual(provider["allow_fallbacks"] as? Bool, false)
         for model in ["openai/gpt-5-mini", "openai/gpt-6.1-sol-pro", CorrectionSuggester.model.replacingOccurrences(of: "openrouter:", with: "")] {
-            XCTAssertEqual(OpenRouterPolish.reasoning(for: model) as? [String: String], ["effort": "minimal"],
+            XCTAssertEqual(OpenRouter.reasoning(for: model) as? [String: String], ["effort": "minimal"],
                            "\(model) rejects reasoning off (\"Reasoning is mandatory\")")
         }
         let pinned = try XCTUnwrap(LatencyRunner().polisher(for: "openrouter:qwen/qwen3.8-27b@Cerebras")?.backend as? OpenRouterPolish)
