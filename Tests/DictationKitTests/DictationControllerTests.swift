@@ -293,14 +293,15 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(decided.events, [])
     }
 
-    func testACommandNeedsTheAPIKey() {
+    /// Without the API key command mode is off: the Enter button just presses Return, no reminder.
+    func testWithoutTheAPIKeyEnterJustPressesReturn() {
         let controller = makeController()
         var missing = 0
         controller.onMissingKey = { _ in missing += 1 }
         controller.enter()
         XCTAssertFalse(controller.dictating)
-        XCTAssertEqual(missing, 1)
-        XCTAssertEqual(controller.overlay.label.stringValue, "Add your cloud API key in Settings to use command mode")
+        XCTAssertEqual(missing, 0)
+        XCTAssertEqual(keys, ["return"])
     }
 
     func testACommandIsNotPolishedOrKept() {

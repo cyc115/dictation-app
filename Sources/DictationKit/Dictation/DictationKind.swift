@@ -19,6 +19,4 @@ enum DictationKind: Equatable {
     var canBeSent: Bool { self == .text }
     /// The dictation button stops it (a command is run with the Enter button or ✓ instead).
     var stopsWithDictationButton: Bool { self == .text }
-    /// Needs the cloud API key whatever the setup (the command decider is a cloud model).
-    var needsCloudKey: Bool { self == .command }
 }

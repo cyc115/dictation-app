@@ -6,13 +6,17 @@ struct CommandsSection: View {
     @ObservedObject var settings: AppSettings
     let folder: URL
 
-    private var usable: Bool { settings.commandModeEnabled && settings.mouseEnterEnabled }
+    private var usable: Bool { settings.commandModeOn && settings.mouseEnterEnabled }
 
     var body: some View {
         Section {
-            SettingRow("Command mode", "Press the Enter button when you're not dictating, say what you want — “brightness to half”, “声音小一点” — and press it again: it runs one of the commands below. A cloud model picks which, with your API key; a command it isn't sure of doesn't run.",
-                       available: settings.mouseEnterEnabled) {
-                Toggle("Command mode", isOn: $settings.commandModeEnabled)
+            SettingRow("Command mode", settings.hasOpenRouterKey
+                       ? "Press the Enter button when you're not dictating, say what you want — “brightness to half”, “声音小一点” — and press it again: it runs one of the commands below. A cloud model picks which, with your API key; a command it isn't sure of doesn't run."
+                       : "Needs the cloud API key: a cloud model picks the command. Add it under Speech model.",
+                       available: settings.mouseEnterEnabled && settings.hasOpenRouterKey) {
+                // Without the key it shows off, as it is: the Enter button just presses Return.
+                Toggle("Command mode", isOn: Binding(get: { settings.commandModeOn },
+                                                     set: { settings.commandModeEnabled = $0 }))
             }
             CommandsList(folder: folder)
                 .disabled(!usable)

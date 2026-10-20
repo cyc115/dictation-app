@@ -47,6 +47,6 @@ struct SettingRow<Control: View>: View {
         .disabled(!available)
         .opacity(available ? 1 : 0.4)
         .accessibilityElement(children: .contain)
-        .accessibilityHint(available ? "" : "Unavailable with the current speech model")
+        .accessibilityHint(available ? "" : "Unavailable")
     }
 }

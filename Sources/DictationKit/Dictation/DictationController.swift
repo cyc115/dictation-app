@@ -136,7 +136,7 @@ final class DictationController {
     func enter() {
         if dictating { return stop(send: kind.canBeSent) }
         if let delivery = lastDelivery, !delivery.done { return delivery.send = true }
-        if settings.commandModeEnabled { start(.command) } else { injector.pressReturn() }
+        if settings.commandModeOn { start(.command) } else { injector.pressReturn() }
     }
 
     func start(_ kind: DictationKind = .text) {
@@ -144,10 +144,6 @@ final class DictationController {
         let setup = settings.setup
         guard let engine = makeEngine(setup) else {
             overlay.show(.plain("Add your cloud API key in Settings to use \(setup.title)", seconds: 4))
-            return onMissingKey(setup)
-        }
-        if kind.needsCloudKey, settings.openRouterKey?.isEmpty ?? true {
-            overlay.show(.plain("Add your cloud API key in Settings to use command mode", seconds: 4))
             return onMissingKey(setup)
         }
         self.engine = engine

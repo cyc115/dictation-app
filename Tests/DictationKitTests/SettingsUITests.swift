@@ -155,6 +155,20 @@ final class SettingsUITests: XCTestCase {
         XCTAssertEqual(enabled(), false)
     }
 
+    func testCommandModeGreyedOutWithoutTheAPIKey() {
+        let settings = makeSettings(self)
+        let hosted = host(settings)
+        func enabled() -> Bool? {
+            hosted.element(id: "setting.Command mode")?.object.value(forKey: "accessibilityEnabled") as? Bool
+        }
+        XCTAssertEqual(enabled(), false)
+        XCTAssertFalse(settings.commandModeOn)
+        settings.setOpenRouterKey("test-key")
+        spinRunLoop(0.1)
+        XCTAssertEqual(enabled(), true)
+        XCTAssertTrue(settings.commandModeOn)
+    }
+
     func testExcludedAppsListedAndRemovable() {
         let settings = makeSettings(self)
         settings.exclude(ExcludedApp(bundleID: "com.example.game", name: "Some Game"))

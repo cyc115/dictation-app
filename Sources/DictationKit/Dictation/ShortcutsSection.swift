@@ -21,7 +21,7 @@ struct ShortcutsSection: View {
                     ForEach(MouseButton.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
             }
-            SettingRow("Mouse button for Enter", settings.commandModeEnabled
+            SettingRow("Mouse button for Enter", settings.commandModeOn
                        ? "While dictating, it stops and presses Return once the text is in — dictate and send in one go. Otherwise it starts a command (Commands, below)."
                        : "Press it to send Return. While dictating, it stops instead and presses Return once the text is in — dictate and send in one go.") {
                 Toggle("Mouse button for Enter", isOn: $settings.mouseEnterEnabled)

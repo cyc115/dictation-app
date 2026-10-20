@@ -176,6 +176,9 @@ final class AppSettings: ObservableObject {
 
     var openRouterKey: String? { secrets.get(Self.openRouterAccount) }
     var hasOpenRouterKey: Bool { openRouterKey != nil }
+    /// Command mode is switched on and can run: a cloud model picks the command, so without the API
+    /// key it's off (greyed out in Settings) and the Enter button just presses Return.
+    var commandModeOn: Bool { commandModeEnabled && hasOpenRouterKey }
 
     func setOpenRouterKey(_ key: String?) {
         objectWillChange.send()
