@@ -1,0 +1,25 @@
+Fix a broken command in DictationApp's command mode. The user said what's wrong with it by voice (a speech model wrote it down, so expect misheard words and mixed Chinese and English):
+"{said}"
+
+The command: {name}: {summary}
+{where}
+
+First read the end of the error log, where every command that fails is logged with everything it printed (the full traceback), newest last:
+  tail -n 120 "{log}"
+The latest entries for {name}:
+{errors}
+
+Its recent runs from History (newest first; what was said → the choice that was picked → how it went):
+{runs}
+
+How command mode works: the user speaks; a decision model (Jev, through OpenRouter) picks one command and one of its listed choices, from their descriptions alone; then the command runs with that choice and what was said ($COMMAND_SAID for a script). So a command can break in three places, and the runs above tell you which:
+- it isn't picked, or another command is: its summary;
+- the wrong choice is picked, or none fits: its choices' wording, or a choice that's missing;
+- it runs and goes wrong: its code.
+
+Do this:
+1. Find the root cause. Reproduce it where you safely can, changing this Mac no more than the command itself would (prefer a choice that changes nothing, like volume +0). Don't guess: if the log and the runs don't explain it, find out.
+2. Fix the cause, not the symptom, and check the fix the way the app runs the command.
+{finish}
+3. When you're done, or if you can't fix it, show a notification with one line saying what was wrong and what you changed (or why you couldn't):
+  osascript -e 'display notification "<that line>" with title "DictationApp: fix {name}"'

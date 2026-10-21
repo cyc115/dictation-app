@@ -149,6 +149,7 @@ Command mode has these built in:
 | `lock-screen` | locks the screen at once | "lock my screen" |
 | `open-website` | a well-known site, or any address or site you name (DuckDuckGo's first result) | "go to hacker news" |
 | `create` | writes a new command | "create command, tile the window to the left half" |
+| `fix` | starts a background [Claude Code](https://claude.com/claude-code) session (`claude --bg`) that fixes a command, told what you said, the command's recent runs and its `errors.log` entries; a notification says what it changed. No command named: the last one that failed | "fix the volume command, turning it up doesn't work" |
 
 Your own commands are the scripts in `~/Library/Application Support/DictationApp/Commands/`
 (Settings → Commands → **Show in Finder**). The folder is read afresh for every command, so a new
@@ -194,7 +195,8 @@ text. It sees what you said and each command's description and choices, never th
   deletes it.
 - Command mode sends what you said, and your commands' names, descriptions and choices (with your
   installed apps' names, for `open`, and the open ones', for `switch-app`), to OpenRouter to pick one; `create` also sends it to
-  DeepSeek to write the script. Commands are saved beside your history, in `history-commands.json`.
+  DeepSeek to write the script. `fix` runs Claude Code on this Mac, which sends what you said, the
+  command's runs and errors, and the code it reads to Anthropic. Commands are saved beside your history, in `history-commands.json`.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted)
   to the cloud models, like any cloud dictation. Learned prompts stay in
   `~/Library/Application Support/DictationApp/learned-prompts.json`.

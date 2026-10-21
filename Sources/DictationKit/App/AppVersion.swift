@@ -1,11 +1,14 @@
 import Foundation
 
 /// Version stamped into Info.plist by build.sh:
-/// 1.0.<commit count> (+"-dev" with uncommitted changes), the git commit, and the build time.
+/// 1.0.<commit count> (+"-dev" with uncommitted changes), the git commit, the build time, and the
+/// source folder it was built from.
 struct AppVersion {
     let version: String
     let commit: String
     let built: Date?
+    /// The repo it was built from: where command mode's "fix" works on a built-in command.
+    let source: URL?
 
     static let current = AppVersion(info: Bundle.main.infoDictionary ?? [:])
 
@@ -13,6 +16,7 @@ struct AppVersion {
         version = info["CFBundleShortVersionString"] as? String ?? "dev"
         commit = info["CFBundleVersion"] as? String ?? "-"
         built = (info["DictationBuildDate"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
+        source = (info["DictationSource"] as? String).map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
 
     /// "Version 1.0.25 (525e456)"

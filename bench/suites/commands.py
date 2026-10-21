@@ -52,10 +52,11 @@ DEFAULT_MODELS = ["jev", "openrouter:google/gemini-3.5-flash-lite", "openrouter:
 BUILT_IN = [{"name": c["name"], "summary": c["summary"], "choices": dict(c["choices"])}
             for c in json.loads(BUILT_IN_FILE.read_text())]
 APP_FOLDERS = [Path("/Applications"), Path.home() / "Applications", Path("/System/Applications")]  # Command.appFolders
-CHOOSES_AN_APP = {"open", "switch-app"}  # Command.choosesAnApp
+FROM_THIS_MAC = {"open", "switch-app", "fix"}  # Command.choicesFromThisMac: apps, or (fix) the other commands
 RUNNING = ["Finder", "Ghostty", "Google Chrome", "Mail", "Music", "Safari", "Slack", "WeChat"]  # switch-app's choices here
 MAX_APPS = 254  # Command.maxApps
 NO_APP = "Not one of these apps"  # Command.noApp: "open none" runs nothing
+NO_COMMAND = "None named: the last command that failed"  # Command.noCommand
 
 
 def installed_apps(folders: list[Path] = APP_FOLDERS) -> list[str]:
@@ -87,12 +88,15 @@ def parse_script(text: str, name: str) -> dict | None:
 
 
 def app_commands(apps: list[str] | None = None, running: list[str] = RUNNING) -> list[dict]:
-    """The built-ins, as Command.all lists them: open's choices this Mac's apps, switch-app's `running`."""
+    """The built-ins, as Command.all lists them: open's choices this Mac's apps, switch-app's `running`,
+    fix's the other commands."""
     apps = installed_apps() if apps is None else apps
     def named(names: list[str]) -> dict:
         return {a: a for a in names[:MAX_APPS]} | {"none": NO_APP}
-    return [{**c, "choices": named(apps if c["name"] == "open" else running)} if c["name"] in CHOOSES_AN_APP else c
+    cmds = [{**c, "choices": named(apps if c["name"] == "open" else running)} if c["name"] in {"open", "switch-app"} else c
             for c in BUILT_IN]
+    fixable = {c["name"]: c["summary"] for c in cmds if c["name"] != "fix"} | {"none": NO_COMMAND}
+    return [{**c, "choices": fixable} if c["name"] == "fix" else c for c in cmds]
 
 
 def commands_for(catalog: bool) -> list[dict]:

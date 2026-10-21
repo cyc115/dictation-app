@@ -20,8 +20,8 @@ let package = Package(
                 .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "HuggingFace", package: "swift-huggingface"),
             ],
-            // Command mode's instructions for writing a new command ("create command").
-            resources: [.copy("Commands/WriteCommand.txt")],
+            // Command mode's instructions for writing a new command ("create") and fixing one ("fix").
+            resources: [.copy("Commands/WriteCommand.txt"), .copy("Commands/FixCommand.txt")],
             swiftSettings: [.swiftLanguageMode(.v5)],
             linkerSettings: [
                 // Apple Intelligence is optional at runtime (AI polish falls back to raw text).

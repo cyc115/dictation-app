@@ -71,7 +71,7 @@ final class CommandTests: XCTestCase {
         let dir = folder(["window.py": window, "battery.py": "\"\"\"Say the battery level.\"\"\"", "volume.py": "\"\"\"Mine.\"\"\"",
                           "return.py": "\"\"\"Mine.\"\"\"", "notes.txt": "\"\"\"Not a script.\"\"\"", "broken.py": "no docstring"])
         let names = Command.builtIn.map(\.name)
-        XCTAssertEqual(names, ["return", "repeat", "create", "open", "brightness", "volume", "lock-screen", "media-control",
+        XCTAssertEqual(names, ["return", "repeat", "create", "fix", "open", "brightness", "volume", "lock-screen", "media-control",
                                "open-website", "switch-app"])
         XCTAssertEqual(Command.all(in: dir, apps: [], running: []).map(\.name), names + ["battery", "window"], "one named like a built-in is skipped")
         XCTAssertEqual(Command.all(in: dir.appendingPathComponent("missing"), apps: [], running: []).map(\.name), names)
@@ -356,6 +356,84 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(run.result, "No window")
         XCTAssertEqual(Command.disabled(in: mode.folder), [])
         XCTAssertTrue(mode.commands.contains { $0.name == "window" })
+    }
+
+    // MARK: Fix
+
+    @MainActor
+    func testFixStartsASessionToldWhatWentWrong() async throws {
+        let mode = makeMode(CommandDecision(command: "fix", choice: "volume", confidence: 0.95))
+        mode.source = URL(fileURLWithPath: "/src/dictation-app")
+        mode.history.addCommand(CommandRun(said: "louder", command: "volume", choice: "+10", result: "Couldn't set the volume"))
+        mode.history.addCommand(CommandRun(said: "quieter", command: "volume", choice: "-10", ok: true, result: "Volume 30%"))
+        mode.log.add(CommandRun(said: "louder", command: "volume", choice: "+10", result: "Couldn't set the volume"), details: "AppleScript: no output device")
+        mode.log.add(CommandRun(said: "go to yahoo finance", command: "open-website", choice: "other", result: "Which website?"), details: nil)
+        var started: [(CommandFixer, Command, String)] = []
+        mode.startFix = { started.append(($0, $1, $2)); return CommandResult(ok: true, message: "Fixing \($1.name) in the background") }
+        let run = await mode.handle("fix the volume command, turning it up doesn't work", apiKey: "k")
+        XCTAssertEqual(run.result, "Fixing volume in the background")
+        let (fixer, command, prompt) = try XCTUnwrap(started.first)
+        XCTAssertEqual(command.name, "volume")
+        XCTAssertEqual(fixer.source?.path, "/src/dictation-app")
+        XCTAssertEqual(fixer.folder, mode.folder)
+        XCTAssertTrue(prompt.contains("\"fix the volume command, turning it up doesn't work\""), "what you said")
+        XCTAssertTrue(prompt.contains("tail -n 120 \"\(mode.log.file.path)\""), "it reads the latest errors first")
+        XCTAssertTrue(prompt.contains("volume +10  ✗ Couldn't set the volume\nsaid: louder\nAppleScript: no output device"), "volume's entry")
+        XCTAssertFalse(prompt.contains("yahoo finance"), "not another command's")
+        XCTAssertTrue(prompt.contains("“quieter” → volume -10 → ok: Volume 30%"), "its runs")
+        XCTAssertTrue(prompt.contains("built into the app") && prompt.contains("./build.sh --keep-running"))
+        XCTAssertFalse(prompt.contains("{"), "every blank filled in")
+    }
+
+    @MainActor
+    func testFixWithoutANameFixesTheLastCommandThatFailedAndAScriptInPlace() async throws {
+        let mode = makeMode(CommandDecision(command: "fix", choice: "none", confidence: 0.9))
+        var started: [(Command, String)] = []
+        mode.startFix = { started.append(($1, $2)); return CommandResult(ok: true, message: "Fixing") }
+        let nothing = await mode.handle("fix it", apiKey: "k")
+        XCTAssertEqual(nothing.result, "Which command? Say “fix” and its name")
+        mode.history.addCommand(CommandRun(said: "tile it left", command: "window", choice: "left", result: "No window"))
+        mode.history.addCommand(CommandRun(said: "louder", command: "volume", choice: "+10", ok: true, result: "Volume 40%"))
+        _ = await mode.handle("that didn't work, fix it", apiKey: "k")
+        let (command, prompt) = try XCTUnwrap(started.first)
+        XCTAssertEqual(command.name, "window", "the last one that failed, not the last one")
+        XCTAssertEqual(command.script?.lastPathComponent, "window.py")
+        let script = try XCTUnwrap(command.script).path
+        XCTAssertTrue(prompt.contains("the user's own script, not in git: \(script)") && prompt.contains(script + ".orig"))
+        XCTAssertTrue(prompt.contains("uv run --quiet --script \"\(script)\""))
+        XCTAssertTrue(prompt.contains("The latest entries for window:\n(none)"))
+    }
+
+    func testFixsChoicesAreTheOtherCommands() {
+        let fix = Command.all(in: folder(["window.py": window]), apps: [], running: []).first { $0.name == "fix" }
+        XCTAssertEqual(fix?.choices.first, .init(value: "return", meaning: Command.pressReturn.summary))
+        XCTAssertEqual(fix?.choices.suffix(2).map(\.value), ["window", "none"])
+        XCTAssertFalse(fix?.choices.contains { $0.value == "fix" } ?? true)
+    }
+
+    @MainActor
+    func testFixingABuiltInNeedsTheSourceAndClaudeSaysWhereToWatch() async {
+        let fixer = CommandFixer(folder: makeTempURL(self, "Commands"), source: nil)
+        let result = await fixer.start(Command.volume, prompt: "fix it")
+        XCTAssertEqual(result.message, "Fixing a built-in needs the app's source")
+        XCTAssertEqual(CommandFixer.sessionID("Starting background service…\nbackgrounded · 87c66017 · fix-volume\n  claude agents  list"), "87c66017")
+        XCTAssertNil(CommandFixer.sessionID("Workspace not trusted."))
+        let arguments = fixer.arguments(Command.volume, prompt: "fix it")
+        XCTAssertEqual(arguments.last, "fix it")
+        XCTAssertTrue(arguments[arguments.firstIndex(of: "--add-dir")! + 2].hasPrefix("-"), "an option ends --add-dir's folders, or it takes the prompt for one")
+    }
+
+    func testTheErrorLogFindsOneCommandsEntries() {
+        let log = CommandLog(folder: makeTempURL(self, "Commands"))
+        XCTAssertEqual(log.entries(for: "open"), [], "no log yet")
+        for (name, choice) in [("open-website", "other"), ("open", "Safari"), ("lock-screen", nil), ("open", "Zed")] as [(String, String?)] {
+            log.add(CommandRun(said: "x", command: name, choice: choice, result: "Broke"), details: "why \(name)")
+        }
+        let open = log.entries(for: "open")
+        XCTAssertEqual(open.count, 2, "not open-website's")
+        XCTAssertTrue(open[1].contains("open Zed  ✗ Broke") && open[1].hasSuffix("why open"))
+        XCTAssertEqual(log.entries(for: "lock-screen").count, 1)
+        XCTAssertEqual(log.entries(for: "open", last: 1).count, 1)
     }
 
     // MARK: Open

@@ -65,6 +65,7 @@ PLIST="$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $COMMIT" "$PLIST"
 /usr/libexec/PlistBuddy -c "Add :DictationBuildDate string $(date -u +%Y-%m-%dT%H:%M:%SZ)" "$PLIST"
+/usr/libexec/PlistBuddy -c "Add :DictationSource string $(pwd)" "$PLIST"   # where "fix" works on the built-ins
 echo "    version $VERSION ($COMMIT)"
 mkdir -p "$APP/Contents/Resources"
 cp Assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"   # regenerate: swift scripts/make-icon.swift

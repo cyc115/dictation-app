@@ -6,8 +6,9 @@ from suites import commands
 
 def test_the_commands_are_the_apps_built_ins():
     found = {c["name"]: c for c in commands.app_commands()}
-    assert list(found) == ["return", "repeat", "create", "open", "brightness", "volume", "lock-screen", "media-control",
+    assert list(found) == ["return", "repeat", "create", "fix", "open", "brightness", "volume", "lock-screen", "media-control",
                            "open-website", "switch-app"]
+    assert list(found["fix"]["choices"])[-2:] == ["switch-app", "none"]
     assert found["volume"]["choices"]["mute"] == "mute"
     assert list(found["brightness"]["choices"])[:2] == ["+10", "-10"]
     assert found["switch-app"]["choices"] == {a: a for a in commands.RUNNING} | {"none": commands.NO_APP}

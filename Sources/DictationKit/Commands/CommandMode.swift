@@ -53,6 +53,10 @@ final class CommandMode {
     var running: () -> [String] = { SwitchApp.running().keys.sorted() }
     /// The built-ins that work the Mac (brightness, volume, …) by name; tests fake them.
     var system: [String: SystemCommands.Action] = SystemCommands.live
+    /// "fix": starts the background session that fixes a command (tests fake it).
+    var startFix: (CommandFixer, Command, String) async -> CommandResult = { await $0.start($1, prompt: $2) }
+    /// The app's source folder, where "fix" works on a built-in.
+    var source: URL? = AppVersion.current.source
 
     init(folder: URL = CommandMode.defaultFolder, history: HistoryStore) {
         self.folder = folder
@@ -122,6 +126,8 @@ final class CommandMode {
         case Command.create.name:
             guard let apiKey else { return CommandResult(ok: false, message: "Say it again to create another") }
             return await create(said, apiKey: apiKey, among: commands)
+        case Command.fix.name:
+            return await fix(choice, said: said, among: commands)
         case _ where system[name] != nil:
             return await system[name]!(choice, said)
         default:
@@ -159,6 +165,20 @@ final class CommandMode {
         } catch {
             return CommandResult(ok: false, message: error.localizedDescription)
         }
+    }
+
+    /// Starts a background Claude Code session that fixes the command named (else the last one that
+    /// failed), told what you said, its recent runs and its errors.log entries (`CommandFixer`).
+    @MainActor
+    private func fix(_ choice: String?, said: String, among commands: [Command]) async -> CommandResult {
+        let named = choice.flatMap { $0 == Command.noCommand.value ? nil : $0 }
+        let lastFailed = history.commands.first { !$0.ok && $0.command != nil && $0.command != Command.fix.name }?.command
+        guard let name = named ?? lastFailed, let command = commands.first(where: { $0.name == name }) else {
+            return CommandResult(ok: false, message: "Which command? Say “fix” and its name")
+        }
+        let fixer = CommandFixer(folder: folder, source: source)
+        let runs = Array(history.commands.filter { $0.command == name }.prefix(10))
+        return await startFix(fixer, command, fixer.prompt(for: command, said: said, runs: runs, errors: log.entries(for: name)))
     }
 
     /// Why Python can't parse `script`, or nil if it can (or uv isn't there to ask).
@@ -218,11 +238,13 @@ final class CommandMode {
         return process(uv, arguments, environment: extra)
     }
 
-    /// Runs `executable` with `arguments` (and `environment` added), with no shell and a time limit.
+    /// Runs `executable` with `arguments` (and `environment` added, in `directory`), with no shell and
+    /// a time limit.
     static func process(_ executable: String, _ arguments: [String], environment extra: [String: String] = [:],
-                        timeout: TimeInterval = CommandMode.timeout) -> Result<Finished, StartError> {
+                        directory: URL? = nil, timeout: TimeInterval = CommandMode.timeout) -> Result<Finished, StartError> {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
+        process.currentDirectoryURL = directory
         process.arguments = arguments
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"

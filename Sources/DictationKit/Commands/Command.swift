@@ -53,7 +53,11 @@ struct Command: Hashable {
     /// (`SwitchApp.running`), filled in by `all(in:apps:running:)`.
     static let switchApp = Command(name: "switch-app", summary: "Switch to another app that's already open, by name",
                                    choices: [], script: nil)
-    static let builtIn = [pressReturn, again, create, openApp, brightness, volume, lockScreen, media, openWebsite, switchApp]
+    /// Starts a background Claude Code session that fixes a command (`CommandFixer`); its choices are
+    /// the other commands, filled in by `all(in:apps:running:)`.
+    static let fix = Command(name: "fix", summary: "Fix a command that isn't working: the user names the command (“fix the volume command”, “修一下 open-website”) and says what goes wrong",
+                             choices: [], script: nil)
+    static let builtIn = [pressReturn, again, create, fix, openApp, brightness, volume, lockScreen, media, openWebsite, switchApp]
 
     /// Brightness's and volume's choices: change it by some ("+10": a bit brighter), or set it ("50": half).
     static func levels(more: String, less: String, none: String) -> [Choice] {
@@ -70,6 +74,8 @@ struct Command: Hashable {
     /// Open's and switch-app's last choice, so something that isn't one of the apps ("打开下载的文件夹")
     /// opens nothing rather than the closest app.
     static let noApp = Choice(value: "none", meaning: "Not one of these apps")
+    /// Fix's last choice: no command named, so the last one that failed.
+    static let noCommand = Choice(value: "none", meaning: "None named: the last command that failed")
 
     /// The installed apps by name ("Google Chrome"), read afresh each time.
     static func installedApps(in folders: [URL] = appFolders) -> [String: URL] {
@@ -121,12 +127,17 @@ struct Command: Hashable {
             Command(name: command.name, summary: command.summary,
                     choices: apps.prefix(maxApps).map { Choice(value: $0, meaning: $0) } + [noApp], script: nil)
         }
-        return builtIn.map { $0 == openApp ? named(apps, $0) : $0 == switchApp ? named(running, $0) : $0 }
+        let commands = builtIn.map { $0 == openApp ? named(apps, $0) : $0 == switchApp ? named(running, $0) : $0 }
             + scripts(in: folder).filter { script in !builtIn.contains { $0.name == script.name } }
+        let fixable = commands.filter { $0 != fix }.map { Choice(value: $0.name, meaning: $0.summary) }
+        return commands.map { $0 == fix ? Command(name: fix.name, summary: fix.summary, choices: fixable + [noCommand], script: nil) : $0 }
     }
 
     /// Open's and switch-app's choices are the apps on this Mac, not fixed ones.
     var choosesAnApp: Bool { name == Command.openApp.name || name == Command.switchApp.name }
+    /// Choices filled in from this Mac (its apps, its commands), not written down: left out where the
+    /// built-ins are described (the writer, the bench's copy).
+    var choicesFromThisMac: Bool { choosesAnApp || name == Command.fix.name }
 
     /// The scripts turned off (Settings › Commands): in the folder's Disabled folder,
     /// where command mode doesn't look.

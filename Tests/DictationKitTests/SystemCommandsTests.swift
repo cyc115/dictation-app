@@ -17,7 +17,7 @@ final class SystemCommandsTests: XCTestCase {
     }
 
     func testEveryBuiltInThatWorksTheMacHasAnAction() {
-        let inApp: Set = [Command.pressReturn.name, Command.again.name, Command.create.name, Command.openApp.name]
+        let inApp: Set = [Command.pressReturn.name, Command.again.name, Command.create.name, Command.fix.name, Command.openApp.name]
         XCTAssertEqual(Set(SystemCommands.live.keys), Set(Command.builtIn.map(\.name)).subtracting(inApp))
     }
 
@@ -106,14 +106,14 @@ final class SystemCommandsTests: XCTestCase {
     // MARK: Bench
 
     /// bench/built_in_commands.json is what the bench asks the deciders and the writer about: the
-    /// app's built-ins, word for word (open's and switch-app's choices are this Mac's apps).
+    /// app's built-ins, word for word (open's, switch-app's and fix's choices come from this Mac).
     func testTheBenchKnowsTheBuiltInCommands() throws {
         let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("../../bench/built_in_commands.json").standardizedFileURL
         let bench = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [[String: Any]])
         let app: [[String: Any]] = Command.builtIn.map { command in
             ["name": command.name, "summary": command.summary,
-             "choices": command.choosesAnApp ? [] : command.choices.map { [$0.value, $0.meaning] }]
+             "choices": command.choicesFromThisMac ? [] : command.choices.map { [$0.value, $0.meaning] }]
         }
         XCTAssertEqual(bench as NSArray, app as NSArray)
     }

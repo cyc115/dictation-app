@@ -19,6 +19,17 @@ struct CommandLog {
         append(entry + "\n")
     }
 
+    /// `name`'s latest entries, oldest first (for "fix").
+    func entries(for name: String, last count: Int = 5) -> [String] {
+        guard let text = try? String(contentsOf: file, encoding: .utf8) else { return [] }
+        let entries = text.components(separatedBy: "\n── ").map { $0.hasPrefix("── ") ? String($0.dropFirst(3)) : $0 }
+        let mine = entries.filter { entry in
+            let header = entry.prefix { $0 != "\n" }
+            return header.contains("  \(name)  ✗") || header.contains("  \(name) ")
+        }
+        return mine.suffix(count).map { "── " + $0.trimmingCharacters(in: .newlines) }
+    }
+
     private func append(_ text: String) {
         try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         guard let handle = try? FileHandle(forWritingTo: file) else {
