@@ -4,9 +4,6 @@ import AppKit
 struct CommandResult: Equatable {
     var ok: Bool
     var message: String
-    /// The script ran and failed (a non-zero exit, or too slow), so it's turned off; not when uv is
-    /// missing or it couldn't start.
-    var scriptFailed = false
 
     /// From a finished script: on success its first line of output, else its last line of errors.
     static func from(_ finished: CommandMode.Finished, name: String) -> CommandResult {
@@ -14,10 +11,10 @@ struct CommandResult: Equatable {
             let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
             return last ? lines.last : lines.first
         }
-        if finished.timedOut { return CommandResult(ok: false, message: "Took longer than \(Int(CommandMode.timeout)) s", scriptFailed: true) }
+        if finished.timedOut { return CommandResult(ok: false, message: "Took longer than \(Int(CommandMode.timeout)) s") }
         if finished.status == 0 { return CommandResult(ok: true, message: line(finished.output, last: false) ?? "Ran \(name)") }
         return CommandResult(ok: false, message: line(finished.errors, last: true) ?? line(finished.output, last: true)
-                             ?? "Exited with \(finished.status)", scriptFailed: true)
+                             ?? "Exited with \(finished.status)")
     }
 }
 
@@ -125,10 +122,7 @@ final class CommandMode {
             guard let script = commands.first(where: { $0.name == name })?.script else {
                 return CommandResult(ok: false, message: "No \(name) script")
             }
-            let result = await runScript(script, choice, said)
-            // A command that fails is turned off until you turn it back on (Settings › Commands).
-            guard result.scriptFailed, (try? Command.setEnabled(false, script: script, folder: folder)) != nil else { return result }
-            return CommandResult(ok: false, message: result.message + " · turned off", scriptFailed: true)
+            return await runScript(script, choice, said)
         }
     }
 

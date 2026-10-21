@@ -95,7 +95,7 @@ struct Command: Hashable {
             + scripts(in: folder).filter { script in !builtIn.contains { $0.name == script.name } }
     }
 
-    /// The scripts turned off (Settings › Commands, or by failing): in the folder's Disabled folder,
+    /// The scripts turned off (Settings › Commands): in the folder's Disabled folder,
     /// where command mode doesn't look.
     static func disabled(in folder: URL) -> [Command] { scripts(in: disabledFolder(folder)) }
 

@@ -143,9 +143,9 @@ with) and `create`. The folder is read afresh for every command, so a new script
 
 `create` ("create command, tile the window to the left half", "新建命令 现在几点") has DeepSeek V4.1
 Flash write the script into the folder, ready next time; if one of your commands already does it,
-it says which instead. The script isn't run when it's written. A script that fails (exits non-zero
-or takes over 10 s) is turned off: it moves to `Commands/Disabled/`, and Settings → Commands has a
-switch beside each script to turn it back on (or off).
+it says which instead. The script isn't run when it's written. Settings → Commands has a switch
+beside each script to turn it off (it moves to `Commands/Disabled/`) or back on. A script that fails
+(exits non-zero or takes over 10 s) shows why in the pill and History, and stays on.
 
 A command is one Python file, run with `uv run --script <file> <choice>`, with what you said in
 `$COMMAND_SAID` (for free text a choice can't hold: a website that isn't listed, something to

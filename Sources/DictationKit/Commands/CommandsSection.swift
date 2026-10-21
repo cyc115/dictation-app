@@ -29,7 +29,7 @@ struct CommandsSection: View {
 }
 
 /// The commands folder and what's in it: each command, what it does and what it can be told, with a
-/// switch to turn a script off (a script that fails is turned off for you).
+/// switch to turn a script off.
 struct CommandsList: View {
     let folder: URL
     @StateObject private var list = CommandsInFolder()
@@ -79,7 +79,7 @@ struct CommandsList: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("command." + command.name)
         }
-        Text("Add a Python script to the folder, or say “create command” and what it should do. A script's docstring's first line says what it does, and lines under “Choices:” what it can be told (value: meaning). It's run with uv; one that fails is turned off.")
+        Text("Add a Python script to the folder, or say “create command” and what it should do. A script's docstring's first line says what it does, and lines under “Choices:” what it can be told (value: meaning). It's run with uv.")
             .font(.callout).foregroundStyle(.secondary)
     }
 }

@@ -134,9 +134,9 @@ final class CommandTests: XCTestCase {
         }
         XCTAssertEqual(result(0, "\nBrightness 70%\nmore\n"), CommandResult(ok: true, message: "Brightness 70%"))
         XCTAssertEqual(result(0), CommandResult(ok: true, message: "Ran b"))
-        XCTAssertEqual(result(1, "", "Traceback\n  ...\nValueError: bad\n"), CommandResult(ok: false, message: "ValueError: bad", scriptFailed: true))
-        XCTAssertEqual(result(3), CommandResult(ok: false, message: "Exited with 3", scriptFailed: true))
-        XCTAssertEqual(result(15, timedOut: true), CommandResult(ok: false, message: "Took longer than 10 s", scriptFailed: true))
+        XCTAssertEqual(result(1, "", "Traceback\n  ...\nValueError: bad\n"), CommandResult(ok: false, message: "ValueError: bad"))
+        XCTAssertEqual(result(3), CommandResult(ok: false, message: "Exited with 3"))
+        XCTAssertEqual(result(15, timedOut: true), CommandResult(ok: false, message: "Took longer than 10 s"))
     }
 
     /// The real runner, with uv: the choice reaches the script as one argument, never through a shell.
@@ -149,7 +149,7 @@ final class CommandTests: XCTestCase {
         let echoed = await CommandMode.run(script: dir.appendingPathComponent("echo.py"), choice: "+10; touch /tmp/x", said: "打开 Swift 论坛")
         XCTAssertEqual(echoed, CommandResult(ok: true, message: "got ['+10; touch /tmp/x'] 打开 Swift 论坛"))
         let failed = await CommandMode.run(script: dir.appendingPathComponent("fail.py"), choice: nil)
-        XCTAssertEqual(failed, CommandResult(ok: false, message: "no display", scriptFailed: true))
+        XCTAssertEqual(failed, CommandResult(ok: false, message: "no display"))
     }
 
     // MARK: Command mode
@@ -275,23 +275,14 @@ final class CommandTests: XCTestCase {
     }
 
     @MainActor
-    func testAScriptThatFailsIsTurnedOff() async {
+    func testAScriptThatFailsStaysOn() async {
         let mode = makeMode(CommandDecision(command: "brightness", choice: "+10", confidence: 0.97))
-        mode.runScript = { _, _, _ in CommandResult(ok: false, message: "No display", scriptFailed: true) }
+        mode.runScript = { _, _, _ in CommandResult(ok: false, message: "No display") }
         let run = await mode.handle("brighter", apiKey: "k")
         XCTAssertFalse(run.ok)
-        XCTAssertEqual(run.result, "No display · turned off")
-        XCTAssertEqual(Command.disabled(in: mode.folder).map(\.name), ["brightness"])
-        XCTAssertFalse(mode.commands.contains { $0.name == "brightness" })
-    }
-
-    @MainActor
-    func testUvMissingDoesntTurnTheScriptOff() async {
-        let mode = makeMode(CommandDecision(command: "brightness", choice: "+10", confidence: 0.97))
-        mode.runScript = { _, _, _ in CommandResult(ok: false, message: "uv isn't installed") }
-        let run = await mode.handle("brighter", apiKey: "k")
-        XCTAssertEqual(run.result, "uv isn't installed")
+        XCTAssertEqual(run.result, "No display")
         XCTAssertEqual(Command.disabled(in: mode.folder), [])
+        XCTAssertTrue(mode.commands.contains { $0.name == "brightness" })
     }
 
     // MARK: Open
