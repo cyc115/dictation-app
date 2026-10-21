@@ -139,7 +139,7 @@ struct Command: Hashable {
     /// built-ins are described (the writer, the bench's copy).
     var choicesFromThisMac: Bool { choosesAnApp || name == Command.fix.name }
 
-    /// The scripts turned off (Settings › Commands): in the folder's Disabled folder,
+    /// The scripts turned off (the Commands tab): in the folder's Disabled folder,
     /// where command mode doesn't look.
     static func disabled(in folder: URL) -> [Command] { scripts(in: disabledFolder(folder)) }
 
