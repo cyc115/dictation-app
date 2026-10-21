@@ -151,14 +151,17 @@ Command mode has these built in:
 | `create` | writes a new command | "create command, tile the window to the left half" |
 | `fix` | starts a background [Claude Code](https://claude.com/claude-code) session (`claude --bg`) that fixes a command, told what you said, the command's recent runs and its `errors.log` entries; a notification says what it changed. No command named: the last one that failed | "fix the volume command, turning it up doesn't work" |
 
-Your own commands are the scripts in `~/Library/Application Support/DictationApp/Commands/`
-(Settings → Commands → **Show in Finder**). The folder is read afresh for every command, so a new
-script works right away; one named like a built-in is skipped.
+Your own commands are the scripts in `~/Library/Application Support/DictationApp/Commands/`. The
+**Commands** tab lists them and the built-ins, searchable from the toolbar and yours sorted by name
+or last use, each with how it has gone (times used, its last run, why it failed); there you turn a
+script off or on, delete it (asked first, then to the Trash) and open its folder or the error log.
+Command mode itself is switched on in Settings. The folder is read afresh for every command, so a
+new script works right away; one named like a built-in is skipped.
 
 `create` ("create command, tile the window to the left half", "新建命令 现在几点") has DeepSeek V4.1
 Flash write the script into the folder, ready next time; if one of your commands already does it,
-it says which instead. The script isn't run when it's written. Settings → Commands has a switch
-beside each script to turn it off (it moves to `Commands/Disabled/`) or back on. A command that fails
+it says which instead. The script isn't run when it's written. A script turned off moves to
+`Commands/Disabled/`. A command that fails
 (a script that exits non-zero or takes over 10 s) shows why in the pill and History, and stays on;
 everything it printed (the whole traceback, not just the pill's line) goes in `Commands/errors.log`,
 newest last, so a broken script can be fixed from it. `create`'s instructions have scripts print

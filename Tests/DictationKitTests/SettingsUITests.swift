@@ -20,7 +20,7 @@ final class SettingsUITests: XCTestCase {
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
                       "Mouse button", "AI polish", "Model", "On-device model", "Keep history", "Keep recordings",
                       "Backup model when slow", "Pause in these apps", "Show detailed analytics",
-                      "Mouse button for Enter", "Enter button", "Command mode", "Commands folder"] {
+                      "Mouse button for Enter", "Enter button", "Command mode", "Commands"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }

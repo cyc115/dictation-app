@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum MainTab: String, CaseIterable, Identifiable {
-    case home, history, corrections, settings
+    case home, history, corrections, commands, settings
 
     var id: String { rawValue }
 
@@ -11,6 +11,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .home: return "Home"
         case .history: return "History"
         case .corrections: return "Corrections"
+        case .commands: return "Commands"
         case .settings: return "Settings"
         }
     }
@@ -20,6 +21,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         switch self {
         case .history: return "Search history"
         case .corrections: return "Search corrections"
+        case .commands: return "Search commands"
         case .home, .settings: return nil
         }
     }
@@ -29,12 +31,13 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .home: return "house"
         case .history: return "clock.arrow.circlepath"
         case .corrections: return "pencil.line"
+        case .commands: return "chevron.forward.square"
         case .settings: return "gearshape"
         }
     }
 }
 
-/// The app window: sidebar with Home (insights), History, Corrections and Settings.
+/// The app window: sidebar with Home (insights), History, Corrections, Commands and Settings.
 final class MainWindowController {
     private var window: NSWindow?
     private let selection = TabSelection()
@@ -152,7 +155,9 @@ struct MainView: View {
         case .corrections: CorrectionsView(store: history, suggester: services.suggester, learn: services.learn,
                                            editing: selection.editing, search: searches[.corrections, default: ""])
             .onTabHidden { selection.editing = nil }
-        case .settings: SettingsView(services: services)
+        case .commands: CommandsView(mode: services.commands, settings: settings, history: history,
+                                     search: searches[.commands, default: ""], onOpenSettings: { selection.tab = .settings })
+        case .settings: SettingsView(services: services, onShowCommands: { selection.tab = .commands })
         }
     }
 }

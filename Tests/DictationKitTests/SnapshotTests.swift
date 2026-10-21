@@ -159,6 +159,27 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "history-commands")
     }
 
+    func testCommandsTab() throws {
+        let services = makeServices(self)
+        let folder = services.commands.folder
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try "\"\"\"Say the battery level.\"\"\"\n".write(to: folder.appendingPathComponent("battery.py"), atomically: true, encoding: .utf8)
+        try "\"\"\"Tile the front window.\n\nChoices:\n    left: the left half\n    right: the right half\n\"\"\"\n"
+            .write(to: folder.appendingPathComponent("window.py"), atomically: true, encoding: .utf8)
+        services.settings.setOpenRouterKey("test-key")
+        services.settings.commandModeEnabled = true
+        for run in [
+            CommandRun(date: fixedDate(2026, 1, 5, 23, 20), said: "battery", command: "battery", ok: true, result: "Battery 80%"),
+            CommandRun(date: fixedDate(2026, 1, 6, 18, 12), said: "tile it left", command: "window", choice: "left", result: "No window to tile"),
+            CommandRun(date: fixedDate(2026, 1, 6, 21, 2), said: "声音小一点", command: "volume", choice: "-10", ok: true, result: "Volume 40%"),
+        ] { services.history.addCommand(run) }
+        let view = CommandsView(mode: services.commands, settings: services.settings, history: services.history,
+                                trash: { try FileManager.default.removeItem(at: $0) })
+        let hosted = HostedView(view, size: NSSize(width: 760, height: 1180))
+        addTeardownBlock { hosted.close() }
+        assertSnapshot(of: hosted.hostingView, named: "commands-tab")
+    }
+
     func testInsights() {
         let insights = Insights(defaults: makeDefaults(self))
         insights.record(text: Array(repeating: "w", count: 19_400).joined(separator: " "), duration: 3 * 3600 + 31 * 60)

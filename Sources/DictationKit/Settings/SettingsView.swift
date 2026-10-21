@@ -6,11 +6,14 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     let services: AppServices
+    /// Opens the Commands tab (Settings › Commands › Manage Commands…).
+    var onShowCommands: (() -> Void)?
     @State private var microphones: [AudioInputDevice] = []
 
-    init(services: AppServices) {
+    init(services: AppServices, onShowCommands: (() -> Void)? = nil) {
         settings = services.settings
         self.services = services
+        self.onShowCommands = onShowCommands
     }
 
     var body: some View {
@@ -19,7 +22,7 @@ struct SettingsView: View {
             GeneralSection(settings: settings)
             AudioSection(settings: settings, microphones: microphones)
             ShortcutsSection(settings: settings)
-            CommandsSection(settings: settings, folder: services.commands.folder)
+            CommandsSection(settings: settings, onShowCommands: onShowCommands)
             PolishSection(settings: settings)
             HistorySection(settings: settings, history: services.history, archive: services.archive)
         }

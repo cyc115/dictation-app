@@ -109,6 +109,7 @@ func makeServices(_ test: XCTestCase, settings: AppSettings? = nil, history: His
     let history = history ?? HistoryStore(fileURL: makeTempURL(test), defaults: makeDefaults(test))
     let commands = CommandMode(folder: makeTempURL(test, "Commands"), history: history)
     fakeSystem(commands)
+    commands.apps = { [:] }  // not this Mac's
     return AppServices(settings: settings ?? makeSettings(test), history: history, insights: Insights(defaults: makeDefaults(test)),
                        archive: RecordingArchive(directory: makeTempURL(test, "Recordings")), commands: commands, general: [])
 }

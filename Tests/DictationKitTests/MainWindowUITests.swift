@@ -71,7 +71,8 @@ final class KeptPagesTests: XCTestCase {
                 + (window.toolbar?.items ?? []).compactMap { ($0 as? NSSearchToolbarItem)?.searchField }
         }
         for (tab, prompt) in [(MainTab.history, "Search history"), (.corrections, "Search corrections"),
-                              (.history, "Search history"), (.settings, nil), (.corrections, "Search corrections")] {
+                              (.history, "Search history"), (.settings, nil), (.commands, "Search commands"),
+                              (.corrections, "Search corrections")] {
             selection.tab = tab
             let fields = searchFields()
             XCTAssertEqual(fields.count, prompt == nil ? 0 : 1, "\(tab.title)")
