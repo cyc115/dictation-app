@@ -303,6 +303,10 @@ final class CommandTests: XCTestCase {
                        "Jev's most")
     }
 
+    func testOpenIncludesTheAppsMacOSComesWith() {
+        XCTAssertEqual(Command.installedApps()["Music"]?.path, "/System/Applications/Music.app")
+    }
+
     @MainActor
     func testOpenOpensTheApp() async {
         var opened: [URL] = []

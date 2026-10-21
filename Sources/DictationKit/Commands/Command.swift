@@ -35,9 +35,10 @@ struct Command: Hashable {
     static let openApp = Command(name: "open", summary: "Open an app installed on this Mac (not a website)", choices: [], script: nil)
     static let builtIn = [pressReturn, again, create, openApp]
 
-    /// Where the apps you installed are, in order: an app's name means the first one found. Not the
-    /// ones macOS comes with (/System/Applications, Utilities: Disk Utility, Font Book, …).
-    static let appFolders = ["/Applications", NSHomeDirectory() + "/Applications"].map { URL(fileURLWithPath: $0) }
+    /// Where the apps are, in order: an app's name means the first one found. Yours, then the ones
+    /// macOS comes with (Music, Notes, Messages; not Utilities: Disk Utility, Terminal, …).
+    static let appFolders = ["/Applications", NSHomeDirectory() + "/Applications", "/System/Applications"]
+        .map { URL(fileURLWithPath: $0) }
     /// Jev takes up to 255 choices a question: the apps and `noApp`.
     static let maxApps = 254
     /// Open's last choice, so something that isn't one of the apps ("打开下载的文件夹") opens nothing
