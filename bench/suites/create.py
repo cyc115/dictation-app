@@ -65,9 +65,8 @@ def command_lines(cmds: list[dict]) -> str:
 
 def system_prompt(cmds: list[dict]) -> str:
     """WriteCommand.txt with the commands filled in (CommandWriter.prompt): create isn't listed, and
-    built-ins without their choices (open's apps)."""
-    built_in = {c["name"] for c in commands.BUILT_IN}
-    listed = [{**c, "choices": {}} if c["name"] in built_in else c for c in cmds if c["name"] != "create"]
+    open and switch-app without their choices (the apps)."""
+    listed = [{**c, "choices": {}} if c["name"] in commands.CHOOSES_AN_APP else c for c in cmds if c["name"] != "create"]
     return PROMPT.read_text().replace("{commands}", command_lines(listed))
 
 

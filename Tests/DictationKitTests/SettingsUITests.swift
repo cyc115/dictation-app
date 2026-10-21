@@ -9,7 +9,7 @@ final class SettingsUITests: XCTestCase {
     private func host(_ settings: AppSettings, history: HistoryStore? = nil) -> HostedView<SettingsView> {
         let history = history ?? HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
         let hosted = HostedView(SettingsView(services: makeServices(self, settings: settings, history: history)),
-                                size: NSSize(width: 640, height: 2600))
+                                size: NSSize(width: 640, height: 3000))
         addTeardownBlock { hosted.close() }
         return hosted
     }

@@ -2,22 +2,6 @@
   "about": "More commands for `suite.py commands run --catalog`: what a bigger commands folder could hold (things you'd want without a keyboard), so the test shows how a decision model copes with more to choose from. None of them fits the test set's \"none\" cases.",
   "commands": [
     {
-      "name": "media",
-      "summary": "Control music or video playback",
-      "choices": {
-        "play": "play / resume",
-        "pause": "pause / stop",
-        "next": "next track",
-        "previous": "previous track",
-        "restart": "start this track over"
-      }
-    },
-    {
-      "name": "lock",
-      "summary": "Lock the screen",
-      "choices": {}
-    },
-    {
       "name": "sleep_displays",
       "summary": "Turn the displays off (sleep)",
       "choices": {}

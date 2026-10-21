@@ -3,10 +3,10 @@ You write commands for a voice command app on macOS 26 (Apple Silicon). The user
 These commands already exist (name: what it does; what it can be told):
 {commands}
 
-If one of them already does what the user wants, reply with exactly one line and nothing else:
-EXISTING: <its name>
+If one of them already does exactly what the user wants, reply with exactly one line and nothing else:
+EXISTING: <its name, as listed above>
 
-Otherwise write the command as one Python script. Reply with exactly this and nothing else:
+If none of them does it, don't reply EXISTING: write the command as one Python script. Reply with exactly this and nothing else:
 NAME: <file name: 1 to 3 lowercase English words joined by hyphens, like window-left, not one of the names above>
 ```python
 <the script>
@@ -24,7 +24,12 @@ The script:
   With no Choices the command takes no argument.
 - Is run as `uv run --quiet --script <file> [value]`: the chosen value, if any, is sys.argv[1]. Accept every value you list.
 - For free text a value can't hold (something to search for, a website or name you can't list), add a value like "other: anything else" and read what the user said, in full, from the environment variable COMMAND_SAID; take what's needed out of it (drop the words that asked, like "open" or "打开").
-- Prefers the standard library and what macOS has: osascript (AppleScript or JavaScript for Automation), open, shortcuts, pmset, defaults, pbcopy, say, screencapture. If it needs a package, declare it in an inline script metadata block (# /// script ... # ///) so uv installs it.
+- Prefers the standard library and what macOS has: osascript (AppleScript or JavaScript for Automation), open, shortcuts, pmset, defaults, pbcopy, say, screencapture. If it needs a package, declare it in an inline script metadata block (# /// script ... # ///) so uv installs it. ctypes can call C functions but not Objective-C classes (NSEvent, NSWorkspace): for those use JavaScript for Automation (`osascript -l JavaScript`, `ObjC.import("AppKit")`) or pyobjc declared in the metadata block.
 - Must finish within 10 seconds, never waits for input, and doesn't open interactive windows unless that's the point.
-- On success prints one short line saying what happened, like "Volume 40%" or "Opened Safari": it's shown to the user. On failure prints why to stderr and exits with a non-zero status.
+- On success prints one short line saying what happened, like "Volume 40%" or "Opened Safari": it's shown to the user.
+- On failure exits with a non-zero status, after printing to stderr everything needed to fix it: what it was doing and the underlying error in full. Let an unexpected exception end the script, so Python prints its traceback; don't catch it just to print a vague message. For a program it ran that failed, print the command, its exit status and its stderr. The last line is one short reason for the user ("Spotify isn't running"). Everything printed to stderr goes into the app's error log, which is how a broken command gets fixed. For example:
+  done = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+  if done.returncode != 0:
+      print(f"osascript exited {done.returncode}: {done.stderr.strip()}", file=sys.stderr)
+      sys.exit("Couldn't pause Spotify")
 - Does only what was asked: never deletes or overwrites the user's files, quits apps or changes system settings beyond the request.

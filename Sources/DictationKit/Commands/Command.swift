@@ -1,7 +1,7 @@
 import Foundation
 
 /// Something you can say in command mode: a Python script in the commands folder, or one built in
-/// (`Command.builtIn`).
+/// (`Command.builtIn`; the app does it itself, `SystemCommands`).
 ///
 /// A script says what it does in its docstring, and what it can be told under "Choices:", one
 /// `value: meaning` per line. It's run as `uv run --script <file> <value>`.
@@ -31,9 +31,35 @@ struct Command: Hashable {
     /// Writes a new script from what you describe (`CommandWriter`).
     static let create = Command(name: "create", summary: "Create a new command: the user asks for a new command (“create command”, “新建命令”, “写一个命令”) and describes what it should do",
                                 choices: [], script: nil)
-    /// Opens an app; its choices are the installed apps (`installedApps`), filled in by `all(in:apps:)`.
+    /// Opens an app; its choices are the installed apps (`installedApps`), filled in by `all(in:apps:running:)`.
     static let openApp = Command(name: "open", summary: "Open an app installed on this Mac (not a website)", choices: [], script: nil)
-    static let builtIn = [pressReturn, again, create, openApp]
+    static let brightness = Command(name: "brightness", summary: "Set the screen brightness",
+                                    choices: levels(more: "brighter", less: "dimmer", none: "lowest"), script: nil)
+    static let volume = Command(name: "volume", summary: "Set the sound volume, or mute it",
+                                choices: levels(more: "louder", less: "quieter", none: "silent")
+                                    + [Choice(value: "mute", meaning: "mute"), Choice(value: "unmute", meaning: "unmute")],
+                                script: nil)
+    static let lockScreen = Command(name: "lock-screen", summary: "Lock the screen", choices: [], script: nil)
+    static let media = Command(name: "media-control", summary: "Control music or video playback: play or pause, next or previous track",
+                               choices: [Choice(value: "play-pause", meaning: "play or pause (resume, stop)"),
+                                         Choice(value: "next", meaning: "the next track (skip)"),
+                                         Choice(value: "previous", meaning: "the previous track (back)")],
+                               script: nil)
+    static let openWebsite = Command(name: "open-website", summary: "Open a website in the browser: YouTube, Gmail, Hacker News, any site the user names",
+                                     choices: Websites.sites.map { Choice(value: $0.value, meaning: $0.meaning) }
+                                         + [Choice(value: Websites.other, meaning: "any other website (named in what was said)")],
+                                     script: nil)
+    /// Brings an app that's already open to the front; its choices are the running apps
+    /// (`SwitchApp.running`), filled in by `all(in:apps:running:)`.
+    static let switchApp = Command(name: "switch-app", summary: "Switch to another app that's already open, by name",
+                                   choices: [], script: nil)
+    static let builtIn = [pressReturn, again, create, openApp, brightness, volume, lockScreen, media, openWebsite, switchApp]
+
+    /// Brightness's and volume's choices: change it by some ("+10": a bit brighter), or set it ("50": half).
+    static func levels(more: String, less: String, none: String) -> [Choice] {
+        [("+10", "a bit \(more)"), ("-10", "a bit \(less)"), ("+30", "a lot \(more)"), ("-30", "a lot \(less)"), ("0", none),
+         ("25", "a quarter"), ("50", "half"), ("75", "three quarters"), ("100", "full, max")].map { Choice(value: $0.0, meaning: $0.1) }
+    }
 
     /// Where the apps are, in order: an app's name means the first one found. Yours, then the ones
     /// macOS comes with (Music, Notes, Messages; not Utilities: Disk Utility, Terminal, …).
@@ -41,8 +67,8 @@ struct Command: Hashable {
         .map { URL(fileURLWithPath: $0) }
     /// Jev takes up to 255 choices a question: the apps and `noApp`.
     static let maxApps = 254
-    /// Open's last choice, so something that isn't one of the apps ("打开下载的文件夹") opens nothing
-    /// rather than the closest app.
+    /// Open's and switch-app's last choice, so something that isn't one of the apps ("打开下载的文件夹")
+    /// opens nothing rather than the closest app.
     static let noApp = Choice(value: "none", meaning: "Not one of these apps")
 
     /// The installed apps by name ("Google Chrome"), read afresh each time.
@@ -87,14 +113,20 @@ struct Command: Hashable {
         return nil
     }
 
-    /// The built-in commands (open's choices: `apps`), then the folder's scripts by name (one named
-    /// like a built-in is skipped).
-    static func all(in folder: URL, apps: [String] = installedApps().keys.sorted()) -> [Command] {
-        let open = Command(name: openApp.name, summary: openApp.summary,
-                           choices: apps.prefix(maxApps).map { Choice(value: $0, meaning: $0) } + [noApp], script: nil)
-        return builtIn.map { $0.name == openApp.name ? open : $0 }
+    /// The built-in commands (open's choices: `apps`; switch-app's: `running`), then the folder's
+    /// scripts by name (one named like a built-in is skipped).
+    static func all(in folder: URL, apps: [String] = installedApps().keys.sorted(),
+                    running: [String] = SwitchApp.running().keys.sorted()) -> [Command] {
+        func named(_ apps: [String], _ command: Command) -> Command {
+            Command(name: command.name, summary: command.summary,
+                    choices: apps.prefix(maxApps).map { Choice(value: $0, meaning: $0) } + [noApp], script: nil)
+        }
+        return builtIn.map { $0 == openApp ? named(apps, $0) : $0 == switchApp ? named(running, $0) : $0 }
             + scripts(in: folder).filter { script in !builtIn.contains { $0.name == script.name } }
     }
+
+    /// Open's and switch-app's choices are the apps on this Mac, not fixed ones.
+    var choosesAnApp: Bool { name == Command.openApp.name || name == Command.switchApp.name }
 
     /// The scripts turned off (Settings › Commands): in the folder's Disabled folder,
     /// where command mode doesn't look.

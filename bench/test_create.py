@@ -4,7 +4,8 @@ from suites import commands, create
 
 def test_the_prompt_is_the_apps_with_the_commands_but_not_create():
     prompt = create.system_prompt(commands.app_commands())
-    assert "- volume: " + commands.app_commands()[-1]["summary"] in prompt
+    assert "- volume: Set the sound volume, or mute it (choices: +10 = a bit louder, " in prompt
+    assert "- switch-app: Switch to another app that's already open, by name\n" in prompt
     assert "- create:" not in prompt
     assert "- open: Open an app installed on this Mac (not a website)\n" in prompt
     assert "{commands}" not in prompt

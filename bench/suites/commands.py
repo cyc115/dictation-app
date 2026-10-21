@@ -8,9 +8,10 @@
 
 Each case (command_cases.json) is something you might say — English, Chinese, mixed, with fillers,
 with speech-model errors, or not a command at all — and every answer that counts as right
-("volume -10", "return", "none"). The commands are the app's: its example scripts' docstrings
-(Sources/DictationKit/Commands/ExampleCommands) and the built-in return, repeat, create and open (its choices: this Mac's apps); --catalog adds the
-commands in command_catalog.json, to see how a model copes with more to choose from.
+("volume -10", "return", "none"). The commands are the app's built-ins (built_in_commands.json, which
+a Swift test keeps word for word the app's Command.builtIn): open's choices are this Mac's apps,
+switch-app's a fixed set of open apps (RUNNING). --catalog adds the commands in command_catalog.json,
+to see how a model copes with more to choose from.
 
 Models:
   jev                   TypeSafe's Jev on OpenRouter's decisions API, asked exactly as the app asks it
@@ -41,25 +42,24 @@ NAME = "commands"
 HELP = "command mode's decision models: right command, wrong runs, wait and cost"
 CASES = harness.ROOT / "command_cases.json"
 CATALOG = harness.ROOT / "command_catalog.json"
-EXAMPLES = harness.ROOT.parent / "Sources/DictationKit/Commands/ExampleCommands"
+BUILT_IN_FILE = harness.ROOT / "built_in_commands.json"
 DECISIONS = "https://openrouter.ai/api/alpha/decisions"
 JEV = "~typesafe/jev-latest"
 MIN_CONFIDENCE = 0.5  # CommandDecision.minConfidence
 DEFAULT_MODELS = ["jev", "openrouter:google/gemini-3.5-flash-lite", "openrouter:anthropic/claude-haiku-5.5",
                   "openrouter:deepseek/deepseek-v4.1-flash", "openrouter:z-ai/glm-5.3-flash",
                   "openrouter:inception/mercury-3"]
-BUILT_IN = [{"name": "return", "summary": "Press Return (send) in the front app", "choices": {}},
-            {"name": "repeat", "summary": "Run the last command again", "choices": {}},
-            {"name": "create", "summary": "Create a new command: the user asks for a new command (“create command”, "
-                                          "“新建命令”, “写一个命令”) and describes what it should do", "choices": {}},
-            {"name": "open", "summary": "Open an app installed on this Mac (not a website)", "choices": {}}]
-APP_FOLDERS = [Path("/Applications"), Path.home() / "Applications"]  # Command.appFolders
+BUILT_IN = [{"name": c["name"], "summary": c["summary"], "choices": dict(c["choices"])}
+            for c in json.loads(BUILT_IN_FILE.read_text())]
+APP_FOLDERS = [Path("/Applications"), Path.home() / "Applications", Path("/System/Applications")]  # Command.appFolders
+CHOOSES_AN_APP = {"open", "switch-app"}  # Command.choosesAnApp
+RUNNING = ["Finder", "Ghostty", "Google Chrome", "Mail", "Music", "Safari", "Slack", "WeChat"]  # switch-app's choices here
 MAX_APPS = 254  # Command.maxApps
 NO_APP = "Not one of these apps"  # Command.noApp: "open none" runs nothing
 
 
 def installed_apps(folders: list[Path] = APP_FOLDERS) -> list[str]:
-    """The apps you installed, by name (Command.installedApps): open's choices."""
+    """The apps on this Mac, by name (Command.installedApps): open's choices."""
     return sorted({p.stem for folder in folders if folder.is_dir() for p in folder.glob("*.app")})
 
 
@@ -86,13 +86,13 @@ def parse_script(text: str, name: str) -> dict | None:
     return {"name": name, "summary": summary, "choices": choices}
 
 
-def app_commands(examples: Path = EXAMPLES, apps: list[str] | None = None) -> list[dict]:
-    """Built-ins (open's choices: this Mac's apps), then the example scripts by name (Command.all)."""
+def app_commands(apps: list[str] | None = None, running: list[str] = RUNNING) -> list[dict]:
+    """The built-ins, as Command.all lists them: open's choices this Mac's apps, switch-app's `running`."""
     apps = installed_apps() if apps is None else apps
-    open_choices = {a: a for a in apps[:MAX_APPS]} | {"none": NO_APP}
-    built_in = [{**c, "choices": open_choices} if c["name"] == "open" else c for c in BUILT_IN]
-    scripts = [parse_script(p.read_text(), p.stem) for p in sorted(examples.glob("*.py"))]
-    return built_in + [s for s in scripts if s]
+    def named(names: list[str]) -> dict:
+        return {a: a for a in names[:MAX_APPS]} | {"none": NO_APP}
+    return [{**c, "choices": named(apps if c["name"] == "open" else running)} if c["name"] in CHOOSES_AN_APP else c
+            for c in BUILT_IN]
 
 
 def commands_for(catalog: bool) -> list[dict]:

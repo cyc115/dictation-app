@@ -54,7 +54,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if Diagnostics.runIfRequested() { return }
         muter.restore()  // undo a mute left behind if the app quit mid-dictation
         services.history.backfillTimings(from: services.archive.infos)  // once
-        CommandMode.installExamples()  // once: the first launch with command mode
         defer { signalReady() }
         watchForNewBuild()
         applyAppearanceAndDock()

@@ -1,5 +1,5 @@
 {
-  "about": "Command mode: what you might say, and the command (name and choice, as History shows it) that should run. expect lists every acceptable answer; \"none\" means nothing should run. Commands: the app's example commands (Sources/DictationKit/Commands/ExampleCommands) and the built-in return, repeat, create and open (its choices: this Mac's apps; the open cases expect apps installed here).",
+  "about": "Command mode: what you might say, and the command (name and choice, as History shows it) that should run. expect lists every acceptable answer; \"none\" means nothing should run. Commands: the app's built-ins (built_in_commands.json): open's choices are this Mac's apps (the open cases expect apps installed here), switch-app's the open apps in suites/commands.py RUNNING.",
   "cases": [
     {"said": "make the screen a bit brighter", "expect": ["brightness +10"], "tags": ["en"]},
     {"said": "dim the screen", "expect": ["brightness -10", "brightness -30"], "tags": ["en"]},
@@ -73,13 +73,27 @@
     {"said": "create command 把窗口铺满左半边", "expect": ["create"], "tags": ["create", "mixed"]},
     {"said": "um, create a command that opens my downloads folder", "expect": ["create"], "tags": ["create", "en", "filler"]},
     {"said": "make a new command to toggle dark mode", "expect": ["create"], "tags": ["create", "en"]},
-    {"said": "帮我写一个命令，锁屏", "expect": ["create"], "tags": ["create", "zh"]},
+    {"said": "帮我写一个命令，锁屏", "expect": ["create", "lock-screen"], "tags": ["create", "zh"]},
 
     {"said": "打开 Safari", "expect": ["open Safari"], "tags": ["open", "mixed"]},
     {"said": "open chrome", "expect": ["open Google Chrome"], "tags": ["open", "en"]},
     {"said": "launch ghostty", "expect": ["open Ghostty"], "tags": ["open", "en"]},
     {"said": "open obsidian", "expect": ["open Obsidian"], "tags": ["open", "en", "tricky"]},
     {"said": "嗯，帮我打开一下 discord", "expect": ["open Discord"], "tags": ["open", "mixed", "filler"]},
-    {"said": "打开那个下载的文件夹", "expect": ["none", "create"], "tags": ["open", "zh", "tricky"]}
+    {"said": "打开那个下载的文件夹", "expect": ["none", "create"], "tags": ["open", "zh", "tricky"]},
+    {"said": "play music", "expect": ["media-control play-pause"], "tags": ["media", "en"]},
+    {"said": "pause the music", "expect": ["media-control play-pause"], "tags": ["media", "en"]},
+    {"said": "next song", "expect": ["media-control next"], "tags": ["media", "en"]},
+    {"said": "上一首", "expect": ["media-control previous"], "tags": ["media", "zh"]},
+    {"said": "嗯，暂停一下音乐", "expect": ["media-control play-pause"], "tags": ["media", "zh", "filler"]},
+    {"said": "lock my screen", "expect": ["lock-screen"], "tags": ["lock", "en"]},
+    {"said": "锁屏", "expect": ["lock-screen"], "tags": ["lock", "zh"]},
+    {"said": "go to hacker news", "expect": ["open-website hacker-news"], "tags": ["website", "en"]},
+    {"said": "open youtube", "expect": ["open-website youtube"], "tags": ["website", "en", "tricky"]},
+    {"said": "打开 GitHub 网站", "expect": ["open-website github"], "tags": ["website", "mixed"]},
+    {"said": "go to the Swift forums", "expect": ["open-website other"], "tags": ["website", "en"]},
+    {"said": "switch to WeChat", "expect": ["switch-app WeChat"], "tags": ["switch", "en"]},
+    {"said": "切换到 Slack", "expect": ["switch-app Slack"], "tags": ["switch", "mixed"]},
+    {"said": "go back to my terminal, Ghostty", "expect": ["switch-app Ghostty"], "tags": ["switch", "en", "filler"]}
   ]
 }

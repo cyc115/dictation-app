@@ -91,12 +91,24 @@ func noLearnedPrompts(_ test: XCTestCase) -> LearnedPromptStore {
     LearnedPromptStore(fileURL: makeTempURL(test, "learned-prompts.json"))
 }
 
+/// The built-in commands that work the Mac, faked, so a test never changes this Mac's brightness,
+/// volume, lock or apps: each hands "<name> <choice>" to `ran` and says `message`. No apps are open.
+func fakeSystem(_ mode: CommandMode, message: String = "Done", ran: @escaping (String) -> Void = { _ in }) {
+    mode.system = Dictionary(uniqueKeysWithValues: SystemCommands.live.keys.map { name in
+        (name, { choice, _ in
+            ran("\(name) \(choice ?? "-")")
+            return CommandResult(ok: true, message: message)
+        } as SystemCommands.Action)
+    })
+    mode.running = { [] }
+}
+
 /// The app's shared objects with nothing of yours in them: `settings` (else `makeSettings`), a
-/// throwaway History, Insights and recordings folder, and a commands folder with the examples.
+/// throwaway History, Insights and recordings folder, and an empty commands folder.
 func makeServices(_ test: XCTestCase, settings: AppSettings? = nil, history: HistoryStore? = nil) -> AppServices {
     let history = history ?? HistoryStore(fileURL: makeTempURL(test), defaults: makeDefaults(test))
     let commands = CommandMode(folder: makeTempURL(test, "Commands"), history: history)
-    CommandMode.installExamples(into: commands.folder)
+    fakeSystem(commands)
     return AppServices(settings: settings ?? makeSettings(test), history: history, insights: Insights(defaults: makeDefaults(test)),
                        archive: RecordingArchive(directory: makeTempURL(test, "Recordings")), commands: commands, general: [])
 }

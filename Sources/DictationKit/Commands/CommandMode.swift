@@ -1,9 +1,12 @@
 import AppKit
 
-/// How a command went: its script's first line of output ("Brightness 70%"), or why it failed.
+/// How a command went: what it says ("Brightness 70%"), or why it failed.
 struct CommandResult: Equatable {
     var ok: Bool
     var message: String
+    /// When it failed, everything there is to know about why (a script's exit status and all it
+    /// printed): for `CommandLog`, not the pill.
+    var details: String?
 
     /// From a finished script: on success its first line of output, else its last line of errors.
     static func from(_ finished: CommandMode.Finished, name: String) -> CommandResult {
@@ -11,24 +14,29 @@ struct CommandResult: Equatable {
             let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
             return last ? lines.last : lines.first
         }
-        if finished.timedOut { return CommandResult(ok: false, message: "Took longer than \(Int(CommandMode.timeout)) s") }
-        if finished.status == 0 { return CommandResult(ok: true, message: line(finished.output, last: false) ?? "Ran \(name)") }
+        if finished.status == 0, !finished.timedOut { return CommandResult(ok: true, message: line(finished.output, last: false) ?? "Ran \(name)") }
+        let ended = finished.timedOut ? "stopped after \(Int(CommandMode.timeout)) s" : "exit status \(finished.status)"
+        let printed = [("stderr", finished.errors), ("stdout", finished.output)]
+            .filter { !$0.1.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .map { "\($0.0):\n\($0.1.trimmingCharacters(in: .newlines))" }
+        let details = ([ended] + printed).joined(separator: "\n")
+        if finished.timedOut { return CommandResult(ok: false, message: "Took longer than \(Int(CommandMode.timeout)) s", details: details) }
         return CommandResult(ok: false, message: line(finished.errors, last: true) ?? line(finished.output, last: true)
-                             ?? "Exited with \(finished.status)")
+                             ?? "Exited with \(finished.status)", details: details)
     }
 }
 
-/// Command mode: what you said → a command (`CommandDecider`) → run it → History's Commands list.
+/// Command mode: what you said → a command (`CommandDecider`) → run it → History's Commands list;
+/// one that fails goes in the commands folder's `errors.log` too (`CommandLog`).
 final class CommandMode {
     /// Beside History, so you (or an AI you ask) can add and change commands there; read afresh for
     /// every command.
     static let defaultFolder = AppPaths.directory("Commands")
-    /// The commands the app comes with (brightness, volume).
-    static let examples = Bundle.module.url(forResource: "ExampleCommands", withExtension: nil)
     static let timeout: TimeInterval = 10
 
     let folder: URL
     let history: HistoryStore
+    let log: CommandLog
     /// (model, API key) → the decider; tests fake it.
     var makeDecider: (String, String) -> CommandDecider = { makeCommandDecider(model: $0, apiKey: $1) }
     /// Runs a script with a choice and what you said (tests fake it).
@@ -41,24 +49,18 @@ final class CommandMode {
     /// The installed apps by name, and opening one (tests fake both).
     var apps: () -> [String: URL] = { Command.installedApps() }
     var openApp: (URL) -> Void = { NSWorkspace.shared.openApplication(at: $0, configuration: NSWorkspace.OpenConfiguration()) }
+    /// The apps open now, by name: switch-app's choices (tests fake it).
+    var running: () -> [String] = { SwitchApp.running().keys.sorted() }
+    /// The built-ins that work the Mac (brightness, volume, …) by name; tests fake them.
+    var system: [String: SystemCommands.Action] = SystemCommands.live
 
     init(folder: URL = CommandMode.defaultFolder, history: HistoryStore) {
         self.folder = folder
         self.history = history
+        log = CommandLog(folder: folder)
     }
 
-    var commands: [Command] { Command.all(in: folder, apps: apps().keys.sorted()) }
-
-    /// The first time (no folder yet): makes it, with the example commands in it. After that the
-    /// folder is yours: a command you delete stays deleted.
-    static func installExamples(into folder: URL = defaultFolder, from examples: URL? = examples) {
-        guard !FileManager.default.fileExists(atPath: folder.path) else { return }
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        guard let examples else { return }
-        for file in (try? FileManager.default.contentsOfDirectory(at: examples, includingPropertiesForKeys: nil)) ?? [] {
-            try? FileManager.default.copyItem(at: file, to: folder.appendingPathComponent(file.lastPathComponent))
-        }
-    }
+    var commands: [Command] { Command.all(in: folder, apps: apps().keys.sorted(), running: running()) }
 
     /// Decides what `said` asks for and runs it; the run is saved to History.
     @MainActor
@@ -73,6 +75,7 @@ final class CommandMode {
                 let result = await perform(name, choice: decision.choice, said: said, apiKey: apiKey, among: commands)
                 run.ok = result.ok
                 run.result = result.message
+                if !result.ok { log.add(run, details: result.details) }
             } else {
                 run.result = "Command not found"
             }
@@ -91,6 +94,7 @@ final class CommandMode {
             let result = await perform(name, choice: previous.choice, said: previous.said, apiKey: nil, among: commands)
             run.ok = result.ok
             run.result = result.message
+            if !result.ok { log.add(run, details: result.details) }
         }
         history.addCommand(run)
         return run
@@ -118,6 +122,8 @@ final class CommandMode {
         case Command.create.name:
             guard let apiKey else { return CommandResult(ok: false, message: "Say it again to create another") }
             return await create(said, apiKey: apiKey, among: commands)
+        case _ where system[name] != nil:
+            return await system[name]!(choice, said)
         default:
             guard let script = commands.first(where: { $0.name == name })?.script else {
                 return CommandResult(ok: false, message: "No \(name) script")
@@ -132,7 +138,12 @@ final class CommandMode {
     private func create(_ said: String, apiKey: String, among commands: [Command]) async -> CommandResult {
         func failed(_ why: String) -> CommandResult { CommandResult(ok: false, message: "Couldn't write it: " + why) }
         do {
-            switch try await writeCommand(said, commands, apiKey) {
+            var reply = try await writeCommand(said, commands, apiKey)
+            // A slip ("EXISTING: none", a few in a hundred): asked once more, it writes the script.
+            if case .existing(let name) = reply, !commands.contains(where: { $0.name == name }) {
+                reply = try await writeCommand(said, commands, apiKey)
+            }
+            switch reply {
             case .existing(let name):
                 guard commands.contains(where: { $0.name == name }) else { return failed("it named \(name), which isn't a command") }
                 return CommandResult(ok: true, message: "\(name) already does that")
@@ -204,8 +215,14 @@ final class CommandMode {
         guard let uv = uvPaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             return .failure(.notInstalled)
         }
+        return process(uv, arguments, environment: extra)
+    }
+
+    /// Runs `executable` with `arguments` (and `environment` added), with no shell and a time limit.
+    static func process(_ executable: String, _ arguments: [String], environment extra: [String: String] = [:],
+                        timeout: TimeInterval = CommandMode.timeout) -> Result<Finished, StartError> {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: uv)
+        process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"

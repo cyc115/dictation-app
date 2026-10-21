@@ -32,10 +32,10 @@ struct CommandWriter {
     }
 
     /// The instructions with the commands listed, as "- name: summary (choices: value = meaning, …)";
-    /// a built-in's choices (open's apps) are left out, or the model names an app as the command.
+    /// open's and switch-app's choices (the apps) are left out, or the model names an app as the command.
     static func prompt(_ commands: [Command]) -> String {
         let lines = commands.filter { $0.name != Command.create.name }.map { command in
-            let choices = command.script == nil ? "" : command.choices.map { "\($0.value) = \($0.meaning)" }.joined(separator: ", ")
+            let choices = command.choosesAnApp ? "" : command.choices.map { "\($0.value) = \($0.meaning)" }.joined(separator: ", ")
             return "- \(command.name): \(command.summary)" + (choices.isEmpty ? "" : " (choices: \(choices))")
         }
         return instructions.replacingOccurrences(of: "{commands}", with: lines.joined(separator: "\n"))

@@ -83,12 +83,8 @@ final class DictationControllerTests: XCTestCase {
                                              backing: .buffered, defer: false) }
         addTeardownBlock { overlay.hide() }
         commands = CommandMode(folder: makeTempURL(self, "Commands"), history: history)
-        CommandMode.installExamples(into: commands.folder)
+        fakeSystem(commands, message: "Volume 40%") { [unowned self] in ran.append($0) }
         commands.makeDecider = { [unowned self] _, _ in FakeDecider(decision: decision, log: decided) }
-        commands.runScript = { [unowned self] url, choice, _ in
-            ran.append(url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-"))
-            return CommandResult(ok: true, message: "Volume 40%")
-        }
         let controller = DictationController(
             settings: settings, overlay: overlay, injector: injector, history: history, insights: insights,
             archive: RecordingArchive(directory: makeTempURL(self, "Recordings")), muter: OutputMuter(defaults: makeDefaults(self)),
@@ -248,7 +244,7 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertTrue(controller.overlay.isCommand)
         controller.enter()
         waitUntil { !controller.isBusy }
-        XCTAssertEqual(decided.events, ["decide: 声音小一点 among return,repeat,create,open,brightness,volume"])
+        XCTAssertEqual(decided.events, ["decide: 声音小一点 among " + Command.builtIn.map(\.name).joined(separator: ",")])
         XCTAssertEqual(ran, ["volume -10"])
         XCTAssertEqual(pasted, [], "a command isn't typed")
         XCTAssertEqual(keys, [], "nor sent")
@@ -276,7 +272,7 @@ final class DictationControllerTests: XCTestCase {
         let controller = makeController()
         settings.setOpenRouterKey("test-key")
         decision = CommandDecision(command: "brightness", choice: "+10", confidence: 0.97)
-        commands.runScript = { _, _, _ in CommandResult(ok: false, message: "No display whose brightness macOS can set") }
+        commands.system[Command.brightness.name] = { _, _ in CommandResult(ok: false, message: "No display whose brightness macOS can set") }
         controller.enter()
         controller.enter()
         waitUntil { !controller.isBusy }

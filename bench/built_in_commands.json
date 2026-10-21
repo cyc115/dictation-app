@@ -1,0 +1,59 @@
+[
+  {"name": "return", "summary": "Press Return (send) in the front app", "choices": []},
+  {"name": "repeat", "summary": "Run the last command again", "choices": []},
+  {"name": "create", "summary": "Create a new command: the user asks for a new command (“create command”, “新建命令”, “写一个命令”) and describes what it should do", "choices": []},
+  {"name": "open", "summary": "Open an app installed on this Mac (not a website)", "choices": []},
+  {"name": "brightness", "summary": "Set the screen brightness",
+   "choices": [
+     ["+10", "a bit brighter"],
+     ["-10", "a bit dimmer"],
+     ["+30", "a lot brighter"],
+     ["-30", "a lot dimmer"],
+     ["0", "lowest"],
+     ["25", "a quarter"],
+     ["50", "half"],
+     ["75", "three quarters"],
+     ["100", "full, max"]
+   ]},
+  {"name": "volume", "summary": "Set the sound volume, or mute it",
+   "choices": [
+     ["+10", "a bit louder"],
+     ["-10", "a bit quieter"],
+     ["+30", "a lot louder"],
+     ["-30", "a lot quieter"],
+     ["0", "silent"],
+     ["25", "a quarter"],
+     ["50", "half"],
+     ["75", "three quarters"],
+     ["100", "full, max"],
+     ["mute", "mute"],
+     ["unmute", "unmute"]
+   ]},
+  {"name": "lock-screen", "summary": "Lock the screen", "choices": []},
+  {"name": "media-control", "summary": "Control music or video playback: play or pause, next or previous track",
+   "choices": [
+     ["play-pause", "play or pause (resume, stop)"],
+     ["next", "the next track (skip)"],
+     ["previous", "the previous track (back)"]
+   ]},
+  {"name": "open-website", "summary": "Open a website in the browser: YouTube, Gmail, Hacker News, any site the user names",
+   "choices": [
+     ["hacker-news", "Hacker News (news.ycombinator.com)"],
+     ["google", "Google (www.google.com)"],
+     ["youtube", "YouTube (www.youtube.com)"],
+     ["github", "GitHub (github.com)"],
+     ["wikipedia", "Wikipedia (www.wikipedia.org)"],
+     ["reddit", "Reddit (www.reddit.com)"],
+     ["twitter", "X (x.com)"],
+     ["bbc", "BBC News (www.bbc.com)"],
+     ["nytimes", "The New York Times (www.nytimes.com)"],
+     ["amazon", "Amazon (www.amazon.com)"],
+     ["stackoverflow", "Stack Overflow (stackoverflow.com)"],
+     ["gmail", "Gmail (mail.google.com)"],
+     ["maps", "Google Maps (maps.google.com)"],
+     ["weather", "weather.gov (www.weather.gov)"],
+     ["chatgpt", "ChatGPT (chatgpt.com)"],
+     ["other", "any other website (named in what was said)"]
+   ]},
+  {"name": "switch-app", "summary": "Switch to another app that's already open, by name", "choices": []}
+]

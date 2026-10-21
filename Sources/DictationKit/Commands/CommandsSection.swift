@@ -41,7 +41,7 @@ struct CommandsList: View {
     var body: some View {
         SettingRow("Commands folder", (folder.path as NSString).abbreviatingWithTildeInPath) {
             Button("Show in Finder") {
-                CommandMode.installExamples(into: folder)
+                try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 NSWorkspace.shared.activateFileViewerSelecting([folder])
             }
         }
@@ -55,7 +55,7 @@ struct CommandsList: View {
                     .frame(width: 14)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(command.name).font(.body.weight(.medium))
-                    Text(command.summary + (command.name == Command.openApp.name ? " you installed (\(command.choices.count - 1))" : "")
+                    Text(command.summary + (command.choosesAnApp ? " (\(command.choices.count - 1) apps)" : "")
                          + (command.script == nil ? " · built in" : ""))
                         .font(.callout).foregroundStyle(.secondary)
                     if command.script != nil, !command.choices.isEmpty {
@@ -79,7 +79,7 @@ struct CommandsList: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("command." + command.name)
         }
-        Text("Add a Python script to the folder, or say “create command” and what it should do. A script's docstring's first line says what it does, and lines under “Choices:” what it can be told (value: meaning). It's run with uv.")
+        Text("Add a Python script to the folder, or say “create command” and what it should do. A script's docstring's first line says what it does, and lines under “Choices:” what it can be told (value: meaning). It's run with uv; when a command fails, everything it printed goes in errors.log in the folder.")
             .font(.callout).foregroundStyle(.secondary)
     }
 }

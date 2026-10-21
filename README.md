@@ -135,17 +135,33 @@ asked too and the first answer is used (Settings → *Backup model when slow*).
 
 ## Commands
 
-Command mode runs the scripts in `~/Library/Application Support/DictationApp/Commands/`
-(Settings → Commands → **Show in Finder**). The app starts you with `brightness` (the display
-the pointer is on with [BetterDisplay](https://betterdisplay.pro) running, else the built-in one) and `volume`, plus four built-in commands: `return` ("send it"), `repeat` (the last
-command again), `open` (an app in `/Applications`, `~/Applications` or `/System/Applications`:
-yours and the ones macOS comes with) and `create`. The folder is read afresh for every command, so a new script works right away.
+Command mode has these built in:
+
+| Command | Does | e.g. |
+|---|---|---|
+| `return` | presses Return in the front app | "send it" |
+| `repeat` | runs the last command again | "again" |
+| `open` | opens an app in `/Applications`, `~/Applications` or `/System/Applications` | "打开 Safari" |
+| `switch-app` | brings an app that's already open to the front; in a chat app (WeChat, Muse, Slack, …) it also puts the cursor in the message box | "switch to WeChat" |
+| `brightness` | the display the pointer is on with [BetterDisplay](https://betterdisplay.pro) running, else the built-in one | "brightness to half" |
+| `volume` | the sound volume, or mute | "声音小一点" |
+| `media-control` | play/pause, next or previous track, as the keyboard's media keys do | "play music", "下一首" |
+| `lock-screen` | locks the screen at once | "lock my screen" |
+| `open-website` | a well-known site, or any address or site you name (DuckDuckGo's first result) | "go to hacker news" |
+| `create` | writes a new command | "create command, tile the window to the left half" |
+
+Your own commands are the scripts in `~/Library/Application Support/DictationApp/Commands/`
+(Settings → Commands → **Show in Finder**). The folder is read afresh for every command, so a new
+script works right away; one named like a built-in is skipped.
 
 `create` ("create command, tile the window to the left half", "新建命令 现在几点") has DeepSeek V4.1
 Flash write the script into the folder, ready next time; if one of your commands already does it,
 it says which instead. The script isn't run when it's written. Settings → Commands has a switch
-beside each script to turn it off (it moves to `Commands/Disabled/`) or back on. A script that fails
-(exits non-zero or takes over 10 s) shows why in the pill and History, and stays on.
+beside each script to turn it off (it moves to `Commands/Disabled/`) or back on. A command that fails
+(a script that exits non-zero or takes over 10 s) shows why in the pill and History, and stays on;
+everything it printed (the whole traceback, not just the pill's line) goes in `Commands/errors.log`,
+newest last, so a broken script can be fixed from it. `create`'s instructions have scripts print
+the underlying error in full before their one-line reason.
 
 A command is one Python file, run with `uv run --script <file> <choice>`, with what you said in
 `$COMMAND_SAID` (for free text a choice can't hold: a website that isn't listed, something to
@@ -177,7 +193,7 @@ text. It sees what you said and each command's description and choices, never th
 - History is kept for as long as you choose (Settings → *Keep history*), and **Clear All…**
   deletes it.
 - Command mode sends what you said, and your commands' names, descriptions and choices (with your
-  installed apps' names, for `open`), to OpenRouter to pick one; `create` also sends it to
+  installed apps' names, for `open`, and the open ones', for `switch-app`), to OpenRouter to pick one; `create` also sends it to
   DeepSeek to write the script. Commands are saved beside your history, in `history-commands.json`.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted)
   to the cloud models, like any cloud dictation. Learned prompts stay in

@@ -129,7 +129,7 @@ final class RecentLatencyTests: XCTestCase {
                         transcribedBy: e.transcribedBy, polishedBy: e.polishedBy, date: Date().addingTimeInterval(e.date.timeIntervalSince(Self.now)))
         }
         let hosted = HostedView(MainView(selection: selection, services: makeServices(self, settings: settings, history: history)),
-                                size: NSSize(width: 860, height: 2400))
+                                size: NSSize(width: 860, height: 2800))
         addTeardownBlock { hosted.close() }
         selection.tab = .home
         hosted.settle()
