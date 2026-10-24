@@ -32,6 +32,25 @@ final class SystemCommandsTests: XCTestCase {
         XCTAssertEqual(missing, CommandResult(ok: false, message: "No open app by that name"))
         let none = await SwitchApp.switchTo("none")
         XCTAssertFalse(none.ok)
+        let nothingAsked = await AskMuse.ask("ask Muse to")
+        XCTAssertEqual(nothingAsked, CommandResult(ok: false, message: "What should Muse do?"), "Muse isn't opened")
+    }
+
+    func testAskMuseSendsWhatToDoWithoutAskMuseTo() {
+        let cases = [
+            "Ask Muse to look up whether we can go for a movie tonight": "look up whether we can go for a movie tonight",
+            "ask muse, what's on my calendar tomorrow?": "what's on my calendar tomorrow?",
+            "Hey, can you ask Muse to book the vet": "book the vet",
+            "tell Muse to remind me at five": "remind me at five",
+            "Tell Muse: tomatoes are done": "tomatoes are done",
+            "让 Muse 帮我查一下明天会不会下雨": "查一下明天会不会下雨",
+            "请让muse订个餐厅": "订个餐厅",
+            "问一下 Muse 今晚有什么电影": "今晚有什么电影",
+            "look up movies tonight": "look up movies tonight",
+            "Ask Muse to": "",
+        ]
+        for (said, request) in cases { XCTAssertEqual(AskMuse.request(from: said), request, said) }
+        XCTAssertEqual(AskMuse.request(from: "ask museum hours"), "ask museum hours", "not Muse")
     }
 
     func testTheCursorNeverGoesInASearchBox() {

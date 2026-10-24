@@ -57,7 +57,10 @@ struct Command: Hashable {
     /// the other commands, filled in by `all(in:apps:running:)`.
     static let fix = Command(name: "fix", summary: "Fix a command that isn't working: the user names the command (“fix the volume command”, “修一下 open-website”) and says what goes wrong",
                              choices: [], script: nil)
-    static let builtIn = [pressReturn, again, create, fix, openApp, brightness, volume, lockScreen, media, openWebsite, switchApp]
+    /// Sends what was said to Muse in a new side chat (`AskMuse`).
+    static let askMuse = Command(name: "ask-muse", summary: "Ask Muse, the AI assistant app, to do something: the user says “ask Muse to …”, “tell Muse …”, “让 Muse …” and what it should do",
+                                 choices: [], script: nil)
+    static let builtIn = [pressReturn, again, create, fix, openApp, brightness, volume, lockScreen, media, openWebsite, switchApp, askMuse]
 
     /// Brightness's and volume's choices: change it by some ("+10": a bit brighter), or set it ("50": half).
     static func levels(more: String, less: String, none: String) -> [Choice] {

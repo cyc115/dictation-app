@@ -37,7 +37,7 @@ enum SwitchApp {
     /// Asks macOS to bring `app` to the front (as opening it would: a background app like this one
     /// can't just activate another), and waits up to a second for it to get there.
     @MainActor
-    private static func bringForward(_ app: NSRunningApplication) async -> Bool {
+    static func bringForward(_ app: NSRunningApplication) async -> Bool {
         if let bundle = app.bundleURL {
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.activates = true
@@ -101,7 +101,7 @@ enum SwitchApp {
         return origin.y + extent.height
     }
 
-    private static func value<T>(_ element: AXUIElement, _ attribute: String) -> T? {
+    static func value<T>(_ element: AXUIElement, _ attribute: String) -> T? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else { return nil }
         return value as? T

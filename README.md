@@ -147,6 +147,7 @@ Command mode has these built in:
 | `volume` | the sound volume, or mute | "声音小一点" |
 | `media-control` | play/pause, next or previous track, as the keyboard's media keys do | "play music", "下一首" |
 | `lock-screen` | locks the screen at once | "lock my screen" |
+| `ask-muse` | sends what you ask to the Muse app in a new side chat: opens Muse, presses New side chat, pastes the request and sends it | "ask Muse to look up whether we can go for a movie tonight" |
 | `open-website` | a well-known site, or any address or site you name (DuckDuckGo's first result) | "go to hacker news" |
 | `create` | writes a new command | "create command, tile the window to the left half" |
 | `fix` | starts a background [Claude Code](https://claude.com/claude-code) session (`claude --bg`) that fixes a command, told what you said, the command's recent runs and its `errors.log` entries; a notification says what it changed. No command named: the last one that failed | "fix the volume command, turning it up doesn't work" |

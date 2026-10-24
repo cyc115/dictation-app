@@ -72,7 +72,7 @@ final class CommandTests: XCTestCase {
                           "return.py": "\"\"\"Mine.\"\"\"", "notes.txt": "\"\"\"Not a script.\"\"\"", "broken.py": "no docstring"])
         let names = Command.builtIn.map(\.name)
         XCTAssertEqual(names, ["return", "repeat", "create", "fix", "open", "brightness", "volume", "lock-screen", "media-control",
-                               "open-website", "switch-app"])
+                               "open-website", "switch-app", "ask-muse"])
         XCTAssertEqual(Command.all(in: dir, apps: [], running: []).map(\.name), names + ["battery", "window"], "one named like a built-in is skipped")
         XCTAssertEqual(Command.all(in: dir.appendingPathComponent("missing"), apps: [], running: []).map(\.name), names)
     }
@@ -613,6 +613,7 @@ final class CommandTests: XCTestCase {
                                  ("打开 Safari", "open Safari"), ("play music", "media-control play-pause"),
                                  ("next song", "media-control next"), ("lock my screen", "lock-screen"),
                                  ("go to hacker news", "open-website hacker-news"), ("switch to WeChat", "switch-app WeChat"),
+                                 ("ask Muse to look up whether we can go for a movie tonight", "ask-muse"),
                                  ("open the pod bay doors", "none")] {
             // The chat decider (not the default) often leaves out which app: bench/results/commands.
             if model != "jev" && ["打开 Safari", "switch to WeChat"].contains(said) { continue }

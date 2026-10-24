@@ -1,7 +1,7 @@
 import AppKit
 
 /// What the built-in commands that work the Mac do with their choice (brightness, volume, lock-screen,
-/// media-control, open-website, switch-app). `CommandMode.system` holds them, so tests can fake them.
+/// media-control, open-website, switch-app, ask-muse). `CommandMode.system` holds them, so tests can fake them.
 enum SystemCommands {
     typealias Action = @MainActor (_ choice: String?, _ said: String) async -> CommandResult
 
@@ -12,6 +12,7 @@ enum SystemCommands {
         Command.media.name: { choice, _ in MediaKeys.press(choice) },
         Command.openWebsite.name: { choice, said in Websites.open(choice, said: said) },
         Command.switchApp.name: { choice, _ in await SwitchApp.switchTo(choice) },
+        Command.askMuse.name: { _, said in await AskMuse.ask(said) },
     ]
 
     /// The new level, 0–100, for a choice: "+10" / "-10" change `current` by that much, "50" sets it;

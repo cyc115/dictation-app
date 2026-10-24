@@ -53,7 +53,7 @@ BUILT_IN = [{"name": c["name"], "summary": c["summary"], "choices": dict(c["choi
             for c in json.loads(BUILT_IN_FILE.read_text())]
 APP_FOLDERS = [Path("/Applications"), Path.home() / "Applications", Path("/System/Applications")]  # Command.appFolders
 FROM_THIS_MAC = {"open", "switch-app", "fix"}  # Command.choicesFromThisMac: apps, or (fix) the other commands
-RUNNING = ["Finder", "Ghostty", "Google Chrome", "Mail", "Music", "Safari", "Slack", "WeChat"]  # switch-app's choices here
+RUNNING = ["Finder", "Ghostty", "Google Chrome", "Mail", "Muse", "Music", "Safari", "Slack", "WeChat"]  # switch-app's choices here
 MAX_APPS = 254  # Command.maxApps
 NO_APP = "Not one of these apps"  # Command.noApp: "open none" runs nothing
 NO_COMMAND = "None named: the last command that failed"  # Command.noCommand

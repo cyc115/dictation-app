@@ -56,5 +56,6 @@
      ["chatgpt", "ChatGPT (chatgpt.com)"],
      ["other", "any other website (named in what was said)"]
    ]},
-  {"name": "switch-app", "summary": "Switch to another app that's already open, by name", "choices": []}
+  {"name": "switch-app", "summary": "Switch to another app that's already open, by name", "choices": []},
+  {"name": "ask-muse", "summary": "Ask Muse, the AI assistant app, to do something: the user says “ask Muse to …”, “tell Muse …”, “让 Muse …” and what it should do", "choices": []}
 ]
