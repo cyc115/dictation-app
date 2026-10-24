@@ -110,12 +110,12 @@ final class LearnController: ObservableObject {
         return store.measurement(setup: setup.id, prompt: setup.prompt)
     }
 
-    /// The scores on the rings: the result's, else the active learned prompt's, else the current
-    /// prompt's measurement; nil before any.
-    var mine: Double? { result?.mine ?? store.active(for: setup.id)?.score.mine ?? measured?.mine }
-    var generalScore: Double? { result?.general ?? store.active(for: setup.id)?.score.general ?? measured?.general }
-    var mineBefore: Double? { result?.mineBefore ?? store.active(for: setup.id)?.score.mineBefore }
-    var generalBefore: Double? { result?.generalBefore ?? store.active(for: setup.id)?.score.generalBefore }
+    /// The scores on the rings: the result's, else the active learned prompt's (learned on this setup),
+    /// else the current prompt's measurement; nil before any.
+    var mine: Double? { result?.mine ?? store.scored(for: setup.id)?.score.mine ?? measured?.mine }
+    var generalScore: Double? { result?.general ?? store.scored(for: setup.id)?.score.general ?? measured?.general }
+    var mineBefore: Double? { result?.mineBefore ?? store.scored(for: setup.id)?.score.mineBefore }
+    var generalBefore: Double? { result?.generalBefore ?? store.scored(for: setup.id)?.score.generalBefore }
 
     /// What the next kept prompt will be called.
     var nextVersion: String { store.nextVersion }
@@ -125,7 +125,7 @@ final class LearnController: ObservableObject {
         if let result, let before = result.errorsBefore[id], let now = result.errors[id], let running {
             return Fit(from: running.setup.prompt, to: nextVersion, before: before, now: now)
         }
-        guard let learned = store.active(for: setup.id), let errors = store.errors(for: id, setup: setup.id) else { return nil }
+        guard let learned = store.scored(for: setup.id), let errors = store.errors(for: id, setup: setup.id) else { return nil }
         return Fit(from: learned.basedOn, to: learned.version, before: errors.before, now: errors.now)
     }
 
@@ -168,13 +168,13 @@ final class LearnController: ObservableObject {
     }
 
     /// Measures the current prompt when the tile has nothing to show for it yet (enough corrections,
-    /// a cloud setup, a key, no learned version and no stored measurement). Called when the tile appears.
+    /// a cloud setup, a key, no version learned on it and no stored measurement). Called when the tile appears.
     func measureIfNeeded() {
         switch gate {
         case .ready, .allLearned: break
         default: return
         }
-        guard store.active(for: setup.id) == nil, store.measurement(setup: setup.id, prompt: setup.prompt) == nil,
+        guard store.scored(for: setup.id) == nil, store.measurement(setup: setup.id, prompt: setup.prompt) == nil,
               let key = settings.openRouterKey, let tuner = makeTuner(setup, key) else { return }
         let setup = setup
         let cases = corrections.map { TuneCase(id: $0.id, input: $0.input, wanted: $0.correction ?? $0.text) }

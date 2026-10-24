@@ -36,6 +36,14 @@ final class LearnedPromptStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.versions(for: "cloud-flash").map(\.version), ["v8"])
         XCTAssertEqual(reloaded.versions(for: "cloud-big"), [])
         XCTAssertEqual(reloaded.prompts[0].summary, "v8 · learned from 15 corrections")
+
+        reloaded.activate("v8", for: "on-device")
+        XCTAssertEqual(reloaded.active(for: "on-device")?.version, "v8", "a setup can polish with one learned on another")
+        XCTAssertEqual(reloaded.apply(to: .onDevice).prompt, "v8")
+        XCTAssertNil(reloaded.scored(for: "on-device"), "its scores are Cloud Flash's model's")
+        XCTAssertNil(reloaded.errors(for: id, setup: "on-device"))
+        XCTAssertFalse(reloaded.isLearned(id, setup: "on-device"), "so Learn there still learns from it")
+        XCTAssertEqual(reloaded.scored(for: "cloud-flash")?.version, "v8")
     }
 
     func testMeasurementsAreKeptPerSetupAndPrompt() {

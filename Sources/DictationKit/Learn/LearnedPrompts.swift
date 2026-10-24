@@ -85,9 +85,14 @@ final class LearnedPromptStore: ObservableObject {
     /// This setup's learned versions, oldest first.
     func versions(for setup: String) -> [LearnedPrompt] { prompts.filter { $0.setup == setup } }
 
+    /// The learned version `setup` polishes with; it may have been learned on another setup.
     func active(for setup: String) -> LearnedPrompt? {
         active[setup].flatMap { version in prompts.first { $0.version == version } }
     }
+
+    /// The active version if it was learned on `setup`, so its scores and errors are this setup's
+    /// (one learned elsewhere was scored with another model).
+    func scored(for setup: String) -> LearnedPrompt? { active(for: setup).flatMap { $0.setup == setup ? $0 : nil } }
 
     /// Adds a learned prompt and makes it its setup's active one.
     func keep(_ prompt: LearnedPrompt) {
@@ -122,7 +127,7 @@ final class LearnedPromptStore: ObservableObject {
 
     /// A correction's held-out error with the setup's active learned prompt, and with the prompt before it.
     func errors(for entry: UUID, setup: String) -> (before: Double, now: Double)? {
-        guard let learned = active(for: setup), let now = learned.errors[entry.uuidString],
+        guard let learned = scored(for: setup), let now = learned.errors[entry.uuidString],
               let before = learned.errorsBefore[entry.uuidString] else { return nil }
         return (before, now)
     }

@@ -216,7 +216,9 @@ final class LearnUITests: XCTestCase {
         XCTAssertTrue(hosted.allText.contains("Turn on AI polish to choose the prompt it polishes with."))
         fx.settings.polishEnabled = true
         hosted.settle()
-        XCTAssertEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, false, "nothing learned yet")
+        XCTAssertNotEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, false,
+                          "nothing learned yet: the prompt in use is shown, not greyed out")
+        XCTAssertFalse(hosted.allText.contains("Unavailable"), hosted.allText)
         XCTAssertTrue(hosted.allText.contains("Learn one from your corrections in the Corrections tab."))
         XCTAssertTrue(hosted.allText.contains("v7 · built in"), "no score until measured")
 
@@ -238,5 +240,26 @@ final class LearnUITests: XCTestCase {
         fx.store.record(PromptMeasurement(setup: "cloud-flash", prompt: "v7", date: fixedDate(2026, 10, 14, 9, 0), mine: 68.2, general: 70, corrections: 11))
         hosted.settle()
         XCTAssertTrue(hosted.allText.contains("v7 · 68% · built in"), "a fresh measurement wins over the old baseline")
+    }
+
+    func testOnDeviceCanPolishWithAPromptLearnedOnCloudFlash() {
+        let fx = LearnFixture(self, setup: .onDevice)
+        fx.settings.polishEnabled = true
+        fx.store.keep(makeLearned())
+        let hosted = HostedView(SettingsView(services: makeServices(self, settings: fx.settings, history: fx.history)),
+                                size: NSSize(width: 640, height: 2300))
+        addTeardownBlock { hosted.close() }
+        let row = "setting.Polish prompt"
+        XCTAssertNotEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, false, "v8 can be chosen here")
+        XCTAssertTrue(hosted.allText.contains("The built-in prompt."), hosted.allText)
+
+        fx.store.activate("v8", for: "on-device")
+        waitUntil { fx.settings.setup.prompt == "v8" }
+        hosted.settle()
+        XCTAssertTrue(hosted.allText.contains("v8 · 74% on Cloud Flash · from v7 · Oct 13"), hosted.allText)
+        XCTAssertTrue(hosted.allText.contains("v8 · learned from 15 corrections with Cloud Flash: 65% → 74% on them, general set 71% there, not measured with this setup's model."),
+                      hosted.allText)
+        XCTAssertEqual(fx.store.active["cloud-flash"], "v8", "Cloud Flash keeps its own choice")
+        XCTAssertNil(fx.controller.mine, "Cloud Flash's scores aren't shown as On-device's")
     }
 }
