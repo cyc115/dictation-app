@@ -4,29 +4,35 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from pathlib import Path
 
-SECRETS = Path.home() / "Library/Application Support/DictationApp/secrets.json"
+# The bench's own key, kept apart from the app's so its spend shows separately; set in ~/.secrets
+# (chezmoi), which shells source.
+BENCH_ENV = "OPENROUTER_BENCH_API_KEY"
+DOT_SECRETS = Path.home() / ".secrets"
 CHAT = "https://openrouter.ai/api/v1/chat/completions"
 # Lowest reasoning settings to try, in order, for models that can't turn it off.
 REASONING_FALLBACKS = [{"enabled": False}, {"effort": "minimal"}, {"effort": "low"}]
 
 
-def saved_key(secrets: Path = SECRETS) -> str:
-    """The cloud key saved in the app's Settings (FileSecretStore), if any."""
+def secrets_file_key(name: str, path: Path = DOT_SECRETS) -> str:
+    """`export <name>=<value>` from ~/.secrets, for a shell that hasn't sourced it; "" if it's not there."""
     try:
-        return json.loads(secrets.read_text()).get("openrouter-api-key", "")
-    except (OSError, ValueError):
+        text = path.read_text()
+    except OSError:
         return ""
+    found = re.search(rf"^\s*(?:export\s+)?{re.escape(name)}=([\"']?)(.*?)\1\s*$", text, re.MULTILINE)
+    return found.group(2) if found else ""
 
 
-def key(env: str = "OPENROUTER_API_KEY") -> str:
-    """$env, else the key saved in the app's Settings; exits saying how to add one if neither."""
-    found = os.environ.get(env) or saved_key()
+def key(env: str = BENCH_ENV) -> str:
+    """$env, else its line in ~/.secrets; exits saying how to add it if neither. Never the app's own key."""
+    found = os.environ.get(env) or secrets_file_key(env)
     if not found:
-        raise SystemExit(f"no OpenRouter key: set ${env} or add one in the app's Settings")
+        raise SystemExit(f"no OpenRouter key for the bench: add `export {env}=…` to ~/.secrets (chezmoi)")
     return found
 
 

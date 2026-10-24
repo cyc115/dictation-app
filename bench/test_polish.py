@@ -194,10 +194,10 @@ def test_apple_stops_the_run_when_the_installed_app_is_too_old(monkeypatch):
 
 
 def test_a_rejected_key_stops_the_run_before_any_polish(monkeypatch, capsys):
-    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-revoked")
+    monkeypatch.setenv("OPENROUTER_BENCH_API_KEY", "sk-or-v1-revoked")
     monkeypatch.setattr(polish, "key_problem", lambda key: "HTTP 401: User not found.")
     monkeypatch.setattr(polish, "run", lambda *a, **k: pytest.fail("ran with a rejected key"))
-    with pytest.raises(SystemExit, match=r"rejected \$OPENROUTER_API_KEY .*unset OPENROUTER_API_KEY"):
+    with pytest.raises(SystemExit, match=r"rejected \$OPENROUTER_BENCH_API_KEY .*update it in ~/.secrets"):
         polish.main(["run", "-m", "openai/gpt-oss-120b@Groq", "--case", "en-numbers"])
 
 
@@ -210,13 +210,6 @@ def test_quick_set_is_twenty_main_cases_covering_every_language_and_kind():
     assert sum(len(c["raw"]) > 80 for c in quick) >= 2, "long dictations, for latency"
     holdout = polish.load_cases(polish.CASES.parent / "polish_cases_holdout.json")
     assert not any(c.get("quick") for c in holdout), "the held-out set stays unseen"
-
-
-def test_saved_key_is_read_from_the_apps_secrets_file(tmp_path):
-    secrets = tmp_path / "secrets.json"
-    assert polish.saved_key(secrets) == "", "no file: no key"
-    secrets.write_text(json.dumps({"openrouter-api-key": "sk-or-v1-test"}))
-    assert polish.saved_key(secrets) == "sk-or-v1-test"
 
 
 def test_corrections_in_history_json_are_cases(tmp_path):

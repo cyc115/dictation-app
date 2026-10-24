@@ -586,7 +586,7 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("-l", "--level", action="append", type=int, choices=[1, 2, 3], help="limit to level (repeatable)")
     r.add_argument("-r", "--repeat", type=int, default=1, help="runs per clip (latency min/median/max)")
     r.add_argument("-p", "--parallel", type=int, default=12, help="cloud models to run at once")
-    r.add_argument("--key-env", default="OPENROUTER_API_KEY", help="env var holding the OpenRouter key (else the app's saved key)")
+    r.add_argument("--key-env", default=openrouter.BENCH_ENV, help="env var holding the OpenRouter key (default: %(default)s, from ~/.secrets)")
     r.add_argument("--json", action="store_true", help="print the summary as JSON")
     r.add_argument("--include-unverified", action="store_true",
                    help="also score recordings whose text hasn't been checked (biased toward the model that heard them)")

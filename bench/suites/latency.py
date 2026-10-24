@@ -28,26 +28,25 @@ each, so they're timed on clips in their language (repeated to the same count).
 Speech models: local (On-device: Qwen3-ASR on this Mac), flash, flash+backup, big, apple / apple-zh
 (Apple Speech, en-US / zh-CN), or any local:<Hugging Face id> / apple:<locale> / openrouter:<model id>. "+backup" has the "Backup model when slow" setting
 on (the app's default) for that model's dictations (AdaptiveBackup in Transcription.swift). Polish: none, apple (on-device), or openrouter:<model id> (any chat model).
-Cloud models use the key saved in the app's Settings, or --key-env VAR to pass one.
+Cloud models use the bench's key ($OPENROUTER_BENCH_API_KEY, from ~/.secrets), passed to the app, never its own.
 """
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import platform
 import random
 import re
 import statistics
 import subprocess
 from collections import Counter
-import sys
 import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
 
 import harness
+import openrouter
 
 NAME = "latency"
 HELP = "turnaround after you press stop: transcription, AI polish, both (p50/p90/p95)"
@@ -207,10 +206,7 @@ def run_in_app(trials: list[dict], pause: float, timeout: float, key_env: str | 
         raise SystemExit("the latency suite runs the installed macOS app — run it on your Mac (or try --simulate)")
     if not APP.exists():
         raise SystemExit(f"{APP} not found — run ./build.sh first")
-    env = []
-    if key_env:
-        key = os.environ.get(key_env) or sys.exit(f"${key_env} is not set")
-        env += ["--env", f"DICTATIONAPP_PROBE_KEY={key}"]
+    env = ["--env", f"DICTATIONAPP_PROBE_KEY={openrouter.key(key_env or openrouter.BENCH_ENV)}"]
     with tempfile.TemporaryDirectory() as tmp:
         plan, out = Path(tmp) / "plan.json", Path(tmp) / "out.jsonl"
         plan.write_text(json.dumps({"pause": pause, "timeout": timeout, **(plan_extra or {}), "trials": [
@@ -615,7 +611,8 @@ def parser() -> argparse.ArgumentParser:
                    help="setups for -P setup:<id> beyond the built-in ones, instead of the app's setups.json")
     r.add_argument("--pause", type=float, default=0.3, help="seconds between dictations")
     r.add_argument("--timeout", type=float, default=90, help="seconds before a dictation counts as failed")
-    r.add_argument("--key-env", metavar="VAR", help="env var with the cloud API key (default: the app's saved key)")
+    r.add_argument("--key-env", metavar="VAR", default=openrouter.BENCH_ENV,
+                   help="env var with the cloud API key (default: %(default)s, from ~/.secrets)")
     r.add_argument("--by-length", action="store_true", help="also break transcription down by clip length")
     r.add_argument("--dry-run", action="store_true", help="show the plan and estimated time, run nothing")
     r.add_argument("--simulate", action="store_true", help="fake timings (try the suite without a Mac); not saved")

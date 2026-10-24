@@ -49,7 +49,7 @@ bench/suite.py latency run --simulate                 # fake timings: try the re
   setting on (the app's default) for those dictations; `--backup` interleaves `flash` and `flash+backup`
   in one run, so both see the same network, and the report counts how often the backup answered. Polish: `none`, `apple`, or any OpenRouter chat model
   `openrouter:<id>` (the app only offers on-device polish today; the benchmark tells you whether a
-  cloud one is worth adding). Cloud models use the key saved in Settings (`--key-env VAR` to override).
+  cloud one is worth adding). Cloud models use the bench's key, passed to the app (`--key-env VAR` to override; see **Key** below).
 - **Method.** 9 clips by default: per language, the shortest, median and longest clean clip,
   including `long-mixed-01` (28 s) and `long-english-01` (22 s), since cloud latency grows with
   length (`--by-length` shows it). Each round plays every clip × model once in a fresh shuffled
@@ -110,7 +110,7 @@ bench/suite.py polish run -m setup:cloud-flash --corrections --prompt-file ~/Lib
   `openrouter:<id>[@Provider]` pins a host (`@Groq`, `@Cerebras`), else `--sort latency` asks
   OpenRouter to pick. Reasoning is off or at its lowest. `setup:<id>` (e.g. `setup:on-device`, or
   one of yours in `setups.json`) runs a Settings → Model setup's polish exactly as the app does.
-- **Key:** `$OPENROUTER_API_KEY`, else the key saved in the app's Settings (`secrets.json`).
+- **Key:** the bench's own, `$OPENROUTER_BENCH_API_KEY` (in `~/.secrets`, chezmoi), never the app's.
 - **Prompts:** each model gets the prompt its setup uses in the app (`apple`: On-device's; cloud
   models: Cloud Flash's), or `--prompt-file` (see `polish_prompts/`, versions `v1`–`v3`, identical to
   `PolishPrompt` in `Setups.swift`; a test checks). The transcript goes in `<transcript>` tags, as
@@ -191,7 +191,7 @@ uv run --with pytest --with opencc-python-reimplemented==0.1.7 pytest bench   # 
   show in the default list), then `bench/bench.py run -r 3 -m openrouter:<id>` and `bench/bench.py html`.
   To offer it in the app, add a setup to `builtInJSON` in `Sources/DictationKit/Polish/Setups.swift`
   (or to your own `setups.json`, see [`docs/custom-setups.md`](../docs/custom-setups.md)).
-- **Key:** `$OPENROUTER_API_KEY` by default (`--key-env` to change). The account needs credits, and some
+- **Key:** `$OPENROUTER_BENCH_API_KEY` from `~/.secrets` by default (`--key-env` to change). The account needs credits, and some
   models (Meta Muse) need the 18+ confirmation in OpenRouter's preferences.
 - **Local models** (`parakeet:<hf-id>`, `mlx:<hf-id>`) run on this Mac's GPU through `local_stt.py`
   (its own uv environment, downloaded from Hugging Face on first use). Their wait is decode time from

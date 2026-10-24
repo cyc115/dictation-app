@@ -45,7 +45,8 @@ from datetime import datetime
 from pathlib import Path
 
 import harness
-from openrouter import REASONING_FALLBACKS, key_problem, saved_key  # noqa: F401 (saved_key: tests)
+import openrouter
+from openrouter import REASONING_FALLBACKS, key_problem
 
 NAME = "polish"
 HELP = "AI polish models: quality on tricky dictations, wait and cost, with the app's prompt"
@@ -480,14 +481,9 @@ def cmd_run(args) -> int:
     if args.case:
         cases = [c for c in cases if c["id"] in args.case]
     cloud = [s for s in specs if resolve(s)[0] != "apple"]
-    source = f"${args.key_env}" if os.environ.get(args.key_env) else "the key saved in the app's Settings"
-    key = os.environ.get(args.key_env, "") or (saved_key() if cloud else "")
-    if cloud and not key:
-        sys.exit(f"no cloud key: save one in the app's Settings, or set ${args.key_env}")
+    key = openrouter.key(args.key_env) if cloud else ""
     if cloud and (problem := key_problem(key)):
-        hint = (f" — `unset {args.key_env}` to use the key saved in the app's Settings instead"
-                if source.startswith("$") else " — update it in the app's Settings")
-        sys.exit(f"OpenRouter rejected {source} ({problem}){hint}")
+        sys.exit(f"OpenRouter rejected ${args.key_env} ({problem}) — update it in ~/.secrets (chezmoi)")
     total = len(specs) * (len(cases) * args.rounds + 1)
     print(f"==> {len(specs)} model(s) × {len(cases)} cases × {args.rounds} rounds (+1 warm-up) = {total} requests")
     done = [0]
@@ -569,8 +565,8 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("--wrap", action=argparse.BooleanOptionalAction, default=True,
                    help="send the transcript inside <transcript> tags, as the app does (default; --no-wrap to compare)")
     r.add_argument("--seed", type=int, default=1)
-    r.add_argument("--key-env", default="OPENROUTER_API_KEY",
-                   help="env var with your OpenRouter key (default: the key saved in the app's Settings)")
+    r.add_argument("--key-env", default=openrouter.BENCH_ENV,
+                   help="env var with the OpenRouter key (default: %(default)s, from ~/.secrets)")
     r.add_argument("--where", default="this machine", help="where the run happened, for the report")
     r.add_argument("--label", help="name for the result file")
     r.add_argument("--out", metavar="DIR", help="save here instead of results/polish/")
