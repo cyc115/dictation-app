@@ -77,6 +77,11 @@ final class CommandMode {
         return SpeechContext(words: (Command.builtInWords + own + running()).filter { seen.insert($0).inserted })
     }
 
+    /// Command recording has started: the decider gets ready while you speak (Jev opens its connection).
+    func prepare(model: String, apiKey: String) {
+        makeDecider(model, apiKey).prepare()
+    }
+
     /// Decides what `said` asks for and runs it; the run is saved to History.
     @MainActor
     func handle(_ said: String, apiKey: String, model: String = "jev") async -> CommandRun {
@@ -136,6 +141,8 @@ final class CommandMode {
             return CommandResult(ok: true, message: "Opened \(choice)")
         case Command.create.name:
             guard let apiKey else { return CommandResult(ok: false, message: "Say it again to create another") }
+            // Decided on this Mac with no key: writing a command still needs one.
+            guard !apiKey.isEmpty else { return CommandResult(ok: false, message: "Add your OpenRouter key in Settings to create commands") }
             return await create(said, apiKey: apiKey, among: commands)
         case Command.fix.name:
             return await fix(choice, said: said, among: commands)

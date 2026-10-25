@@ -250,7 +250,8 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertTrue(controller.overlay.isCommand)
         controller.enter()
         waitUntil { !controller.isBusy }
-        XCTAssertEqual(decided.events, ["decide: 声音小一点 among " + Command.builtIn.map(\.name).joined(separator: ",")])
+        XCTAssertEqual(decided.events, ["prepare", "decide: 声音小一点 among " + Command.builtIn.map(\.name).joined(separator: ",")],
+                       "readied as recording starts")
         XCTAssertEqual(ran, ["volume -10"])
         XCTAssertEqual(pasted, [], "a command isn't typed")
         XCTAssertEqual(keys, [], "nor sent")
@@ -292,7 +293,25 @@ final class DictationControllerTests: XCTestCase {
         controller.toggle()
         XCTAssertTrue(controller.dictating, "only the Enter button (or ✓) runs it")
         controller.cancel()
-        XCTAssertEqual(decided.events, [])
+        XCTAssertEqual(decided.events, ["prepare"])
+    }
+
+    /// Settings › Experimental › Decide commands on this Mac: command mode works with no key, and
+    /// every command goes to the local decider, never Jev (or the commandModel setting's model).
+    func testTheLocalDeciderDecidesEveryCommandWithoutAKey() {
+        let controller = makeController()
+        settings.commandModel = "deepseek/deepseek-v4.1-flash"
+        settings.localCommandDecider = true
+        var models: [String] = []
+        commands.makeDecider = { [unowned self] model, _ in models.append(model); return FakeDecider(decision: decision, log: decided) }
+        controller.enter()
+        XCTAssertTrue(controller.dictating, "no key needed")
+        controller.enter()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(ran, ["volume -10"])
+        XCTAssertEqual(models, ["local", "local"], "readied and asked: the local one only")
+        settings.localCommandDecider = false
+        XCTAssertFalse(settings.commandModeOn, "off again: no key")
     }
 
     /// Without the API key command mode is off: the Enter button just presses Return, no reminder.

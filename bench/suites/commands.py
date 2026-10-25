@@ -160,7 +160,8 @@ JEV_ASK = {  # other instructions for the command question (the app's: ASK)
     "ask-sound": "Which command did the user ask for? Go by how the words sound, not what they mean.",
 }
 ASK = "Which command does what the user asked for?"
-JEV_MODIFIERS = {"bare": "options named by themselves (\"Safari\": \"Safari\") are sent without a meaning",
+JEV_MODIFIERS = {"full-choices": "options named by themselves sent with their name as the meaning (\"Safari\": \"Safari\"), "
+                                 "as the app did before Oct 25 (now it sends them bare: \"Safari\": null)",
                  "warm": "one connection kept open between requests (as a warmed-up app would have)",
                  **{k: "the state starts: " + v[:60] + "…" for k, v in JEV_HEARD.items()},
                  **{k: "none means: " + v for k, v in JEV_NONE.items()},
@@ -174,14 +175,14 @@ def jev_model(model: str) -> set[str] | None:
 
 
 def jev_body(said: str, commands: list[dict], mods: set[str] = frozenset()) -> dict:
-    """JevDecider.request's body (with no modifiers)."""
+    """JevDecider.request's body (with no modifiers): CommandDecision.commandQuestion and choiceQuestion."""
     which = {c["name"]: c["summary"] for c in commands}
     which["none"] = next((JEV_NONE[m] for m in mods if m in JEV_NONE), NONE)
     questions = {"command": {"type": "choice", "instructions": next((JEV_ASK[m] for m in mods if m in JEV_ASK), ASK),
                              "criteria": which}}
     for c in commands:
         if c["choices"]:
-            criteria = {k: None if v == k else v for k, v in c["choices"].items()} if "bare" in mods else c["choices"]
+            criteria = c["choices"] if "full-choices" in mods else {k: None if v == k else v for k, v in c["choices"].items()}
             questions["choice:" + c["name"]] = {
                 "type": "choice", "instructions": f"If the user wants {c['name']} ({c['summary']}): which of these?",
                 "criteria": criteria}
@@ -242,7 +243,7 @@ def local_question(said: str, commands: list[dict], name: str | None = None,
     bare_choices: an option whose meaning is its own name ("Safari": "Safari") is sent without one;
     short_choice: the choice question doesn't repeat the command's summary."""
     key = "command" if name is None else "choice:" + name
-    question = jev_body(said, commands)["questions"][key]
+    question = jev_body(said, commands, {"full-choices"})["questions"][key]
     if bare_choices:
         question = {**question, "criteria": {k: None if v == k else v for k, v in question["criteria"].items()}}
     if short_choice and name is not None:

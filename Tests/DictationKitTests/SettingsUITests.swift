@@ -21,7 +21,7 @@ final class SettingsUITests: XCTestCase {
                       "Mouse button", "AI polish", "Model", "On-device model", "Keep history", "Keep recordings",
                       "Backup model when slow", "Pause in these apps", "Show detailed analytics",
                       "Mouse button for Enter", "Enter button", "Command mode", "Commands",
-                      "Paste where you dictated"] {
+                      "Paste where you dictated", "Decide commands on this Mac"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }
@@ -50,6 +50,46 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(reloaded.keepRecordings)
         XCTAssertTrue(reloaded.showDetailedAnalytics)
         XCTAssertFalse(reloaded.pasteWhereDictated, "on by default")
+    }
+
+    /// Turning on "Decide commands on this Mac" shows whether Decider is ready, and the way to get it.
+    func testDecidingOnThisMacShowsDecidersStatus() {
+        let defaults = makeDefaults(self)
+        let settings = makeSettings(self, defaults: defaults)
+        let hosted = host(settings)
+        XCTAssertNil(hosted.element(id: "setting.Decider"))
+        guard let toggle = hosted.element(id: "setting.Decide commands on this Mac") else { return XCTFail("no toggle") }
+        XCTAssertTrue(hosted.click(toggle))
+        hosted.settle()
+        XCTAssertTrue(settings.localCommandDecider)
+        XCTAssertTrue(makeSettings(self, defaults: defaults).localCommandDecider, "remembered")
+        XCTAssertNotNil(hosted.element(id: "setting.Decider"))
+    }
+
+    /// Not installed: "Get Decider…" opens its download (in the browser), "About" its page; installed
+    /// but not running: "Open Decider" launches it.
+    func testDecidersRowLeadsToInstallingIt() {
+        var opened: [URL] = [], launched = 0
+        func row(_ status: LocalDecider.Status) -> HostedView<some View> {
+            let hosted = HostedView(Form { Section { LocalDeciderRow(check: { status }, openURL: { opened.append($0) }, launch: { launched += 1 }) } }
+                .formStyle(.grouped), size: NSSize(width: 640, height: 160))
+            addTeardownBlock { hosted.close() }
+            return hosted
+        }
+        func button(_ title: String, in hosted: HostedView<some View>) -> AXNode? { hosted.elements { $0.label == title }.first }
+        let missing = row(.notInstalled)
+        waitUntil { button("Get Decider…", in: missing) != nil }
+        XCTAssertTrue(missing.click(button("Get Decider…", in: missing)!))
+        XCTAssertTrue(missing.click(button("About", in: missing)!))
+        XCTAssertEqual(opened, [LocalDecider.download, LocalDecider.about])
+        let installed = row(.notRunning)
+        waitUntil { button("Open Decider", in: installed) != nil }
+        XCTAssertTrue(installed.click(button("Open Decider", in: installed)!))
+        XCTAssertEqual(launched, 1)
+        let ready = row(.ready)
+        waitUntil { ready.allText.contains("Ready: commands are decided on this Mac.") }
+        XCTAssertNil(button("Get Decider…", in: ready))
+        XCTAssertNil(button("Open Decider", in: ready))
     }
 
     func testRecordingsFolderOnlyShownWhileKeepingRecordings() {

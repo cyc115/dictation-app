@@ -231,6 +231,15 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "excluded-apps")
     }
 
+    /// Settings › Experimental's Decider row, before Decider is installed.
+    func testDeciderNotInstalled() {
+        let view = Form { Section { LocalDeciderRow(check: { .notInstalled }) } }.formStyle(.grouped)
+        let hosted = HostedView(view, size: NSSize(width: 640, height: 140))
+        addTeardownBlock { hosted.close() }
+        waitUntil { hosted.allText.contains("Not installed") }
+        assertSnapshot(of: hosted.hostingView, named: "decider-not-installed")
+    }
+
     func testCorrections() {
         let url = makeTempURL(self)
         var flash = HistoryEntry(date: fixedDate(2026, 10, 8, 22, 18), text: "Can you install Cloud Code so I can develop the app when I ask?",

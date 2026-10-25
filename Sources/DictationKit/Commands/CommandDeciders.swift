@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 /// What the decider picked for what you said: a command and one of its choices, or nothing.
 struct CommandDecision: Equatable {
@@ -16,14 +16,36 @@ struct CommandDecision: Equatable {
     static let heard = "The user spoke this and speech-to-text wrote it down, so words may be misheard: go by how they sound "
         + "(“lower the bright knees” is “lower the brightness”, “press and her” is “press Enter”). "
         + "A stray word or two that sounds like no command is none."
+
+    /// The multiple-choice question that picks the command, for the decision models (Jev, Decider).
+    static func commandQuestion(_ commands: [Command]) -> [String: Any] {
+        var which = Dictionary(commands.map { ($0.name, $0.summary) }, uniquingKeysWith: { a, _ in a })
+        which["none"] = "None of these does what the user asked"
+        return ["type": "choice", "instructions": "Which command does what the user asked for?", "criteria": which]
+    }
+
+    /// The question that picks `command`'s choice. A choice whose meaning is just its value (an app:
+    /// "Safari": "Safari") is sent without one: the same answers for a quarter less to read
+    /// (bench/results/commands: open's 135 apps were most of Jev's request).
+    static func choiceQuestion(_ command: Command) -> [String: Any] {
+        ["type": "choice", "instructions": "If the user wants \(command.name) (\(command.summary)): which of these?",
+         "criteria": Dictionary(command.choices.map { ($0.value, $0.meaning == $0.value ? NSNull() : $0.meaning as Any) },
+                                uniquingKeysWith: { a, _ in a })]
+    }
 }
 
 protocol CommandDecider {
     func decide(_ said: String, among commands: [Command]) async throws -> CommandDecision
+    /// Called as command recording starts, so the decider is ready by the time you stop talking.
+    func prepare()
+}
+
+extension CommandDecider {
+    func prepare() {}
 }
 
 /// TypeSafe's Jev through OpenRouter's decisions API: multiple-choice questions, answered in about
-/// 0.3 s. One question picks the command ("none" if nothing fits); one per command with choices
+/// 0.2 s. One question picks the command ("none" if nothing fits); one per command with choices
 /// picks its choice, all in the same call.
 struct JevDecider: CommandDecider {
     static let endpoint = URL(string: "https://openrouter.ai/api/alpha/decisions")!
@@ -36,18 +58,23 @@ struct JevDecider: CommandDecider {
         return try Self.parse(data: data, status: status).get()
     }
 
+    /// Opens the connection to OpenRouter while you speak: commands come minutes apart, by when the
+    /// last one's has closed, and a new one (TLS) is ~65 ms of a ~230 ms wait (bench: p50 230 → 164 ms).
+    func prepare() {
+        Self.warm(session: session)
+    }
+
+    /// A HEAD to the endpoint: no key, no cost, just the connection the decision then reuses.
+    static func warm(session: URLSession) {
+        var request = URLRequest(url: endpoint, timeoutInterval: 5)
+        request.httpMethod = "HEAD"
+        session.dataTask(with: request).resume()
+    }
+
     static func request(_ said: String, among commands: [Command], apiKey: String) -> URLRequest {
-        var which = Dictionary(uniqueKeysWithValues: commands.map { ($0.name, $0.summary) })
-        which["none"] = "None of these does what the user asked"
-        var questions: [String: Any] = ["command": [
-            "type": "choice", "instructions": "Which command does what the user asked for?", "criteria": which,
-        ]]
+        var questions: [String: Any] = ["command": CommandDecision.commandQuestion(commands)]
         for command in commands where !command.choices.isEmpty {
-            questions["choice:" + command.name] = [
-                "type": "choice",
-                "instructions": "If the user wants \(command.name) (\(command.summary)): which of these?",
-                "criteria": Dictionary(command.choices.map { ($0.value, $0.meaning) }, uniquingKeysWith: { a, _ in a }),
-            ]
+            questions["choice:" + command.name] = CommandDecision.choiceQuestion(command)
         }
         return OpenRouter.post(endpoint, body: ["model": model, "state": CommandDecision.heard + "\nThe user said: " + said, "questions": questions],
                                apiKey: apiKey, timeout: 10)
@@ -117,7 +144,89 @@ struct ChatDecider: CommandDecider {
     }
 }
 
-/// The decider for a model setting: "jev" (default), or an OpenRouter chat model id.
+/// Perplexity's Decider for Mac, a free app that runs a 4B decision model on this Mac and answers
+/// the same kind of questions as Jev at 127.0.0.1:8080 (Settings › Experimental). Nothing leaves the
+/// Mac and no key is needed; ~0.9 s a command on an M1 Max, to Jev's ~0.2 s, about as often right.
+/// It takes one question per request and its wait follows how much it reads (~1.4 ms a token), so it
+/// gets the command question, then only that command's choice, without `heard`, which matters for
+/// the command but not the choice: 10% less to read, same answers (bench/results/commands).
+struct LocalDecider: CommandDecider {
+    /// The `commandModel` that picks it.
+    static let name = "local"
+    static let server = URL(string: "http://127.0.0.1:8080")!
+    static let model = "pplx-decider-flash-v1.2"
+    static let bundleID = "ai.perplexity.decider"
+    /// The app's download (a DMG), and the page about it.
+    static let download = URL(string: "https://macos-download.perplexity.ai/Decider.dmg")!
+    static let about = URL(string: "https://docs.perplexity.ai/docs/decisions/decider-for-mac")!
+    var session: URLSession = .shared
+
+    func decide(_ said: String, among commands: [Command]) async throws -> CommandDecision {
+        let pick = try await ask(CommandDecision.heard + "\nThe user said: " + said, "command", CommandDecision.commandQuestion(commands))
+        let name = pick.choice == "none" ? nil : pick.choice
+        guard let name, pick.confidence >= CommandDecision.minConfidence,
+              let command = commands.first(where: { $0.name == name }), !command.choices.isEmpty else {
+            return CommandDecision(command: name, confidence: pick.confidence)
+        }
+        let choice = try await ask("The user said: " + said, "choice:" + name, CommandDecision.choiceQuestion(command))
+        return CommandDecision(command: name, choice: choice.choice, confidence: pick.confidence)
+    }
+
+    private func ask(_ state: String, _ key: String, _ question: [String: Any]) async throws -> (choice: String?, confidence: Double) {
+        let data: Data, status: Int
+        do {
+            (data, status) = try await OpenRouter.send(Self.request(state: state, questions: [key: question]), session: session)
+        } catch let error as URLError where [.cannotConnectToHost, .cannotFindHost, .networkConnectionLost].contains(error.code) {
+            throw TranscriptionError.message("Decider isn't running: open it, or turn off Settings › Experimental › Decide commands on this Mac")
+        }
+        return try Self.parse(data: data, status: status, key: key).get()
+    }
+
+    static func request(state: String, questions: [String: Any]) -> URLRequest {
+        var request = URLRequest(url: server.appendingPathComponent("v1/decisions"), timeoutInterval: 15)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["model": model, "state": state, "questions": questions])
+        return request
+    }
+
+    static func parse(data: Data, status: Int, key: String) -> Result<(choice: String?, confidence: Double), Error> {
+        let json = OpenRouter.json(data)
+        guard status == 200, let answer = (json?["answers"] as? [String: Any])?[key] as? [String: Any] else {
+            let message = OpenRouter.errorMessage(json) ?? "HTTP \(status)"
+            return .failure(TranscriptionError.message("Decider couldn't pick a command: \(message)"))
+        }
+        return .success((answer["choice"] as? String, answer["confidence"] as? Double ?? 0))
+    }
+
+    /// Whether Decider can answer now, for Settings.
+    enum Status: Equatable {
+        case ready
+        /// Running but not ready yet (on first launch it downloads its 5.8 GB model): what it says.
+        case starting(String)
+        case notRunning
+        case notInstalled
+    }
+
+    /// Asks its /health; if nothing answers, whether the app is installed.
+    static func status(session: URLSession = .shared, installed: () -> Bool = {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) != nil
+    }) async -> Status {
+        let request = URLRequest(url: server.appendingPathComponent("health"), timeoutInterval: 2)
+        if let (data, response) = try? await session.data(for: request) {
+            let said = OpenRouter.json(data)?["status"] as? String
+            return (response as? HTTPURLResponse)?.statusCode == 200 && said == "ready" ? .ready : .starting(said ?? "starting")
+        }
+        return installed() ? .notRunning : .notInstalled
+    }
+}
+
+/// The decider for a model setting: "jev" (default), "local" (Decider on this Mac), or an OpenRouter
+/// chat model id.
 func makeCommandDecider(model: String, apiKey: String) -> CommandDecider {
-    model == "jev" || model == JevDecider.model ? JevDecider(apiKey: apiKey) : ChatDecider(model: model, apiKey: apiKey)
+    switch model {
+    case "jev", JevDecider.model: JevDecider(apiKey: apiKey)
+    case LocalDecider.name: LocalDecider()
+    default: ChatDecider(model: model, apiKey: apiKey)
+    }
 }

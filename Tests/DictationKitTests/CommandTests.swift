@@ -12,6 +12,47 @@ struct FakeDecider: CommandDecider {
         if let error { throw error }
         return decision
     }
+
+    func prepare() { log.add("prepare") }
+}
+
+/// Answers a test's URLSession from `respond` (by request), and keeps every request it was sent.
+final class StubURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var respond: (URLRequest) -> Result<(Int, String), URLError> = { _ in .success((200, "{}")) }
+    nonisolated(unsafe) static var sent: [URLRequest] = []
+
+    static func session() -> URLSession {
+        sent = []
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        return URLSession(configuration: config)
+    }
+
+    /// The JSON body a request was sent with (URLProtocol gets it as a stream).
+    static func body(_ request: URLRequest) -> [String: Any]? {
+        guard let stream = request.httpBodyStream else { return request.httpBody.flatMap(OpenRouter.json) }
+        stream.open()
+        defer { stream.close() }
+        var data = Data(), buffer = [UInt8](repeating: 0, count: 4096)
+        while stream.hasBytesAvailable, case let n = stream.read(&buffer, maxLength: buffer.count), n > 0 { data.append(buffer, count: n) }
+        return OpenRouter.json(data)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        Self.sent.append(request)
+        switch Self.respond(request) {
+        case .success(let (status, body)):
+            client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!,
+                                cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: Data(body.utf8))
+            client?.urlProtocolDidFinishLoading(self)
+        case .failure(let error):
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+    override func stopLoading() {}
 }
 
 final class CommandTests: XCTestCase {
@@ -106,6 +147,27 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(questions["choice:brightness"]?["criteria"] as? [String: String], ["+10": "a bit brighter", "50": "half"])
     }
 
+    /// An app's choice means just its name: sent without a meaning (Jev reads a quarter less, same answers).
+    func testChoicesNamedByThemselvesAreSentBare() throws {
+        let commands = Command.all(in: makeTempURL(self, "Commands"), apps: ["Safari"], running: [])
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: JevDecider.request("open safari", among: commands, apiKey: "k").httpBody!)
+            as? [String: Any])
+        let criteria = try XCTUnwrap((body["questions"] as? [String: [String: Any]])?["choice:open"]?["criteria"] as? [String: Any])
+        XCTAssertTrue(criteria["Safari"] is NSNull)
+        XCTAssertEqual(criteria["none"] as? String, Command.noApp.meaning, "a choice with a meaning keeps it")
+    }
+
+    /// As command recording starts, Jev's connection is opened (a HEAD: no key, no cost), so the
+    /// decision doesn't wait for one.
+    func testPreparingJevOpensItsConnection() {
+        let session = StubURLProtocol.session()
+        JevDecider(apiKey: "k", session: session).prepare()
+        waitUntil { !StubURLProtocol.sent.isEmpty }
+        XCTAssertEqual(StubURLProtocol.sent.map(\.httpMethod), ["HEAD"])
+        XCTAssertEqual(StubURLProtocol.sent.first?.url, JevDecider.endpoint)
+        XCTAssertNil(StubURLProtocol.sent.first?.value(forHTTPHeaderField: "Authorization"))
+    }
+
     func testReadsJevsAnswer() throws {
         let answer = #"{"answers":{"command":{"type":"choice","choice":"brightness","confidence":0.96},"choice:brightness":{"type":"choice","choice":"+10","confidence":1}}}"#
         XCTAssertEqual(try JevDecider.parse(data: Data(answer.utf8), status: 200).get(),
@@ -164,7 +226,82 @@ final class CommandTests: XCTestCase {
         XCTAssertThrowsError(try ChatDecider.parse(data: Data(#"{"error":{"message":"No endpoints"}}"#.utf8), status: 404, among: commands).get())
     }
 
+    // MARK: Decider on this Mac
+
+    /// The command question (told it was heard), then only that command's choice, without the preamble
+    /// and with apps bare; each a request of its own to 127.0.0.1:8080.
+    func testTheLocalDeciderAsksTheCommandThenItsChoice() async throws {
+        let commands = [Command.pressReturn, Command.parse(brightness, script: URL(fileURLWithPath: "/tmp/brightness.py"))!]
+        StubURLProtocol.respond = { request in
+            let key = (StubURLProtocol.body(request)?["questions"] as? [String: Any])?.keys.first ?? ""
+            return .success((200, key == "command" ? #"{"answers":{"command":{"choice":"brightness","confidence":0.97}}}"#
+                                                   : #"{"answers":{"choice:brightness":{"choice":"50","confidence":0.9}}}"#))
+        }
+        let decider = LocalDecider(session: StubURLProtocol.session())
+        let decision = try await decider.decide("把亮度调到一半", among: commands)
+        XCTAssertEqual(decision, CommandDecision(command: "brightness", choice: "50", confidence: 0.97))
+        let bodies = StubURLProtocol.sent.compactMap(StubURLProtocol.body)
+        XCTAssertEqual(StubURLProtocol.sent.map { $0.url?.absoluteString }, Array(repeating: "http://127.0.0.1:8080/v1/decisions", count: 2))
+        XCTAssertEqual(bodies.map { $0["model"] as? String }, ["pplx-decider-flash-v1.2", "pplx-decider-flash-v1.2"])
+        XCTAssertEqual(bodies.map { $0["state"] as? String },
+                       [CommandDecision.heard + "\nThe user said: 把亮度调到一半", "The user said: 把亮度调到一半"])
+        XCTAssertEqual(bodies.map { ($0["questions"] as? [String: Any])?.keys.sorted() }, [["command"], ["choice:brightness"]])
+    }
+
+    /// No choice question when it's not sure (it won't run) or the command has no choices.
+    func testTheLocalDeciderStopsAtTheCommandWhenThatsAll() async throws {
+        let commands = [Command.pressReturn, Command.parse(brightness, script: URL(fileURLWithPath: "/tmp/brightness.py"))!]
+        for (answer, expected) in [(#"{"choice":"brightness","confidence":0.3}"#, CommandDecision(command: "brightness", confidence: 0.3)),
+                                   (#"{"choice":"return","confidence":0.9}"#, CommandDecision(command: "return", confidence: 0.9)),
+                                   (#"{"choice":"none","confidence":0.99}"#, CommandDecision(command: nil, confidence: 0.99))] {
+            StubURLProtocol.respond = { _ in .success((200, #"{"answers":{"command":"# + answer + "}}")) }
+            let decider = LocalDecider(session: StubURLProtocol.session())
+            let decision = try await decider.decide("x", among: commands)
+            XCTAssertEqual(decision, expected)
+            XCTAssertEqual(StubURLProtocol.sent.count, 1, answer)
+        }
+    }
+
+    func testTheLocalDeciderSaysWhenItIsntRunningOrReady() async {
+        StubURLProtocol.respond = { _ in .failure(URLError(.cannotConnectToHost)) }
+        do {
+            _ = try await LocalDecider(session: StubURLProtocol.session()).decide("mute", among: [Command.pressReturn])
+            XCTFail("no Decider, no decision")
+        } catch {
+            XCTAssertEqual(error.localizedDescription,
+                           "Decider isn't running: open it, or turn off Settings › Experimental › Decide commands on this Mac")
+        }
+        StubURLProtocol.respond = { _ in .success((503, #"{"error":{"message":"model is loading"}}"#)) }
+        do {
+            _ = try await LocalDecider(session: StubURLProtocol.session()).decide("mute", among: [Command.pressReturn])
+            XCTFail("not ready, no decision")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "Decider couldn't pick a command: model is loading")
+        }
+    }
+
+    func testTheLocalDecidersStatus() async {
+        StubURLProtocol.respond = { _ in .success((200, #"{"status":"ready","model":"Qwen/Qwen3.5-4B"}"#)) }
+        let ready = await LocalDecider.status(session: StubURLProtocol.session(), installed: { true })
+        XCTAssertEqual(ready, .ready)
+        XCTAssertEqual(StubURLProtocol.sent.first?.url?.absoluteString, "http://127.0.0.1:8080/health")
+        StubURLProtocol.respond = { _ in .success((200, #"{"status":"downloading"}"#)) }
+        let starting = await LocalDecider.status(session: StubURLProtocol.session(), installed: { true })
+        XCTAssertEqual(starting, .starting("downloading"))
+        StubURLProtocol.respond = { _ in .failure(URLError(.cannotConnectToHost)) }
+        let notRunning = await LocalDecider.status(session: StubURLProtocol.session(), installed: { true })
+        XCTAssertEqual(notRunning, .notRunning)
+        let notInstalled = await LocalDecider.status(session: StubURLProtocol.session(), installed: { false })
+        XCTAssertEqual(notInstalled, .notInstalled)
+    }
+
     func testTheModelSettingPicksTheDecider() {
+        XCTAssertTrue(makeCommandDecider(model: "local", apiKey: "") is LocalDecider)
+        let settings = makeSettings(self)
+        XCTAssertFalse(settings.localCommandDecider, "off by default")
+        XCTAssertEqual(settings.commandDecider, "jev")
+        settings.localCommandDecider = true
+        XCTAssertEqual(settings.commandDecider, "local")
         XCTAssertTrue(makeCommandDecider(model: "jev", apiKey: "k") is JevDecider)
         XCTAssertEqual((makeCommandDecider(model: "google/gemini-3.5-flash-lite", apiKey: "k") as? ChatDecider)?.model,
                        "google/gemini-3.5-flash-lite")
@@ -675,6 +812,55 @@ final class CommandTests: XCTestCase {
             XCTAssertEqual(run.label, expected, "\(model): \(said)")
         }
         }
+    }
+
+    /// The real Decider on this Mac (Settings › Experimental), through `CommandMode.handle` with the
+    /// built-ins faked, as the live Jev test above. Opt-in: ./test.sh --live, with Decider running.
+    @MainActor
+    func testLiveLocalDeciderPicksTheBuiltInCommands() async throws {
+        guard ProcessInfo.processInfo.environment["LIVE_OPENROUTER"] == "1" else { throw XCTSkip("./test.sh --live runs it") }
+        guard await LocalDecider.status() == .ready else { throw XCTSkip("open Decider for Mac to run it") }
+        let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
+        fakeSystem(mode)
+        mode.running = { ["Ghostty", "Safari", "WeChat"] }
+        mode.pressReturn = {}
+        mode.openApp = { _ in }
+        for (said, expected) in [("make the screen a bit brighter", "brightness +10"), ("把亮度调到一半", "brightness 50"),
+                                 ("声音小一点", "volume -10"), ("mute", "volume mute"), ("send it", "return"),
+                                 ("打开 Safari", "open Safari"), ("next song", "media-control next"), ("lock my screen", "lock-screen"),
+                                 ("go to hacker news", "open-website hacker-news"), ("switch to WeChat", "switch-app WeChat"),
+                                 ("open the pod bay doors", "none")] {
+            let started = Date()
+            let run = await mode.handle(said, apiKey: "", model: LocalDecider.name)
+            print("[live] local: \(said) → \(run.label) in \(String(format: "%.2f", Date().timeIntervalSince(started))) s")
+            XCTAssertEqual(run.label, expected, "local: \(said)")
+        }
+    }
+
+    /// Jev on a connection opened 1 s before (as command recording starts) vs a new one: prints both
+    /// waits, so `./test.sh --live` shows what `prepare` saves on this network (~$0.0008).
+    func testLiveJevOnAPreparedConnection() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_API_KEY"] else {
+            throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_API_KEY to run")
+        }
+        let commands = Command.builtIn
+        var cold: [Double] = [], prepared: [Double] = []
+        for _ in 0..<4 {
+            for warm in [false, true] {
+                let decider = JevDecider(apiKey: key, session: URLSession(configuration: .ephemeral))
+                if warm {
+                    decider.prepare()
+                    try await Task.sleep(for: .seconds(1))
+                }
+                let started = Date()
+                let decision = try await decider.decide("mute", among: commands)
+                XCTAssertEqual(decision.command, "volume")
+                (warm ? { prepared.append($0) } : { cold.append($0) })(Date().timeIntervalSince(started))
+            }
+        }
+        func median(_ xs: [Double]) -> String { String(format: "%.0f ms", 1000 * xs.sorted()[xs.count / 2]) }
+        print("[live] jev: new connection \(median(cold)), prepared \(median(prepared))")
     }
 
     /// The real Jev and the real writer, through `CommandMode.handle`: "create command …" writes a

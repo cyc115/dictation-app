@@ -135,6 +135,11 @@ final class AppSettings: ObservableObject {
     /// Experimental: text that arrives after you've switched away goes back to the box you dictated
     /// into, then you're brought back (`GoBack`). On by default.
     @Setting("pasteWhereDictated", default: true) var pasteWhereDictated: Bool
+    /// Experimental: every command is decided on this Mac by Perplexity's Decider (`LocalDecider`),
+    /// never online, whatever `commandModel` says. Off by default.
+    @Setting("localCommandDecider", default: false) var localCommandDecider: Bool
+    /// The model that decides commands now.
+    var commandDecider: String { localCommandDecider ? LocalDecider.name : commandModel }
 
     private static let setupKey = "transcriptionModel"  // the setup's id
     private static let excludedAppsKey = "excludedApps"
@@ -181,7 +186,9 @@ final class AppSettings: ObservableObject {
     var hasOpenRouterKey: Bool { openRouterKey != nil }
     /// Command mode is switched on and can run: a cloud model picks the command, so without the API
     /// key it's off (greyed out in Settings) and the Enter button just presses Return.
-    var commandModeOn: Bool { commandModeEnabled && hasOpenRouterKey }
+    var commandModeOn: Bool { commandModeEnabled && canDecideCommands }
+    /// A command can be decided: online with the key, or on this Mac without one.
+    var canDecideCommands: Bool { hasOpenRouterKey || localCommandDecider }
 
     func setOpenRouterKey(_ key: String?) {
         objectWillChange.send()

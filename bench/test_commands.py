@@ -76,7 +76,7 @@ def test_a_local_decider_is_asked_the_command_then_its_choice(monkeypatch):
     assert commands.ask("local:kev", "mute", cmds, "") == ("volume mute", None, {"confidence": 0.9, "tokens": 0})
     assert asked == [(commands.LOCAL["kev"]["url"], ["command"]), (commands.LOCAL["kev"]["url"], ["choice:volume"])]
     assert commands.local_question("mute", cmds, "volume") == {
-        "choice:volume": commands.jev_body("mute", cmds)["questions"]["choice:volume"]}
+        "choice:volume": commands.jev_body("mute", cmds, {"full-choices"})["questions"]["choice:volume"]}
 
 
 def test_modifiers_trim_a_local_deciders_request(monkeypatch):
@@ -118,12 +118,14 @@ def test_a_run_without_a_cut_off_can_be_scored_with_one():
 
 def test_jev_variants_change_only_what_they_name():
     cmds = commands.app_commands(apps=["Safari"])
-    assert commands.jev_model("jev") == set() and commands.jev_model("jev+bare+warm") == {"bare", "warm"}
+    assert commands.jev_model("jev") == set() and commands.jev_model("jev+full-choices+warm") == {"full-choices", "warm"}
     assert commands.jev_model("jev+fast") is None and commands.jev_model("local:kev") is None
     assert commands.jev_body("mute", cmds, set()) == commands.jev_body("mute", cmds)
-    bare = commands.jev_body("open safari", cmds, {"bare"})["questions"]
+    bare = commands.jev_body("open safari", cmds)["questions"]  # as the app sends it
     assert bare["choice:open"]["criteria"] == {"Safari": None, "none": commands.NO_APP}
-    assert bare["choice:brightness"]["criteria"] == commands.jev_body("x", cmds)["questions"]["choice:brightness"]["criteria"]
+    full = commands.jev_body("open safari", cmds, {"full-choices"})["questions"]
+    assert full["choice:open"]["criteria"] == {"Safari": "Safari", "none": commands.NO_APP}
+    assert bare["choice:brightness"]["criteria"] == full["choice:brightness"]["criteria"]
     worded = commands.jev_body("mute", cmds, {"heard-command", "none-noise"})
     assert worded["state"] == commands.JEV_HEARD["heard-command"] + "\nThe user said: mute"
     assert worded["questions"]["command"]["criteria"]["none"] == commands.JEV_NONE["none-noise"]

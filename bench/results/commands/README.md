@@ -58,9 +58,12 @@ often (5 → 3). None of the badly misheard ones moved ("Increase fitness.", "La
 - **Misheard short commands are Jev's ceiling** (tag `heard`: 39–43% in every variant). Better
   hearing upstream, not a better decider, is where the next points are.
 
-None of this is in the app yet: the warm connection and bare options are code changes in
-`CommandDeciders.swift` / `CommandMode`; the wording would change `CommandDecision.heard`, which
-ChatDecider shares and a test keeps word for word equal to the bench's `HEARD`.
+**In the app since Oct 25:** bare options (`CommandDecision.choiceQuestion`; the bench's `jev` sends
+them too, `+full-choices` the old way) and the warm connection (`JevDecider.prepare`: a HEAD to the
+endpoint as command recording starts). Live, through the app's code (`testLiveJevOnAPreparedConnection`,
+4 × each): new connection 284 ms, prepared 1 s before 171 ms; `testLiveJevPicksTheBuiltInCommands`
+13 / 13 right with bare options. The wording isn't: ~1.5 points is near the noise, and it would change
+`CommandDecision.heard`, which ChatDecider and Decider share.
 
 ## On-device alternatives to Jev (Oct 25, 2026)
 
@@ -175,6 +178,12 @@ the same request 0.7–2.7 s between runs: compare within a run, case by case).
   commands' summaries, which Jev shares), a smaller model (none published), shortlisting `open`'s
   135 apps (a name match would miss 打开微信 → WeChat and misheard names), or a newer Mac's GPU.
   The verdict stands: Decider can't get near Jev's 0.24 s here.
+
+**In the app (Oct 25), experimental:** Settings › Experimental › Decide commands on this Mac sends
+every command to Decider (`LocalDecider`), never online: `local:decider+bare+lean-choice` here. The
+row under it says whether Decider is ready and links to its download (Perplexity's site serves the app
+to a browser only, so the app can't install it itself) or opens it. Live (`testLiveLocalDeciderPicksTheBuiltInCommands`):
+11 / 11 right, 0.7–2.3 s back to back.
 
 ### Running the on-device models
 

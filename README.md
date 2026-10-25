@@ -189,6 +189,9 @@ What it prints first is shown in the pill (“Volume 40%”); exiting with an er
 line it wrote to stderr. The decision model, TypeSafe's Jev through OpenRouter's decisions API,
 answers multiple-choice questions, so a command takes one of its listed choices rather than free
 text. It sees what you said and each command's description and choices, never the scripts.
+Settings › Experimental › **Decide commands on this Mac** asks Perplexity's free
+[Decider for Mac](https://docs.perplexity.ai/docs/decisions/decider-for-mac) instead, on this Mac
+(no key, no network; about 0.9 s a command, to Jev's 0.2 s); the row under it links to the download.
 
 ## Privacy
 

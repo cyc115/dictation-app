@@ -158,6 +158,7 @@ final class DictationController {
         self.engine = engine
         // A command's words, so a short one isn't misheard; plain dictation gets none.
         engine.context = kind == .command ? commandMode.speechContext() : .none
+        if kind == .command { commandMode.prepare(model: settings.commandDecider, apiKey: settings.openRouterKey ?? "") }
         dictationSetup = setup
         self.kind = kind
         // Load the polish model while you speak instead of after you stop.
@@ -292,13 +293,14 @@ final class DictationController {
 
     /// Picks and runs the command `said` asks for, then shows how it went.
     private func runCommand(_ said: String, delivery: Delivery) {
-        guard !said.isEmpty, let key = settings.openRouterKey else {
+        // Decided on this Mac, a command needs no key (only "create" does, and says so).
+        guard !said.isEmpty, let key = settings.openRouterKey ?? (settings.localCommandDecider ? "" : nil) else {
             overlay.hideUnlessMessage()
             return finished(delivery)
         }
         Task { @MainActor [weak self] in
             guard let self else { return }
-            let run = await self.commandMode.handle(said, apiKey: key, model: self.settings.commandModel)
+            let run = await self.commandMode.handle(said, apiKey: key, model: self.settings.commandDecider)
             if !self.dictating { self.overlay.show(run.message) }  // a new dictation's pill stays
             self.finished(delivery)
         }
