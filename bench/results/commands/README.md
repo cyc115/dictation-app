@@ -1,5 +1,67 @@
 # Command mode's decision model
 
+## Tuning Jev's request (Oct 25, 2026)
+
+Jev is hosted, so there's nothing to train: what the app controls is the request (its size, its
+wording), the connection, and the confidence cut-off. Five rounds, each an interleaved run of
+variants (`jev+<modifier>…`, see `suites/commands.py` `JEV_MODIFIERS`) so they shared the network;
+117 cases × 2–3 rounds. Wording changes were judged on a held-out half too (odd cases), since tuning
+words on 117 cases can just fit them. Run-to-run noise for the same request: about ±1 point.
+
+**What Jev's wait depends on** (probe, 6 phrases × 3, interleaved):
+
+| request | input tokens | wait p50 | cost per 1000 |
+|:--|--:|--:|--:|
+| the app's (command + 8 choice questions, `open`'s 135 apps) | 4,194 | 232 ms | $0.176 |
+| options named by themselves sent bare (`"Safari": null`) | 3,083 | 225 ms | $0.129 |
+| without `open`'s question | 2,063 | 232 ms | $0.087 |
+| the command question alone | 701 | 213 ms | $0.029 |
+| on a new connection / of which connect + TLS / on a reused one | | 232 / 51 / **166 ms** | |
+
+Size moves the cost, not the wait; the connection moves the wait.
+
+| round | tried (on top of the previous best) | result | kept |
+|:--|:--|:--|:--|
+| 1 | `bare`; `warm` (one connection kept open) | bare: same accuracy, **−26% cost**. warm: **p50 230 → 164 ms**, p90 294 → 228 | both |
+| 2 | state wording: `heard-command` ("the user is speaking a command … answer none only when it can't be one"), `heard-aloud` | +0.5–0.9 pt, held-out unchanged: noise | heard-command (fewer wrong runs) |
+| 3 | `none-noise` ("noise, chatter, or a request none of them does"), `ask-sound` ("go by how the words sound") | +0.9–1.3 pt, held-out +1.7 pt, 2 wrong runs | both, to confirm |
+| 4 | original vs `bare+warm` vs all of it, 3 rounds; cut-offs 0.35–0.5 | see below | — |
+| 5 | original vs final, fresh 3 rounds | confirms round 4 | stop: nothing left to try that wording could reach |
+
+Rounds 4 and 5 ([`20261025-140218_3-models.json`](20261025-140218_3-models.json),
+[`20261025-140523_2-models.json`](20261025-140523_2-models.json)), at the app's 0.5 cut-off:
+
+| | right (r4 / r5) | held-out | wrong runs | wait p50 | p90 | p95 | per 1000 |
+|:--|--:|--:|--:|--:|--:|--:|--:|
+| `jev` (the app today) | 86.6% / 85.8% | 84.5% / 83.3% | 5 / 6 | 236–244 ms | 301–314 | 363–425 | $0.176 |
+| `jev+bare+warm` | 86.9% / — | 84.5% | 4 | **156 ms** | 196 | 225 | **$0.130** |
+| `jev+bare+warm+heard-command+none-noise+ask-sound` | **87.2% / 87.2%** | 85.1% / 85.6% | **3 / 3** | 157–170 ms | 211–222 | 242–283 | $0.131 |
+
+What changed, per phrase (r4 + r5, 6 tries each): the Thai noise line no longer opens Clock (3 → 0
+wrong runs), "Uh, focus on news." no longer runs a command (2 → 0), "make it brighter and turn the
+volume down" and "新建命令 现在几点了" come right more often (0 → 2, 4 → 6), "A press center." less
+often (5 → 3). None of the badly misheard ones moved ("Increase fitness.", "Laws of Physics.",
+"In turn.", "Bring this up."): Jev answers none to them at 0.6–0.9 confidence whatever it's told.
+
+### Learnings
+
+- **Latency: warm the connection, nothing else helps.** Jev's own time is ~165 ms and flat in the
+  request's size; a new TLS connection adds ~65 ms (reused: −30% p50, −38–43% p95). Commands
+  come minutes apart, so the app's `URLSession.shared` has usually dropped its connection by then.
+  Opening it when command recording starts (while you speak) would take it off the wait.
+- **Cost: send options named by themselves without a meaning.** −26% at the same accuracy
+  (`open`'s 135 apps were sent as `"Safari": "Safari"`). Cost is ~$0.13 per 1000 decisions after.
+- **Accuracy: wording is worth ~1.5 points and half the wrong runs, no more.** The gain is on noise
+  (fewer commands run on chatter), not on garbled commands; those are the speech model's to fix.
+  The cut-off can trade: 0.40 adds ~1.4 points and 1–3 wrong runs per 351, so keep 0.5 (a wrong
+  run costs more than a miss).
+- **Misheard short commands are Jev's ceiling** (tag `heard`: 39–43% in every variant). Better
+  hearing upstream, not a better decider, is where the next points are.
+
+None of this is in the app yet: the warm connection and bare options are code changes in
+`CommandDeciders.swift` / `CommandMode`; the wording would change `CommandDecision.heard`, which
+ChatDecider shares and a test keeps word for word equal to the bench's `HEARD`.
+
 ## On-device alternatives to Jev (Oct 25, 2026)
 
 Can command mode decide on this Mac instead of asking Jev, without losing accuracy or speed, and what

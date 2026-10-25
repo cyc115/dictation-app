@@ -39,9 +39,12 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import http.client
 import json
 import re
+import threading
 import time
+import urllib.parse
 from datetime import datetime
 from pathlib import Path
 
@@ -135,22 +138,81 @@ def label(command: str | None, choice: str | None) -> str:
 
 # ---------------------------------------------------------------- deciders
 
-def jev_body(said: str, commands: list[dict]) -> dict:
-    """JevDecider.request's body."""
+# Variants of Jev's request, for tuning it: name the model with modifiers (jev+bare+heard-command).
+# Each is its own model in a run, interleaved with the others, so they all see the same network.
+# Jev's wait hardly depends on the request's size (4,200 tokens or 700: ~230 ms); its cost does.
+JEV_HEARD = {  # other things to tell Jev before what was said (the app's: HEARD)
+    "heard-command": "The user is speaking a command to their Mac and speech-to-text wrote it down, so words may be "
+                     "misheard: go by how they sound (“lower the bright knees” is “lower the brightness”, “press and "
+                     "her” is “press Enter”). Short commands come out the most garbled. Answer none only when it "
+                     "can't be one of these.",
+    "heard-aloud": HEARD.replace("A stray word or two that sounds like no command is none.",
+                                 "Say it out loud: if it sounds like a command, it's that command, even when the words "
+                                 "make sense as something else. A stray word or two that sounds like no command is none."),
+}
+JEV_NONE = {  # other meanings for the command question's "none" (the app's: NONE)
+    "none-noise": "It doesn't sound like any of these: noise, chatter, or a request none of them does",
+}
+NONE = "None of these does what the user asked"
+JEV_ASK = {  # other instructions for the command question (the app's: ASK)
+    "ask-sound": "Which command did the user ask for? Go by how the words sound, not what they mean.",
+}
+ASK = "Which command does what the user asked for?"
+JEV_MODIFIERS = {"bare": "options named by themselves (\"Safari\": \"Safari\") are sent without a meaning",
+                 "warm": "one connection kept open between requests (as a warmed-up app would have)",
+                 **{k: "the state starts: " + v[:60] + "…" for k, v in JEV_HEARD.items()},
+                 **{k: "none means: " + v for k, v in JEV_NONE.items()},
+                 **{k: "the command question: " + v for k, v in JEV_ASK.items()}}
+
+
+def jev_model(model: str) -> set[str] | None:
+    """jev[+modifier…] → its modifiers; None if it isn't Jev."""
+    name, *mods = model.split("+")
+    return set(mods) if name == "jev" and set(mods) <= set(JEV_MODIFIERS) else None
+
+
+def jev_body(said: str, commands: list[dict], mods: set[str] = frozenset()) -> dict:
+    """JevDecider.request's body (with no modifiers)."""
     which = {c["name"]: c["summary"] for c in commands}
-    which["none"] = "None of these does what the user asked"
-    questions = {"command": {"type": "choice", "instructions": "Which command does what the user asked for?",
+    which["none"] = next((JEV_NONE[m] for m in mods if m in JEV_NONE), NONE)
+    questions = {"command": {"type": "choice", "instructions": next((JEV_ASK[m] for m in mods if m in JEV_ASK), ASK),
                              "criteria": which}}
     for c in commands:
         if c["choices"]:
+            criteria = {k: None if v == k else v for k, v in c["choices"].items()} if "bare" in mods else c["choices"]
             questions["choice:" + c["name"]] = {
                 "type": "choice", "instructions": f"If the user wants {c['name']} ({c['summary']}): which of these?",
-                "criteria": c["choices"]}
-    return {"model": JEV, "state": HEARD + "\nThe user said: " + said, "questions": questions}
+                "criteria": criteria}
+    heard = next((JEV_HEARD[m] for m in mods if m in JEV_HEARD), HEARD)
+    return {"model": JEV, "state": heard + "\nThe user said: " + said, "questions": questions}
 
 
-def ask_jev(said: str, commands: list[dict], key: str) -> tuple[str, float | None, dict]:
-    answer = post_json(DECISIONS, jev_body(said, commands), key)
+_connections = threading.local()  # +warm: each worker's open connection to OpenRouter
+
+
+def post_warm(url: str, body: dict, key: str) -> dict:
+    """post_json over a connection kept open between calls (opened again if the server closed it)."""
+    parts = urllib.parse.urlsplit(url)
+    for attempt in range(2):
+        conn = getattr(_connections, parts.netloc, None) or http.client.HTTPSConnection(parts.netloc, timeout=30)
+        setattr(_connections, parts.netloc, conn)
+        try:
+            conn.request("POST", parts.path, json.dumps(body).encode(), openrouter.headers(key))
+            response = conn.getresponse()
+            data = response.read()
+        except (http.client.HTTPException, OSError):
+            conn.close()
+            setattr(_connections, parts.netloc, None)
+            if attempt:
+                raise
+            continue
+        if response.status != 200:
+            raise RuntimeError(f"HTTP {response.status}: {data.decode(errors='replace')[:300]}")
+        return json.loads(data)
+
+
+def ask_jev(said: str, commands: list[dict], key: str, mods: set[str] = frozenset()) -> tuple[str, float | None, dict]:
+    answer = (post_warm if "warm" in mods else post_json)(DECISIONS, jev_body(said, commands, mods), key)
     answers = answer["answers"]
     pick = answers["command"]
     name = pick["choice"]
@@ -230,14 +292,15 @@ def ask_chat(model: str, said: str, commands: list[dict], key: str) -> tuple[str
 
 
 def ask(model: str, said: str, commands: list[dict], key: str):
-    if model == "jev":
-        got, cost, extra = ask_jev(said, commands, key)
+    if (mods := jev_model(model)) is not None:
+        got, cost, extra = ask_jev(said, commands, key, mods)
     elif model.startswith("openrouter:"):
         got, cost, extra = ask_chat(model[len("openrouter:"):], said, commands, key)
     elif model.startswith("local:") and model[len("local:"):] in LOCAL:
         got, cost, extra = ask_local(model[len("local:"):], said, commands)
     else:
-        raise SystemExit(f"unknown model {model!r}: use jev, openrouter:<id> or local:<{'|'.join(LOCAL)}>")
+        raise SystemExit(f"unknown model {model!r}: use jev[+{'|'.join(JEV_MODIFIERS)}…], openrouter:<id> "
+                         f"or local:<{'|'.join(LOCAL)}>")
     return ("none" if got == "open none" else got), cost, extra
 
 

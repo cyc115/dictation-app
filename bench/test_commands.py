@@ -91,3 +91,16 @@ def test_a_run_without_a_cut_off_can_be_scored_with_one():
                {"expect": ["none"], "got": "none", "error": "timeout", "score": "error"}]
     assert [a["score"] for a in commands.at_cutoff(answers, 0.5)] == ["missed", "right", "error"]
     assert [a["score"] for a in commands.at_cutoff(answers, 0.35)] == ["right", "right", "error"]
+
+
+def test_jev_variants_change_only_what_they_name():
+    cmds = commands.app_commands(apps=["Safari"])
+    assert commands.jev_model("jev") == set() and commands.jev_model("jev+bare+warm") == {"bare", "warm"}
+    assert commands.jev_model("jev+fast") is None and commands.jev_model("local:kev") is None
+    assert commands.jev_body("mute", cmds, set()) == commands.jev_body("mute", cmds)
+    bare = commands.jev_body("open safari", cmds, {"bare"})["questions"]
+    assert bare["choice:open"]["criteria"] == {"Safari": None, "none": commands.NO_APP}
+    assert bare["choice:brightness"]["criteria"] == commands.jev_body("x", cmds)["questions"]["choice:brightness"]["criteria"]
+    worded = commands.jev_body("mute", cmds, {"heard-command", "none-noise"})
+    assert worded["state"] == commands.JEV_HEARD["heard-command"] + "\nThe user said: mute"
+    assert worded["questions"]["command"]["criteria"]["none"] == commands.JEV_NONE["none-noise"]
