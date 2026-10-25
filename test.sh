@@ -28,7 +28,9 @@ done
 (( LOCAL )) && export LIVE_LOCAL_MODEL=1
 LOG="${TMPDIR:-/tmp}/dictationapp-test.log"
 swift test "${args[@]}" 2>&1 | tee "$LOG" | grep -E "error:|failed|Executed .* tests|\[perf\]|\[local\]" || true
-if grep -qE "error:|with [1-9][0-9]* failures?" "$LOG"; then
+# A compile error or failed assertion; not a SwiftPM warning that mentions one ("warning: …: skipping
+# cache due to an error: …", printed by a fresh clone's first resolve).
+if grep -vE "^warning:" "$LOG" | grep -qE "error:|with [1-9][0-9]* failures?"; then
   echo "❌ tests failed (full log: $LOG)"
   exit 1
 fi
