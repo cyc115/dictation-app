@@ -25,7 +25,9 @@ Models:
   local:<name>          an on-device decision model behind its own server on this Mac, speaking Jev's
                         format (LOCAL: laya, laya-ml, kev, decider). Asked the command first, then
                         that command's choice: two requests, one question each (Decider takes one).
-                        Run with --workers 1, one local model at a time, so they don't share the GPU.
+                        Run with --workers 1, so they don't share the GPU. Modifiers trim the prompt
+                        (its wait follows its length): local:decider+bare+short-choice+preamble-short
+                        (MODIFIERS); variants in one run are interleaved, so they see the same noise.
 
 Scores: right (an expected answer), wrong run (ran a command that shouldn't run: the costly
 mistake), missed (said "none" when a command should run). Wait: one request from this machine (local:
@@ -222,28 +224,64 @@ def ask_jev(said: str, commands: list[dict], key: str, mods: set[str] = frozense
     return label(name, choice), answer.get("usage", {}).get("cost"), {"confidence": pick.get("confidence")}
 
 
-def local_question(said: str, commands: list[dict], name: str | None = None) -> dict:
-    """One of JevDecider's questions, as a local decider gets it: the command, or `name`'s choice."""
+# A local decider's wait grows with its prompt (Decider: ~1.4 ms a token, nothing cached between
+# requests), so its requests can be trimmed, by naming the model with modifiers
+# (local:decider+bare+short-choice+preamble-short): each is its own model in a run, interleaved with the rest.
+SHORT_HEARD = "Speech-to-text wrote this down, so words may be misheard: go by how they sound."
+PREAMBLES = {"full": HEARD + "\n", "short": SHORT_HEARD + "\n", "none": ""}
+MODIFIERS = {"bare": "options named by themselves (\"Safari\": \"Safari\") are sent without a meaning",
+             "short-choice": "the choice question doesn't repeat the command's summary",
+             "preamble-short": "a one-line \"may be misheard\" instead of the app's HEARD",
+             "preamble-none": "just what the user said",
+             "lean-choice": "the choice question gets just what the user said (the command question keeps the preamble)"}
+
+
+def local_question(said: str, commands: list[dict], name: str | None = None,
+                   bare_choices: bool = False, short_choice: bool = False) -> dict:
+    """One of JevDecider's questions, as a local decider gets it: the command, or `name`'s choice.
+    bare_choices: an option whose meaning is its own name ("Safari": "Safari") is sent without one;
+    short_choice: the choice question doesn't repeat the command's summary."""
     key = "command" if name is None else "choice:" + name
-    return {key: jev_body(said, commands)["questions"][key]}
+    question = jev_body(said, commands)["questions"][key]
+    if bare_choices:
+        question = {**question, "criteria": {k: None if v == k else v for k, v in question["criteria"].items()}}
+    if short_choice and name is not None:
+        question = {**question, "instructions": f"The user wants {name}: which of these?"}
+    return {key: question}
 
 
-def ask_local(name: str, said: str, commands: list[dict]) -> tuple[str, float | None, dict]:
+def local_model(model: str) -> tuple[str, set[str]] | None:
+    """local:<name>[+modifier…] → (name, modifiers); None if it isn't one."""
+    if not model.startswith("local:"):
+        return None
+    name, *mods = model[len("local:"):].split("+")
+    return (name, set(mods)) if name in LOCAL and set(mods) <= set(MODIFIERS) else None
+
+
+def ask_local(name: str, said: str, commands: list[dict], mods: set[str] = frozenset()) -> tuple[str, float | None, dict]:
     server = LOCAL[name]
+    shape = {"bare_choices": "bare" in mods, "short_choice": "short-choice" in mods}
+    preamble = PREAMBLES["short" if "preamble-short" in mods else "none" if "preamble-none" in mods else "full"]
+    tokens = 0
 
     def answers(questions: dict) -> dict:
-        body = {"model": server["model"], "state": HEARD + "\nThe user said: " + said, "questions": questions}
-        return post_json(server["url"], body, "local")["answers"]
+        nonlocal tokens
+        lean = "lean-choice" in mods and "command" not in questions
+        body = {"model": server["model"], "state": ("" if lean else preamble) + "The user said: " + said,
+                "questions": questions}
+        answer = post_json(server["url"], body, "local")
+        tokens += answer.get("usage", {}).get("input_tokens", 0)
+        return answer["answers"]
 
-    pick = answers(local_question(said, commands))["command"]
+    pick = answers(local_question(said, commands, **shape))["command"]
     # Laya's own confidence is entropy; x_jev_confidence is Jev's formula, which MIN_CONFIDENCE is for.
     picked, confidence = pick["choice"], pick.get("x_jev_confidence", pick.get("confidence", 0))
     if picked == "none" or confidence < _min_confidence:
-        return "none", None, {"confidence": confidence, "picked": picked}
+        return "none", None, {"confidence": confidence, "picked": picked, "tokens": tokens}
     if not any(c["name"] == picked and c["choices"] for c in commands):
-        return label(picked, None), None, {"confidence": confidence}
-    choice = answers(local_question(said, commands, picked))["choice:" + picked]["choice"]
-    return label(picked, choice), None, {"confidence": confidence}
+        return label(picked, None), None, {"confidence": confidence, "tokens": tokens}
+    choice = answers(local_question(said, commands, picked, **shape))["choice:" + picked]["choice"]
+    return label(picked, choice), None, {"confidence": confidence, "tokens": tokens}
 
 
 def chat_prompt(commands: list[dict]) -> str:
@@ -296,11 +334,11 @@ def ask(model: str, said: str, commands: list[dict], key: str):
         got, cost, extra = ask_jev(said, commands, key, mods)
     elif model.startswith("openrouter:"):
         got, cost, extra = ask_chat(model[len("openrouter:"):], said, commands, key)
-    elif model.startswith("local:") and model[len("local:"):] in LOCAL:
-        got, cost, extra = ask_local(model[len("local:"):], said, commands)
+    elif local := local_model(model):
+        got, cost, extra = ask_local(local[0], said, commands, local[1])
     else:
         raise SystemExit(f"unknown model {model!r}: use jev[+{'|'.join(JEV_MODIFIERS)}…], openrouter:<id> "
-                         f"or local:<{'|'.join(LOCAL)}>")
+                         f"or local:<{'|'.join(LOCAL)}>[+{'|'.join(MODIFIERS)}…]")
     return ("none" if got == "open none" else got), cost, extra
 
 
@@ -347,9 +385,11 @@ def summary(answers: list[dict]) -> dict:
     n = len(answers)
     count = lambda s: sum(a["score"] == s for a in answers)  # noqa: E731
     costs = [a["cost"] for a in answers if a["cost"] is not None]
+    tokens = [a["tokens"] for a in answers if a.get("tokens")]
     return {"right": count("right") / n, "wrong_run": count("wrong-run"), "missed": count("missed"),
             "errors": count("error"), "n": n, "seconds": harness.describe([a["seconds"] for a in answers if not a["error"]]),
-            "cost_per_1000": 1000 * sum(costs) / len(costs) if costs else None}
+            "cost_per_1000": 1000 * sum(costs) / len(costs) if costs else None,
+            "tokens": round(sum(tokens) / len(tokens)) if tokens else None}
 
 
 def by_tag(answers: list[dict]) -> dict[str, float]:
@@ -386,11 +426,12 @@ def report(data: dict, markdown: bool = False, failures: str | None = None) -> s
         rows.append([model, f"{100 * s['right']:.0f}%", s["wrong_run"], s["missed"], s["errors"],
                      harness.seconds(s["seconds"].get("p50")), harness.seconds(s["seconds"].get("p90")),
                      harness.seconds(s["seconds"].get("p95")),
-                     f"${s['cost_per_1000']:.3f}" if s["cost_per_1000"] is not None else "–"]
+                     f"${s['cost_per_1000']:.3f}" if s["cost_per_1000"] is not None else "–", s["tokens"] or "–"]
                     + [f"{100 * t[tag]:.0f}%" for tag in tags])
     rows.sort(key=lambda r: (-float(r[1][:-1]), r[2]))
     out = [f"{len(data['commands'])} commands, {data['rounds']} round(s)",
-           harness.table(["model", "right", "wrong runs", "missed", "errors", "wait p50", "p90", "p95", "per 1000"] + tags,
+           harness.table(["model", "right", "wrong runs", "missed", "errors", "wait p50", "p90", "p95", "per 1000",
+                          "tokens"] + tags,
                          rows, markdown=markdown)]
     if data.get("min_confidence", MIN_CONFIDENCE) < MIN_CONFIDENCE:
         out += [f"\nconfidence cut-off (run at {data['min_confidence']}; the app's is {MIN_CONFIDENCE}):",
@@ -407,9 +448,9 @@ def report(data: dict, markdown: bool = False, failures: str | None = None) -> s
 def resources(model: str, cases: list[dict], commands: list[dict], n: int, idle: float) -> dict:
     """A local:<name> model's server, measured from outside: memory, CPU while idle, and per decision
     (both requests) its CPU and GPU time and the energy they'd take (procstats)."""
-    name = model[len("local:"):] if model.startswith("local:") else None
-    if name not in LOCAL:
-        raise SystemExit(f"resources measures a local model's server: local:<{'|'.join(LOCAL)}>")
+    if not local_model(model):
+        raise SystemExit(f"resources measures a local model's server: local:<{'|'.join(LOCAL)}>[+modifier…]")
+    name = local_model(model)[0]
     port = int(LOCAL[name]["url"].split(":")[2].split("/")[0])
     pid = procstats.pid_on_port(port)
     if pid is None:

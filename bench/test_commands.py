@@ -73,10 +73,33 @@ def test_a_local_decider_is_asked_the_command_then_its_choice(monkeypatch):
 
     monkeypatch.setattr(commands, "post_json", fake_post)
     cmds = commands.app_commands(apps=[])
-    assert commands.ask("local:kev", "mute", cmds, "") == ("volume mute", None, {"confidence": 0.9})
+    assert commands.ask("local:kev", "mute", cmds, "") == ("volume mute", None, {"confidence": 0.9, "tokens": 0})
     assert asked == [(commands.LOCAL["kev"]["url"], ["command"]), (commands.LOCAL["kev"]["url"], ["choice:volume"])]
     assert commands.local_question("mute", cmds, "volume") == {
         "choice:volume": commands.jev_body("mute", cmds)["questions"]["choice:volume"]}
+
+
+def test_modifiers_trim_a_local_deciders_request(monkeypatch):
+    assert commands.local_model("local:decider+bare+preamble-short") == ("decider", {"bare", "preamble-short"})
+    assert commands.local_model("local:decider+fast") is None and commands.local_model("jev") is None
+    cmds = commands.app_commands(apps=["Safari"])
+    bare = commands.local_question("open safari", cmds, "open", bare_choices=True, short_choice=True)["choice:open"]
+    assert bare["criteria"] == {"Safari": None, "none": commands.NO_APP}
+    assert bare["instructions"] == "The user wants open: which of these?"
+    sent = []
+    monkeypatch.setattr(commands, "post_json", lambda url, body, key: sent.append(body) or {
+        "answers": {"command": {"choice": "none", "confidence": 1}}, "usage": {"input_tokens": 40}})
+    assert commands.ask("local:decider+preamble-none", "mute", cmds, "") == (
+        "none", None, {"confidence": 1, "picked": "none", "tokens": 40})
+    assert sent[0]["state"] == "The user said: mute"
+
+
+def test_lean_choice_keeps_the_preamble_for_the_command_only(monkeypatch):
+    sent = []
+    monkeypatch.setattr(commands, "post_json", lambda url, body, key: sent.append(body) or {"answers": {
+        "command": {"choice": "volume", "confidence": 0.9}, "choice:volume": {"choice": "mute"}}})
+    commands.ask("local:decider+lean-choice", "mute", commands.app_commands(apps=[]), "")
+    assert [b["state"] for b in sent] == [commands.HEARD + "\nThe user said: mute", "The user said: mute"]
 
 
 def test_a_local_pick_under_the_cut_off_is_none_and_laya_uses_jevs_confidence(monkeypatch):

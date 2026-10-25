@@ -145,6 +145,7 @@ Jev's limits: [`results/commands/`](results/commands/README.md).
 bench/suite.py commands run                       # Jev and six chat models
 bench/suite.py commands run -m jev -m openrouter:deepseek/deepseek-v4.1-flash -r 3 --catalog
 bench/suite.py commands run -m jev -m local:decider -r 3 --workers 1 --min-confidence 0   # + cut-off table
+bench/suite.py commands run -m local:decider -m local:decider+bare+lean-choice -r 1 --workers 1   # trimmed requests
 bench/suite.py commands resources -m local:decider   # memory, idle CPU, CPU/GPU time and energy per decision
 bench/suite.py commands run -m jev -m jev+bare+warm -r 2 --workers 1   # variants of Jev's request (JEV_MODIFIERS), interleaved
 bench/suite.py commands report --failures jev

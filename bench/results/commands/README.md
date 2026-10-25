@@ -144,6 +144,38 @@ to 100), and holds 6 GB. It's worth a second look as an **offline fallback** (no
 Decider) rather than the default. Kev 0.8B and Laya would need fine-tuning on command data first.
 Bigger Kev models (4B: 721 ms for five questions on an M5, per its README) would land in Decider's range.
 
+### Tuning Decider's speed (5 rounds)
+
+Decider for Mac is llama.cpp running the one GGUF Perplexity publishes (Q8_0); the app has no speed
+settings (only its port and start at login). What's left is the request. Its wait follows the prompt:
+**~1.4 ms per prompt token**, with nothing cached between requests (the same request twice takes as
+long), no gain from two questions in one request, and one request at a time (two in parallel take as
+long as in a row). So each round trimmed tokens, as a model modifier (`local:decider+bare+…`), the
+candidates interleaved with the current best in one run so the Mac's noise hit both alike (it swung
+the same request 0.7–2.7 s between runs: compare within a run, case by case).
+
+| round | change | tokens / decision | wait vs best (paired median) | right | wrong runs | kept |
+|:--|:--|--:|--:|--:|--:|:--|
+| 0 | baseline (the app's questions) | 628 | — | 88.0% | 4 per round | |
+| 1 | `bare`: options named by themselves sent without a meaning (`"Safari": null`) | 599 | ×1.00; `open` 1.93 → 1.25 s, p95 −1 s | 88.0% | 4 | ✓ |
+| 2 | `short-choice`: choice question doesn't repeat the command's summary | 592 | ×0.99 | 85.5% | 7 | ✗ |
+| 2 | `preamble-short`: one line instead of HEARD | 535 | ×0.90 | 85.5% | 6 | ✗ |
+| 3 | `lean-choice`: HEARD on the command question only | 563 | ×0.96 | 88.0% | 4 | ✓ |
+| 4 | warm-up ping as command mode starts, vs after 30 s idle | — | no cold start: 0.92 s idle, 0.91 s pinged | | | ✗ (no need) |
+| 5 | gap since the last decision: 0 → 4 s | — | back to back 1.06 s (spikes to 2 s); ≥1 s apart 0.90 s | | | (finding) |
+
+- **Best: `local:decider+bare+lean-choice`**: 10% fewer tokens, ~5% less wait on a typical command
+  and ~1 s less on `open`, same answers as the baseline.
+- **HEARD earns its tokens.** Shortening it lost "A press center." (→ Return) and made "Dear John,
+  thanks for the update…" press Return, though it also stopped two bad wrong runs.
+- **The bench overstates Decider's wait.** Back to back it's busy for a moment after each answer
+  (round 5); commands seconds apart wait **~0.9 s** with a choice and ~0.6 s without (lock, Return)
+  on this M1 Max. Jev: 0.24 s.
+- **What's left is out of the request's reach:** the command question (~400 tokens, mostly the
+  commands' summaries, which Jev shares), a smaller model (none published), shortlisting `open`'s
+  135 apps (a name match would miss 打开微信 → WeChat and misheard names), or a newer Mac's GPU.
+  The verdict stands: Decider can't get near Jev's 0.24 s here.
+
 ### Running the on-device models
 
 Each runs as its own local server (outside the repo; the app never starts them):
@@ -160,6 +192,8 @@ LAYA_HOST=127.0.0.1 LAYA_PORT=8010 LAYA_TOURNAMENT_GROUP=64 .venv/bin/laya-mlx-s
 bench/suite.py commands run -m jev -m local:decider -m local:kev -m local:laya -m local:laya-ml \
     -r 3 --workers 1 --min-confidence 0       # 0: keep every pick; the report then compares cut-offs
 bench/suite.py commands resources -m local:kev   # one local model at a time
+bench/suite.py commands run -m local:decider+bare -m local:decider+bare+lean-choice -r 1 --workers 1 \
+    --min-confidence 0                        # tuning: variants interleaved; compare case by case
 ```
 
 `LAYA_TOURNAMENT_GROUP` lets Laya take `open`'s 135 apps (it caps a question at 100 options otherwise).

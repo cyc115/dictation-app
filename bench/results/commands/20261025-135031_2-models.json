@@ -1,0 +1,7996 @@
+{
+  "models": [
+    "local:decider",
+    "local:decider+bare"
+  ],
+  "rounds": 2,
+  "commands": [
+    "return",
+    "repeat",
+    "create",
+    "fix",
+    "open",
+    "brightness",
+    "volume",
+    "lock-screen",
+    "media-control",
+    "open-website",
+    "switch-app",
+    "ask-muse"
+  ],
+  "results": {
+    "local:decider": [
+      {
+        "said": "make the screen a bit brighter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.6496207090094686,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9882565720978373,
+        "tokens": 641
+      },
+      {
+        "said": "dim the screen",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.3566327920125332,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9541047812967405,
+        "tokens": 635
+      },
+      {
+        "said": "brightness all the way up",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 100"
+        ],
+        "got": "brightness 100",
+        "score": "right",
+        "seconds": 1.2554614580003545,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9826760074003773,
+        "tokens": 639
+      },
+      {
+        "said": "set the brightness to half",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.4824779579939786,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9894661431037198,
+        "tokens": 639
+      },
+      {
+        "said": "it's way too bright",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness -30",
+          "brightness -10"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.3455653340206482,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9585016599469857,
+        "tokens": 639
+      },
+      {
+        "said": "brightness to a quarter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 25"
+        ],
+        "got": "brightness 25",
+        "score": "right",
+        "seconds": 1.3631548330013175,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9678822816603936,
+        "tokens": 637
+      },
+      {
+        "said": "turn it up a little",
+        "tags": [
+          "en",
+          "ambiguous"
+        ],
+        "expect": [
+          "volume +10"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.403731375001371,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8986185124491641,
+        "tokens": 655
+      },
+      {
+        "said": "louder",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume +10",
+          "volume +30"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.4049292919808067,
+        "cost": null,
+        "error": null,
+        "confidence": 0.892722268138736,
+        "tokens": 647
+      },
+      {
+        "said": "crank the volume way up",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume +30",
+          "volume 100"
+        ],
+        "got": "volume 100",
+        "score": "right",
+        "seconds": 1.4355764169886243,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9789097790305522,
+        "tokens": 655
+      },
+      {
+        "said": "mute",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.7452639999974053,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9676595052368562,
+        "tokens": 647
+      },
+      {
+        "said": "unmute please",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume unmute"
+        ],
+        "got": "volume unmute",
+        "score": "right",
+        "seconds": 1.396101499994984,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9684609222849345,
+        "tokens": 651
+      },
+      {
+        "said": "volume seventy five",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume 75"
+        ],
+        "got": "volume 75",
+        "score": "right",
+        "seconds": 1.2984726249997038,
+        "cost": null,
+        "error": null,
+        "confidence": 0.974578873414938,
+        "tokens": 651
+      },
+      {
+        "said": "quiet it down a lot",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume -30"
+        ],
+        "got": "volume -30",
+        "score": "right",
+        "seconds": 1.297032875008881,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9804104231125959,
+        "tokens": 655
+      },
+      {
+        "said": "send it",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.8742843750223983,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9732269246905845,
+        "tokens": 402
+      },
+      {
+        "said": "press enter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.8356476250046398,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9848295070307954,
+        "tokens": 402
+      },
+      {
+        "said": "submit",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.9377550829958636,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9452405443121144,
+        "tokens": 401
+      },
+      {
+        "said": "do that again",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 0.829617125011282,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9793283900322248,
+        "tokens": 403
+      },
+      {
+        "said": "one more time",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 0.8261527910071891,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9337119400212248,
+        "tokens": 403
+      },
+      {
+        "said": "把亮度调到一半",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.3343553329759743,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9769348151213111,
+        "tokens": 639
+      },
+      {
+        "said": "屏幕太亮了",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.3487225419958122,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9549537450965001,
+        "tokens": 637
+      },
+      {
+        "said": "亮一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.2791222500090953,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9286798282291616,
+        "tokens": 635
+      },
+      {
+        "said": "亮度调到最大",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness 100"
+        ],
+        "got": "brightness 100",
+        "score": "right",
+        "seconds": 1.399507166002877,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9786772951740877,
+        "tokens": 637
+      },
+      {
+        "said": "屏幕调暗很多",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.4431766250054352,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9714996241349633,
+        "tokens": 639
+      },
+      {
+        "said": "声音小一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.2888932499918155,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9701249337664262,
+        "tokens": 653
+      },
+      {
+        "said": "大声一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume +10"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.3033921669994015,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9587501486731075,
+        "tokens": 651
+      },
+      {
+        "said": "静音",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.388364292011829,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9644420933014577,
+        "tokens": 649
+      },
+      {
+        "said": "取消静音",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume unmute"
+        ],
+        "got": "volume unmute",
+        "score": "right",
+        "seconds": 1.3149639169860166,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9546302795181332,
+        "tokens": 651
+      },
+      {
+        "said": "音量调到百分之二十五",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume 25"
+        ],
+        "got": "volume 25",
+        "score": "right",
+        "seconds": 1.3429360000009183,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9787837735473841,
+        "tokens": 655
+      },
+      {
+        "said": "发送",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.4015386250102893,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9703506713994088,
+        "tokens": 402
+      },
+      {
+        "said": "再来一次",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 1.0476303749892395,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9495713349087351,
+        "tokens": 403
+      },
+      {
+        "said": "brightness 调到一半",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.4537653329898603,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9740865114359274,
+        "tokens": 637
+      },
+      {
+        "said": "把 volume 调小一点",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.3271948329929728,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9764491655631407,
+        "tokens": 659
+      },
+      {
+        "said": "帮我 mute 一下",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.360133540991228,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9719610961233285,
+        "tokens": 655
+      },
+      {
+        "said": "send 一下",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.8473077079979703,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9315022117105655,
+        "tokens": 403
+      },
+      {
+        "said": "screen 太暗了",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "brightness +30",
+        "score": "right",
+        "seconds": 1.33242158399662,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9467828775019863,
+        "tokens": 639
+      },
+      {
+        "said": "volume 开到最大",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume 100"
+        ],
+        "got": "volume 100",
+        "score": "right",
+        "seconds": 1.3873882920015603,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9721618635172389,
+        "tokens": 653
+      },
+      {
+        "said": "再 repeat 一次",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 0.8329032089968678,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9674552162591371,
+        "tokens": 405
+      },
+      {
+        "said": "亮度 up 一点",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.3694057089742273,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9698074851533269,
+        "tokens": 639
+      },
+      {
+        "said": "uh can you um make the screen like a little brighter",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.3434767500148155,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9872185875465983,
+        "tokens": 651
+      },
+      {
+        "said": "嗯那个声音太大了吧",
+        "tags": [
+          "filler",
+          "zh"
+        ],
+        "expect": [
+          "volume -10",
+          "volume -30"
+        ],
+        "got": "volume -30",
+        "score": "right",
+        "seconds": 1.3585118330083787,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9384960023147633,
+        "tokens": 657
+      },
+      {
+        "said": "so yeah just send it I guess",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.8736511250026524,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9532279572562313,
+        "tokens": 407
+      },
+      {
+        "said": "okay okay mute mute",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.4426989580097143,
+        "cost": null,
+        "error": null,
+        "confidence": 0.929080364131617,
+        "tokens": 653
+      },
+      {
+        "said": "呃就是那个 brightness 再低一点",
+        "tags": [
+          "filler",
+          "mixed"
+        ],
+        "expect": [
+          "brightness -10"
+        ],
+        "got": "brightness -10",
+        "score": "right",
+        "seconds": 1.3864231669867877,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9671942210202572,
+        "tokens": 647
+      },
+      {
+        "said": "turn the volume dawn",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "volume -10",
+          "volume -30"
+        ],
+        "got": "volume 100",
+        "score": "wrong-run",
+        "seconds": 1.4348133330058772,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8718340036895013,
+        "tokens": 653
+      },
+      {
+        "said": "bright ness up",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.4700237920042127,
+        "cost": null,
+        "error": null,
+        "confidence": 0.965061056885736,
+        "tokens": 635
+      },
+      {
+        "said": "sent it",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.8783119159925263,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9467917695871436,
+        "tokens": 402
+      },
+      {
+        "said": "生音小一点",
+        "tags": [
+          "asr-error",
+          "zh"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.3685927919868845,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9081226458821675,
+        "tokens": 655
+      },
+      {
+        "said": "Brightness to fifty.",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.4642166669946164,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9864466732895818,
+        "tokens": 639
+      },
+      {
+        "said": "open the pod bay doors",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0240927920094691,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7276414616222273,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "what's the weather tomorrow",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.061376957979519,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6099498759845229,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "set a timer for ten minutes",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 0.9903013329894748,
+        "cost": null,
+        "error": null,
+        "confidence": 0.769320402620814,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "I think the brightness of this idea is great",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "brightness +10",
+        "score": "wrong-run",
+        "seconds": 1.6463025830162223,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6675126253575708,
+        "tokens": 647
+      },
+      {
+        "said": "the volume of email this week is huge",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.030707917001564,
+        "cost": null,
+        "error": null,
+        "confidence": 0.4397702241383588,
+        "picked": "none",
+        "tokens": 408
+      },
+      {
+        "said": "tell me a joke",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 0.9478751660208218,
+        "cost": null,
+        "error": null,
+        "confidence": 0.723862460856394,
+        "picked": "none",
+        "tokens": 404
+      },
+      {
+        "said": "今天天气怎么样",
+        "tags": [
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 0.9050983750203159,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5911381599136318,
+        "picked": "none",
+        "tokens": 404
+      },
+      {
+        "said": "帮我订一张去上海的机票",
+        "tags": [
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 0.9680557500105351,
+        "cost": null,
+        "error": null,
+        "confidence": 0.46768902615230934,
+        "picked": "none",
+        "tokens": 407
+      },
+      {
+        "said": "Dear John, thanks for the update, I'll get back to you tomorrow.",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0303442500007804,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7415533061501678,
+        "picked": "none",
+        "tokens": 416
+      },
+      {
+        "said": "hello",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0308447080024052,
+        "cost": null,
+        "error": null,
+        "confidence": 0.39789695783975504,
+        "picked": "none",
+        "tokens": 401
+      },
+      {
+        "said": "这个 brightness 的问题我们明天再讨论",
+        "tags": [
+          "none",
+          "tricky",
+          "mixed"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0180200419854373,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7441139197478203,
+        "picked": "none",
+        "tokens": 409
+      },
+      {
+        "said": "make it brighter and turn the volume down",
+        "tags": [
+          "two-in-one"
+        ],
+        "expect": [
+          "brightness +10",
+          "volume -10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.5484365000156686,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7909092344683585,
+        "tokens": 645
+      },
+      {
+        "said": "create command tell me the battery percentage",
+        "tags": [
+          "create",
+          "en"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.0251250420114957,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9868993890978671,
+        "tokens": 407
+      },
+      {
+        "said": "新建命令 现在几点了",
+        "tags": [
+          "create",
+          "zh"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.0107732909964398,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9576702011285197,
+        "tokens": 407
+      },
+      {
+        "said": "create command 把窗口铺满左半边",
+        "tags": [
+          "create",
+          "mixed"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 0.9735705839993898,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9739708370912017,
+        "tokens": 409
+      },
+      {
+        "said": "um, create a command that opens my downloads folder",
+        "tags": [
+          "create",
+          "en",
+          "filler"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.050788166001439,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9791811288649883,
+        "tokens": 410
+      },
+      {
+        "said": "make a new command to toggle dark mode",
+        "tags": [
+          "create",
+          "en"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.0775854589883238,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9811884001343056,
+        "tokens": 408
+      },
+      {
+        "said": "帮我写一个命令，锁屏",
+        "tags": [
+          "create",
+          "zh"
+        ],
+        "expect": [
+          "create",
+          "lock-screen"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 0.9541343339951709,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8698670894398165,
+        "tokens": 408
+      },
+      {
+        "said": "打开 Safari",
+        "tags": [
+          "open",
+          "mixed"
+        ],
+        "expect": [
+          "open Safari"
+        ],
+        "got": "open Safari",
+        "score": "right",
+        "seconds": 4.392700290976791,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9279540399970326,
+        "tokens": 1728
+      },
+      {
+        "said": "open chrome",
+        "tags": [
+          "open",
+          "en"
+        ],
+        "expect": [
+          "open Google Chrome"
+        ],
+        "got": "open Google Chrome",
+        "score": "right",
+        "seconds": 4.32602104099351,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9388495782457029,
+        "tokens": 1726
+      },
+      {
+        "said": "launch ghostty",
+        "tags": [
+          "open",
+          "en"
+        ],
+        "expect": [
+          "open Ghostty"
+        ],
+        "got": "open Ghostty",
+        "score": "right",
+        "seconds": 4.330000292015029,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9259929424913206,
+        "tokens": 1728
+      },
+      {
+        "said": "open obsidian",
+        "tags": [
+          "open",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "open Obsidian"
+        ],
+        "got": "open Obsidian",
+        "score": "right",
+        "seconds": 4.856108125008177,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9595227417059877,
+        "tokens": 1728
+      },
+      {
+        "said": "嗯，帮我打开一下 discord",
+        "tags": [
+          "open",
+          "mixed",
+          "filler"
+        ],
+        "expect": [
+          "open Discord"
+        ],
+        "got": "open Discord",
+        "score": "right",
+        "seconds": 4.908646583004156,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8684509051918562,
+        "tokens": 1736
+      },
+      {
+        "said": "打开那个下载的文件夹",
+        "tags": [
+          "open",
+          "zh",
+          "tricky"
+        ],
+        "expect": [
+          "none",
+          "create"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 5.197006375005003,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7269087872398021,
+        "tokens": 1732
+      },
+      {
+        "said": "play music",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.8841604159970302,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9643171122756309,
+        "tokens": 595
+      },
+      {
+        "said": "pause the music",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.6112122909980826,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9838119702888661,
+        "tokens": 597
+      },
+      {
+        "said": "next song",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control next"
+        ],
+        "got": "media-control next",
+        "score": "right",
+        "seconds": 1.706271041999571,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9869472949013843,
+        "tokens": 595
+      },
+      {
+        "said": "上一首",
+        "tags": [
+          "media",
+          "zh"
+        ],
+        "expect": [
+          "media-control previous"
+        ],
+        "got": "media-control previous",
+        "score": "right",
+        "seconds": 1.6356935829971917,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9691593173150977,
+        "tokens": 597
+      },
+      {
+        "said": "嗯，暂停一下音乐",
+        "tags": [
+          "media",
+          "zh",
+          "filler"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.7774452499870677,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9640487186574395,
+        "tokens": 603
+      },
+      {
+        "said": "lock my screen",
+        "tags": [
+          "lock",
+          "en"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.1254307920171414,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9952015963451745,
+        "tokens": 403
+      },
+      {
+        "said": "锁屏",
+        "tags": [
+          "lock",
+          "zh"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.0186606669740286,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9866072591128376,
+        "tokens": 403
+      },
+      {
+        "said": "go to hacker news",
+        "tags": [
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website hacker-news"
+        ],
+        "got": "open-website hacker-news",
+        "score": "right",
+        "seconds": 2.3551676250062883,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9698734134659919,
+        "tokens": 766
+      },
+      {
+        "said": "open youtube",
+        "tags": [
+          "website",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "open-website youtube"
+        ],
+        "got": "open-website youtube",
+        "score": "right",
+        "seconds": 1.9900001250207424,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9427131752020322,
+        "tokens": 762
+      },
+      {
+        "said": "打开 GitHub 网站",
+        "tags": [
+          "website",
+          "mixed"
+        ],
+        "expect": [
+          "open-website github"
+        ],
+        "got": "open-website github",
+        "score": "right",
+        "seconds": 2.1357909580110572,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9670336573821018,
+        "tokens": 768
+      },
+      {
+        "said": "go to the Swift forums",
+        "tags": [
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website other"
+        ],
+        "got": "open-website other",
+        "score": "right",
+        "seconds": 2.199719875003211,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9111872973705298,
+        "tokens": 768
+      },
+      {
+        "said": "switch to WeChat",
+        "tags": [
+          "switch",
+          "en"
+        ],
+        "expect": [
+          "switch-app WeChat"
+        ],
+        "got": "switch-app WeChat",
+        "score": "right",
+        "seconds": 1.7386288330017123,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9620070479270415,
+        "tokens": 629
+      },
+      {
+        "said": "切换到 Slack",
+        "tags": [
+          "switch",
+          "mixed"
+        ],
+        "expect": [
+          "switch-app Slack"
+        ],
+        "got": "switch-app Slack",
+        "score": "right",
+        "seconds": 1.7739899999869522,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9533030113875715,
+        "tokens": 627
+      },
+      {
+        "said": "go back to my terminal, Ghostty",
+        "tags": [
+          "switch",
+          "en",
+          "filler"
+        ],
+        "expect": [
+          "switch-app Ghostty"
+        ],
+        "got": "switch-app Ghostty",
+        "score": "right",
+        "seconds": 1.8252142090059351,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9453726657378712,
+        "tokens": 637
+      },
+      {
+        "said": "switch to Muse",
+        "tags": [
+          "switch",
+          "en"
+        ],
+        "expect": [
+          "switch-app Muse"
+        ],
+        "got": "switch-app Muse",
+        "score": "right",
+        "seconds": 1.6665931249735877,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9458278915956565,
+        "tokens": 627
+      },
+      {
+        "said": "ask Muse to look up whether we can go for a movie tonight",
+        "tags": [
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.1310513749776874,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9887726873548602,
+        "tokens": 413
+      },
+      {
+        "said": "tell Muse to remind me to call the vet at five",
+        "tags": [
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.2275539580150507,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9849654740311776,
+        "tokens": 411
+      },
+      {
+        "said": "让 Muse 帮我查一下明天会不会下雨",
+        "tags": [
+          "muse",
+          "mixed"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.1137198749929667,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9824115342415978,
+        "tokens": 410
+      },
+      {
+        "said": "fix the volume command, turning it down works but turning it up doesn't",
+        "tags": [
+          "fix",
+          "en"
+        ],
+        "expect": [
+          "fix volume"
+        ],
+        "got": "fix volume",
+        "score": "right",
+        "seconds": 2.390803207992576,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9867758648658642,
+        "tokens": 827
+      },
+      {
+        "said": "fix open website, YouTube opens but Yahoo Finance doesn't",
+        "tags": [
+          "fix",
+          "en"
+        ],
+        "expect": [
+          "fix open-website"
+        ],
+        "got": "fix open-website",
+        "score": "right",
+        "seconds": 2.322329874994466,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9771332627826488,
+        "tokens": 819
+      },
+      {
+        "said": "修一下亮度那个命令，调不亮",
+        "tags": [
+          "fix",
+          "zh"
+        ],
+        "expect": [
+          "fix brightness"
+        ],
+        "got": "fix brightness",
+        "score": "right",
+        "seconds": 2.1970805000164546,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8911272461900055,
+        "tokens": 817
+      },
+      {
+        "said": "that didn't work, fix it",
+        "tags": [
+          "fix",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "fix none"
+        ],
+        "got": "fix none",
+        "score": "right",
+        "seconds": 2.375961167010246,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5992974601915404,
+        "tokens": 811
+      },
+      {
+        "said": "The crispness.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness +10",
+        "score": "wrong-run",
+        "seconds": 1.7613646669778973,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3786821641265662,
+        "tokens": 637
+      },
+      {
+        "said": "Set prices to thirty percent.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness 25"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1394330830080435,
+        "cost": null,
+        "error": null,
+        "confidence": 0.825449414337616,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "Increase fitness.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1538554170110729,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3333772355935834,
+        "picked": "none",
+        "tokens": 403
+      },
+      {
+        "said": "Bring this up.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "switch-app none",
+        "score": "wrong-run",
+        "seconds": 1.910306292003952,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2796197883719853,
+        "tokens": 629
+      },
+      {
+        "said": "Laura Bravas.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "open-website wikipedia",
+        "score": "wrong-run",
+        "seconds": 2.0367358749790583,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3699507991843268,
+        "tokens": 766
+      },
+      {
+        "said": "Laws of Physics.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "open-website wikipedia",
+        "score": "wrong-run",
+        "seconds": 2.25154583301628,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6152144289874529,
+        "tokens": 766
+      },
+      {
+        "said": "A press center.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.0604787500051316,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7022476943191702,
+        "tokens": 404
+      },
+      {
+        "said": "Presenter.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "switch-app none",
+        "score": "wrong-run",
+        "seconds": 1.69086016700021,
+        "cost": null,
+        "error": null,
+        "confidence": 0.30199488252248297,
+        "tokens": 625
+      },
+      {
+        "said": "In turn.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.1508176249917597,
+        "cost": null,
+        "error": null,
+        "confidence": 0.47683583869171353,
+        "tokens": 403
+      },
+      {
+        "said": "呃，Intel。",
+        "tags": [
+          "heard",
+          "mixed"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1185847500164527,
+        "cost": null,
+        "error": null,
+        "confidence": 0.19895339974154966,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "Uh, focus on news.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "open Muse",
+          "switch-app Muse"
+        ],
+        "got": "open-website bbc",
+        "score": "wrong-run",
+        "seconds": 2.0380811670038383,
+        "cost": null,
+        "error": null,
+        "confidence": 0.565557884761908,
+        "tokens": 770
+      },
+      {
+        "said": "Switch up, Muse.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "switch-app Muse"
+        ],
+        "got": "switch-app Muse",
+        "score": "right",
+        "seconds": 1.8403091249929275,
+        "cost": null,
+        "error": null,
+        "confidence": 0.27735444235251094,
+        "tokens": 631
+      },
+      {
+        "said": "Uh, lunch costly.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "open Ghostty",
+          "switch-app Ghostty"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.0867459999863058,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7443921731544776,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "Open level dot f y i.",
+        "tags": [
+          "heard",
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website other"
+        ],
+        "got": "open-website other",
+        "score": "right",
+        "seconds": 2.099726958986139,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5797040355751293,
+        "tokens": 772
+      },
+      {
+        "said": "Lock my screen. Laptop.",
+        "tags": [
+          "heard",
+          "lock",
+          "en"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.1249729999981355,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9878453818939028,
+        "tokens": 406
+      },
+      {
+        "said": "Okay, ask me. Is I have some high quality model Opus tokens left for my next five hour window, which I have about, which I have about an hour and a half left. What could you use those tokens for? For example, organizing my inbox, start organizing my vault, cleaning up discrepancies during code review for all my repositories, and trying to fix and patch things up. What would you recommend me to do?",
+        "tags": [
+          "heard",
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.3356635419768281,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7538710718388972,
+        "tokens": 487
+      },
+      {
+        "said": "Minutos",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1098193750076462,
+        "cost": null,
+        "error": null,
+        "confidence": 0.17370544703470045,
+        "picked": "none",
+        "tokens": 402
+      },
+      {
+        "said": "certo",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "return",
+        "score": "wrong-run",
+        "seconds": 1.10011412500171,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2901731027144386,
+        "tokens": 401
+      },
+      {
+        "said": "तक",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "return",
+        "score": "wrong-run",
+        "seconds": 1.0846839580044616,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3314610904058442,
+        "tokens": 401
+      },
+      {
+        "said": "嗯。",
+        "tags": [
+          "heard",
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1529936250008177,
+        "cost": null,
+        "error": null,
+        "confidence": 0.46684534205023026,
+        "picked": "none",
+        "tokens": 403
+      },
+      {
+        "said": "goed goedziemeld ook.",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.120666708011413,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2883921763801292,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "一块钱一份。",
+        "tags": [
+          "heard",
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0641743750020396,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7373670871729109,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "ออกมานาฬิกา",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "open Clock",
+        "score": "wrong-run",
+        "seconds": 5.133447792002698,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2858877468055538,
+        "tokens": 1730
+      },
+      {
+        "said": "make the screen a bit brighter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.7173995829944033,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9882565720978373,
+        "tokens": 641
+      },
+      {
+        "said": "dim the screen",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.8524997909844387,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9541047812967405,
+        "tokens": 635
+      },
+      {
+        "said": "brightness all the way up",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 100"
+        ],
+        "got": "brightness 100",
+        "score": "right",
+        "seconds": 1.7833811669843271,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9826760074003773,
+        "tokens": 639
+      },
+      {
+        "said": "set the brightness to half",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.8010297500004526,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9894661431037198,
+        "tokens": 639
+      },
+      {
+        "said": "it's way too bright",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness -30",
+          "brightness -10"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.8273545419797301,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9585016599469857,
+        "tokens": 639
+      },
+      {
+        "said": "brightness to a quarter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 25"
+        ],
+        "got": "brightness 25",
+        "score": "right",
+        "seconds": 1.7123409999767318,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9678822816603936,
+        "tokens": 637
+      },
+      {
+        "said": "turn it up a little",
+        "tags": [
+          "en",
+          "ambiguous"
+        ],
+        "expect": [
+          "volume +10"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.7683114999963436,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8986185124491641,
+        "tokens": 655
+      },
+      {
+        "said": "louder",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume +10",
+          "volume +30"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.8762696670019068,
+        "cost": null,
+        "error": null,
+        "confidence": 0.892722268138736,
+        "tokens": 647
+      },
+      {
+        "said": "crank the volume way up",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume +30",
+          "volume 100"
+        ],
+        "got": "volume 100",
+        "score": "right",
+        "seconds": 1.7430399589939043,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9789097790305522,
+        "tokens": 655
+      },
+      {
+        "said": "mute",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.8508096669975203,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9676595052368562,
+        "tokens": 647
+      },
+      {
+        "said": "unmute please",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume unmute"
+        ],
+        "got": "volume unmute",
+        "score": "right",
+        "seconds": 1.785357208980713,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9684609222849345,
+        "tokens": 651
+      },
+      {
+        "said": "volume seventy five",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume 75"
+        ],
+        "got": "volume 75",
+        "score": "right",
+        "seconds": 1.7262757499993313,
+        "cost": null,
+        "error": null,
+        "confidence": 0.974578873414938,
+        "tokens": 651
+      },
+      {
+        "said": "quiet it down a lot",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume -30"
+        ],
+        "got": "volume -30",
+        "score": "right",
+        "seconds": 1.796637457999168,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9804104231125959,
+        "tokens": 655
+      },
+      {
+        "said": "send it",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.1613803330110386,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9732269246905845,
+        "tokens": 402
+      },
+      {
+        "said": "press enter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.0638068330008537,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9848295070307954,
+        "tokens": 402
+      },
+      {
+        "said": "submit",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.0945497500069905,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9452405443121144,
+        "tokens": 401
+      },
+      {
+        "said": "do that again",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 1.2981832919758745,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9793283900322248,
+        "tokens": 403
+      },
+      {
+        "said": "one more time",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 1.2278357920004055,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9337119400212248,
+        "tokens": 403
+      },
+      {
+        "said": "把亮度调到一半",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.8486885000020266,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9769348151213111,
+        "tokens": 639
+      },
+      {
+        "said": "屏幕太亮了",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.8036082919861656,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9549537450965001,
+        "tokens": 637
+      },
+      {
+        "said": "亮一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.9826294579834212,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9286798282291616,
+        "tokens": 635
+      },
+      {
+        "said": "亮度调到最大",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness 100"
+        ],
+        "got": "brightness 100",
+        "score": "right",
+        "seconds": 2.1271716660121456,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9786772951740877,
+        "tokens": 637
+      },
+      {
+        "said": "屏幕调暗很多",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 2.0044367499940563,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9714996241349633,
+        "tokens": 639
+      },
+      {
+        "said": "声音小一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.9696857089875266,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9701249337664262,
+        "tokens": 653
+      },
+      {
+        "said": "大声一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume +10"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.7709797090210486,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9587501486731075,
+        "tokens": 651
+      },
+      {
+        "said": "静音",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.9441395000030752,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9644420933014577,
+        "tokens": 649
+      },
+      {
+        "said": "取消静音",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume unmute"
+        ],
+        "got": "volume unmute",
+        "score": "right",
+        "seconds": 1.7557138339907397,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9546302795181332,
+        "tokens": 651
+      },
+      {
+        "said": "音量调到百分之二十五",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume 25"
+        ],
+        "got": "volume 25",
+        "score": "right",
+        "seconds": 1.9083488339965697,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9787837735473841,
+        "tokens": 655
+      },
+      {
+        "said": "发送",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.1252451670006849,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9703506713994088,
+        "tokens": 402
+      },
+      {
+        "said": "再来一次",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 1.097866708994843,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9495713349087351,
+        "tokens": 403
+      },
+      {
+        "said": "brightness 调到一半",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.8393223750172183,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9740865114359274,
+        "tokens": 637
+      },
+      {
+        "said": "把 volume 调小一点",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.898453083995264,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9764491655631407,
+        "tokens": 659
+      },
+      {
+        "said": "帮我 mute 一下",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.743943167006364,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9719610961233285,
+        "tokens": 655
+      },
+      {
+        "said": "send 一下",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.1150857920001727,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9315022117105655,
+        "tokens": 403
+      },
+      {
+        "said": "screen 太暗了",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "brightness +30",
+        "score": "right",
+        "seconds": 1.9683426249830518,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9467828775019863,
+        "tokens": 639
+      },
+      {
+        "said": "volume 开到最大",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume 100"
+        ],
+        "got": "volume 100",
+        "score": "right",
+        "seconds": 1.8068154999928083,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9721618635172389,
+        "tokens": 653
+      },
+      {
+        "said": "再 repeat 一次",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 1.120471041998826,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9674552162591371,
+        "tokens": 405
+      },
+      {
+        "said": "亮度 up 一点",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.9595185829966795,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9698074851533269,
+        "tokens": 639
+      },
+      {
+        "said": "uh can you um make the screen like a little brighter",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.7692881250113714,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9872185875465983,
+        "tokens": 651
+      },
+      {
+        "said": "嗯那个声音太大了吧",
+        "tags": [
+          "filler",
+          "zh"
+        ],
+        "expect": [
+          "volume -10",
+          "volume -30"
+        ],
+        "got": "volume -30",
+        "score": "right",
+        "seconds": 1.8561958329810295,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9384960023147633,
+        "tokens": 657
+      },
+      {
+        "said": "so yeah just send it I guess",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.2915414160233922,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9532279572562313,
+        "tokens": 407
+      },
+      {
+        "said": "okay okay mute mute",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.8270772919931915,
+        "cost": null,
+        "error": null,
+        "confidence": 0.929080364131617,
+        "tokens": 653
+      },
+      {
+        "said": "呃就是那个 brightness 再低一点",
+        "tags": [
+          "filler",
+          "mixed"
+        ],
+        "expect": [
+          "brightness -10"
+        ],
+        "got": "brightness -10",
+        "score": "right",
+        "seconds": 1.7868355000100564,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9671942210202572,
+        "tokens": 647
+      },
+      {
+        "said": "turn the volume dawn",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "volume -10",
+          "volume -30"
+        ],
+        "got": "volume 100",
+        "score": "wrong-run",
+        "seconds": 1.9699549579818267,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8718340036895013,
+        "tokens": 653
+      },
+      {
+        "said": "bright ness up",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.761030166002456,
+        "cost": null,
+        "error": null,
+        "confidence": 0.965061056885736,
+        "tokens": 635
+      },
+      {
+        "said": "sent it",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.2681211659801193,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9467917695871436,
+        "tokens": 402
+      },
+      {
+        "said": "生音小一点",
+        "tags": [
+          "asr-error",
+          "zh"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.8881020419939887,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9081226458821675,
+        "tokens": 655
+      },
+      {
+        "said": "Brightness to fifty.",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.7794982500199694,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9864466732895818,
+        "tokens": 639
+      },
+      {
+        "said": "open the pod bay doors",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.124280666001141,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7276414616222273,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "what's the weather tomorrow",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.2082146670145448,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6099498759845229,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "set a timer for ten minutes",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.153882333979709,
+        "cost": null,
+        "error": null,
+        "confidence": 0.769320402620814,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "I think the brightness of this idea is great",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "brightness +10",
+        "score": "wrong-run",
+        "seconds": 1.7777872500009835,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6675126253575708,
+        "tokens": 647
+      },
+      {
+        "said": "the volume of email this week is huge",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1303496670152526,
+        "cost": null,
+        "error": null,
+        "confidence": 0.4397702241383588,
+        "picked": "none",
+        "tokens": 408
+      },
+      {
+        "said": "tell me a joke",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.2238073750049807,
+        "cost": null,
+        "error": null,
+        "confidence": 0.723862460856394,
+        "picked": "none",
+        "tokens": 404
+      },
+      {
+        "said": "今天天气怎么样",
+        "tags": [
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1753058749891352,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5911381599136318,
+        "picked": "none",
+        "tokens": 404
+      },
+      {
+        "said": "帮我订一张去上海的机票",
+        "tags": [
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.084898000000976,
+        "cost": null,
+        "error": null,
+        "confidence": 0.46768902615230934,
+        "picked": "none",
+        "tokens": 407
+      },
+      {
+        "said": "Dear John, thanks for the update, I'll get back to you tomorrow.",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.120037833985407,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7415533061501678,
+        "picked": "none",
+        "tokens": 416
+      },
+      {
+        "said": "hello",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.246393875015201,
+        "cost": null,
+        "error": null,
+        "confidence": 0.39789695783975504,
+        "picked": "none",
+        "tokens": 401
+      },
+      {
+        "said": "这个 brightness 的问题我们明天再讨论",
+        "tags": [
+          "none",
+          "tricky",
+          "mixed"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.2029648330062628,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7441139197478203,
+        "picked": "none",
+        "tokens": 409
+      },
+      {
+        "said": "make it brighter and turn the volume down",
+        "tags": [
+          "two-in-one"
+        ],
+        "expect": [
+          "brightness +10",
+          "volume -10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.7663607079884969,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7909092344683585,
+        "tokens": 645
+      },
+      {
+        "said": "create command tell me the battery percentage",
+        "tags": [
+          "create",
+          "en"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.153354040987324,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9868993890978671,
+        "tokens": 407
+      },
+      {
+        "said": "新建命令 现在几点了",
+        "tags": [
+          "create",
+          "zh"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.20313633402111,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9576702011285197,
+        "tokens": 407
+      },
+      {
+        "said": "create command 把窗口铺满左半边",
+        "tags": [
+          "create",
+          "mixed"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.137229916988872,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9739708370912017,
+        "tokens": 409
+      },
+      {
+        "said": "um, create a command that opens my downloads folder",
+        "tags": [
+          "create",
+          "en",
+          "filler"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.1099240830226336,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9791811288649883,
+        "tokens": 410
+      },
+      {
+        "said": "make a new command to toggle dark mode",
+        "tags": [
+          "create",
+          "en"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.1493762909958605,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9811884001343056,
+        "tokens": 408
+      },
+      {
+        "said": "帮我写一个命令，锁屏",
+        "tags": [
+          "create",
+          "zh"
+        ],
+        "expect": [
+          "create",
+          "lock-screen"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.187553083000239,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8698670894398165,
+        "tokens": 408
+      },
+      {
+        "said": "打开 Safari",
+        "tags": [
+          "open",
+          "mixed"
+        ],
+        "expect": [
+          "open Safari"
+        ],
+        "got": "open Safari",
+        "score": "right",
+        "seconds": 4.995988749986282,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9279540399970326,
+        "tokens": 1728
+      },
+      {
+        "said": "open chrome",
+        "tags": [
+          "open",
+          "en"
+        ],
+        "expect": [
+          "open Google Chrome"
+        ],
+        "got": "open Google Chrome",
+        "score": "right",
+        "seconds": 4.992963166005211,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9388495782457029,
+        "tokens": 1726
+      },
+      {
+        "said": "launch ghostty",
+        "tags": [
+          "open",
+          "en"
+        ],
+        "expect": [
+          "open Ghostty"
+        ],
+        "got": "open Ghostty",
+        "score": "right",
+        "seconds": 5.168774833990028,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9259929424913206,
+        "tokens": 1728
+      },
+      {
+        "said": "open obsidian",
+        "tags": [
+          "open",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "open Obsidian"
+        ],
+        "got": "open Obsidian",
+        "score": "right",
+        "seconds": 5.432194708002498,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9595227417059877,
+        "tokens": 1728
+      },
+      {
+        "said": "嗯，帮我打开一下 discord",
+        "tags": [
+          "open",
+          "mixed",
+          "filler"
+        ],
+        "expect": [
+          "open Discord"
+        ],
+        "got": "open Discord",
+        "score": "right",
+        "seconds": 5.778450207988499,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8684509051918562,
+        "tokens": 1736
+      },
+      {
+        "said": "打开那个下载的文件夹",
+        "tags": [
+          "open",
+          "zh",
+          "tricky"
+        ],
+        "expect": [
+          "none",
+          "create"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 5.5692429580085445,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7269087872398021,
+        "tokens": 1732
+      },
+      {
+        "said": "play music",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.951717791002011,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9643171122756309,
+        "tokens": 595
+      },
+      {
+        "said": "pause the music",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.820262666005874,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9838119702888661,
+        "tokens": 597
+      },
+      {
+        "said": "next song",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control next"
+        ],
+        "got": "media-control next",
+        "score": "right",
+        "seconds": 1.7196101669978816,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9869472949013843,
+        "tokens": 595
+      },
+      {
+        "said": "上一首",
+        "tags": [
+          "media",
+          "zh"
+        ],
+        "expect": [
+          "media-control previous"
+        ],
+        "got": "media-control previous",
+        "score": "right",
+        "seconds": 1.9210844589979388,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9691593173150977,
+        "tokens": 597
+      },
+      {
+        "said": "嗯，暂停一下音乐",
+        "tags": [
+          "media",
+          "zh",
+          "filler"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.7370010829763487,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9640487186574395,
+        "tokens": 603
+      },
+      {
+        "said": "lock my screen",
+        "tags": [
+          "lock",
+          "en"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.1563685000000987,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9952015963451745,
+        "tokens": 403
+      },
+      {
+        "said": "锁屏",
+        "tags": [
+          "lock",
+          "zh"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.2163545000075828,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9866072591128376,
+        "tokens": 403
+      },
+      {
+        "said": "go to hacker news",
+        "tags": [
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website hacker-news"
+        ],
+        "got": "open-website hacker-news",
+        "score": "right",
+        "seconds": 2.249095083010616,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9698734134659919,
+        "tokens": 766
+      },
+      {
+        "said": "open youtube",
+        "tags": [
+          "website",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "open-website youtube"
+        ],
+        "got": "open-website youtube",
+        "score": "right",
+        "seconds": 2.148904000001494,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9427131752020322,
+        "tokens": 762
+      },
+      {
+        "said": "打开 GitHub 网站",
+        "tags": [
+          "website",
+          "mixed"
+        ],
+        "expect": [
+          "open-website github"
+        ],
+        "got": "open-website github",
+        "score": "right",
+        "seconds": 2.295682832977036,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9670336573821018,
+        "tokens": 768
+      },
+      {
+        "said": "go to the Swift forums",
+        "tags": [
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website other"
+        ],
+        "got": "open-website other",
+        "score": "right",
+        "seconds": 2.204515541990986,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9111872973705298,
+        "tokens": 768
+      },
+      {
+        "said": "switch to WeChat",
+        "tags": [
+          "switch",
+          "en"
+        ],
+        "expect": [
+          "switch-app WeChat"
+        ],
+        "got": "switch-app WeChat",
+        "score": "right",
+        "seconds": 1.890818916988792,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9620070479270415,
+        "tokens": 629
+      },
+      {
+        "said": "切换到 Slack",
+        "tags": [
+          "switch",
+          "mixed"
+        ],
+        "expect": [
+          "switch-app Slack"
+        ],
+        "got": "switch-app Slack",
+        "score": "right",
+        "seconds": 1.7791256249765866,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9533030113875715,
+        "tokens": 627
+      },
+      {
+        "said": "go back to my terminal, Ghostty",
+        "tags": [
+          "switch",
+          "en",
+          "filler"
+        ],
+        "expect": [
+          "switch-app Ghostty"
+        ],
+        "got": "switch-app Ghostty",
+        "score": "right",
+        "seconds": 1.8333506249764469,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9453726657378712,
+        "tokens": 637
+      },
+      {
+        "said": "switch to Muse",
+        "tags": [
+          "switch",
+          "en"
+        ],
+        "expect": [
+          "switch-app Muse"
+        ],
+        "got": "switch-app Muse",
+        "score": "right",
+        "seconds": 1.8918258339981548,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9458278915956565,
+        "tokens": 627
+      },
+      {
+        "said": "ask Muse to look up whether we can go for a movie tonight",
+        "tags": [
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.1098037080082577,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9887726873548602,
+        "tokens": 413
+      },
+      {
+        "said": "tell Muse to remind me to call the vet at five",
+        "tags": [
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.117352250003023,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9849654740311776,
+        "tokens": 411
+      },
+      {
+        "said": "让 Muse 帮我查一下明天会不会下雨",
+        "tags": [
+          "muse",
+          "mixed"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.156738125020638,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9824115342415978,
+        "tokens": 410
+      },
+      {
+        "said": "fix the volume command, turning it down works but turning it up doesn't",
+        "tags": [
+          "fix",
+          "en"
+        ],
+        "expect": [
+          "fix volume"
+        ],
+        "got": "fix volume",
+        "score": "right",
+        "seconds": 2.4202595830138307,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9867758648658642,
+        "tokens": 827
+      },
+      {
+        "said": "fix open website, YouTube opens but Yahoo Finance doesn't",
+        "tags": [
+          "fix",
+          "en"
+        ],
+        "expect": [
+          "fix open-website"
+        ],
+        "got": "fix open-website",
+        "score": "right",
+        "seconds": 2.187243667023722,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9771332627826488,
+        "tokens": 819
+      },
+      {
+        "said": "修一下亮度那个命令，调不亮",
+        "tags": [
+          "fix",
+          "zh"
+        ],
+        "expect": [
+          "fix brightness"
+        ],
+        "got": "fix brightness",
+        "score": "right",
+        "seconds": 2.462383250007406,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8911272461900055,
+        "tokens": 817
+      },
+      {
+        "said": "that didn't work, fix it",
+        "tags": [
+          "fix",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "fix none"
+        ],
+        "got": "fix none",
+        "score": "right",
+        "seconds": 2.219310457992833,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5992974601915404,
+        "tokens": 811
+      },
+      {
+        "said": "The crispness.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness +10",
+        "score": "wrong-run",
+        "seconds": 1.8511252909956966,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3786821641265662,
+        "tokens": 637
+      },
+      {
+        "said": "Set prices to thirty percent.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness 25"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1537638749869075,
+        "cost": null,
+        "error": null,
+        "confidence": 0.825449414337616,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "Increase fitness.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1102973749802914,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3333772355935834,
+        "picked": "none",
+        "tokens": 403
+      },
+      {
+        "said": "Bring this up.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "switch-app none",
+        "score": "wrong-run",
+        "seconds": 1.815365499991458,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2796197883719853,
+        "tokens": 629
+      },
+      {
+        "said": "Laura Bravas.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "open-website wikipedia",
+        "score": "wrong-run",
+        "seconds": 2.332156082993606,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3699507991843268,
+        "tokens": 766
+      },
+      {
+        "said": "Laws of Physics.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "open-website wikipedia",
+        "score": "wrong-run",
+        "seconds": 2.1271971249952912,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6152144289874529,
+        "tokens": 766
+      },
+      {
+        "said": "A press center.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.1545868339890148,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7022476943191702,
+        "tokens": 404
+      },
+      {
+        "said": "Presenter.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "switch-app none",
+        "score": "wrong-run",
+        "seconds": 1.8903106249927077,
+        "cost": null,
+        "error": null,
+        "confidence": 0.30199488252248297,
+        "tokens": 625
+      },
+      {
+        "said": "In turn.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.0708005409978796,
+        "cost": null,
+        "error": null,
+        "confidence": 0.47683583869171353,
+        "tokens": 403
+      },
+      {
+        "said": "呃，Intel。",
+        "tags": [
+          "heard",
+          "mixed"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1504974999988917,
+        "cost": null,
+        "error": null,
+        "confidence": 0.19895339974154966,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "Uh, focus on news.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "open Muse",
+          "switch-app Muse"
+        ],
+        "got": "open-website bbc",
+        "score": "wrong-run",
+        "seconds": 2.3191877499921247,
+        "cost": null,
+        "error": null,
+        "confidence": 0.565557884761908,
+        "tokens": 770
+      },
+      {
+        "said": "Switch up, Muse.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "switch-app Muse"
+        ],
+        "got": "switch-app Muse",
+        "score": "right",
+        "seconds": 1.9941015829972457,
+        "cost": null,
+        "error": null,
+        "confidence": 0.27735444235251094,
+        "tokens": 631
+      },
+      {
+        "said": "Uh, lunch costly.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "open Ghostty",
+          "switch-app Ghostty"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1199813330022153,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7443921731544776,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "Open level dot f y i.",
+        "tags": [
+          "heard",
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website other"
+        ],
+        "got": "open-website other",
+        "score": "right",
+        "seconds": 2.2223075830261223,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5797040355751293,
+        "tokens": 772
+      },
+      {
+        "said": "Lock my screen. Laptop.",
+        "tags": [
+          "heard",
+          "lock",
+          "en"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.103283417003695,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9878453818939028,
+        "tokens": 406
+      },
+      {
+        "said": "Okay, ask me. Is I have some high quality model Opus tokens left for my next five hour window, which I have about, which I have about an hour and a half left. What could you use those tokens for? For example, organizing my inbox, start organizing my vault, cleaning up discrepancies during code review for all my repositories, and trying to fix and patch things up. What would you recommend me to do?",
+        "tags": [
+          "heard",
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.3989032079989556,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7538710718388972,
+        "tokens": 487
+      },
+      {
+        "said": "Minutos",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.2179884579963982,
+        "cost": null,
+        "error": null,
+        "confidence": 0.17370544703470045,
+        "picked": "none",
+        "tokens": 402
+      },
+      {
+        "said": "certo",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "return",
+        "score": "wrong-run",
+        "seconds": 1.1046709590009414,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2901731027144386,
+        "tokens": 401
+      },
+      {
+        "said": "तक",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "return",
+        "score": "wrong-run",
+        "seconds": 1.1429180419945624,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3314610904058442,
+        "tokens": 401
+      },
+      {
+        "said": "嗯。",
+        "tags": [
+          "heard",
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.09437545799301,
+        "cost": null,
+        "error": null,
+        "confidence": 0.46684534205023026,
+        "picked": "none",
+        "tokens": 403
+      },
+      {
+        "said": "goed goedziemeld ook.",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0933575409871992,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2883921763801292,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "一块钱一份。",
+        "tags": [
+          "heard",
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.201733542024158,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7373670871729109,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "ออกมานาฬิกา",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "open Clock",
+        "score": "wrong-run",
+        "seconds": 4.866470832988853,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2858877468055538,
+        "tokens": 1730
+      }
+    ],
+    "local:decider+bare": [
+      {
+        "said": "make the screen a bit brighter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 2.403236290992936,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9882565720978373,
+        "tokens": 641
+      },
+      {
+        "said": "dim the screen",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.2234037090092897,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9541047812967405,
+        "tokens": 635
+      },
+      {
+        "said": "brightness all the way up",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 100"
+        ],
+        "got": "brightness 100",
+        "score": "right",
+        "seconds": 1.3838981669978239,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9826760074003773,
+        "tokens": 639
+      },
+      {
+        "said": "set the brightness to half",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.4176886250206735,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9894661431037198,
+        "tokens": 639
+      },
+      {
+        "said": "it's way too bright",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness -30",
+          "brightness -10"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.3299431249906775,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9585016599469857,
+        "tokens": 639
+      },
+      {
+        "said": "brightness to a quarter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 25"
+        ],
+        "got": "brightness 25",
+        "score": "right",
+        "seconds": 1.4050500830053352,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9678822816603936,
+        "tokens": 637
+      },
+      {
+        "said": "turn it up a little",
+        "tags": [
+          "en",
+          "ambiguous"
+        ],
+        "expect": [
+          "volume +10"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.4048879999900237,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8986185124491641,
+        "tokens": 650
+      },
+      {
+        "said": "louder",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume +10",
+          "volume +30"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.401240333012538,
+        "cost": null,
+        "error": null,
+        "confidence": 0.892722268138736,
+        "tokens": 642
+      },
+      {
+        "said": "crank the volume way up",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume +30",
+          "volume 100"
+        ],
+        "got": "volume 100",
+        "score": "right",
+        "seconds": 1.6033460839826148,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9789097790305522,
+        "tokens": 650
+      },
+      {
+        "said": "mute",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.4097866670053918,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9676595052368562,
+        "tokens": 642
+      },
+      {
+        "said": "unmute please",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume unmute"
+        ],
+        "got": "volume unmute",
+        "score": "right",
+        "seconds": 1.3747494159906637,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9684609222849345,
+        "tokens": 646
+      },
+      {
+        "said": "volume seventy five",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume 75"
+        ],
+        "got": "volume 75",
+        "score": "right",
+        "seconds": 1.2736173339944798,
+        "cost": null,
+        "error": null,
+        "confidence": 0.974578873414938,
+        "tokens": 646
+      },
+      {
+        "said": "quiet it down a lot",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume -30"
+        ],
+        "got": "volume -30",
+        "score": "right",
+        "seconds": 1.3383277079847176,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9804104231125959,
+        "tokens": 650
+      },
+      {
+        "said": "send it",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.8423311250226106,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9732269246905845,
+        "tokens": 402
+      },
+      {
+        "said": "press enter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.9080313330050558,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9848295070307954,
+        "tokens": 402
+      },
+      {
+        "said": "submit",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.8780820420070086,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9452405443121144,
+        "tokens": 401
+      },
+      {
+        "said": "do that again",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 0.8446293750021141,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9793283900322248,
+        "tokens": 403
+      },
+      {
+        "said": "one more time",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 0.8175577920046635,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9337119400212248,
+        "tokens": 403
+      },
+      {
+        "said": "把亮度调到一半",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.3585844160115812,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9769348151213111,
+        "tokens": 639
+      },
+      {
+        "said": "屏幕太亮了",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.3220843329909258,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9549537450965001,
+        "tokens": 637
+      },
+      {
+        "said": "亮一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.3296911250217818,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9286798282291616,
+        "tokens": 635
+      },
+      {
+        "said": "亮度调到最大",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness 100"
+        ],
+        "got": "brightness 100",
+        "score": "right",
+        "seconds": 1.4471734999970067,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9786772951740877,
+        "tokens": 637
+      },
+      {
+        "said": "屏幕调暗很多",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.333937874995172,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9714996241349633,
+        "tokens": 639
+      },
+      {
+        "said": "声音小一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.2945323750027455,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9701249337664262,
+        "tokens": 648
+      },
+      {
+        "said": "大声一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume +10"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.3287055830005556,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9587501486731075,
+        "tokens": 646
+      },
+      {
+        "said": "静音",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.3569586670200806,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9644420933014577,
+        "tokens": 644
+      },
+      {
+        "said": "取消静音",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume unmute"
+        ],
+        "got": "volume unmute",
+        "score": "right",
+        "seconds": 1.345234749984229,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9546302795181332,
+        "tokens": 646
+      },
+      {
+        "said": "音量调到百分之二十五",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume 25"
+        ],
+        "got": "volume 25",
+        "score": "right",
+        "seconds": 2.1865947089972906,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9787837735473841,
+        "tokens": 650
+      },
+      {
+        "said": "发送",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.0077096250024624,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9703506713994088,
+        "tokens": 402
+      },
+      {
+        "said": "再来一次",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 0.9968273749982473,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9495713349087351,
+        "tokens": 403
+      },
+      {
+        "said": "brightness 调到一半",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.339358875004109,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9740865114359274,
+        "tokens": 637
+      },
+      {
+        "said": "把 volume 调小一点",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.340397459018277,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9764491655631407,
+        "tokens": 654
+      },
+      {
+        "said": "帮我 mute 一下",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.3792462919955142,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9719610961233285,
+        "tokens": 650
+      },
+      {
+        "said": "send 一下",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.82863558299141,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9315022117105655,
+        "tokens": 403
+      },
+      {
+        "said": "screen 太暗了",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "brightness +30",
+        "score": "right",
+        "seconds": 1.344677707995288,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9467828775019863,
+        "tokens": 639
+      },
+      {
+        "said": "volume 开到最大",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume 100"
+        ],
+        "got": "volume 100",
+        "score": "right",
+        "seconds": 1.3586378750042059,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9721618635172389,
+        "tokens": 648
+      },
+      {
+        "said": "再 repeat 一次",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 0.8323799589998089,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9674552162591371,
+        "tokens": 405
+      },
+      {
+        "said": "亮度 up 一点",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.3689894159906544,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9698074851533269,
+        "tokens": 639
+      },
+      {
+        "said": "uh can you um make the screen like a little brighter",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.3310534170013852,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9872185875465983,
+        "tokens": 651
+      },
+      {
+        "said": "嗯那个声音太大了吧",
+        "tags": [
+          "filler",
+          "zh"
+        ],
+        "expect": [
+          "volume -10",
+          "volume -30"
+        ],
+        "got": "volume -30",
+        "score": "right",
+        "seconds": 1.3962557500053663,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9384960023147633,
+        "tokens": 652
+      },
+      {
+        "said": "so yeah just send it I guess",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.8696380830078851,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9532279572562313,
+        "tokens": 407
+      },
+      {
+        "said": "okay okay mute mute",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.4220659590209834,
+        "cost": null,
+        "error": null,
+        "confidence": 0.929080364131617,
+        "tokens": 648
+      },
+      {
+        "said": "呃就是那个 brightness 再低一点",
+        "tags": [
+          "filler",
+          "mixed"
+        ],
+        "expect": [
+          "brightness -10"
+        ],
+        "got": "brightness -10",
+        "score": "right",
+        "seconds": 1.4212677080067806,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9671942210202572,
+        "tokens": 647
+      },
+      {
+        "said": "turn the volume dawn",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "volume -10",
+          "volume -30"
+        ],
+        "got": "volume 100",
+        "score": "wrong-run",
+        "seconds": 1.4469530830101576,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8718340036895013,
+        "tokens": 648
+      },
+      {
+        "said": "bright ness up",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.464326292014448,
+        "cost": null,
+        "error": null,
+        "confidence": 0.965061056885736,
+        "tokens": 635
+      },
+      {
+        "said": "sent it",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 0.8561772500106599,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9467917695871436,
+        "tokens": 402
+      },
+      {
+        "said": "生音小一点",
+        "tags": [
+          "asr-error",
+          "zh"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.3882863330072723,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9081226458821675,
+        "tokens": 650
+      },
+      {
+        "said": "Brightness to fifty.",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.5484167920076288,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9864466732895818,
+        "tokens": 639
+      },
+      {
+        "said": "open the pod bay doors",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0810236250108574,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7276414616222273,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "what's the weather tomorrow",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.012186959007522,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6099498759845229,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "set a timer for ten minutes",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 0.9893565830134321,
+        "cost": null,
+        "error": null,
+        "confidence": 0.769320402620814,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "I think the brightness of this idea is great",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "brightness +10",
+        "score": "wrong-run",
+        "seconds": 1.6727676250156946,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6675126253575708,
+        "tokens": 647
+      },
+      {
+        "said": "the volume of email this week is huge",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 0.994069332984509,
+        "cost": null,
+        "error": null,
+        "confidence": 0.4397702241383588,
+        "picked": "none",
+        "tokens": 408
+      },
+      {
+        "said": "tell me a joke",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 0.9125503750110511,
+        "cost": null,
+        "error": null,
+        "confidence": 0.723862460856394,
+        "picked": "none",
+        "tokens": 404
+      },
+      {
+        "said": "今天天气怎么样",
+        "tags": [
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 0.9241334999969695,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5911381599136318,
+        "picked": "none",
+        "tokens": 404
+      },
+      {
+        "said": "帮我订一张去上海的机票",
+        "tags": [
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 0.982320749986684,
+        "cost": null,
+        "error": null,
+        "confidence": 0.46768902615230934,
+        "picked": "none",
+        "tokens": 407
+      },
+      {
+        "said": "Dear John, thanks for the update, I'll get back to you tomorrow.",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0445282079745084,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7415533061501678,
+        "picked": "none",
+        "tokens": 416
+      },
+      {
+        "said": "hello",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0372824159858283,
+        "cost": null,
+        "error": null,
+        "confidence": 0.39789695783975504,
+        "picked": "none",
+        "tokens": 401
+      },
+      {
+        "said": "这个 brightness 的问题我们明天再讨论",
+        "tags": [
+          "none",
+          "tricky",
+          "mixed"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 0.9736303329991642,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7441139197478203,
+        "picked": "none",
+        "tokens": 409
+      },
+      {
+        "said": "make it brighter and turn the volume down",
+        "tags": [
+          "two-in-one"
+        ],
+        "expect": [
+          "brightness +10",
+          "volume -10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.5759841249964666,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7909092344683585,
+        "tokens": 645
+      },
+      {
+        "said": "create command tell me the battery percentage",
+        "tags": [
+          "create",
+          "en"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.0395482080057263,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9868993890978671,
+        "tokens": 407
+      },
+      {
+        "said": "新建命令 现在几点了",
+        "tags": [
+          "create",
+          "zh"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 0.9723357910115737,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9576702011285197,
+        "tokens": 407
+      },
+      {
+        "said": "create command 把窗口铺满左半边",
+        "tags": [
+          "create",
+          "mixed"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 0.9811737080162857,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9739708370912017,
+        "tokens": 409
+      },
+      {
+        "said": "um, create a command that opens my downloads folder",
+        "tags": [
+          "create",
+          "en",
+          "filler"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.0887767089880072,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9791811288649883,
+        "tokens": 410
+      },
+      {
+        "said": "make a new command to toggle dark mode",
+        "tags": [
+          "create",
+          "en"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.014388167008292,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9811884001343056,
+        "tokens": 408
+      },
+      {
+        "said": "帮我写一个命令，锁屏",
+        "tags": [
+          "create",
+          "zh"
+        ],
+        "expect": [
+          "create",
+          "lock-screen"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 0.9241732499795035,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8698670894398165,
+        "tokens": 408
+      },
+      {
+        "said": "打开 Safari",
+        "tags": [
+          "open",
+          "mixed"
+        ],
+        "expect": [
+          "open Safari"
+        ],
+        "got": "open Safari",
+        "score": "right",
+        "seconds": 3.284879374987213,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9279540399970326,
+        "tokens": 1281
+      },
+      {
+        "said": "open chrome",
+        "tags": [
+          "open",
+          "en"
+        ],
+        "expect": [
+          "open Google Chrome"
+        ],
+        "got": "open Google Chrome",
+        "score": "right",
+        "seconds": 3.354841042018961,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9388495782457029,
+        "tokens": 1279
+      },
+      {
+        "said": "launch ghostty",
+        "tags": [
+          "open",
+          "en"
+        ],
+        "expect": [
+          "open Ghostty"
+        ],
+        "got": "open Ghostty",
+        "score": "right",
+        "seconds": 3.4223019999917597,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9259929424913206,
+        "tokens": 1281
+      },
+      {
+        "said": "open obsidian",
+        "tags": [
+          "open",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "open Obsidian"
+        ],
+        "got": "open Obsidian",
+        "score": "right",
+        "seconds": 3.3813032919715624,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9595227417059877,
+        "tokens": 1281
+      },
+      {
+        "said": "嗯，帮我打开一下 discord",
+        "tags": [
+          "open",
+          "mixed",
+          "filler"
+        ],
+        "expect": [
+          "open Discord"
+        ],
+        "got": "open Discord",
+        "score": "right",
+        "seconds": 3.580270707985619,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8684509051918562,
+        "tokens": 1289
+      },
+      {
+        "said": "打开那个下载的文件夹",
+        "tags": [
+          "open",
+          "zh",
+          "tricky"
+        ],
+        "expect": [
+          "none",
+          "create"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 3.3424236249993555,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7269087872398021,
+        "tokens": 1285
+      },
+      {
+        "said": "play music",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.6769953340117354,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9643171122756309,
+        "tokens": 595
+      },
+      {
+        "said": "pause the music",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.6903403750038706,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9838119702888661,
+        "tokens": 597
+      },
+      {
+        "said": "next song",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control next"
+        ],
+        "got": "media-control next",
+        "score": "right",
+        "seconds": 1.6658788339991588,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9869472949013843,
+        "tokens": 595
+      },
+      {
+        "said": "上一首",
+        "tags": [
+          "media",
+          "zh"
+        ],
+        "expect": [
+          "media-control previous"
+        ],
+        "got": "media-control previous",
+        "score": "right",
+        "seconds": 1.6122299169946928,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9691593173150977,
+        "tokens": 597
+      },
+      {
+        "said": "嗯，暂停一下音乐",
+        "tags": [
+          "media",
+          "zh",
+          "filler"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.9061534170177765,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9640487186574395,
+        "tokens": 603
+      },
+      {
+        "said": "lock my screen",
+        "tags": [
+          "lock",
+          "en"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.0563678329926915,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9952015963451745,
+        "tokens": 403
+      },
+      {
+        "said": "锁屏",
+        "tags": [
+          "lock",
+          "zh"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.0814619589946233,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9866072591128376,
+        "tokens": 403
+      },
+      {
+        "said": "go to hacker news",
+        "tags": [
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website hacker-news"
+        ],
+        "got": "open-website hacker-news",
+        "score": "right",
+        "seconds": 2.3566014999814797,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9698734134659919,
+        "tokens": 766
+      },
+      {
+        "said": "open youtube",
+        "tags": [
+          "website",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "open-website youtube"
+        ],
+        "got": "open-website youtube",
+        "score": "right",
+        "seconds": 1.9845477500057314,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9427131752020322,
+        "tokens": 762
+      },
+      {
+        "said": "打开 GitHub 网站",
+        "tags": [
+          "website",
+          "mixed"
+        ],
+        "expect": [
+          "open-website github"
+        ],
+        "got": "open-website github",
+        "score": "right",
+        "seconds": 2.1705760000040755,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9670336573821018,
+        "tokens": 768
+      },
+      {
+        "said": "go to the Swift forums",
+        "tags": [
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website other"
+        ],
+        "got": "open-website other",
+        "score": "right",
+        "seconds": 2.071346334007103,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9111872973705298,
+        "tokens": 768
+      },
+      {
+        "said": "switch to WeChat",
+        "tags": [
+          "switch",
+          "en"
+        ],
+        "expect": [
+          "switch-app WeChat"
+        ],
+        "got": "switch-app WeChat",
+        "score": "right",
+        "seconds": 1.7148263749841135,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9620070479270415,
+        "tokens": 608
+      },
+      {
+        "said": "切换到 Slack",
+        "tags": [
+          "switch",
+          "mixed"
+        ],
+        "expect": [
+          "switch-app Slack"
+        ],
+        "got": "switch-app Slack",
+        "score": "right",
+        "seconds": 1.8242637079965789,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9533030113875715,
+        "tokens": 606
+      },
+      {
+        "said": "go back to my terminal, Ghostty",
+        "tags": [
+          "switch",
+          "en",
+          "filler"
+        ],
+        "expect": [
+          "switch-app Ghostty"
+        ],
+        "got": "switch-app Ghostty",
+        "score": "right",
+        "seconds": 1.6533417080063373,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9453726657378712,
+        "tokens": 616
+      },
+      {
+        "said": "switch to Muse",
+        "tags": [
+          "switch",
+          "en"
+        ],
+        "expect": [
+          "switch-app Muse"
+        ],
+        "got": "switch-app Muse",
+        "score": "right",
+        "seconds": 1.708947083010571,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9458278915956565,
+        "tokens": 606
+      },
+      {
+        "said": "ask Muse to look up whether we can go for a movie tonight",
+        "tags": [
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.1938024160044733,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9887726873548602,
+        "tokens": 413
+      },
+      {
+        "said": "tell Muse to remind me to call the vet at five",
+        "tags": [
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.1659119999967515,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9849654740311776,
+        "tokens": 411
+      },
+      {
+        "said": "让 Muse 帮我查一下明天会不会下雨",
+        "tags": [
+          "muse",
+          "mixed"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.1174622499966063,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9824115342415978,
+        "tokens": 410
+      },
+      {
+        "said": "fix the volume command, turning it down works but turning it up doesn't",
+        "tags": [
+          "fix",
+          "en"
+        ],
+        "expect": [
+          "fix volume"
+        ],
+        "got": "fix volume",
+        "score": "right",
+        "seconds": 2.298505999991903,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9867758648658642,
+        "tokens": 827
+      },
+      {
+        "said": "fix open website, YouTube opens but Yahoo Finance doesn't",
+        "tags": [
+          "fix",
+          "en"
+        ],
+        "expect": [
+          "fix open-website"
+        ],
+        "got": "fix open-website",
+        "score": "right",
+        "seconds": 2.2281918749795295,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9771332627826488,
+        "tokens": 819
+      },
+      {
+        "said": "修一下亮度那个命令，调不亮",
+        "tags": [
+          "fix",
+          "zh"
+        ],
+        "expect": [
+          "fix brightness"
+        ],
+        "got": "fix brightness",
+        "score": "right",
+        "seconds": 2.2551710410043597,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8911272461900055,
+        "tokens": 817
+      },
+      {
+        "said": "that didn't work, fix it",
+        "tags": [
+          "fix",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "fix none"
+        ],
+        "got": "fix none",
+        "score": "right",
+        "seconds": 2.263376207993133,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5992974601915404,
+        "tokens": 811
+      },
+      {
+        "said": "The crispness.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness +10",
+        "score": "wrong-run",
+        "seconds": 1.8229517919826321,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3786821641265662,
+        "tokens": 637
+      },
+      {
+        "said": "Set prices to thirty percent.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness 25"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1258973340154625,
+        "cost": null,
+        "error": null,
+        "confidence": 0.825449414337616,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "Increase fitness.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.2336936249921564,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3333772355935834,
+        "picked": "none",
+        "tokens": 403
+      },
+      {
+        "said": "Bring this up.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "switch-app none",
+        "score": "wrong-run",
+        "seconds": 1.6436043750145473,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2796197883719853,
+        "tokens": 608
+      },
+      {
+        "said": "Laura Bravas.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "open-website wikipedia",
+        "score": "wrong-run",
+        "seconds": 2.164180583000416,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3699507991843268,
+        "tokens": 766
+      },
+      {
+        "said": "Laws of Physics.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "open-website wikipedia",
+        "score": "wrong-run",
+        "seconds": 2.120091374992626,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6152144289874529,
+        "tokens": 766
+      },
+      {
+        "said": "A press center.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.0637370829936117,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7022476943191702,
+        "tokens": 404
+      },
+      {
+        "said": "Presenter.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "switch-app none",
+        "score": "wrong-run",
+        "seconds": 1.722180666984059,
+        "cost": null,
+        "error": null,
+        "confidence": 0.30199488252248297,
+        "tokens": 604
+      },
+      {
+        "said": "In turn.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.1502406249928754,
+        "cost": null,
+        "error": null,
+        "confidence": 0.47683583869171353,
+        "tokens": 403
+      },
+      {
+        "said": "呃，Intel。",
+        "tags": [
+          "heard",
+          "mixed"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.074338166974485,
+        "cost": null,
+        "error": null,
+        "confidence": 0.19895339974154966,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "Uh, focus on news.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "open Muse",
+          "switch-app Muse"
+        ],
+        "got": "open-website bbc",
+        "score": "wrong-run",
+        "seconds": 2.086110459000338,
+        "cost": null,
+        "error": null,
+        "confidence": 0.565557884761908,
+        "tokens": 770
+      },
+      {
+        "said": "Switch up, Muse.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "switch-app Muse"
+        ],
+        "got": "switch-app Muse",
+        "score": "right",
+        "seconds": 1.771036958991317,
+        "cost": null,
+        "error": null,
+        "confidence": 0.27735444235251094,
+        "tokens": 610
+      },
+      {
+        "said": "Uh, lunch costly.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "open Ghostty",
+          "switch-app Ghostty"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.0503684580035042,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7443921731544776,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "Open level dot f y i.",
+        "tags": [
+          "heard",
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website other"
+        ],
+        "got": "open-website other",
+        "score": "right",
+        "seconds": 2.2834303750132676,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5797040355751293,
+        "tokens": 772
+      },
+      {
+        "said": "Lock my screen. Laptop.",
+        "tags": [
+          "heard",
+          "lock",
+          "en"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.0953669580048881,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9878453818939028,
+        "tokens": 406
+      },
+      {
+        "said": "Okay, ask me. Is I have some high quality model Opus tokens left for my next five hour window, which I have about, which I have about an hour and a half left. What could you use those tokens for? For example, organizing my inbox, start organizing my vault, cleaning up discrepancies during code review for all my repositories, and trying to fix and patch things up. What would you recommend me to do?",
+        "tags": [
+          "heard",
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.3512147090223152,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7538710718388972,
+        "tokens": 487
+      },
+      {
+        "said": "Minutos",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0987751669890713,
+        "cost": null,
+        "error": null,
+        "confidence": 0.17370544703470045,
+        "picked": "none",
+        "tokens": 402
+      },
+      {
+        "said": "certo",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "return",
+        "score": "wrong-run",
+        "seconds": 1.0908936250198167,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2901731027144386,
+        "tokens": 401
+      },
+      {
+        "said": "तक",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "return",
+        "score": "wrong-run",
+        "seconds": 1.116881083988119,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3314610904058442,
+        "tokens": 401
+      },
+      {
+        "said": "嗯。",
+        "tags": [
+          "heard",
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1732636249798816,
+        "cost": null,
+        "error": null,
+        "confidence": 0.46684534205023026,
+        "picked": "none",
+        "tokens": 403
+      },
+      {
+        "said": "goed goedziemeld ook.",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0754987910040654,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2883921763801292,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "一块钱一份。",
+        "tags": [
+          "heard",
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0650985000247601,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7373670871729109,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "ออกมานาฬิกา",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "open Clock",
+        "score": "wrong-run",
+        "seconds": 3.559273167018546,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2858877468055538,
+        "tokens": 1283
+      },
+      {
+        "said": "make the screen a bit brighter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.7419689589878544,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9882565720978373,
+        "tokens": 641
+      },
+      {
+        "said": "dim the screen",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.8897758749953937,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9541047812967405,
+        "tokens": 635
+      },
+      {
+        "said": "brightness all the way up",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 100"
+        ],
+        "got": "brightness 100",
+        "score": "right",
+        "seconds": 1.7525648750015534,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9826760074003773,
+        "tokens": 639
+      },
+      {
+        "said": "set the brightness to half",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.7988263749866746,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9894661431037198,
+        "tokens": 639
+      },
+      {
+        "said": "it's way too bright",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness -30",
+          "brightness -10"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.7940138330159243,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9585016599469857,
+        "tokens": 639
+      },
+      {
+        "said": "brightness to a quarter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "brightness 25"
+        ],
+        "got": "brightness 25",
+        "score": "right",
+        "seconds": 1.7145726250018924,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9678822816603936,
+        "tokens": 637
+      },
+      {
+        "said": "turn it up a little",
+        "tags": [
+          "en",
+          "ambiguous"
+        ],
+        "expect": [
+          "volume +10"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.8318182499788236,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8986185124491641,
+        "tokens": 650
+      },
+      {
+        "said": "louder",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume +10",
+          "volume +30"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.7611535839969292,
+        "cost": null,
+        "error": null,
+        "confidence": 0.892722268138736,
+        "tokens": 642
+      },
+      {
+        "said": "crank the volume way up",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume +30",
+          "volume 100"
+        ],
+        "got": "volume 100",
+        "score": "right",
+        "seconds": 1.901378249982372,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9789097790305522,
+        "tokens": 650
+      },
+      {
+        "said": "mute",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.7761171250022016,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9676595052368562,
+        "tokens": 642
+      },
+      {
+        "said": "unmute please",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume unmute"
+        ],
+        "got": "volume unmute",
+        "score": "right",
+        "seconds": 1.7534483330091462,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9684609222849345,
+        "tokens": 646
+      },
+      {
+        "said": "volume seventy five",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume 75"
+        ],
+        "got": "volume 75",
+        "score": "right",
+        "seconds": 1.7487165000056848,
+        "cost": null,
+        "error": null,
+        "confidence": 0.974578873414938,
+        "tokens": 646
+      },
+      {
+        "said": "quiet it down a lot",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "volume -30"
+        ],
+        "got": "volume -30",
+        "score": "right",
+        "seconds": 1.9065014589868952,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9804104231125959,
+        "tokens": 650
+      },
+      {
+        "said": "send it",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.0968377079989295,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9732269246905845,
+        "tokens": 402
+      },
+      {
+        "said": "press enter",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.061236417008331,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9848295070307954,
+        "tokens": 402
+      },
+      {
+        "said": "submit",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.1861127080046572,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9452405443121144,
+        "tokens": 401
+      },
+      {
+        "said": "do that again",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 1.3089307499758434,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9793283900322248,
+        "tokens": 403
+      },
+      {
+        "said": "one more time",
+        "tags": [
+          "en"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 1.162200708000455,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9337119400212248,
+        "tokens": 403
+      },
+      {
+        "said": "把亮度调到一半",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.8132868749962654,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9769348151213111,
+        "tokens": 639
+      },
+      {
+        "said": "屏幕太亮了",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 1.8810315830050968,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9549537450965001,
+        "tokens": 637
+      },
+      {
+        "said": "亮一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.9080842080002185,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9286798282291616,
+        "tokens": 635
+      },
+      {
+        "said": "亮度调到最大",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness 100"
+        ],
+        "got": "brightness 100",
+        "score": "right",
+        "seconds": 2.112074250006117,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9786772951740877,
+        "tokens": 637
+      },
+      {
+        "said": "屏幕调暗很多",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "brightness -30"
+        ],
+        "got": "brightness -30",
+        "score": "right",
+        "seconds": 2.064250916009769,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9714996241349633,
+        "tokens": 639
+      },
+      {
+        "said": "声音小一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.9158407089998946,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9701249337664262,
+        "tokens": 648
+      },
+      {
+        "said": "大声一点",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume +10"
+        ],
+        "got": "volume +10",
+        "score": "right",
+        "seconds": 1.8083193750062492,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9587501486731075,
+        "tokens": 646
+      },
+      {
+        "said": "静音",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.8330670419964008,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9644420933014577,
+        "tokens": 644
+      },
+      {
+        "said": "取消静音",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume unmute"
+        ],
+        "got": "volume unmute",
+        "score": "right",
+        "seconds": 1.8856271250115242,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9546302795181332,
+        "tokens": 646
+      },
+      {
+        "said": "音量调到百分之二十五",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "volume 25"
+        ],
+        "got": "volume 25",
+        "score": "right",
+        "seconds": 1.8767007080023177,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9787837735473841,
+        "tokens": 650
+      },
+      {
+        "said": "发送",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.1102849579765461,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9703506713994088,
+        "tokens": 402
+      },
+      {
+        "said": "再来一次",
+        "tags": [
+          "zh"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 1.1071639159927145,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9495713349087351,
+        "tokens": 403
+      },
+      {
+        "said": "brightness 调到一半",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.8378518329991493,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9740865114359274,
+        "tokens": 637
+      },
+      {
+        "said": "把 volume 调小一点",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.830658583989134,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9764491655631407,
+        "tokens": 654
+      },
+      {
+        "said": "帮我 mute 一下",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.754626708017895,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9719610961233285,
+        "tokens": 650
+      },
+      {
+        "said": "send 一下",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.1318176249915268,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9315022117105655,
+        "tokens": 403
+      },
+      {
+        "said": "screen 太暗了",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "brightness +30",
+        "score": "right",
+        "seconds": 1.9576711250119843,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9467828775019863,
+        "tokens": 639
+      },
+      {
+        "said": "volume 开到最大",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "volume 100"
+        ],
+        "got": "volume 100",
+        "score": "right",
+        "seconds": 1.7342900419898797,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9721618635172389,
+        "tokens": 648
+      },
+      {
+        "said": "再 repeat 一次",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "repeat"
+        ],
+        "got": "repeat",
+        "score": "right",
+        "seconds": 1.1856312089948915,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9674552162591371,
+        "tokens": 405
+      },
+      {
+        "said": "亮度 up 一点",
+        "tags": [
+          "mixed"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.846243499981938,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9698074851533269,
+        "tokens": 639
+      },
+      {
+        "said": "uh can you um make the screen like a little brighter",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.8280761659843847,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9872185875465983,
+        "tokens": 651
+      },
+      {
+        "said": "嗯那个声音太大了吧",
+        "tags": [
+          "filler",
+          "zh"
+        ],
+        "expect": [
+          "volume -10",
+          "volume -30"
+        ],
+        "got": "volume -30",
+        "score": "right",
+        "seconds": 1.8780058329866733,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9384960023147633,
+        "tokens": 652
+      },
+      {
+        "said": "so yeah just send it I guess",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.2394624589942396,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9532279572562313,
+        "tokens": 407
+      },
+      {
+        "said": "okay okay mute mute",
+        "tags": [
+          "filler"
+        ],
+        "expect": [
+          "volume mute"
+        ],
+        "got": "volume mute",
+        "score": "right",
+        "seconds": 1.7492551670002285,
+        "cost": null,
+        "error": null,
+        "confidence": 0.929080364131617,
+        "tokens": 648
+      },
+      {
+        "said": "呃就是那个 brightness 再低一点",
+        "tags": [
+          "filler",
+          "mixed"
+        ],
+        "expect": [
+          "brightness -10"
+        ],
+        "got": "brightness -10",
+        "score": "right",
+        "seconds": 1.8767414589819964,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9671942210202572,
+        "tokens": 647
+      },
+      {
+        "said": "turn the volume dawn",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "volume -10",
+          "volume -30"
+        ],
+        "got": "volume 100",
+        "score": "wrong-run",
+        "seconds": 1.8227524579851888,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8718340036895013,
+        "tokens": 648
+      },
+      {
+        "said": "bright ness up",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "brightness +10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.9477459999907296,
+        "cost": null,
+        "error": null,
+        "confidence": 0.965061056885736,
+        "tokens": 635
+      },
+      {
+        "said": "sent it",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.2028855830139946,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9467917695871436,
+        "tokens": 402
+      },
+      {
+        "said": "生音小一点",
+        "tags": [
+          "asr-error",
+          "zh"
+        ],
+        "expect": [
+          "volume -10"
+        ],
+        "got": "volume -10",
+        "score": "right",
+        "seconds": 1.8219521249993704,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9081226458821675,
+        "tokens": 650
+      },
+      {
+        "said": "Brightness to fifty.",
+        "tags": [
+          "asr-error"
+        ],
+        "expect": [
+          "brightness 50"
+        ],
+        "got": "brightness 50",
+        "score": "right",
+        "seconds": 1.794170542008942,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9864466732895818,
+        "tokens": 639
+      },
+      {
+        "said": "open the pod bay doors",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1515451250015758,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7276414616222273,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "what's the weather tomorrow",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.2119746250100434,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6099498759845229,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "set a timer for ten minutes",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1142637089942582,
+        "cost": null,
+        "error": null,
+        "confidence": 0.769320402620814,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "I think the brightness of this idea is great",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "brightness +10",
+        "score": "wrong-run",
+        "seconds": 1.8069622919720132,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6675126253575708,
+        "tokens": 647
+      },
+      {
+        "said": "the volume of email this week is huge",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1680537499778438,
+        "cost": null,
+        "error": null,
+        "confidence": 0.4397702241383588,
+        "picked": "none",
+        "tokens": 408
+      },
+      {
+        "said": "tell me a joke",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.2565558339993004,
+        "cost": null,
+        "error": null,
+        "confidence": 0.723862460856394,
+        "picked": "none",
+        "tokens": 404
+      },
+      {
+        "said": "今天天气怎么样",
+        "tags": [
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1112091660033911,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5911381599136318,
+        "picked": "none",
+        "tokens": 404
+      },
+      {
+        "said": "帮我订一张去上海的机票",
+        "tags": [
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0850580419937614,
+        "cost": null,
+        "error": null,
+        "confidence": 0.46768902615230934,
+        "picked": "none",
+        "tokens": 407
+      },
+      {
+        "said": "Dear John, thanks for the update, I'll get back to you tomorrow.",
+        "tags": [
+          "none",
+          "tricky"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1629479590046685,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7415533061501678,
+        "picked": "none",
+        "tokens": 416
+      },
+      {
+        "said": "hello",
+        "tags": [
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.2674847089801915,
+        "cost": null,
+        "error": null,
+        "confidence": 0.39789695783975504,
+        "picked": "none",
+        "tokens": 401
+      },
+      {
+        "said": "这个 brightness 的问题我们明天再讨论",
+        "tags": [
+          "none",
+          "tricky",
+          "mixed"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1252766250108834,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7441139197478203,
+        "picked": "none",
+        "tokens": 409
+      },
+      {
+        "said": "make it brighter and turn the volume down",
+        "tags": [
+          "two-in-one"
+        ],
+        "expect": [
+          "brightness +10",
+          "volume -10"
+        ],
+        "got": "brightness +10",
+        "score": "right",
+        "seconds": 1.837982249999186,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7909092344683585,
+        "tokens": 645
+      },
+      {
+        "said": "create command tell me the battery percentage",
+        "tags": [
+          "create",
+          "en"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.1756812499952503,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9868993890978671,
+        "tokens": 407
+      },
+      {
+        "said": "新建命令 现在几点了",
+        "tags": [
+          "create",
+          "zh"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.1809772919805255,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9576702011285197,
+        "tokens": 407
+      },
+      {
+        "said": "create command 把窗口铺满左半边",
+        "tags": [
+          "create",
+          "mixed"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.102910832996713,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9739708370912017,
+        "tokens": 409
+      },
+      {
+        "said": "um, create a command that opens my downloads folder",
+        "tags": [
+          "create",
+          "en",
+          "filler"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.1225724999967497,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9791811288649883,
+        "tokens": 410
+      },
+      {
+        "said": "make a new command to toggle dark mode",
+        "tags": [
+          "create",
+          "en"
+        ],
+        "expect": [
+          "create"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.1494607919885311,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9811884001343056,
+        "tokens": 408
+      },
+      {
+        "said": "帮我写一个命令，锁屏",
+        "tags": [
+          "create",
+          "zh"
+        ],
+        "expect": [
+          "create",
+          "lock-screen"
+        ],
+        "got": "create",
+        "score": "right",
+        "seconds": 1.2202116249827668,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8698670894398165,
+        "tokens": 408
+      },
+      {
+        "said": "打开 Safari",
+        "tags": [
+          "open",
+          "mixed"
+        ],
+        "expect": [
+          "open Safari"
+        ],
+        "got": "open Safari",
+        "score": "right",
+        "seconds": 4.04295133400592,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9279540399970326,
+        "tokens": 1281
+      },
+      {
+        "said": "open chrome",
+        "tags": [
+          "open",
+          "en"
+        ],
+        "expect": [
+          "open Google Chrome"
+        ],
+        "got": "open Google Chrome",
+        "score": "right",
+        "seconds": 3.6695323750027455,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9388495782457029,
+        "tokens": 1279
+      },
+      {
+        "said": "launch ghostty",
+        "tags": [
+          "open",
+          "en"
+        ],
+        "expect": [
+          "open Ghostty"
+        ],
+        "got": "open Ghostty",
+        "score": "right",
+        "seconds": 3.596198709012242,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9259929424913206,
+        "tokens": 1281
+      },
+      {
+        "said": "open obsidian",
+        "tags": [
+          "open",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "open Obsidian"
+        ],
+        "got": "open Obsidian",
+        "score": "right",
+        "seconds": 3.81687549999333,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9595227417059877,
+        "tokens": 1281
+      },
+      {
+        "said": "嗯，帮我打开一下 discord",
+        "tags": [
+          "open",
+          "mixed",
+          "filler"
+        ],
+        "expect": [
+          "open Discord"
+        ],
+        "got": "open Discord",
+        "score": "right",
+        "seconds": 4.086199041979853,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8684509051918562,
+        "tokens": 1289
+      },
+      {
+        "said": "打开那个下载的文件夹",
+        "tags": [
+          "open",
+          "zh",
+          "tricky"
+        ],
+        "expect": [
+          "none",
+          "create"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 4.061930458003189,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7269087872398021,
+        "tokens": 1285
+      },
+      {
+        "said": "play music",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.8268735420133453,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9643171122756309,
+        "tokens": 595
+      },
+      {
+        "said": "pause the music",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.7395547500054818,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9838119702888661,
+        "tokens": 597
+      },
+      {
+        "said": "next song",
+        "tags": [
+          "media",
+          "en"
+        ],
+        "expect": [
+          "media-control next"
+        ],
+        "got": "media-control next",
+        "score": "right",
+        "seconds": 1.8461374159960542,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9869472949013843,
+        "tokens": 595
+      },
+      {
+        "said": "上一首",
+        "tags": [
+          "media",
+          "zh"
+        ],
+        "expect": [
+          "media-control previous"
+        ],
+        "got": "media-control previous",
+        "score": "right",
+        "seconds": 1.798359625012381,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9691593173150977,
+        "tokens": 597
+      },
+      {
+        "said": "嗯，暂停一下音乐",
+        "tags": [
+          "media",
+          "zh",
+          "filler"
+        ],
+        "expect": [
+          "media-control play-pause"
+        ],
+        "got": "media-control play-pause",
+        "score": "right",
+        "seconds": 1.7356490420061164,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9640487186574395,
+        "tokens": 603
+      },
+      {
+        "said": "lock my screen",
+        "tags": [
+          "lock",
+          "en"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.2003403340058867,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9952015963451745,
+        "tokens": 403
+      },
+      {
+        "said": "锁屏",
+        "tags": [
+          "lock",
+          "zh"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.19933224999113,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9866072591128376,
+        "tokens": 403
+      },
+      {
+        "said": "go to hacker news",
+        "tags": [
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website hacker-news"
+        ],
+        "got": "open-website hacker-news",
+        "score": "right",
+        "seconds": 2.1733468750026077,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9698734134659919,
+        "tokens": 766
+      },
+      {
+        "said": "open youtube",
+        "tags": [
+          "website",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "open-website youtube"
+        ],
+        "got": "open-website youtube",
+        "score": "right",
+        "seconds": 2.3446599160088226,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9427131752020322,
+        "tokens": 762
+      },
+      {
+        "said": "打开 GitHub 网站",
+        "tags": [
+          "website",
+          "mixed"
+        ],
+        "expect": [
+          "open-website github"
+        ],
+        "got": "open-website github",
+        "score": "right",
+        "seconds": 2.3110314999939874,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9670336573821018,
+        "tokens": 768
+      },
+      {
+        "said": "go to the Swift forums",
+        "tags": [
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website other"
+        ],
+        "got": "open-website other",
+        "score": "right",
+        "seconds": 2.143439124978613,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9111872973705298,
+        "tokens": 768
+      },
+      {
+        "said": "switch to WeChat",
+        "tags": [
+          "switch",
+          "en"
+        ],
+        "expect": [
+          "switch-app WeChat"
+        ],
+        "got": "switch-app WeChat",
+        "score": "right",
+        "seconds": 1.8611558339907788,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9620070479270415,
+        "tokens": 608
+      },
+      {
+        "said": "切换到 Slack",
+        "tags": [
+          "switch",
+          "mixed"
+        ],
+        "expect": [
+          "switch-app Slack"
+        ],
+        "got": "switch-app Slack",
+        "score": "right",
+        "seconds": 1.7008602080168203,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9533030113875715,
+        "tokens": 606
+      },
+      {
+        "said": "go back to my terminal, Ghostty",
+        "tags": [
+          "switch",
+          "en",
+          "filler"
+        ],
+        "expect": [
+          "switch-app Ghostty"
+        ],
+        "got": "switch-app Ghostty",
+        "score": "right",
+        "seconds": 1.8136727079981938,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9453726657378712,
+        "tokens": 616
+      },
+      {
+        "said": "switch to Muse",
+        "tags": [
+          "switch",
+          "en"
+        ],
+        "expect": [
+          "switch-app Muse"
+        ],
+        "got": "switch-app Muse",
+        "score": "right",
+        "seconds": 1.8200382919749245,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9458278915956565,
+        "tokens": 606
+      },
+      {
+        "said": "ask Muse to look up whether we can go for a movie tonight",
+        "tags": [
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.0919495830021333,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9887726873548602,
+        "tokens": 413
+      },
+      {
+        "said": "tell Muse to remind me to call the vet at five",
+        "tags": [
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.1186815000255592,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9849654740311776,
+        "tokens": 411
+      },
+      {
+        "said": "让 Muse 帮我查一下明天会不会下雨",
+        "tags": [
+          "muse",
+          "mixed"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.1789280000084545,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9824115342415978,
+        "tokens": 410
+      },
+      {
+        "said": "fix the volume command, turning it down works but turning it up doesn't",
+        "tags": [
+          "fix",
+          "en"
+        ],
+        "expect": [
+          "fix volume"
+        ],
+        "got": "fix volume",
+        "score": "right",
+        "seconds": 2.2689673329878133,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9867758648658642,
+        "tokens": 827
+      },
+      {
+        "said": "fix open website, YouTube opens but Yahoo Finance doesn't",
+        "tags": [
+          "fix",
+          "en"
+        ],
+        "expect": [
+          "fix open-website"
+        ],
+        "got": "fix open-website",
+        "score": "right",
+        "seconds": 2.3902061249827966,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9771332627826488,
+        "tokens": 819
+      },
+      {
+        "said": "修一下亮度那个命令，调不亮",
+        "tags": [
+          "fix",
+          "zh"
+        ],
+        "expect": [
+          "fix brightness"
+        ],
+        "got": "fix brightness",
+        "score": "right",
+        "seconds": 2.278532416006783,
+        "cost": null,
+        "error": null,
+        "confidence": 0.8911272461900055,
+        "tokens": 817
+      },
+      {
+        "said": "that didn't work, fix it",
+        "tags": [
+          "fix",
+          "en",
+          "tricky"
+        ],
+        "expect": [
+          "fix none"
+        ],
+        "got": "fix none",
+        "score": "right",
+        "seconds": 2.3194965419825166,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5992974601915404,
+        "tokens": 811
+      },
+      {
+        "said": "The crispness.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "brightness +10",
+        "score": "wrong-run",
+        "seconds": 1.8697136249975301,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3786821641265662,
+        "tokens": 637
+      },
+      {
+        "said": "Set prices to thirty percent.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness 25"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.13083337500575,
+        "cost": null,
+        "error": null,
+        "confidence": 0.825449414337616,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "Increase fitness.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1066938329895493,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3333772355935834,
+        "picked": "none",
+        "tokens": 403
+      },
+      {
+        "said": "Bring this up.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness +10",
+          "brightness +30"
+        ],
+        "got": "switch-app none",
+        "score": "wrong-run",
+        "seconds": 1.771992083027726,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2796197883719853,
+        "tokens": 608
+      },
+      {
+        "said": "Laura Bravas.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "open-website wikipedia",
+        "score": "wrong-run",
+        "seconds": 2.2808405000250787,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3699507991843268,
+        "tokens": 766
+      },
+      {
+        "said": "Laws of Physics.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "brightness -10",
+          "brightness -30"
+        ],
+        "got": "open-website wikipedia",
+        "score": "wrong-run",
+        "seconds": 2.1308271669840906,
+        "cost": null,
+        "error": null,
+        "confidence": 0.6152144289874529,
+        "tokens": 766
+      },
+      {
+        "said": "A press center.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.2286843750043772,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7022476943191702,
+        "tokens": 404
+      },
+      {
+        "said": "Presenter.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "switch-app none",
+        "score": "wrong-run",
+        "seconds": 1.718413166992832,
+        "cost": null,
+        "error": null,
+        "confidence": 0.30199488252248297,
+        "tokens": 604
+      },
+      {
+        "said": "In turn.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "return",
+        "score": "right",
+        "seconds": 1.096294165996369,
+        "cost": null,
+        "error": null,
+        "confidence": 0.47683583869171353,
+        "tokens": 403
+      },
+      {
+        "said": "呃，Intel。",
+        "tags": [
+          "heard",
+          "mixed"
+        ],
+        "expect": [
+          "return"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1705367909744382,
+        "cost": null,
+        "error": null,
+        "confidence": 0.19895339974154966,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "Uh, focus on news.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "open Muse",
+          "switch-app Muse"
+        ],
+        "got": "open-website bbc",
+        "score": "wrong-run",
+        "seconds": 2.3842298749950714,
+        "cost": null,
+        "error": null,
+        "confidence": 0.565557884761908,
+        "tokens": 770
+      },
+      {
+        "said": "Switch up, Muse.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "switch-app Muse"
+        ],
+        "got": "switch-app Muse",
+        "score": "right",
+        "seconds": 1.7880672499886714,
+        "cost": null,
+        "error": null,
+        "confidence": 0.27735444235251094,
+        "tokens": 610
+      },
+      {
+        "said": "Uh, lunch costly.",
+        "tags": [
+          "heard",
+          "en"
+        ],
+        "expect": [
+          "open Ghostty",
+          "switch-app Ghostty"
+        ],
+        "got": "none",
+        "score": "missed",
+        "seconds": 1.1091190419974737,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7443921731544776,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "Open level dot f y i.",
+        "tags": [
+          "heard",
+          "website",
+          "en"
+        ],
+        "expect": [
+          "open-website other"
+        ],
+        "got": "open-website other",
+        "score": "right",
+        "seconds": 2.2164596669899765,
+        "cost": null,
+        "error": null,
+        "confidence": 0.5797040355751293,
+        "tokens": 772
+      },
+      {
+        "said": "Lock my screen. Laptop.",
+        "tags": [
+          "heard",
+          "lock",
+          "en"
+        ],
+        "expect": [
+          "lock-screen"
+        ],
+        "got": "lock-screen",
+        "score": "right",
+        "seconds": 1.0992247919784859,
+        "cost": null,
+        "error": null,
+        "confidence": 0.9878453818939028,
+        "tokens": 406
+      },
+      {
+        "said": "Okay, ask me. Is I have some high quality model Opus tokens left for my next five hour window, which I have about, which I have about an hour and a half left. What could you use those tokens for? For example, organizing my inbox, start organizing my vault, cleaning up discrepancies during code review for all my repositories, and trying to fix and patch things up. What would you recommend me to do?",
+        "tags": [
+          "heard",
+          "muse",
+          "en"
+        ],
+        "expect": [
+          "ask-muse"
+        ],
+        "got": "ask-muse",
+        "score": "right",
+        "seconds": 1.5114821669994853,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7538710718388972,
+        "tokens": 487
+      },
+      {
+        "said": "Minutos",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1248821670014877,
+        "cost": null,
+        "error": null,
+        "confidence": 0.17370544703470045,
+        "picked": "none",
+        "tokens": 402
+      },
+      {
+        "said": "certo",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "return",
+        "score": "wrong-run",
+        "seconds": 1.1317102499888279,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2901731027144386,
+        "tokens": 401
+      },
+      {
+        "said": "तक",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "return",
+        "score": "wrong-run",
+        "seconds": 1.123227208998287,
+        "cost": null,
+        "error": null,
+        "confidence": 0.3314610904058442,
+        "tokens": 401
+      },
+      {
+        "said": "嗯。",
+        "tags": [
+          "heard",
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.0768938339897431,
+        "cost": null,
+        "error": null,
+        "confidence": 0.46684534205023026,
+        "picked": "none",
+        "tokens": 403
+      },
+      {
+        "said": "goed goedziemeld ook.",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.1433060000126716,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2883921763801292,
+        "picked": "none",
+        "tokens": 406
+      },
+      {
+        "said": "一块钱一份。",
+        "tags": [
+          "heard",
+          "none",
+          "zh"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "none",
+        "score": "right",
+        "seconds": 1.2190593339910265,
+        "cost": null,
+        "error": null,
+        "confidence": 0.7373670871729109,
+        "picked": "none",
+        "tokens": 405
+      },
+      {
+        "said": "ออกมานาฬิกา",
+        "tags": [
+          "heard",
+          "none"
+        ],
+        "expect": [
+          "none"
+        ],
+        "got": "open Clock",
+        "score": "wrong-run",
+        "seconds": 3.6277252919971943,
+        "cost": null,
+        "error": null,
+        "confidence": 0.2858877468055538,
+        "tokens": 1283
+      }
+    ]
+  },
+  "catalog": false,
+  "tag": null,
+  "min_confidence": 0.0,
+  "date": "2026-10-25T13:50:31",
+  "environment": {
+    "commit": "a0b84cd",
+    "dirty": true,
+    "os": "macOS-27.0.1",
+    "python": "3.11.14",
+    "macos": "27.0.1",
+    "machine": "MacBookPro18,2",
+    "cpu": "Apple M1 Max"
+  }
+}
