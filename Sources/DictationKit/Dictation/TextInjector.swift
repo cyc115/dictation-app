@@ -23,6 +23,12 @@ class TextInjector {
     }
     var postReturn: () -> Void = TextInjector.postReturnKey
 
+    /// Leaves `text` on the clipboard for you to paste (it's not restored).
+    func copy(_ text: String) {
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+    }
+
     func inject(_ text: String) {
         guard canPaste() else { return }
         let pasteboard = self.pasteboard
@@ -84,17 +90,11 @@ class TextInjector {
         return (0x3000...0x303F).contains(s) || (0xFF00...0xFFEF).contains(s)
     }
 
-    /// Asks the frontmost app (the system-wide element fails for some apps, e.g. Ghostty), with a
-    /// 0.1 s limit so a hung app doesn't hold up the paste. Terminals report the cursor at 0: no space.
+    /// Asks the frontmost app, with a 0.1 s limit so a hung app doesn't hold up the paste.
+    /// Terminals report the cursor at 0: no space.
     static func focusedCharBeforeCursor() -> Character? {
-        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return nil }
-        let app = AXUIElementCreateApplication(pid)
-        AXUIElementSetMessagingTimeout(app, 0.1)
-        var focused: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(app, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-              let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() else { return nil }
-        let field = focused as! AXUIElement
-        AXUIElementSetMessagingTimeout(field, 0.1)
+        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              let field = TextSpot.focusedElement(of: pid) else { return nil }
         var selection: CFTypeRef?
         var range = CFRange()
         guard AXUIElementCopyAttributeValue(field, kAXSelectedTextRangeAttribute as CFString, &selection) == .success,

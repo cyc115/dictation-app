@@ -132,6 +132,9 @@ final class AppSettings: ObservableObject {
     /// Home also shows recent dictations' waits, model by model (RecentLatencyView). Off by default:
     /// it's for finding a slow model, not something most people need.
     @Setting("showDetailedAnalytics", default: false) var showDetailedAnalytics: Bool
+    /// Experimental: text that arrives after you've switched away goes back to the box you dictated
+    /// into, then you're brought back (`GoBack`). On by default.
+    @Setting("pasteWhereDictated", default: true) var pasteWhereDictated: Bool
 
     private static let setupKey = "transcriptionModel"  // the setup's id
     private static let excludedAppsKey = "excludedApps"

@@ -60,6 +60,8 @@ final class DictationControllerTests: XCTestCase {
     private var decision = CommandDecision(command: "volume", choice: "-10", confidence: 0.99)
     private let decided = EventLog()
     private var ran: [String] = []
+    /// Where you are while dictating (Paste where you dictated).
+    private var desk = FakeDesk()
 
     /// `realEngines`: the app's own engine choice instead of `engine`.
     private func makeController(realEngines: Bool = false, overlay: OverlayWindow = OverlayWindow()) -> DictationController {
@@ -93,6 +95,8 @@ final class DictationControllerTests: XCTestCase {
         controller.activeInput = { _ in FakeMics.wired }  // not this Mac's mics
         controller.sendDelay = 0.01
         controller.onIdle = { [unowned self] in idle += 1 }
+        desk.moveTo(FakeDesk.slack)
+        desk.attach(controller.goBack, keys: false)
         return controller
     }
 
@@ -325,6 +329,53 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertFalse(controller.dictating)
         waitUntil { !controller.isBusy && keys.count == 2 }
         XCTAssertEqual(keys, ["paste:hello world", "return"])
+    }
+
+    // MARK: Paste where you dictated
+
+    /// You moved to Notes while the text was on its way: it goes to Slack, is sent, and you're back in Notes.
+    func testTextGoesBackToWhereYouDictated() {
+        let controller = makeController()
+        controller.start()
+        controller.enter()
+        desk.moveTo(FakeDesk.notes)
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(keys, ["paste:hello world", "return"])
+        XCTAssertEqual(desk.log, ["block", "front:Slack", "cursor:Slack", "front:Notes", "cursor:Notes", "unblock"])
+        XCTAssertEqual(desk.front, 2)
+    }
+
+    func testStayingPutPastesWithoutSwitching() {
+        let controller = makeController()
+        controller.start()
+        controller.enter()
+        waitUntil { !controller.isBusy && keys.count == 2 }
+        XCTAssertEqual(keys, ["paste:hello world", "return"])
+        XCTAssertEqual(desk.log, [])
+    }
+
+    func testOffPastesWhereYouAre() {
+        let controller = makeController()
+        settings.pasteWhereDictated = false
+        controller.start()
+        controller.enter()
+        desk.moveTo(FakeDesk.notes)
+        waitUntil { !controller.isBusy && keys.count == 2 }
+        XCTAssertEqual(desk.log, [])
+    }
+
+    /// The box is gone: nothing pasted or sent, and the pill says the text is on the clipboard.
+    func testCantGetBackSaysSo() {
+        let controller = makeController()
+        controller.start()
+        controller.enter()
+        desk.moveTo(FakeDesk.notes)
+        desk.cursor[1] = FakeDesk.box(999)  // Slack's cursor is somewhere else now
+        desk.focusWorks = false
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(keys, [])
+        XCTAssertEqual(controller.overlay.mode, .message)
+        XCTAssertEqual(controller.overlay.label.stringValue, "Couldn't get back to Slack: the text is on the clipboard")
     }
 
     // MARK: Enter button

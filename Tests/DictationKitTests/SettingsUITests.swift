@@ -20,7 +20,8 @@ final class SettingsUITests: XCTestCase {
                       "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
                       "Mouse button", "AI polish", "Model", "On-device model", "Keep history", "Keep recordings",
                       "Backup model when slow", "Pause in these apps", "Show detailed analytics",
-                      "Mouse button for Enter", "Enter button", "Command mode", "Commands"] {
+                      "Mouse button for Enter", "Enter button", "Command mode", "Commands",
+                      "Paste where you dictated"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }
@@ -34,7 +35,8 @@ final class SettingsUITests: XCTestCase {
                               ("Show app in Dock", { settings.showInDock }),
                               ("AI polish", { settings.polishEnabled }),
                               ("Keep recordings", { settings.keepRecordings }),
-                              ("Show detailed analytics", { settings.showDetailedAnalytics })] as [(String, () -> Bool)] {
+                              ("Show detailed analytics", { settings.showDetailedAnalytics }),
+                              ("Paste where you dictated", { settings.pasteWhereDictated })] as [(String, () -> Bool)] {
             let before = read()
             guard let toggle = hosted.element(id: "setting." + title) else { XCTFail("no \(title)"); continue }
             XCTAssertTrue(hosted.click(toggle), "\(title) not clickable")
@@ -47,6 +49,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(reloaded.polishEnabled)
         XCTAssertTrue(reloaded.keepRecordings)
         XCTAssertTrue(reloaded.showDetailedAnalytics)
+        XCTAssertFalse(reloaded.pasteWhereDictated, "on by default")
     }
 
     func testRecordingsFolderOnlyShownWhileKeepingRecordings() {

@@ -39,6 +39,8 @@ final class DictationController {
     var autoStopAfter: (hold: TimeInterval, toggle: TimeInterval) = (90, 300)
     /// Wait between pasting the text and pressing Return, so the app has taken the paste first.
     var sendDelay: TimeInterval = 0.15
+    /// Takes text back to the box it was dictated into, if you've moved on (Paste where you dictated).
+    lazy var goBack = GoBack(injector: injector)
 
     private(set) var dictating = false
     /// What the dictation in progress is for.
@@ -232,6 +234,8 @@ final class DictationController {
         finishing += 1
         let delivery = Delivery(send: send)
         let kind = self.kind
+        // Where the text goes, saved now in case you move on before it arrives.
+        let target = kind == .text && settings.pasteWhereDictated ? goBack.current() : nil
         if kind.canBeSent { lastDelivery = delivery }
         // Cloud models transcribe after you stop: keep the pill up ("working") until text arrives.
         // A command keeps it up until it has run.
@@ -255,7 +259,7 @@ final class DictationController {
                 if batch && !polishing { self.overlay.hideUnlessMessage() }
                 self.insights.record(text: raw, duration: duration)
                 self.deliver(raw, duration: duration, setup: setup, polisher: polisher, transcribed: transcribed,
-                             transcribedBy: transcribedBy, note: note, delivery: delivery)
+                             transcribedBy: transcribedBy, note: note, target: target, delivery: delivery)
             }
         }, failure: { [weak self] message in
             note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
@@ -294,8 +298,27 @@ final class DictationController {
         DispatchQueue.main.asyncAfter(deadline: .now() + sendDelay) { [injector] in injector.pressReturn() }
     }
 
+    /// Pastes `text`, then presses Return if it's being sent. If you've moved on from `target`, `GoBack`
+    /// takes it there instead (nothing's pasted if it can't); `done` runs once it's all over.
+    private func type(_ text: String, to target: TextSpot?, delivery: Delivery, done: @escaping () -> Void) {
+        guard let target, !goBack.isStill(at: target) else {
+            injector.inject(text)
+            if delivery.send { pressReturnSoon() }
+            return done()
+        }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.goBack.sendDelay = self.sendDelay
+            if case .lost(let app) = await self.goBack.deliver(text, to: target, send: { delivery.send }) {
+                self.overlay.show(.plain("Couldn't get back to \(app): the text is on the clipboard", seconds: 5))
+            }
+            done()
+        }
+    }
+
     private func deliver(_ raw: String, duration: TimeInterval, setup: DictationSetup, polisher: PolishService?,
-                         transcribed: TimeInterval, transcribedBy: ModelAnswer?, note: RecordingNote?, delivery: Delivery) {
+                         transcribed: TimeInterval, transcribedBy: ModelAnswer?, note: RecordingNote?, target: TextSpot?,
+                         delivery: Delivery) {
         guard !raw.isEmpty else { return finished(delivery) }
         if let polisher {
             overlay.showProcessing()
@@ -309,19 +332,17 @@ final class DictationController {
                     self.history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt,
                                      transcribeSeconds: transcribed, polishSeconds: seconds,
                                      transcribedBy: transcribedBy, polishedBy: polishedBy)
-                    self.injector.inject(polished)
-                    if delivery.send { self.pressReturnSoon() }
-                    // After typing it, so saving it adds nothing to your wait.
-                    note?.polished(polished, seconds: seconds, error: error)
-                    self.finished(delivery)
+                    self.type(polished, to: target, delivery: delivery) {
+                        // After typing it, so saving it adds nothing to your wait.
+                        note?.polished(polished, seconds: seconds, error: error)
+                        self.finished(delivery)
+                    }
                 }
             }
         } else {
             history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed,
                         transcribedBy: transcribedBy)
-            injector.inject(raw)
-            if delivery.send { pressReturnSoon() }
-            finished(delivery)
+            type(raw, to: target, delivery: delivery) { [weak self] in self?.finished(delivery) }
         }
     }
 }
