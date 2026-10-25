@@ -97,12 +97,19 @@ final class AppRelaunch {
     static func relaunchApp(bundle: URL = Bundle.main.bundleURL) {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        task.arguments = ["-c", "while kill -0 \(getpid()) 2>/dev/null; do sleep 0.1; done; /usr/bin/open \"$0\"", bundle.path]
+        task.arguments = reopenScript(after: getpid(), bundle: bundle)
         do {
             try task.run()
         } catch {
             return log.error("relaunch failed: \(error.localizedDescription, privacy: .public)")
         }
         NSApp.terminate(nil)
+    }
+
+    /// `sh`'s arguments for the helper: waits for `pid` to exit, then opens a new copy of `bundle`.
+    /// `-n` because LaunchServices hears of the exit a moment after the process is gone: a plain
+    /// `open` in between found the dead app still listed, "activated" it, and launched nothing.
+    static func reopenScript(after pid: pid_t, bundle: URL, open: String = "/usr/bin/open") -> [String] {
+        ["-c", "while kill -0 \(pid) 2>/dev/null; do sleep 0.1; done; \"$1\" -n \"$0\"", bundle.path, open]
     }
 }

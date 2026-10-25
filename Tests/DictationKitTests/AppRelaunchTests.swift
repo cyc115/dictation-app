@@ -194,4 +194,30 @@ final class AppRelaunchTests: XCTestCase {
         settle()
         XCTAssertEqual(relaunches, 0)
     }
+
+    /// The real helper script, with a stand-in for `open`: it waits for the app to exit, then opens
+    /// a new copy (-n). Without -n, an `open` a millisecond after the exit found LaunchServices still
+    /// listing the dead app and launched nothing (Oct 25, 03:07: the app stayed closed).
+    func testTheHelperOpensANewCopyOnceTheAppHasExited() throws {
+        let folder = makeTempURL(self, "relaunch")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let opened = folder.appendingPathComponent("opened.txt")
+        let fakeOpen = folder.appendingPathComponent("open")
+        try "#!/bin/sh\necho \"$@\" > \"\(opened.path)\"\n".write(to: fakeOpen, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fakeOpen.path)
+        let app = Process()  // stands in for the app that's quitting
+        app.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        app.arguments = ["0.4"]
+        try app.run()
+        let helper = Process()
+        helper.executableURL = URL(fileURLWithPath: "/bin/sh")
+        helper.arguments = AppRelaunch.reopenScript(after: app.processIdentifier,
+                                                    bundle: URL(fileURLWithPath: "/Applications/Some App.app"), open: fakeOpen.path)
+        try helper.run()
+        spinRunLoop(0.2)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: opened.path), "not while the app is still running")
+        app.waitUntilExit()
+        helper.waitUntilExit()
+        XCTAssertEqual(try String(contentsOf: opened, encoding: .utf8), "-n /Applications/Some App.app\n")
+    }
 }
