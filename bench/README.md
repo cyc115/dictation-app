@@ -136,12 +136,16 @@ bench/suite.py polish run -m setup:cloud-flash --corrections --prompt-file ~/Lib
 
 Does what you said run the right command (`command_cases.json`: English, Chinese, mixed, fillers,
 speech-model errors, and things that aren't commands), how fast and how cheaply. `jev` is asked
-exactly as the app's `JevDecider` asks; `openrouter:<id>` as its `ChatDecider`. `--catalog` adds 29
-more commands to choose from. Results and Jev's limits: [`results/commands/`](results/commands/README.md).
+exactly as the app's `JevDecider` asks; `openrouter:<id>` as its `ChatDecider`; `local:<name>` is an
+on-device decision model behind its own server (Decider, Kev, Laya: how to start them is in the
+results). `--catalog` adds 29 more commands to choose from. Results, the on-device comparison and
+Jev's limits: [`results/commands/`](results/commands/README.md).
 
 ```sh
 bench/suite.py commands run                       # Jev and six chat models
 bench/suite.py commands run -m jev -m openrouter:deepseek/deepseek-v4.1-flash -r 3 --catalog
+bench/suite.py commands run -m jev -m local:decider -r 3 --workers 1 --min-confidence 0   # + cut-off table
+bench/suite.py commands resources -m local:decider   # memory, idle CPU, CPU/GPU time and energy per decision
 bench/suite.py commands report --failures jev
 ```
 

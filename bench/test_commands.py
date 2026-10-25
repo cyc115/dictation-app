@@ -61,3 +61,33 @@ def test_open_lists_the_installed_apps(tmp_path):
     found = {c["name"]: c for c in commands.app_commands(apps=["Ghostty", "Safari"], running=["Safari"])}
     assert found["switch-app"]["choices"] == {"Safari": "Safari", "none": commands.NO_APP}
     assert found["open"]["choices"] == {"Ghostty": "Ghostty", "Safari": "Safari", "none": commands.NO_APP}
+
+
+def test_a_local_decider_is_asked_the_command_then_its_choice(monkeypatch):
+    asked = []
+
+    def fake_post(url, body, key):
+        asked.append((url, list(body["questions"])))
+        (name,) = body["questions"]
+        return {"answers": {name: {"choice": "volume", "confidence": 0.9} if name == "command" else {"choice": "mute"}}}
+
+    monkeypatch.setattr(commands, "post_json", fake_post)
+    cmds = commands.app_commands(apps=[])
+    assert commands.ask("local:kev", "mute", cmds, "") == ("volume mute", None, {"confidence": 0.9})
+    assert asked == [(commands.LOCAL["kev"]["url"], ["command"]), (commands.LOCAL["kev"]["url"], ["choice:volume"])]
+    assert commands.local_question("mute", cmds, "volume") == {
+        "choice:volume": commands.jev_body("mute", cmds)["questions"]["choice:volume"]}
+
+
+def test_a_local_pick_under_the_cut_off_is_none_and_laya_uses_jevs_confidence(monkeypatch):
+    monkeypatch.setattr(commands, "post_json", lambda url, body, key: {"answers": {"command": {
+        "choice": "volume", "confidence": 0.9, "x_jev_confidence": 0.3}}})
+    assert commands.ask("local:laya", "mute", commands.app_commands(apps=[]), "")[0] == "none"
+
+
+def test_a_run_without_a_cut_off_can_be_scored_with_one():
+    answers = [{"expect": ["volume mute"], "got": "volume mute", "confidence": 0.4, "error": None, "score": "right"},
+               {"expect": ["none"], "got": "return", "confidence": 0.3, "error": None, "score": "wrong-run"},
+               {"expect": ["none"], "got": "none", "error": "timeout", "score": "error"}]
+    assert [a["score"] for a in commands.at_cutoff(answers, 0.5)] == ["missed", "right", "error"]
+    assert [a["score"] for a in commands.at_cutoff(answers, 0.35)] == ["right", "right", "error"]

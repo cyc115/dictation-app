@@ -5,6 +5,8 @@
   bench/suite.py commands run --catalog                         # with 29 more commands to choose from
   bench/suite.py commands report [--file results/commands/….json] [--markdown] [--failures MODEL]
   bench/suite.py commands cases [--tag zh]
+  bench/suite.py commands run -m jev -m local:kev --workers 1 -r 3   # an on-device decider (its server running)
+  bench/suite.py commands resources -m local:kev                 # its memory, CPU/GPU time and energy per decision
 
 Each case (command_cases.json) is something you might say — English, Chinese, mixed, with fillers,
 with speech-model errors, or not a command at all — and every answer that counts as right
@@ -20,9 +22,18 @@ Models:
   openrouter:<id>       a chat model, told the commands and their choices and asked for JSON
                         {"command", "choice"} (a schema with the names as an enum), at temperature 0,
                         reasoning off or lowest (ChatDecider in the app).
+  local:<name>          an on-device decision model behind its own server on this Mac, speaking Jev's
+                        format (LOCAL: laya, laya-ml, kev, decider). Asked the command first, then
+                        that command's choice: two requests, one question each (Decider takes one).
+                        Run with --workers 1, one local model at a time, so they don't share the GPU.
 
 Scores: right (an expected answer), wrong run (ran a command that shouldn't run: the costly
-mistake), missed (said "none" when a command should run). Wait: one request from this machine.
+mistake), missed (said "none" when a command should run). Wait: one request from this machine (local:
+both requests); the first answer per model warms it up (loads the model, opens the connection) and
+isn't counted.
+
+resources: for a local:<name> model, the server's memory (footprint, resident), its CPU% while idle,
+and per decision its CPU and GPU time and an energy estimate (procstats.py: no sudo, so estimated).
 """
 from __future__ import annotations
 
@@ -36,6 +47,7 @@ from pathlib import Path
 
 import harness
 import openrouter
+import procstats
 from openrouter import CHAT, REASONING_FALLBACKS, post_json
 
 NAME = "commands"
@@ -46,6 +58,16 @@ BUILT_IN_FILE = harness.ROOT / "built_in_commands.json"
 DECISIONS = "https://openrouter.ai/api/alpha/decisions"
 JEV = "~typesafe/jev-latest"
 MIN_CONFIDENCE = 0.5  # CommandDecision.minConfidence
+_min_confidence = MIN_CONFIDENCE  # --min-confidence: 0 keeps every pick, so a report can try other cut-offs
+# On-device decision models, each behind its own local server (start it first; see results/commands/).
+LOCAL = {
+    "laya": {"url": "http://127.0.0.1:8010/v1/systemone", "model": "english", "about": "Laya 421M (laya-mlx-serve)"},
+    "laya-ml": {"url": "http://127.0.0.1:8010/v1/systemone", "model": "multilingual",
+                "about": "Laya multilingual 322M (laya-mlx-serve)"},
+    "kev": {"url": "http://127.0.0.1:8009/v1/systemone", "model": "kev-latest", "about": "Kev 0.8B (kev.serve)"},
+    "decider": {"url": "http://127.0.0.1:8080/v1/decisions", "model": "pplx-decider-flash-v1.2",
+                "about": "Perplexity Decider for Mac, 4B"},
+}
 # CommandDecision.heard, word for word (a Swift test checks): every decider is told it's speech, maybe misheard.
 HEARD = "The user spoke this and speech-to-text wrote it down, so words may be misheard: go by how they sound (“lower the bright knees” is “lower the brightness”, “press and her” is “press Enter”). A stray word or two that sounds like no command is none."
 DEFAULT_MODELS = ["jev", "openrouter:google/gemini-3.5-flash-lite", "openrouter:anthropic/claude-haiku-5.5",
@@ -132,10 +154,34 @@ def ask_jev(said: str, commands: list[dict], key: str) -> tuple[str, float | Non
     answers = answer["answers"]
     pick = answers["command"]
     name = pick["choice"]
-    if name == "none" or pick.get("confidence", 0) < MIN_CONFIDENCE:
+    if name == "none" or pick.get("confidence", 0) < _min_confidence:
         return "none", answer.get("usage", {}).get("cost"), {"confidence": pick.get("confidence"), "picked": name}
     choice = answers.get("choice:" + name, {}).get("choice")
     return label(name, choice), answer.get("usage", {}).get("cost"), {"confidence": pick.get("confidence")}
+
+
+def local_question(said: str, commands: list[dict], name: str | None = None) -> dict:
+    """One of JevDecider's questions, as a local decider gets it: the command, or `name`'s choice."""
+    key = "command" if name is None else "choice:" + name
+    return {key: jev_body(said, commands)["questions"][key]}
+
+
+def ask_local(name: str, said: str, commands: list[dict]) -> tuple[str, float | None, dict]:
+    server = LOCAL[name]
+
+    def answers(questions: dict) -> dict:
+        body = {"model": server["model"], "state": HEARD + "\nThe user said: " + said, "questions": questions}
+        return post_json(server["url"], body, "local")["answers"]
+
+    pick = answers(local_question(said, commands))["command"]
+    # Laya's own confidence is entropy; x_jev_confidence is Jev's formula, which MIN_CONFIDENCE is for.
+    picked, confidence = pick["choice"], pick.get("x_jev_confidence", pick.get("confidence", 0))
+    if picked == "none" or confidence < _min_confidence:
+        return "none", None, {"confidence": confidence, "picked": picked}
+    if not any(c["name"] == picked and c["choices"] for c in commands):
+        return label(picked, None), None, {"confidence": confidence}
+    choice = answers(local_question(said, commands, picked))["choice:" + picked]["choice"]
+    return label(picked, choice), None, {"confidence": confidence}
 
 
 def chat_prompt(commands: list[dict]) -> str:
@@ -188,8 +234,10 @@ def ask(model: str, said: str, commands: list[dict], key: str):
         got, cost, extra = ask_jev(said, commands, key)
     elif model.startswith("openrouter:"):
         got, cost, extra = ask_chat(model[len("openrouter:"):], said, commands, key)
+    elif model.startswith("local:") and model[len("local:"):] in LOCAL:
+        got, cost, extra = ask_local(model[len("local:"):], said, commands)
     else:
-        raise SystemExit(f"unknown model {model!r}: use jev or openrouter:<id>")
+        raise SystemExit(f"unknown model {model!r}: use jev, openrouter:<id> or local:<{'|'.join(LOCAL)}>")
     return ("none" if got == "open none" else got), cost, extra
 
 
@@ -217,6 +265,11 @@ def run(models: list[str], cases: list[dict], commands: list[dict], rounds: int,
                 "score": "error" if error else score(case, got), "seconds": time.perf_counter() - started,
                 "cost": cost, "error": error, **extra}
 
+    for model in models:  # the first answer loads the model or opens the connection: not timed
+        try:
+            ask(model, cases[0]["said"], commands, key)
+        except Exception:  # noqa: BLE001 (the timed run reports it)
+            pass
     jobs = [(m, c) for _ in range(rounds) for c in cases for m in models]
     with concurrent.futures.ThreadPoolExecutor(workers) as pool:
         for model, done in zip([m for m, _ in jobs], pool.map(lambda job: one(*job), jobs)):
@@ -242,19 +295,43 @@ def by_tag(answers: list[dict]) -> dict[str, float]:
             for t in tags}
 
 
+def at_cutoff(answers: list[dict], cutoff: float) -> list[dict]:
+    """Re-scored as if a pick under `cutoff` confidence had been none (from a run at --min-confidence 0)."""
+    def got(a: dict) -> str:
+        return "none" if a.get("confidence") is not None and a["confidence"] < cutoff else a["got"]
+    return [a if a["error"] else {**a, "got": got(a), "score": score(a, got(a))} for a in answers]
+
+
+def cutoffs(data: dict, markdown: bool = False) -> str:
+    """Right and wrong runs with the app's cut-off, none, and each model's best one."""
+    rows = []
+    for model, answers in data["results"].items():
+        tried = {round(0.05 * i, 2): summary(at_cutoff(answers, 0.05 * i)) for i in range(20)}
+        best = max(tried, key=lambda c: (tried[c]["right"], -tried[c]["wrong_run"]))
+        app = summary(at_cutoff(answers, MIN_CONFIDENCE))
+        rows.append([model, f"{100 * tried[0.0]['right']:.0f}%", f"{100 * app['right']:.0f}%", app["wrong_run"],
+                     f"{best:.2f}", f"{100 * tried[best]['right']:.0f}%", tried[best]["wrong_run"]])
+    return harness.table(["model", "right, no cut-off", f"right ≥{MIN_CONFIDENCE}", "wrong runs",
+                          "best cut-off", "right", "wrong runs"], rows, markdown=markdown)
+
+
 def report(data: dict, markdown: bool = False, failures: str | None = None) -> str:
     rows = []
     tags = sorted({t for answers in data["results"].values() for a in answers for t in a["tags"]})
     for model, answers in data["results"].items():
         s, t = summary(answers), by_tag(answers)
         rows.append([model, f"{100 * s['right']:.0f}%", s["wrong_run"], s["missed"], s["errors"],
-                     harness.seconds(s["seconds"].get("p50")), harness.seconds(s["seconds"].get("p95")),
+                     harness.seconds(s["seconds"].get("p50")), harness.seconds(s["seconds"].get("p90")),
+                     harness.seconds(s["seconds"].get("p95")),
                      f"${s['cost_per_1000']:.3f}" if s["cost_per_1000"] is not None else "–"]
                     + [f"{100 * t[tag]:.0f}%" for tag in tags])
     rows.sort(key=lambda r: (-float(r[1][:-1]), r[2]))
     out = [f"{len(data['commands'])} commands, {data['rounds']} round(s)",
-           harness.table(["model", "right", "wrong runs", "missed", "errors", "wait p50", "p95", "per 1000"] + tags,
+           harness.table(["model", "right", "wrong runs", "missed", "errors", "wait p50", "p90", "p95", "per 1000"] + tags,
                          rows, markdown=markdown)]
+    if data.get("min_confidence", MIN_CONFIDENCE) < MIN_CONFIDENCE:
+        out += [f"\nconfidence cut-off (run at {data['min_confidence']}; the app's is {MIN_CONFIDENCE}):",
+                cutoffs(data, markdown)]
     if failures:
         out.append(f"\n{failures} — not right:")
         for a in data["results"].get(failures, []):
@@ -262,6 +339,46 @@ def report(data: dict, markdown: bool = False, failures: str | None = None) -> s
                 out.append(f"  {a['score']:<9} {a['said']!r} → {a['got']}  (want {' | '.join(a['expect'])})"
                            + (f"  {a['error']}" if a["error"] else ""))
     return "\n".join(out)
+
+
+def resources(model: str, cases: list[dict], commands: list[dict], n: int, idle: float) -> dict:
+    """A local:<name> model's server, measured from outside: memory, CPU while idle, and per decision
+    (both requests) its CPU and GPU time and the energy they'd take (procstats)."""
+    name = model[len("local:"):] if model.startswith("local:") else None
+    if name not in LOCAL:
+        raise SystemExit(f"resources measures a local model's server: local:<{'|'.join(LOCAL)}>")
+    port = int(LOCAL[name]["url"].split(":")[2].split("/")[0])
+    pid = procstats.pid_on_port(port)
+    if pid is None:
+        raise SystemExit(f"nothing listening on port {port}: start {LOCAL[name]['about']} first")
+    ask(model, cases[0]["said"], commands, "")  # loaded and warm
+    cpu = procstats.cpu_seconds(pid)
+    time.sleep(idle)
+    idle_cpu = (procstats.cpu_seconds(pid) - cpu) / idle
+    cpu, gpu, started = procstats.cpu_seconds(pid), procstats.gpu_seconds(pid), time.perf_counter()
+    for i in range(n):
+        ask(model, cases[i % len(cases)]["said"], commands, "")
+    wall = (time.perf_counter() - started) / n
+    cpu, gpu = (procstats.cpu_seconds(pid) - cpu) / n, (procstats.gpu_seconds(pid) - gpu) / n
+    joules = procstats.energy_joules(cpu, gpu)
+    return {"model": model, "about": LOCAL[name]["about"], "pid": pid, "decisions": n, "memory_mb": procstats.memory_mb(pid),
+            "idle_cpu_percent": round(100 * idle_cpu, 2), "idle_watts": round(idle_cpu * procstats.CPU_WATTS, 3),
+            "per_decision": {"wall_ms": round(1000 * wall, 1), "cpu_ms": round(1000 * cpu, 1), "gpu_ms": round(1000 * gpu, 1),
+                             "energy_mj": round(1000 * joules, 1)},
+            "watts": {"cpu": procstats.CPU_WATTS, "gpu": procstats.GPU_WATTS}, "battery_wh": procstats.battery_wh()}
+
+
+def resources_report(data: dict) -> str:
+    m, d = data["memory_mb"], data["per_decision"]
+    battery = data["battery_wh"]
+    per_1000 = d["energy_mj"]  # mJ per decision = J per 1000 decisions
+    share = f" = {100 * per_1000 / (battery * 3600):.3f}% of this {battery:.0f} Wh battery" if battery else ""
+    return "\n".join([
+        f"{data['about']} (pid {data['pid']}), {data['decisions']} decisions",
+        f"  memory     footprint {m['footprint']} MB (peak {m['footprint_peak']} MB), resident {m['resident']} MB",
+        f"  idle       {data['idle_cpu_percent']}% CPU ≈ {data['idle_watts']} W",
+        f"  decision   {d['wall_ms']} ms wall, {d['cpu_ms']} ms CPU, {d['gpu_ms']} ms GPU ≈ {d['energy_mj']} mJ (estimate)",
+        f"  per 1000   ≈ {per_1000:.0f} J{share}"])
 
 
 def parser() -> argparse.ArgumentParser:
@@ -274,10 +391,19 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("--catalog", action="store_true", help="add command_catalog.json's commands to choose from")
     r.add_argument("--tag", help="only cases with this tag")
     r.add_argument("--workers", type=int, default=8)
+    r.add_argument("--min-confidence", type=float, default=MIN_CONFIDENCE,
+                   help=f"jev/local picks under this are none (the app's: {MIN_CONFIDENCE}); 0 keeps them, and the "
+                        "report then compares cut-offs")
     p = sub.add_parser("report", help="the latest (or --file) run")
     p.add_argument("--file", type=Path)
     p.add_argument("--markdown", action="store_true")
     p.add_argument("--failures", metavar="MODEL", help="list the cases MODEL didn't get right")
+    s = sub.add_parser("resources", help="a local model's memory, idle CPU, and CPU/GPU time and energy per decision")
+    s.add_argument("-m", "--model", required=True, help=f"local:<{'|'.join(LOCAL)}> (its server running)")
+    s.add_argument("-n", "--decisions", type=int, default=100)
+    s.add_argument("--idle", type=float, default=30, help="seconds to watch it idle")
+    s.add_argument("--catalog", action="store_true", help="add command_catalog.json's commands to choose from")
+    s.add_argument("--tag", help="only cases with this tag")
     c = sub.add_parser("cases", help="the test set")
     c.add_argument("--tag")
     return parser
@@ -301,8 +427,17 @@ def main(argv: list[str]) -> int:
             raise SystemExit("no results yet: run first")
         print(report(json.loads(path.read_text()), args.markdown, args.failures))
         return 0
+    if args.action == "resources":
+        data = resources(args.model, cases, commands_for(args.catalog), args.decisions, args.idle)
+        data.update(date=datetime.now().isoformat(timespec="seconds"), environment=harness.environment())
+        path = harness.save_result(NAME, "resources-" + args.model[len("local:"):], data)
+        print(resources_report(data))
+        print(f"\nsaved {path.relative_to(harness.ROOT.parent)}")
+        return 0
+    global _min_confidence
+    _min_confidence = args.min_confidence
     data = run(args.model or DEFAULT_MODELS, cases, commands_for(args.catalog), args.rounds, args.workers)
-    data.update(catalog=args.catalog, tag=args.tag, date=datetime.now().isoformat(timespec="seconds"),
+    data.update(catalog=args.catalog, tag=args.tag, min_confidence=args.min_confidence, date=datetime.now().isoformat(timespec="seconds"),
                 environment=harness.environment())
     path = harness.save_result(NAME, ("catalog-" if args.catalog else "") + f"{len(data['models'])}-models", data)
     print(report(data))

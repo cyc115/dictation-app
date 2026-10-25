@@ -1,0 +1,34 @@
+{
+  "model": "local:kev",
+  "about": "Kev 0.8B (kev.serve)",
+  "pid": 29982,
+  "decisions": 100,
+  "memory_mb": {
+    "footprint": 3407,
+    "footprint_peak": 4761,
+    "resident": 600
+  },
+  "idle_cpu_percent": 0.23,
+  "idle_watts": 0.012,
+  "per_decision": {
+    "wall_ms": 155.3,
+    "cpu_ms": 23.1,
+    "gpu_ms": 138.6,
+    "energy_mj": 5658.7
+  },
+  "watts": {
+    "cpu": 5.0,
+    "gpu": 40.0
+  },
+  "battery_wh": 102.7,
+  "date": "2026-10-25T13:10:59",
+  "environment": {
+    "commit": "4243404",
+    "dirty": true,
+    "os": "macOS-27.0.1",
+    "python": "3.11.14",
+    "macos": "27.0.1",
+    "machine": "MacBookPro18,2",
+    "cpu": "Apple M1 Max"
+  }
+}
