@@ -160,9 +160,13 @@ final class FakeSpeechRuntime: SpeechRuntime {
 
     func load(_ directory: URL) async throws { log.append("load") }
 
-    func transcribe(_ samples: [Float], maxTokens: Int) async throws -> String {
+    /// The context each transcription was given.
+    var contexts: [String] = []
+
+    func transcribe(_ samples: [Float], maxTokens: Int, context: String) async throws -> String {
         log.append("transcribe")
         self.maxTokens.append(maxTokens)
+        contexts.append(context)
         if let error { throw error }
         return text
     }

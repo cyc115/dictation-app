@@ -1,5 +1,5 @@
 {
-  "about": "Command mode: what you might say, and the command (name and choice, as History shows it) that should run. expect lists every acceptable answer; \"none\" means nothing should run. Commands: the app's built-ins (built_in_commands.json): open's choices are this Mac's apps (the open cases expect apps installed here), switch-app's the open apps in suites/commands.py RUNNING.",
+  "about": "Command mode: what you might say, and the command (name and choice, as History shows it) that should run. expect lists every acceptable answer; \"none\" means nothing should run. Commands: the app's built-ins (built_in_commands.json): open's choices are this Mac's apps (the open cases expect apps installed here), switch-app's the open apps in suites/commands.py RUNNING. Tagged heard: commands the speech model really misheard (History › Commands, Oct 20–25 2026), each expecting what you meant (your retry seconds later); its none cases are noise it wrote down, where nothing should run.",
   "cases": [
     {"said": "make the screen a bit brighter", "expect": ["brightness +10"], "tags": ["en"]},
     {"said": "dim the screen", "expect": ["brightness -10", "brightness -30"], "tags": ["en"]},
@@ -102,6 +102,29 @@
     {"said": "fix the volume command, turning it down works but turning it up doesn't", "expect": ["fix volume"], "tags": ["fix", "en"]},
     {"said": "fix open website, YouTube opens but Yahoo Finance doesn't", "expect": ["fix open-website"], "tags": ["fix", "en"]},
     {"said": "修一下亮度那个命令，调不亮", "expect": ["fix brightness"], "tags": ["fix", "zh"]},
-    {"said": "that didn't work, fix it", "expect": ["fix none"], "tags": ["fix", "en", "tricky"]}
+    {"said": "that didn't work, fix it", "expect": ["fix none"], "tags": ["fix", "en", "tricky"]},
+    {"said": "The crispness.", "expect": ["brightness -10", "brightness -30"], "tags": ["heard", "en"]},
+    {"said": "Set prices to thirty percent.", "expect": ["brightness 25"], "tags": ["heard", "en"]},
+    {"said": "Increase fitness.", "expect": ["brightness +10", "brightness +30"], "tags": ["heard", "en"]},
+    {"said": "Bring this up.", "expect": ["brightness +10", "brightness +30"], "tags": ["heard", "en"]},
+    {"said": "Laura Bravas.", "expect": ["brightness -10", "brightness -30"], "tags": ["heard", "en"]},
+    {"said": "Laws of Physics.", "expect": ["brightness -10", "brightness -30"], "tags": ["heard", "en"]},
+    {"said": "A press center.", "expect": ["return"], "tags": ["heard", "en"]},
+    {"said": "Presenter.", "expect": ["return"], "tags": ["heard", "en"]},
+    {"said": "In turn.", "expect": ["return"], "tags": ["heard", "en"]},
+    {"said": "呃，Intel。", "expect": ["return"], "tags": ["heard", "mixed"]},
+    {"said": "Uh, focus on news.", "expect": ["open Muse", "switch-app Muse"], "tags": ["heard", "en"]},
+    {"said": "Switch up, Muse.", "expect": ["switch-app Muse"], "tags": ["heard", "en"]},
+    {"said": "Uh, lunch costly.", "expect": ["open Ghostty", "switch-app Ghostty"], "tags": ["heard", "en"]},
+    {"said": "Open level dot f y i.", "expect": ["open-website other"], "tags": ["heard", "website", "en"]},
+    {"said": "Lock my screen. Laptop.", "expect": ["lock-screen"], "tags": ["heard", "lock", "en"]},
+    {"said": "Okay, ask me. Is I have some high quality model Opus tokens left for my next five hour window, which I have about, which I have about an hour and a half left. What could you use those tokens for? For example, organizing my inbox, start organizing my vault, cleaning up discrepancies during code review for all my repositories, and trying to fix and patch things up. What would you recommend me to do?", "expect": ["ask-muse"], "tags": ["heard", "muse", "en"]},
+    {"said": "Minutos", "expect": ["none"], "tags": ["heard", "none"]},
+    {"said": "certo", "expect": ["none"], "tags": ["heard", "none"]},
+    {"said": "तक", "expect": ["none"], "tags": ["heard", "none"]},
+    {"said": "嗯。", "expect": ["none"], "tags": ["heard", "none", "zh"]},
+    {"said": "goed goedziemeld ook.", "expect": ["none"], "tags": ["heard", "none"]},
+    {"said": "一块钱一份。", "expect": ["none"], "tags": ["heard", "none", "zh"]},
+    {"said": "ออกมานาฬิกา", "expect": ["none"], "tags": ["heard", "none"]}
   ]
 }

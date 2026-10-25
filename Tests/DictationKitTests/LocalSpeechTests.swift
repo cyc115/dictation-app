@@ -142,9 +142,24 @@ final class LocalSpeechTests: XCTestCase {
         XCTAssertEqual(text, "帮我 build 一下")
         XCTAssertEqual(engine.lastAnswer, ModelAnswer(main: "local:test/qwen"), "History names the model")
         XCTAssertEqual(runtime.log, ["load", "transcribe"])
+        XCTAssertEqual(runtime.contexts, [""], "plain dictation: no context")
         waitUntil { archive.infos.count == 1 }
         XCTAssertEqual(archive.infos.first?.model, "local:test/qwen")
         XCTAssertEqual(archive.infos.first?.transcript, "帮我 build 一下")
+    }
+
+    /// A command's words reach the model as its context prompt.
+    func testEnginePassesTheContextToTheModel() throws {
+        let (model, runtime) = model()
+        let engine = LocalEngine(model: model)
+        engine.context = SpeechContext(words: ["press Enter", "brightness"])
+        XCTAssertTrue(engine.beginRecording())
+        for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }
+        let done = expectation(description: "stopped")
+        engine.stop(completion: { _ in done.fulfill() }, failure: { XCTFail($0); done.fulfill() })
+        wait(for: [done], timeout: 3)
+        XCTAssertEqual(runtime.contexts, [engine.context.prompt])
+        XCTAssertEqual(engine.context.prompt, "press Enter, brightness")
     }
 
     func testEngineReportsAFailure() throws {
@@ -177,11 +192,28 @@ final class LocalSpeechTests: XCTestCase {
         wait(for: [loaded], timeout: 1800)
         XCTAssertEqual(model.state, .ready)
         let bench = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../bench/audio")
-        for (clip, heard) in [("mixed-01", ["build", "push", "repository"]), ("english-01", ["notes", "meeting"]),
-                              ("chinese-01", ["天气", "公园"])] {
+        // A command's context (what command mode gives it) mustn't change what it hears in a dictation.
+        let commandWords = CommandMode(folder: makeTempURL(self), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
+            .speechContext()
+        var clips = [("mixed-01", ["帮我", "build", "push", "repository"]), ("english-01", ["notes", "meeting"]), ("chinese-01", ["天气", "公园"])]
+            .flatMap { clip, heard in [(bench.appendingPathComponent(clip + ".wav"), heard, SpeechContext.none),
+                                       (bench.appendingPathComponent(clip + ".wav"), heard, commandWords)] }
+        // Short commands (macOS's voice, so clean speech: this checks the context reaches the real model).
+        for (name, said, heard) in [("enter", "Press Enter.", "enter"), ("brightness", "Reduce brightness.", "brightness")] {
+            let wav = makeTempURL(self, name + ".wav")
+            let say = Process()
+            say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
+            say.arguments = ["-o", wav.path, "--data-format=LEI16@16000", said]
+            try say.run()
+            say.waitUntilExit()
+            clips.append((wav, [heard], commandWords))
+        }
+        for (wav, heard, context) in clips {
+            let clip = wav.deletingPathExtension().lastPathComponent + (context == .none ? "" : " (command words)")
             let engine = LocalEngine(model: model)
+            engine.context = context
             XCTAssertTrue(engine.beginRecording())
-            XCTAssertTrue(LatencyRunner.read(bench.appendingPathComponent(clip + ".wav"), into: engine.record))
+            XCTAssertTrue(LatencyRunner.read(wav, into: engine.record))
             let done = expectation(description: clip)
             var text = ""
             let started = Date()
@@ -189,7 +221,7 @@ final class LocalSpeechTests: XCTestCase {
             wait(for: [done], timeout: 30)
             let seconds = Date().timeIntervalSince(started)
             print("[local] \(clip): \(String(format: "%.2f", seconds)) s — \(text)")
-            for word in heard { XCTAssertTrue(text.contains(word), "\(clip): \(text)") }
+            for word in heard { XCTAssertTrue(text.lowercased().contains(word), "\(clip): \(text)") }
             XCTAssertLessThan(seconds, 3, "\(clip): stop to text")
             XCTAssertEqual(engine.lastAnswer, ModelAnswer(main: "local:mlx-community/Qwen3-ASR-1.7B-8bit"))
         }

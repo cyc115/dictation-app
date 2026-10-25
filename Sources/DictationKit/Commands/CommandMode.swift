@@ -66,6 +66,16 @@ final class CommandMode {
 
     var commands: [Command] { Command.all(in: folder, apps: apps().keys.sorted(), running: running()) }
 
+    /// What a command is likely to say, for the speech model: the built-ins' words, your commands'
+    /// names ("tail-error-log" as "tail error log") and the apps open now. Not the installed apps:
+    /// hundreds of names would drown out the rest.
+    func speechContext() -> SpeechContext {
+        let own = Command.all(in: folder, apps: [], running: []).filter { $0.script != nil }
+            .map { $0.name.replacingOccurrences(of: "-", with: " ") }
+        var seen = Set<String>()
+        return SpeechContext(words: (Command.builtInWords + own + running()).filter { seen.insert($0).inserted })
+    }
+
     /// Decides what `said` asks for and runs it; the run is saved to History.
     @MainActor
     func handle(_ said: String, apiKey: String, model: String = "jev") async -> CommandRun {

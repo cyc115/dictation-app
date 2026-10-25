@@ -219,6 +219,6 @@ private final class SteppedRuntime: SpeechRuntime {
 
     func finish() { done?.resume(); done = nil }
     func load(_ directory: URL) async throws {}
-    func transcribe(_ samples: [Float], maxTokens: Int) async throws -> String { "" }
+    func transcribe(_ samples: [Float], maxTokens: Int, context: String) async throws -> String { "" }
     func unload() {}
 }

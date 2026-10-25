@@ -46,6 +46,8 @@ BUILT_IN_FILE = harness.ROOT / "built_in_commands.json"
 DECISIONS = "https://openrouter.ai/api/alpha/decisions"
 JEV = "~typesafe/jev-latest"
 MIN_CONFIDENCE = 0.5  # CommandDecision.minConfidence
+# CommandDecision.heard, word for word (a Swift test checks): every decider is told it's speech, maybe misheard.
+HEARD = "The user spoke this and speech-to-text wrote it down, so words may be misheard: go by how they sound (“lower the bright knees” is “lower the brightness”, “press and her” is “press Enter”). A stray word or two that sounds like no command is none."
 DEFAULT_MODELS = ["jev", "openrouter:google/gemini-3.5-flash-lite", "openrouter:anthropic/claude-haiku-5.5",
                   "openrouter:deepseek/deepseek-v4.1-flash", "openrouter:z-ai/glm-5.3-flash",
                   "openrouter:inception/mercury-3"]
@@ -122,7 +124,7 @@ def jev_body(said: str, commands: list[dict]) -> dict:
             questions["choice:" + c["name"]] = {
                 "type": "choice", "instructions": f"If the user wants {c['name']} ({c['summary']}): which of these?",
                 "criteria": c["choices"]}
-    return {"model": JEV, "state": "The user said: " + said, "questions": questions}
+    return {"model": JEV, "state": HEARD + "\nThe user said: " + said, "questions": questions}
 
 
 def ask_jev(said: str, commands: list[dict], key: str) -> tuple[str, float | None, dict]:
@@ -138,7 +140,7 @@ def ask_jev(said: str, commands: list[dict], key: str) -> tuple[str, float | Non
 
 def chat_prompt(commands: list[dict]) -> str:
     lines = ["You pick the command for what the user said (often transcribed speech, English, Chinese or both).",
-             "Commands:"]
+             HEARD, "Commands:"]
     for c in commands:
         choices = "; ".join(f"{v} = {m}" for v, m in c["choices"].items())
         lines.append(f"- {c['name']}: {c['summary']}" + (f". Choices: {choices}" if choices else ""))

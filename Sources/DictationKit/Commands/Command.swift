@@ -61,6 +61,12 @@ struct Command: Hashable {
     static let askMuse = Command(name: "ask-muse", summary: "Ask Muse, the AI assistant app, to do something: the user says “ask Muse to …”, “tell Muse …”, “让 Muse …” and what it should do",
                                  choices: [], script: nil)
     static let builtIn = [pressReturn, again, create, fix, openApp, brightness, volume, lockScreen, media, openWebsite, switchApp, askMuse]
+    /// Words the built-ins are asked with, for the speech model (`CommandMode.speechContext`): the
+    /// ones it got wrong ("Presenter", "Increase fitness", "focus on news") come first.
+    static let builtInWords = ["press Enter", "send", "brightness", "increase brightness", "reduce brightness", "lower brightness",
+                               "Muse", "ask Muse", "open", "switch to", "volume", "mute", "play music", "pause", "next track",
+                               "lock the screen", "go to", "create a command", "fix", "repeat",
+                               "回车", "发送", "亮度", "音量", "声音", "打开", "切换到"]
 
     /// Brightness's and volume's choices: change it by some ("+10": a bit brighter), or set it ("50": half).
     static func levels(more: String, less: String, none: String) -> [Choice] {

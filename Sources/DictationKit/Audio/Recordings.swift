@@ -134,6 +134,9 @@ final class RecordingArchive {
 
     init(directory: URL = RecordingArchive.defaultDirectory) { self.directory = directory }
 
+    /// Commands' recordings: a folder of their own, so they're not mixed into the dictations.
+    var commands: RecordingArchive { RecordingArchive(directory: directory.appendingPathComponent("Commands")) }
+
     private static let nameFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")

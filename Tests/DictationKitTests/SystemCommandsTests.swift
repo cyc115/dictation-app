@@ -136,4 +136,11 @@ final class SystemCommandsTests: XCTestCase {
         }
         XCTAssertEqual(bench as NSArray, app as NSArray)
     }
+
+    /// The bench tells its deciders what the app's are told about misheard speech, word for word.
+    func testTheBenchToldTheDecidersTheSpeechMayBeMisheard() throws {
+        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../bench/suites/commands.py").standardizedFileURL
+        XCTAssertTrue(try String(contentsOf: file, encoding: .utf8).contains("HEARD = \"\(CommandDecision.heard)\""))
+    }
 }

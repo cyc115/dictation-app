@@ -20,6 +20,8 @@ final class CloudEngine: RecordingEngine, DictationEngine {
     /// The stopped dictation being uploaded (deleted or kept when its upload finishes).
     private(set) var uploading: DictationRecording?
     private var race: UploadRace?
+    /// Not used: OpenRouter's transcription endpoint takes no prompt.
+    var context = SpeechContext.none
 
     /// Set up for `setup`'s speech model as the app runs it; `backupWhenSlow` is the "Backup model
     /// when slow" setting.

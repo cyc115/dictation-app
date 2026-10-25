@@ -10,6 +10,12 @@ struct CommandDecision: Equatable {
 
     /// Below this it's "Command not found" rather than a guess run on your Mac.
     static let minConfidence = 0.5
+
+    /// Told to every decider: what you said reached it through a speech model, which gets short
+    /// commands wrong ("Presenter" for "press Enter"). Its examples aren't the bench's cases.
+    static let heard = "The user spoke this and speech-to-text wrote it down, so words may be misheard: go by how they sound "
+        + "(“lower the bright knees” is “lower the brightness”, “press and her” is “press Enter”). "
+        + "A stray word or two that sounds like no command is none."
 }
 
 protocol CommandDecider {
@@ -43,7 +49,7 @@ struct JevDecider: CommandDecider {
                 "criteria": Dictionary(command.choices.map { ($0.value, $0.meaning) }, uniquingKeysWith: { a, _ in a }),
             ]
         }
-        return OpenRouter.post(endpoint, body: ["model": model, "state": "The user said: " + said, "questions": questions],
+        return OpenRouter.post(endpoint, body: ["model": model, "state": CommandDecision.heard + "\nThe user said: " + said, "questions": questions],
                                apiKey: apiKey, timeout: 10)
     }
 
@@ -73,7 +79,8 @@ struct ChatDecider: CommandDecider {
     }
 
     static func prompt(_ commands: [Command]) -> String {
-        var lines = ["You pick the command for what the user said (often transcribed speech, English, Chinese or both).", "Commands:"]
+        var lines = ["You pick the command for what the user said (often transcribed speech, English, Chinese or both).",
+                     CommandDecision.heard, "Commands:"]
         for command in commands {
             let choices = command.choices.map { "\($0.value) = \($0.meaning)" }.joined(separator: "; ")
             lines.append("- \(command.name): \(command.summary)" + (choices.isEmpty ? "" : ". Choices: " + choices))

@@ -11,6 +11,7 @@ final class FakeEngine: DictationEngine {
     var error: String?
     /// Which model "answered", as CloudEngine reports it.
     var lastAnswer: ModelAnswer?
+    var context = SpeechContext.none
     private(set) var started = 0
     private(set) var cancelled = 0
 
@@ -94,6 +95,7 @@ final class DictationControllerTests: XCTestCase {
         if !realEngines { controller.makeEngine = { [unowned self] _ in engine } }
         controller.activeInput = { _ in FakeMics.wired }  // not this Mac's mics
         controller.sendDelay = 0.01
+        controller.doublePressWindow = 0  // Enter pressed twice in a row runs the command; its own tests set it
         controller.onIdle = { [unowned self] in idle += 1 }
         desk.moveTo(FakeDesk.slack)
         desk.attach(controller.goBack, keys: false)
@@ -304,7 +306,8 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(keys, ["return"])
     }
 
-    func testACommandIsNotPolishedOrKept() {
+    /// Not polished; with Keep recordings on, its audio is kept apart from the dictations'.
+    func testACommandIsNotPolishedAndIsKeptApart() {
         let controller = makeController()
         settings.setOpenRouterKey("test-key")
         settings.polishEnabled = true
@@ -313,10 +316,56 @@ final class DictationControllerTests: XCTestCase {
         controller.makePolish = { _ in polished += 1; return PolishService(backend: FakePolish(delay: 0, log: EventLog())) }
         controller.enter()
         XCTAssertEqual(polished, 0)
-        XCTAssertNil(engine.archive)
+        XCTAssertEqual(engine.archive?.directory, controller.archive.directory.appendingPathComponent("Commands"))
         controller.enter()
         waitUntil { !controller.isBusy }
         XCTAssertEqual(ran, ["volume -10"])
+        controller.start()
+        XCTAssertEqual(engine.archive?.directory, controller.archive.directory, "a dictation's stays where it was")
+        controller.cancel()
+    }
+
+    /// A command's words go to the speech model; a dictation's context stays empty.
+    func testACommandIsToldItsWordsAndADictationIsNot() {
+        let controller = makeController()
+        settings.setOpenRouterKey("test-key")
+        commands.running = { ["Muse"] }
+        controller.enter()
+        XCTAssertTrue(engine.context.words.contains("press Enter"))
+        XCTAssertTrue(engine.context.words.contains("Muse"))
+        controller.cancel()
+        controller.start()
+        XCTAssertEqual(engine.context, .none)
+        controller.cancel()
+    }
+
+    /// Enter double-clicked: Return, and no command (nor a cancel sound, nor anything in History).
+    func testDoubleClickedEnterJustPressesReturn() {
+        let controller = makeController()
+        settings.setOpenRouterKey("test-key")
+        controller.doublePressWindow = 0.35
+        controller.enter()
+        XCTAssertEqual(controller.kind, .command)
+        controller.enter()
+        XCTAssertFalse(controller.dictating)
+        XCTAssertEqual(engine.cancelled, 1)
+        XCTAssertEqual(keys, ["return"])
+        spinRunLoop(0.05)
+        XCTAssertEqual(ran, [])
+        XCTAssertEqual(history.commands, [])
+    }
+
+    /// The second press after the double-click time runs the command as before.
+    func testEnterAfterTheDoubleClickTimeRunsTheCommand() {
+        let controller = makeController()
+        settings.setOpenRouterKey("test-key")
+        controller.doublePressWindow = 0.05
+        controller.enter()
+        spinRunLoop(0.1)
+        controller.enter()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(ran, ["volume -10"])
+        XCTAssertEqual(keys, [])
     }
 
     /// Right after a dictation stops, the Enter button still sends it: it doesn't start a command.

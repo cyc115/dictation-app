@@ -22,7 +22,7 @@ struct ShortcutsSection: View {
                 }
             }
             SettingRow("Mouse button for Enter", settings.commandModeOn
-                       ? "While dictating, it stops and presses Return once the text is in — dictate and send in one go. Otherwise it starts a command (Commands, below)."
+                       ? "While dictating, it stops and presses Return once the text is in — dictate and send in one go. Otherwise it starts a command (Commands, below); double-click it to just press Return."
                        : "Press it to send Return. While dictating, it stops instead and presses Return once the text is in — dictate and send in one go.") {
                 Toggle("Mouse button for Enter", isOn: $settings.mouseEnterEnabled)
             }

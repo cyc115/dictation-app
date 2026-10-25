@@ -95,7 +95,8 @@ final class LocalSpeechModel: ObservableObject {
 
     /// The transcript of a 16 kHz mono WAV. While the model is still downloading this throws at once
     /// (`stillDownloading`) rather than holding your text for minutes; loading from disk is waited for.
-    func transcribe(wav: URL) async throws -> String {
+    /// `context`: the model's context prompt (`SpeechContext.prompt`), "" for none.
+    func transcribe(wav: URL, context: String = "") async throws -> String {
         lastUsed = now()
         switch state {
         case .notDownloaded, .failed:
@@ -110,7 +111,8 @@ final class LocalSpeechModel: ObservableObject {
         }
         try await prepare().value
         let samples = try Self.samples(wav)
-        let text = try await runtime.transcribe(samples, maxTokens: Self.maxTokens(seconds: Double(samples.count) / 16_000))
+        let text = try await runtime.transcribe(samples, maxTokens: Self.maxTokens(seconds: Double(samples.count) / 16_000),
+                                                context: context)
         lastUsed = now()
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -195,7 +197,8 @@ protocol SpeechRuntime: AnyObject {
     /// Downloads the model from Hugging Face; `progress` gets 0…1 on the main actor.
     func download(_ repo: String, progress: @escaping @MainActor (Double) -> Void) async throws -> URL
     func load(_ directory: URL) async throws
-    func transcribe(_ samples: [Float], maxTokens: Int) async throws -> String
+    /// `context`: the model's context prompt, "" for none.
+    func transcribe(_ samples: [Float], maxTokens: Int, context: String) async throws -> String
     func unload() async
 }
 
@@ -230,8 +233,8 @@ final class MLXSpeechRuntime: SpeechRuntime {
 
     func load(_ directory: URL) async throws { try await worker.load(directory) }
 
-    func transcribe(_ samples: [Float], maxTokens: Int) async throws -> String {
-        try await worker.transcribe(samples, maxTokens: maxTokens)
+    func transcribe(_ samples: [Float], maxTokens: Int, context: String) async throws -> String {
+        try await worker.transcribe(samples, maxTokens: maxTokens, context: context)
     }
 
     func unload() async { await worker.unload() }
@@ -251,11 +254,10 @@ final class MLXSpeechRuntime: SpeechRuntime {
             self.model = model
         }
 
-        func transcribe(_ samples: [Float], maxTokens: Int) throws -> String {
+        func transcribe(_ samples: [Float], maxTokens: Int, context: String) throws -> String {
             guard let model else { throw LocalSpeechError.notLoaded }
             // No language: the model detects English, Chinese, or both.
-            let output = model.generate(audio: MLXArray(samples),
-                                        generationParameters: STTGenerateParameters(maxTokens: maxTokens, temperature: 0))
+            let output = model.generate(audio: MLXArray(samples), maxTokens: maxTokens, temperature: 0, context: context)
             return output.text
         }
 
@@ -271,6 +273,7 @@ final class MLXSpeechRuntime: SpeechRuntime {
 /// Records the mic like `CloudEngine`, then transcribes on this Mac when you stop.
 final class LocalEngine: RecordingEngine, DictationEngine {
     var model: LocalSpeechModel
+    var context = SpeechContext.none
     /// Which model gave the last transcript (set before `completion`).
     private(set) var lastAnswer: ModelAnswer?
 
@@ -286,12 +289,12 @@ final class LocalEngine: RecordingEngine, DictationEngine {
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
         guard let recording = finishRecording(completion: completion, failure: failure) else { return }
-        let model = self.model
+        let model = self.model, prompt = context.prompt
         var info = RecordingInfo(date: Date(), model: MainActor.assumeIsolated { model.name }, transcript: "", seconds: recording.duration)
         lastAnswer = nil
         Task { @MainActor [weak self] in
             do {
-                let text = try await model.transcribe(wav: recording.url)
+                let text = try await model.transcribe(wav: recording.url, context: prompt)
                 info.transcript = text
                 self?.lastAnswer = ModelAnswer(main: model.name)
                 completion(text)

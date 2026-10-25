@@ -26,7 +26,8 @@ about 0.3 s and it runs; if nothing fits, nothing runs. "打开 Safari" opens an
 Commands are small Python scripts in a folder you can edit ([how](#commands)), or say "create
 command" and what it should do, and one is written for you (about a second). History keeps a
 Commands list with ↻ to run one again. Command mode is online: it needs your API key, whatever the
-speech setup.
+speech setup. The speech model is told the commands' words (and the open apps' names), so a short
+command isn't misheard; double-click the Enter button to just press Return.
 
 ![Command mode: "声音小一点" runs volume −10; "open the pod bay doors" fits no command, so nothing runs](docs/images/commands.gif)
 
@@ -193,8 +194,8 @@ text. It sees what you said and each command's description and choices, never th
 
 - The mic is on **only** while you're dictating, never in the background.
 - With the On-device setup, audio and text never leave your Mac.
-- Audio is thrown away once it's transcribed, unless you turn on *Keep recordings*. Those, and
-  your history, stay in `~/Library/Application Support/DictationApp/`.
+- Audio is thrown away once it's transcribed, unless you turn on *Keep recordings* (commands'
+  go in `Recordings/Commands`). Those, and your history, stay in `~/Library/Application Support/DictationApp/`.
 - History is kept for as long as you choose (Settings → *Keep history*), and **Clear All…**
   deletes it.
 - Command mode sends what you said, and your commands' names, descriptions and choices (with your

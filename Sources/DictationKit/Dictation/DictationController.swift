@@ -41,6 +41,8 @@ final class DictationController {
     var sendDelay: TimeInterval = 0.15
     /// Takes text back to the box it was dictated into, if you've moved on (Paste where you dictated).
     lazy var goBack = GoBack(injector: injector)
+    /// A second Enter this soon after the first started a command is a double-click: just Return.
+    var doublePressWindow: TimeInterval = 0.35
 
     private(set) var dictating = false
     /// What the dictation in progress is for.
@@ -134,8 +136,13 @@ final class DictationController {
     /// The mouse's Enter button: during a dictation, stop it and press Return once the text is
     /// in (send it). Right after a stop, while the text is still on the way, the same: Return
     /// waits for the text instead of sending without it. During a command, run it. Otherwise
-    /// start a command (or, with command mode off, just press Return).
+    /// start a command (or, with command mode off, just press Return); double-clicked, it presses
+    /// Return instead of starting one.
     func enter() {
+        if dictating, kind == .command, Date().timeIntervalSince(dictationStart) < doublePressWindow {
+            cancel(sound: false)
+            return injector.pressReturn()
+        }
         if dictating { return stop(send: kind.canBeSent) }
         if let delivery = lastDelivery, !delivery.done { return delivery.send = true }
         if settings.commandModeOn { start(.command) } else { injector.pressReturn() }
@@ -149,12 +156,14 @@ final class DictationController {
             return onMissingKey(setup)
         }
         self.engine = engine
+        // A command's words, so a short one isn't misheard; plain dictation gets none.
+        engine.context = kind == .command ? commandMode.speechContext() : .none
         dictationSetup = setup
         self.kind = kind
         // Load the polish model while you speak instead of after you stop.
         polisher = settings.polishEnabled && kind.polishes ? makePolish(setup) : nil
         polisher?.prepare()
-        let archive = settings.keepRecordings && kind.keepsRecording ? archive : nil
+        let archive = settings.keepRecordings ? kind.archive(in: archive) : nil
         note = archive.map { _ in RecordingNote(polishModel: polisher?.backend.name) }
         engine.archive = archive
         engine.note = note
@@ -268,7 +277,8 @@ final class DictationController {
         })
     }
 
-    func cancel() {
+    /// `sound: false` for a cancel you didn't ask for as such (Enter double-clicked).
+    func cancel(sound: Bool = true) {
         guard dictating else { return }
         setDictating(false)
         autoStop?.cancel()
@@ -276,7 +286,7 @@ final class DictationController {
         engine?.cancel()
         overlay.hide()
         muter.restore()
-        if settings.interactionSounds { InteractionSound.cancel.play() }
+        if sound && settings.interactionSounds { InteractionSound.cancel.play() }
         onIdle()
     }
 

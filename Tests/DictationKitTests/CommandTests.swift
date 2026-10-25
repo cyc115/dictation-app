@@ -96,7 +96,8 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer k")
         let body = try XCTUnwrap(JSONSerialization.jsonObject(with: request.httpBody!) as? [String: Any])
         XCTAssertEqual(body["model"] as? String, "~typesafe/jev-latest")
-        XCTAssertEqual(body["state"] as? String, "The user said: 把亮度调到一半")
+        XCTAssertEqual(body["state"] as? String, CommandDecision.heard + "\nThe user said: 把亮度调到一半",
+                       "told it was heard, so it may be misheard")
         let questions = try XCTUnwrap(body["questions"] as? [String: [String: Any]])
         XCTAssertEqual(Set(questions.keys), ["command", "choice:brightness"])
         XCTAssertEqual(questions["command"]?["criteria"] as? [String: String],
@@ -115,6 +116,23 @@ final class CommandTests: XCTestCase {
         XCTAssertThrowsError(try failed.get()) { XCTAssertEqual($0.localizedDescription, "Couldn't pick a command: No credits") }
     }
 
+    // MARK: Speech context
+
+    /// What the speech model is told to listen for: the built-ins' words, your commands' names as
+    /// spoken, and the open apps, each once.
+    func testTheSpeechModelIsToldTheCommandsWords() {
+        let mode = CommandMode(folder: folder(["tail-error-log.py": brightness]),
+                               history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
+        mode.running = { ["Muse", "Ghostty"] }
+        let words = mode.speechContext().words
+        XCTAssertEqual(Array(words.prefix(2)), ["press Enter", "send"])
+        XCTAssertTrue(words.contains("亮度"))
+        XCTAssertEqual(Array(words.suffix(2)), ["tail error log", "Ghostty"], "Muse is already a built-in word")
+        XCTAssertEqual(words.count, Set(words).count)
+        XCTAssertTrue(mode.speechContext().prompt.hasSuffix("tail error log, Ghostty"))
+        XCTAssertEqual(SpeechContext.none.prompt, "", "plain dictation: no context")
+    }
+
     // MARK: Chat models
 
     func testAChatModelIsToldTheCommandsAndLimitedToThem() throws {
@@ -124,6 +142,7 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(body["model"] as? String, "deepseek/deepseek-v4.1-flash")
         let messages = try XCTUnwrap(body["messages"] as? [[String: String]])
         XCTAssertTrue(messages[0]["content"]!.contains("- brightness: Set the screen brightness.. Choices: +10 = a bit brighter; 50 = half"))
+        XCTAssertTrue(messages[0]["content"]!.contains(CommandDecision.heard))
         XCTAssertEqual(messages[1]["content"], "brighter")
         let schema = try XCTUnwrap(((body["response_format"] as? [String: Any])?["json_schema"] as? [String: Any])?["schema"] as? [String: Any])
         let properties = try XCTUnwrap(schema["properties"] as? [String: [String: Any]])

@@ -9,6 +9,8 @@ class SpeechEngine {
     private var recognizer: SFSpeechRecognizer? { SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier)) }
     let mic = MicCapture()
     private var request: SFSpeechAudioBufferRecognitionRequest?
+    /// Words this dictation is likely to use (`SpeechContext`), for the next request.
+    var contextualWords: [String] = []
     private var task: SFSpeechRecognitionTask?
     private var transcript = TranscriptAccumulator()
     /// Bumped whenever a dictation starts or completes; callbacks from older sessions are ignored.
@@ -73,6 +75,7 @@ class SpeechEngine {
         transcript = TranscriptAccumulator()
         lastResultAt = clock()
         let request = Self.makeRequest()
+        request.contextualStrings = contextualWords
         self.request = request
         if archive != nil {
             recording?.discard()
@@ -129,6 +132,7 @@ class SpeechEngine {
             return nil
         }
         let request = Self.makeRequest()
+        request.contextualStrings = contextualWords
         self.request = request
         return (recognizer, request, session)
     }

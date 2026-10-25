@@ -23,7 +23,8 @@ def test_choices_stop_at_a_blank_line_and_skip_values_with_spaces():
 def test_jev_is_asked_what_the_app_asks():
     body = commands.jev_body("mute", commands.app_commands())
     assert body["model"] == "~typesafe/jev-latest"
-    assert body["state"] == "The user said: mute"
+    assert body["state"] == commands.HEARD + "\nThe user said: mute"
+    assert commands.HEARD in commands.chat_prompt(commands.app_commands())
     assert set(body["questions"]) == {"command"} | {f"choice:{c['name']}" for c in commands.app_commands() if c["choices"]}
     assert "choice:media-control" in body["questions"]
     assert body["questions"]["command"]["criteria"]["none"] == "None of these does what the user asked"
