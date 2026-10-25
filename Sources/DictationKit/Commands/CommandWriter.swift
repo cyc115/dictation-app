@@ -14,14 +14,31 @@ struct CommandWriter {
         case existing(String)
         /// A new command: its file name (without .py) and the script.
         case new(name: String, script: String)
+
+        /// As the model wrote it (`parse` reads it back).
+        var text: String {
+            switch self {
+            case .existing(let name): "EXISTING: \(name)"
+            case .new(let name, let script): "NAME: \(name)\n```python\n\(script)```"
+            }
+        }
+    }
+
+    /// A reply that couldn't be used, and why ("Python can't parse it: …", with the line and caret).
+    struct Retry: Equatable {
+        var reply: Reply
+        var problem: String
     }
 
     let apiKey: String
     var session: URLSession = .shared
 
-    func write(_ said: String, among commands: [Command]) async throws -> Reply {
-        let request = OpenRouter.chat(model: Self.model, system: Self.prompt(commands), user: said, apiKey: apiKey,
-                                      extra: ["provider": ["order": Self.providers], "max_tokens": 4000])
+    /// `fixing` a reply that couldn't be used, the model is shown it and why, and asked again: shown
+    /// Python's error, it fixes the line (4 of 4); asked afresh, about half the time it slips again.
+    func write(_ said: String, among commands: [Command], fixing retry: Retry? = nil) async throws -> Reply {
+        var extra: [String: Any] = ["provider": ["order": Self.providers], "max_tokens": 4000]
+        if let retry { extra["messages"] = Self.messages(said, among: commands, fixing: retry) }
+        let request = OpenRouter.chat(model: Self.model, system: Self.prompt(commands), user: said, apiKey: apiKey, extra: extra)
         let (data, status) = try await OpenRouter.send(request, session: session)
         let json = OpenRouter.json(data)
         guard let text = OpenRouter.content(json, status: status) else {
@@ -39,6 +56,13 @@ struct CommandWriter {
             return "- \(command.name): \(command.summary)" + (choices.isEmpty ? "" : " (choices: \(choices))")
         }
         return instructions.replacingOccurrences(of: "{commands}", with: lines.joined(separator: "\n"))
+    }
+
+    /// The conversation that asks again: the request, the reply, and what was wrong with it.
+    static func messages(_ said: String, among commands: [Command], fixing retry: Retry) -> [[String: String]] {
+        [["role": "system", "content": prompt(commands)], ["role": "user", "content": said],
+         ["role": "assistant", "content": retry.reply.text],
+         ["role": "user", "content": "That can't be used: \(retry.problem)\nReply again, in the same form, with it fixed."]]
     }
 
     /// "EXISTING: <name>", or "NAME: <name>" and a ```python block; nil for anything else.

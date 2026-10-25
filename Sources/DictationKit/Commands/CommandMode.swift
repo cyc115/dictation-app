@@ -41,9 +41,10 @@ final class CommandMode {
     var makeDecider: (String, String) -> CommandDecider = { makeCommandDecider(model: $0, apiKey: $1) }
     /// Runs a script with a choice and what you said (tests fake it).
     var runScript: (URL, String?, String) async -> CommandResult = { await CommandMode.run(script: $0, choice: $1, said: $2) }
-    /// (what you said, the commands, API key) → the new script, or the command that already does it.
-    var writeCommand: (String, [Command], String) async throws -> CommandWriter.Reply = {
-        try await CommandWriter(apiKey: $2).write($0, among: $1)
+    /// (what you said, the commands, API key, the reply to fix) → the new script, or the command that
+    /// already does it.
+    var writeCommand: (String, [Command], String, CommandWriter.Retry?) async throws -> CommandWriter.Reply = {
+        try await CommandWriter(apiKey: $2).write($0, among: $1, fixing: $3)
     }
     var pressReturn: () -> Void = { TextInjector().pressReturn() }
     /// The installed apps by name, and opening one (tests fake both).
@@ -152,28 +153,42 @@ final class CommandMode {
     /// read it and Python can parse it, not run), or says which command already does it.
     @MainActor
     private func create(_ said: String, apiKey: String, among commands: [Command]) async -> CommandResult {
-        func failed(_ why: String) -> CommandResult { CommandResult(ok: false, message: "Couldn't write it: " + why) }
         do {
-            var reply = try await writeCommand(said, commands, apiKey)
-            // A slip ("EXISTING: none", a few in a hundred): asked once more, it writes the script.
-            if case .existing(let name) = reply, !commands.contains(where: { $0.name == name }) {
-                reply = try await writeCommand(said, commands, apiKey)
+            var reply = try await writeCommand(said, commands, apiKey, nil)
+            // A slip (a few in a hundred: "EXISTING: none", a brace left single in an f-string): shown
+            // it, the writer fixes it.
+            if let problem = await problem(with: reply, among: commands) {
+                reply = try await writeCommand(said, commands, apiKey, CommandWriter.Retry(reply: reply, problem: problem))
+            }
+            if let problem = await problem(with: reply, among: commands) {
+                // errors.log gets the whole problem and the script, to fix the writer by.
+                let why = problem.components(separatedBy: .newlines).last { !$0.trimmingCharacters(in: .whitespaces).isEmpty } ?? problem
+                return CommandResult(ok: false, message: "Couldn't write it: " + why, details: problem + "\n\nIts reply:\n" + reply.text)
             }
             switch reply {
             case .existing(let name):
-                guard commands.contains(where: { $0.name == name }) else { return failed("it named \(name), which isn't a command") }
                 return CommandResult(ok: true, message: "\(name) already does that")
             case .new(let name, let script):
-                guard CommandWriter.validName(name) else { return failed("“\(name)” can't be a command's name") }
                 let url = Command.freeURL(for: name, in: folder)
-                guard Command.parse(script, script: url) != nil else { return failed("its description is missing") }
-                if let problem = await Self.syntaxProblem(script) { return failed(problem) }
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 try script.write(to: url, atomically: true, encoding: .utf8)
                 return CommandResult(ok: true, message: "Created \(url.deletingPathExtension().lastPathComponent)")
             }
         } catch {
             return CommandResult(ok: false, message: error.localizedDescription)
+        }
+    }
+
+    /// Why the writer's reply can't be used: it names no command, or its script has a bad name, no
+    /// description or a line Python can't parse. Nil when it's fine.
+    private func problem(with reply: CommandWriter.Reply, among commands: [Command]) async -> String? {
+        switch reply {
+        case .existing(let name):
+            return commands.contains(where: { $0.name == name }) ? nil : "it named \(name), which isn't a command"
+        case .new(let name, let script):
+            guard CommandWriter.validName(name) else { return "“\(name)” can't be a command's name" }
+            guard Command.parse(script, script: Command.freeURL(for: name, in: folder)) != nil else { return "its description is missing" }
+            return await Self.syntaxProblem(script).map { "Python can't parse the script:\n" + $0 }
         }
     }
 
@@ -191,14 +206,16 @@ final class CommandMode {
         return await startFix(fixer, command, fixer.prompt(for: command, said: said, runs: runs, errors: log.entries(for: name)))
     }
 
-    /// Why Python can't parse `script`, or nil if it can (or uv isn't there to ask).
+    /// Why Python can't parse `script` (from its `File "<unknown>", line …`: the line, a caret, and
+    /// the SyntaxError last), or nil if it can (or uv isn't there to ask).
     static func syntaxProblem(_ script: String) async -> String? {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let check = ["run", "--quiet", "--no-project", "python", "-I", "-c", "import ast, sys; ast.parse(sys.argv[1])", script]
                 guard case .success(let finished) = uv(check), finished.status != 0 else { return continuation.resume(returning: nil) }
-                let lines = finished.errors.components(separatedBy: .newlines).filter { !$0.isEmpty }
-                continuation.resume(returning: lines.last ?? "Python can't read it")
+                var lines = finished.errors.components(separatedBy: .newlines).filter { !$0.isEmpty }
+                if let start = lines.lastIndex(where: { $0.contains("File \"<unknown>\"") }) { lines = Array(lines[start...]) } else { lines = lines.suffix(1) }
+                continuation.resume(returning: lines.isEmpty ? "Python can't read it" : lines.joined(separator: "\n"))
             }
         }
     }

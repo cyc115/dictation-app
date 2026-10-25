@@ -11,6 +11,7 @@
     {"said": "create command 把当前窗口铺满左半边屏幕，也可以右半边", "expect": "new", "tags": ["mixed"]},
     {"said": "create command open a new Safari window", "expect": ["new", "open"], "tags": ["en"]},
     {"said": "create command toggle dark mode", "expect": "new", "tags": ["en"]},
+    {"said": "Can you create a chat with Muse? A command that um opens up Muse. Uh, that when when it's triggered, it opens up Muse. Uh, starts a side chat, and then click on the call button in Muse, so that I can start the call with Muse.", "expect": "new", "tags": ["en"]},
     {"said": "create command 锁屏", "expect": "lock-screen", "tags": ["zh", "existing"]},
     {"said": "create command play or pause the music", "expect": "media-control", "tags": ["en", "existing"]},
     {"said": "create command copy today's date to the clipboard", "expect": "new", "tags": ["en"]},

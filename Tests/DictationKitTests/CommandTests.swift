@@ -521,7 +521,7 @@ final class CommandTests: XCTestCase {
     func testCreateWritesTheCommandForNextTime() async throws {
         let mode = makeMode(CommandDecision(command: "create", confidence: 0.95))
         var asked: [String] = []
-        mode.writeCommand = { [battery] said, commands, key in
+        mode.writeCommand = { [battery] said, commands, key, _ in
             asked.append("\(said) | \(commands.map(\.name).joined(separator: ",")) | \(key)")
             return .new(name: "battery", script: battery)
         }
@@ -542,7 +542,7 @@ final class CommandTests: XCTestCase {
     func testCreateTakesAFreeNameAndRefusesWhatItCantRead() async throws {
         let mode = makeMode(CommandDecision(command: "create", confidence: 0.95))
         var reply = CommandWriter.Reply.new(name: "brightness", script: battery)
-        mode.writeCommand = { _, _, _ in reply }
+        mode.writeCommand = { _, _, _, _ in reply }
         let first = await mode.handle("create command battery", apiKey: "k")
         XCTAssertEqual(first.result, "Created brightness-2")
         for (bad, why) in [(CommandWriter.Reply.new(name: "../evil", script: battery), "Couldn't write it: “../evil” can't be a command's name"),
@@ -554,11 +554,11 @@ final class CommandTests: XCTestCase {
             XCTAssertEqual(run.result, why)
         }
         var replies: [CommandWriter.Reply] = [.existing("none"), .new(name: "battery", script: battery)]
-        mode.writeCommand = { _, _, _ in replies.removeFirst() }
+        mode.writeCommand = { _, _, _, _ in replies.removeFirst() }
         let retried = await mode.handle("create command battery", apiKey: "k")
         XCTAssertEqual(retried.result, "Created battery", "naming no command is a slip: asked once more")
         XCTAssertEqual(replies, [])
-        mode.writeCommand = { _, _, _ in reply }
+        mode.writeCommand = { _, _, _, _ in reply }
         reply = .existing("brightness")
         let existing = await mode.handle("create command brighter", apiKey: "k")
         XCTAssertTrue(existing.ok)
@@ -567,22 +567,55 @@ final class CommandTests: XCTestCase {
                        "the refusals are logged")
     }
 
-    /// The real uv: a script Python can't parse isn't saved.
+    /// The real uv: a script Python can't parse isn't saved; the writer is shown Python's error and
+    /// asked once more first.
     @MainActor
     func testCreateRefusesAScriptPythonCantParse() async throws {
         guard CommandMode.uvPaths.contains(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             throw XCTSkip("uv isn't installed")
         }
-        let problem = await CommandMode.syntaxProblem("\"\"\"Broken.\"\"\"\nif True print(1)\n")
-        XCTAssertTrue(problem?.contains("SyntaxError") ?? false, problem ?? "nil")
+        let broken = "\"\"\"Broken.\"\"\"\nif True print(1)\n"
+        let problem = await CommandMode.syntaxProblem(broken)
+        XCTAssertTrue(problem?.components(separatedBy: "\n").first?.hasSuffix("File \"<unknown>\", line 2") ?? false, problem ?? "nil")
+        XCTAssertTrue(problem?.contains("if True print(1)") ?? false, "the line, for the writer to fix")
+        XCTAssertTrue(problem?.components(separatedBy: "\n").last?.hasPrefix("SyntaxError") ?? false, problem ?? "nil")
         let fine = await CommandMode.syntaxProblem(battery)
         XCTAssertNil(fine)
         let mode = makeMode(CommandDecision(command: "create", confidence: 0.95))
-        mode.writeCommand = { _, _, _ in .new(name: "broken", script: "\"\"\"Broken.\"\"\"\nif True print(1)\n") }
+        var retries: [CommandWriter.Retry?] = []
+        mode.writeCommand = { _, _, _, retry in retries.append(retry); return .new(name: "broken", script: broken) }
         let run = await mode.handle("create command broken", apiKey: "k")
         XCTAssertFalse(run.ok)
         XCTAssertTrue(run.result.hasPrefix("Couldn't write it: SyntaxError"), run.result)
         XCTAssertFalse(FileManager.default.fileExists(atPath: mode.folder.appendingPathComponent("broken.py").path))
+        XCTAssertEqual(retries.count, 2, "asked once more before giving up")
+        XCTAssertNil(retries[0])
+        XCTAssertEqual(retries[1]?.reply, .new(name: "broken", script: broken))
+        XCTAssertTrue(retries[1]?.problem.contains("if True print(1)") ?? false, retries[1]?.problem ?? "nil")
+        let logged = mode.log.entries(for: "create").joined(separator: "\n")
+        XCTAssertTrue(logged.contains("line 2") && logged.contains("NAME: broken"), "errors.log has the line and the script: \(logged)")
+
+        // The writer's slip (2026-10-25): JavaScript built in an f-string, one brace left single. Shown
+        // Python's error, it fixes it.
+        let slip = "\"\"\"Start a call in Muse.\"\"\"\nwin = 0\njs = f\"if (!{win}) { throw new Error('No window'); }\"\n"
+        let slipProblem = await CommandMode.syntaxProblem(slip)
+        XCTAssertTrue(slipProblem?.contains("SyntaxError") ?? false, slipProblem ?? "nil")
+        var replies: [CommandWriter.Reply] = [.new(name: "muse-call", script: slip), .new(name: "muse-call", script: battery)]
+        mode.writeCommand = { _, _, _, _ in replies.removeFirst() }
+        let fixed = await mode.handle("create command start a call with Muse", apiKey: "k")
+        XCTAssertEqual(fixed.result, "Created muse-call")
+        XCTAssertEqual(replies, [])
+        XCTAssertEqual(try String(contentsOf: mode.folder.appendingPathComponent("muse-call.py"), encoding: .utf8), battery)
+    }
+
+    func testCreateAsksAgainShowingItsReplyAndWhy() {
+        let retry = CommandWriter.Retry(reply: .new(name: "x", script: "\"\"\"X.\"\"\"\nprint(1)\n"), problem: "Python can't parse the script:\nSyntaxError: bad")
+        let messages = CommandWriter.messages("create command x", among: [], fixing: retry)
+        XCTAssertEqual(messages.map { $0["role"] }, ["system", "user", "assistant", "user"])
+        XCTAssertEqual(messages[1]["content"], "create command x")
+        XCTAssertEqual(CommandWriter.parse(messages[2]["content"]!), retry.reply, "its own reply, as it wrote it")
+        XCTAssertEqual(messages[3]["content"], "That can't be used: Python can't parse the script:\nSyntaxError: bad\nReply again, in the same form, with it fixed.")
+        XCTAssertEqual(CommandWriter.Reply.existing("volume").text, "EXISTING: volume")
     }
 
     // MARK: History
@@ -662,5 +695,17 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(mode.commands.count, Command.builtIn.count + 1, "the new one")
         let existing = await mode.handle("新建命令 静音", apiKey: key)
         XCTAssertEqual(existing.result, "volume already does that")
+        // Shown its script and Python's error, the writer fixes it.
+        let slip = "\"\"\"Start a call in Muse.\"\"\"\nimport subprocess\napp = \"Muse\"\n"
+            + "js = f\"function run() {{ const a = Application('{app}'); if (!a.running()) { throw new Error('not running'); } a.activate(); }}\"\n"
+            + "subprocess.run([\"osascript\", \"-l\", \"JavaScript\", \"-e\", js])\nprint(\"Opened Muse\")\n"
+        let slipProblem = await CommandMode.syntaxProblem(slip)
+        let problem = try XCTUnwrap(slipProblem)
+        let said = "create command open Muse"
+        let fixed = try await CommandWriter(apiKey: key).write(said, among: mode.commands,
+                                                               fixing: .init(reply: .new(name: "open-muse", script: slip), problem: "Python can't parse the script:\n" + problem))
+        guard case .new(_, let script) = fixed else { return XCTFail("\(fixed)") }
+        let fixedProblem = await CommandMode.syntaxProblem(script)
+        XCTAssertNil(fixedProblem, script)
     }
 }
