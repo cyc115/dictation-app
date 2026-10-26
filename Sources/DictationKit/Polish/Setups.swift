@@ -340,7 +340,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     static let customFile = AppPaths.file("setups.json")
 
     /// The valid setups in `url`, and what was wrong with the rest; nothing (and no error) without a file.
-    static func loadCustom(from url: URL = customFile) -> (setups: [DictationSetup], error: String?) {
+    static func loadCustom(from url: URL) -> (setups: [DictationSetup], error: String?) {
         guard let data = FileManager.default.contents(atPath: url.path) else { return ([], nil) }
         struct File: Decodable { let setups: [DictationSetup] }
         let file: File

@@ -77,8 +77,7 @@ final class DictationController {
     }
 
     init(settings: AppSettings, overlay: OverlayWindow, injector: TextInjector,
-         history: HistoryStore, insights: Insights, archive: RecordingArchive, muter: OutputMuter = OutputMuter(),
-         commandMode: CommandMode? = nil) {
+         history: HistoryStore, insights: Insights, archive: RecordingArchive, muter: OutputMuter, commandMode: CommandMode) {
         self.settings = settings
         self.overlay = overlay
         self.injector = injector
@@ -86,7 +85,7 @@ final class DictationController {
         self.insights = insights
         self.archive = archive
         self.muter = muter
-        self.commandMode = commandMode ?? CommandMode(history: history)
+        self.commandMode = commandMode
         self.commandMode.pressReturn = { [injector] in injector.pressReturn() }
         self.commandMode.typeText = { [injector] in injector.inject($0) }
     }
