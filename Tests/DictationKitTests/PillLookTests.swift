@@ -68,4 +68,24 @@ final class PillLookTests: XCTestCase {
         XCTAssertTrue(PillLook.settled(since: PillLook.glowDuration))
         XCTAssertEqual(PillLook.ready(since: PillLook.glowDuration, reduceMotion: false), .plain)
     }
+
+    func testTheEdgeBlendsFromRestIntoTheAura() {
+        var look = PillLook.plain
+        look.glow = 0
+        look.aura = .green
+        XCTAssertEqual(look.edge(command: false).width, 0.5)
+        XCTAssertEqual(look.edge(command: false).color, PillLook.RGBA(255, 255, 255, alpha: 0.14), "white at 14%")
+        XCTAssertEqual(look.edge(command: true).width, 1.2)
+        XCTAssertEqual(look.edge(command: true).color, PillLook.RGBA(127, 160, 255, alpha: 0.8), "command mode's blue")
+        look.glow = 1
+        XCTAssertEqual(look.edge(command: false).width, 1.6)
+        XCTAssertEqual(look.edge(command: false).color, PillLook.color(.green, alpha: 0.9))
+        XCTAssertEqual(look.edge(command: true).color, PillLook.color(.green, alpha: 0.9), "the aura wins over the rest")
+        look.glow = 0.5
+        look.aura = .red
+        let half = look.edge(command: false).color
+        XCTAssertEqual(half.red, 1, accuracy: 0.0001)
+        XCTAssertEqual(half.green, (255 + (59 - 255) * 0.5) / 255, accuracy: 0.0001)
+        XCTAssertEqual(half.alpha, 0.52, accuracy: 0.0001)
+    }
 }

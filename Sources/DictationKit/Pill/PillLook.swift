@@ -23,6 +23,43 @@ struct PillLook: Equatable {
         case red
     }
 
+    /// A colour as AppKit draws it: components 0…1.
+    struct RGBA: Equatable {
+        var red, green, blue, alpha: CGFloat
+        /// From 0…255 components.
+        init(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, alpha: CGFloat = 1) {
+            (self.red, self.green, self.blue, self.alpha) = (red / 255, green / 255, blue / 255, alpha)
+        }
+    }
+
+    /// Command mode's bars and edge.
+    static let commandBlue = RGBA(127, 160, 255)
+
+    /// An aura's colour (system green, yellow, red), 0…255.
+    private static func components(_ aura: Aura) -> (red: CGFloat, green: CGFloat, blue: CGFloat) {
+        switch aura {
+        case .green: (52, 199, 89)
+        case .yellow: (255, 204, 0)
+        case .red: (255, 59, 48)
+        }
+    }
+
+    static func color(_ aura: Aura, alpha: CGFloat = 1) -> RGBA {
+        let (red, green, blue) = components(aura)
+        return RGBA(red, green, blue, alpha: alpha)
+    }
+
+    /// The pill's edge at this look: the resting edge (white at 14%, or command mode's blue at 80%)
+    /// blended into the aura's colour at 90% as the glow comes up, widening to 1.6 pt.
+    func edge(command: Bool) -> (width: CGFloat, color: RGBA) {
+        let rest: (red: CGFloat, green: CGFloat, blue: CGFloat, alpha: CGFloat, width: CGFloat) =
+            command ? (127, 160, 255, 0.8, 1.2) : (255, 255, 255, 0.14, 0.5)
+        let aura = Self.components(self.aura)
+        func mix(_ from: CGFloat, _ to: CGFloat) -> CGFloat { from + (to - from) * glow }
+        return (mix(rest.width, 1.6), RGBA(mix(rest.red, aura.red), mix(rest.green, aura.green), mix(rest.blue, aura.blue),
+                                           alpha: mix(rest.alpha, 0.9)))
+    }
+
     static let barCount = 13
     /// One sweep of the highlight across the dots.
     static let sweepPeriod: TimeInterval = 1.1

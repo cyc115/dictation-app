@@ -15,16 +15,6 @@ class OverlayWindow {
     enum Mode { case hidden, listening, processing, message }
 
     private static let bottomMargin: CGFloat = 28
-    /// The edge and glow colors (system green, yellow, red).
-    private static func color(_ aura: PillLook.Aura) -> (red: CGFloat, green: CGFloat, blue: CGFloat) {
-        switch aura {
-        case .green: return (52, 199, 89)
-        case .yellow: return (255, 204, 0)
-        case .red: return (255, 59, 48)
-        }
-    }
-    /// Command mode's bars and edge.
-    static let commandBlue = (red: CGFloat(127), green: CGFloat(160), blue: CGFloat(255))
     /// Clear space around the pill inside its window, for the ready glow and bounce to draw into.
     static let glowMargin: CGFloat = 16
 
@@ -83,8 +73,7 @@ class OverlayWindow {
         stopAnimation()
         waveform.reset()
         waveform.processing = false
-        let blue = Self.commandBlue
-        waveform.tint = command ? NSColor(red: blue.red / 255, green: blue.green / 255, blue: blue.blue / 255, alpha: 1) : .white
+        waveform.tint = command ? NSColor(PillLook.commandBlue) : .white
         self.micName = micName ?? ""
         state = .listening(warmingUp: warmingUp, at: now())
         plainCaptionWidth = 0
@@ -330,13 +319,12 @@ class OverlayWindow {
         confirmButton.emphasis = look.confirmEmphasis
         micLabel.alphaValue = look.captionAlpha
         let g = look.glow
-        let (r, gr, b) = Self.color(look.aura)
         if shownGlow != (g, look.aura) {
             shownGlow = (g, look.aura)
             // The view's shadow, not the layer's: AppKit resets a layer-backed view's layer shadow.
             if g > 0 {
                 let glow = NSShadow()
-                glow.shadowColor = NSColor(red: r / 255, green: gr / 255, blue: b / 255, alpha: 0.8 * g)
+                glow.shadowColor = NSColor(PillLook.color(look.aura, alpha: 0.8 * g))
                 glow.shadowBlurRadius = 14 * g
                 glow.shadowOffset = .zero
                 background.shadow = glow
@@ -352,12 +340,9 @@ class OverlayWindow {
         guard let layer = background.layer else { return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        // The resting edge (white at 14%, or command mode's blue) → the aura's color.
-        let rest = isCommand ? (Self.commandBlue.red, Self.commandBlue.green, Self.commandBlue.blue, CGFloat(0.8), CGFloat(1.2))
-                             : (CGFloat(255), CGFloat(255), CGFloat(255), CGFloat(0.14), CGFloat(0.5))
-        layer.borderWidth = rest.4 + (1.6 - rest.4) * g
-        layer.borderColor = NSColor(red: (rest.0 + (r - rest.0) * g) / 255, green: (rest.1 + (gr - rest.1) * g) / 255,
-                                    blue: (rest.2 + (b - rest.2) * g) / 255, alpha: rest.3 + (0.9 - rest.3) * g).cgColor
+        let edge = look.edge(command: isCommand)
+        layer.borderWidth = edge.width
+        layer.borderColor = NSColor(edge.color).cgColor
         let bounds = layer.bounds
         // AppKit puts a view's layer anchor at its corner: scale about the pill's center.
         var transform = CATransform3DMakeTranslation(-bounds.midX, -bounds.midY, 0)
@@ -459,5 +444,11 @@ class OverlayWindow {
             background.addSubview(view)
         }
         self.panel = panel
+    }
+}
+
+private extension NSColor {
+    convenience init(_ color: PillLook.RGBA) {
+        self.init(red: color.red, green: color.green, blue: color.blue, alpha: color.alpha)
     }
 }
