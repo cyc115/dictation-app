@@ -32,7 +32,7 @@ class SpeechEngine {
     var archive: RecordingArchive?
     /// Set with `archive`, before each dictation: the polish half of its JSON.
     var note: RecordingNote?
-    private var recording: DictationRecording?
+    private let recordings = RecordingSlot()
     /// What a restart (a better mic won) needs to recognize again, for the dictation in progress.
     private var restartWith: (recognizer: SFSpeechRecognizer, onUtterance: ((String) -> Void)?, onError: (String) -> Void)?
     /// An utterance has been handed out (`onUtterance`), so a restart would repeat it.
@@ -51,13 +51,13 @@ class SpeechEngine {
                onUtterance: ((String) -> Void)? = nil, onError: @escaping (String) -> Void) {
         guard let (recognizer, request, id) = prepare(onError: onError) else { return }
 
-        _ = startRecording()
+        startRecording()
         restartWith = (recognizer, onUtterance, onError)
         handedOut = false
-        // The request and recording are only swapped by `restart`, while no audio is handed on.
+        // The request is only swapped by `restart`, while no audio is handed on.
         guard mic.startDictation(inputUID: inputUID, backups: backups, onBuffer: { [weak self] buffer in
             self?.request?.append(buffer)
-            self?.recording?.append(buffer)
+            self?.recordings.append(buffer)
         }, onLevel: onLevel, onEvent: onMic, onRestart: { [weak self] in self?.restart() ?? false }, onError: onError) else {
             self.request = nil
             finishRecording(transcript: nil)
@@ -77,10 +77,7 @@ class SpeechEngine {
         let request = Self.makeRequest()
         request.contextualStrings = contextualWords
         self.request = request
-        if archive != nil {
-            recording?.discard()
-            recording = DictationRecording(archive: archive, note: note)
-        }
+        startRecording()
         recognize(with.recognizer, request, id: session, onUtterance: with.onUtterance, onError: with.onError)
         return true
     }
@@ -217,18 +214,17 @@ class SpeechEngine {
         finishRecording(transcript: nil)
     }
 
-    /// Opens a WAV for this dictation when recordings are kept (the mic tap appends to it).
+    /// Opens a WAV for this dictation when recordings are kept (the mic tap appends to it), in
+    /// place of any earlier one; nil when they aren't.
+    @discardableResult
     func startRecording() -> DictationRecording? {
-        finishRecording(transcript: nil)
-        guard archive != nil else { return nil }
-        recording = DictationRecording(archive: archive, note: note)
-        return recording
+        guard archive != nil else { recordings.discard(); return nil }
+        return recordings.begin(archive: archive, note: note)
     }
 
     /// Keeps the WAV with what was heard, or deletes it (nil: cancelled or failed).
     func finishRecording(transcript text: String?) {
-        guard let recording else { return }
-        self.recording = nil
+        guard let recording = recordings.take() else { return }
         guard let text else { return recording.discard() }
         recording.done(RecordingInfo(date: Date(), model: "apple:\(localeIdentifier)", transcript: text,
                                      seconds: recording.duration))
