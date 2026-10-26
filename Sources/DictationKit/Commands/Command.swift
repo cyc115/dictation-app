@@ -27,7 +27,9 @@ struct Command: Hashable {
     let script: URL?
 
     static let pressReturn = Command(name: "return", summary: "Press Return (send) in the front app", choices: [], script: nil)
-    static let again = Command(name: "repeat", summary: "Do the last thing again: run the last command again, or type the last dictation again (whichever came later)", choices: [], script: nil)
+    /// Its summary is read by the writer too: a longer one ("Do the last thing again: …, whichever
+    /// came later") had it answer "EXISTING: ask-muse" to unrelated requests 3 times in 5.
+    static let again = Command(name: "repeat", summary: "Run the last command again, or type the last dictation again", choices: [], script: nil)
     /// Writes a new script from what you describe (`CommandWriter`).
     static let create = Command(name: "create", summary: "Create a new command: the user asks for a new command (“create command”, “新建命令”, “写一个命令”) and describes what it should do",
                                 choices: [], script: nil)
