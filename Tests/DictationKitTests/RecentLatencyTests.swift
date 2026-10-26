@@ -78,14 +78,21 @@ final class RecentLatencyTests: XCTestCase {
         XCTAssertEqual(speechBackup.typical, 5.17)
         XCTAssertEqual(polishBackup.asked, 6)
         XCTAssertEqual(polishBackup.answered, 2)
-        XCTAssertEqual(RecentLatencyView.answered(speech), "8 of 11 (73%)")
-        XCTAssertEqual(RecentLatencyView.answered(speechBackup), "Asked 8, first 3")
+        XCTAssertEqual(speech.answeredLabel, "8 of 11 (73%)")
+        XCTAssertEqual(speechBackup.answeredLabel, "Asked 8, first 3")
     }
 
     func testDictationsWithoutModelsStillShowTheirWaits() {
         let latency = RecentLatency([Self.entry(1, 0.6, 1.1, speech: nil, polished: nil)], window: .tenMinutes, now: Self.now)
         XCTAssertEqual(latency.rows.count, 1, "on-device speech, and history from before models were saved")
         XCTAssertTrue(latency.models.isEmpty)
+    }
+
+    func testSeverityThresholds() {
+        XCTAssertEqual(RecentLatency.Severity(3), .normal, "over 3 s is slow")
+        XCTAssertEqual(RecentLatency.Severity(3.1), .slow)
+        XCTAssertEqual(RecentLatency.Severity(8), .slow)
+        XCTAssertEqual(RecentLatency.Severity(8.1), .verySlow)
     }
 
     func testComparisonWithUsual() {
@@ -99,7 +106,7 @@ final class RecentLatencyTests: XCTestCase {
         XCTAssertEqual(ModelAnswer.displayName(Self.together), "deepseek-v4.1-flash · Together, DeepInfra")
         XCTAssertEqual(ModelAnswer.displayName("apple:on-device"), "Apple on-device")
         let rows = RecentLatency(Self.tonight, window: .thirtyMinutes, now: Self.now).rows
-        XCTAssertEqual(rows.map(RecentLatencyView.backupLabel).prefix(5), ["speech, polish", "", "", "", "speech"])
+        XCTAssertEqual(rows.map(\.backupLabel).prefix(5), ["speech, polish", "", "", "", "speech"])
         XCTAssertEqual(ModelAnswer(main: "a", backup: "b", byBackup: true).model, "b")
         XCTAssertEqual(ModelAnswer(main: "a", backup: "b").model, "a")
     }

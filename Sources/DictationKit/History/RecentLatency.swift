@@ -28,6 +28,20 @@ struct RecentLatency {
 
         /// Stop → text: what you waited for.
         var wait: TimeInterval { transcribing + (polishing ?? 0) }
+        /// Which parts the backup answered: "speech", "polish", "speech, polish" or "".
+        var backupLabel: String {
+            [transcribedByBackup ? "speech" : nil, polishedByBackup ? "polish" : nil].compactMap { $0 }.joined(separator: ", ")
+        }
+    }
+
+    /// A wait over `slow` seconds is slow, over `verySlow` very slow.
+    static let slow: TimeInterval = 3
+    static let verySlow: TimeInterval = 8
+    enum Severity {
+        case normal, slow, verySlow
+        init(_ wait: TimeInterval) {
+            self = wait > RecentLatency.verySlow ? .verySlow : wait > RecentLatency.slow ? .slow : .normal
+        }
     }
 
     enum Phase: String {
@@ -49,6 +63,13 @@ struct RecentLatency {
         let slowest: TimeInterval?
 
         var id: String { "\(phase.rawValue)|\(model)|\(isBackup)" }
+
+        /// "8 of 11 (73%)" for a main model; "Asked 8, first 3" for a backup.
+        var answeredLabel: String {
+            guard !isBackup else { return "Asked \(asked), first \(answered)" }
+            let percent = Int((Double(answered) / Double(max(asked, 1)) * 100).rounded())
+            return "\(answered) of \(asked) (\(percent)%)"
+        }
     }
 
     /// Newest first.
@@ -115,9 +136,14 @@ struct RecentLatencyView: View {
     @State var window: RecentLatency.Window = .thirtyMinutes
     @Environment(\.dateContext) private var dates
 
-    /// Waits over this count as slow, over `verySlow` very slow (red).
-    static let slow: TimeInterval = 3
-    static let verySlow: TimeInterval = 8
+    /// Slow waits in orange, very slow in red (`RecentLatency.Severity`).
+    private static func color(_ severity: RecentLatency.Severity) -> Color {
+        switch severity {
+        case .normal: .primary
+        case .slow: .orange
+        case .verySlow: .red
+        }
+    }
     /// A bar's full width; longer waits are cut off there (their number still shows).
     static let scale: TimeInterval = 10
 
@@ -157,8 +183,8 @@ struct RecentLatencyView: View {
                     GridRow {
                         stat(TimeBreakdownView.number(latency.typicalWait ?? 0), "sec", "Typical wait, stop to text", id: "typical")
                         stat(TimeBreakdownView.number(latency.slowestWait ?? 0), "sec", "Slowest wait", id: "slowest")
-                        stat(String(latency.count(slowerThan: Self.slow)), "of \(latency.rows.count)",
-                             "Waited over \(Int(Self.slow)) seconds", id: "slow")
+                        stat(String(latency.count(slowerThan: RecentLatency.slow)), "of \(latency.rows.count)",
+                             "Waited over \(Int(RecentLatency.slow)) seconds", id: "slow")
                     }
                 }
                 waits(latency)
@@ -260,7 +286,7 @@ struct RecentLatencyView: View {
 
     private func row(_ row: RecentLatency.Row) -> some View {
         let wait = row.wait
-        let color: Color = wait > Self.verySlow ? .red : wait > Self.slow ? .orange : .primary
+        let severity = RecentLatency.Severity(wait)
         return HStack(spacing: 10) {
             Text(dates.string(row.date, .dateTime.hour().minute())).frame(width: 64, alignment: .leading)
             Text(row.speaking < 59.5 ? "\(Int(row.speaking.rounded())) s" : TimeBreakdownView.number(row.speaking))
@@ -269,23 +295,17 @@ struct RecentLatencyView: View {
             bar(row)
             Text(TimeBreakdownView.number(wait) + " s")
                 .fontWeight(.bold)
-                .foregroundStyle(color)
+                .foregroundStyle(Self.color(severity))
                 .frame(width: 52, alignment: .trailing)
-            Text(Self.backupLabel(row)).foregroundStyle(.secondary).frame(width: 92, alignment: .leading)
+            Text(row.backupLabel).foregroundStyle(.secondary).frame(width: 92, alignment: .leading)
         }
         .font(.callout.monospacedDigit())
         .frame(height: 26)
         .padding(.horizontal, 6)
-        .background(wait > Self.verySlow ? Color.red.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .background(severity == .verySlow ? Color.red.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 6))
         .padding(.horizontal, -6)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("recent.row")
-    }
-
-    /// Which parts the backup answered: "speech", "polish", "speech, polish" or "".
-    static func backupLabel(_ row: RecentLatency.Row) -> String {
-        [row.transcribedByBackup ? "speech" : nil, row.polishedByBackup ? "polish" : nil]
-            .compactMap { $0 }.joined(separator: ", ")
     }
 
     private func bar(_ row: RecentLatency.Row) -> some View {
@@ -349,7 +369,7 @@ struct RecentLatencyView: View {
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("recent.model")  // on one cell: a GridRow's modifiers go to each
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(Self.answered(model)).font(.callout)
+                            Text(model.answeredLabel).font(.callout)
                             GeometryReader { geo in
                                 ZStack(alignment: .leading) {
                                     Capsule().fill(Color.primary.opacity(0.1))
@@ -361,7 +381,7 @@ struct RecentLatencyView: View {
                         }
                         Text(model.typical.map { TimeBreakdownView.number($0) + " s" } ?? "–").fontWeight(.bold)
                         Text(model.slowest.map { TimeBreakdownView.number($0) + " s" } ?? "–").fontWeight(.bold)
-                            .foregroundStyle((model.slowest ?? 0) > Self.verySlow ? .red : (model.slowest ?? 0) > Self.slow ? .orange : .primary)
+                            .foregroundStyle(Self.color(RecentLatency.Severity(model.slowest ?? 0)))
                     }
                     .font(.callout.monospacedDigit())
                 }
@@ -374,12 +394,6 @@ struct RecentLatencyView: View {
         .tileBackground()
     }
 
-    /// "8 of 11 (73%)" for a main model; "Asked 8, first 3" for a backup.
-    static func answered(_ model: RecentLatency.ModelStats) -> String {
-        guard !model.isBackup else { return "Asked \(model.asked), first \(model.answered)" }
-        let percent = Int((Double(model.answered) / Double(max(model.asked, 1)) * 100).rounded())
-        return "\(model.answered) of \(model.asked) (\(percent)%)"
-    }
 }
 
 /// Diagonal stripes over a bar segment the backup model answered.
