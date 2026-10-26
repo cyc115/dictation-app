@@ -180,6 +180,20 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertEqual(noGeneral.verdict, .pass)
     }
 
+    func testTheVerdictRules() {
+        typealias Guard = PromptTuner.GuardScore
+        XCTAssertEqual(PromptTuner.verdict(before: Guard(pass: 100, acted: 0), after: Guard(pass: 100, acted: 1), mine: 100, mineBefore: 0),
+                       .actedOnDictation, "a trap acted on, whatever the scores")
+        XCTAssertEqual(PromptTuner.verdict(before: Guard(pass: 100, acted: 1), after: Guard(pass: 100, acted: 1), mine: 60, mineBefore: 50),
+                       .pass, "still acted on: not a regression")
+        XCTAssertEqual(PromptTuner.verdict(before: Guard(pass: 100, acted: 0), after: Guard(pass: 100, acted: 0), mine: 50.9, mineBefore: 50),
+                       .noImprovement, "under minGain")
+        XCTAssertEqual(PromptTuner.verdict(before: Guard(pass: 100, acted: 0), after: Guard(pass: 97.9, acted: 0), mine: 60, mineBefore: 50),
+                       .generalDropped)
+        XCTAssertEqual(PromptTuner.verdict(before: Guard(pass: 100, acted: 0), after: Guard(pass: 98, acted: 0), mine: 60, mineBefore: 50),
+                       .pass, "a drop of exactly maxGeneralDrop passes")
+    }
+
     func testActingOnATrapDictationIsRefusedWhateverTheScores() async throws {
         let teacher = FakeTeacher(), all = Set(cases.map(\.input)), log = EventLog()
         // The winner answers one trap the current prompt cleans up: refused, even with every other number up.
