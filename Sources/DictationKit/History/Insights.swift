@@ -128,20 +128,7 @@ struct InsightsView: View {
     }
 
     private func card(parts: [(String, String)], caption: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
-                    Text(part.0).font(.system(size: 22, weight: .bold, design: .rounded))
-                    Text(part.1).font(.system(size: 12, weight: .semibold)).padding(.trailing, 4)
-                }
-            }
-            Text(caption).font(.callout).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("insights." + caption)
+        StatTile(parts: parts, caption: caption, id: "insights." + caption)
     }
 }
 
@@ -208,8 +195,7 @@ struct TimeBreakdownView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .tileBackground()
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("insights.breakdown")
     }

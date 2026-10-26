@@ -150,8 +150,7 @@ struct RecentLatencyView: View {
                 Text("No dictations in this time. Pick a longer window, or dictate something.")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
-                    .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .tileBackground()
                     .accessibilityIdentifier("recent.empty")
             } else {
                 Grid(horizontalSpacing: 10) {
@@ -179,18 +178,7 @@ struct RecentLatencyView: View {
     }
 
     private func stat(_ value: String, _ unit: String, _ caption: String, id: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(value).font(.system(size: 22, weight: .bold, design: .rounded))
-                Text(unit).font(.system(size: 12, weight: .semibold))
-            }
-            Text(caption).font(.callout).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("recent." + id)
+        StatTile(value, unit, caption: caption, id: "recent." + id)
     }
 
     // MARK: Waits
@@ -228,8 +216,7 @@ struct RecentLatencyView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .tileBackground()
     }
 
     private func comparison(_ part: String, _ recent: TimeInterval, usual: TimeInterval, color: Color) -> some View {
@@ -384,8 +371,7 @@ struct RecentLatencyView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .tileBackground()
     }
 
     /// "8 of 11 (73%)" for a main model; "Asked 8, first 3" for a backup.

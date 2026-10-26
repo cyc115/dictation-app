@@ -30,8 +30,7 @@ struct LearnView: View {
                 resultRow(result)
             }
         }
-        .padding(16)
-        .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .tileBackground(padding: 16)
         .animation(reduceMotion ? nil : .spring(duration: 0.5), value: controller.phase)
         .animation(reduceMotion ? nil : .spring(duration: 0.5), value: controller.result)
         .accessibilityElement(children: .contain)
