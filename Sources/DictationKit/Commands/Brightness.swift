@@ -27,7 +27,7 @@ enum Brightness {
     /// Sets `display` through BetterDisplay's command line; the new level, or nil to fall back.
     private static func withBetterDisplay(_ app: URL, display: CGDirectDisplayID, choice: String) -> Double? {
         func ask(_ arguments: [String]) -> String? {
-            guard case .success(let done) = CommandMode.process(app.path, arguments, timeout: 4),
+            guard case .success(let done) = Subprocess.run(app.path, arguments, timeout: 4),
                   done.status == 0, !done.timedOut else { return nil }
             return done.output.trimmingCharacters(in: .whitespacesAndNewlines)
         }

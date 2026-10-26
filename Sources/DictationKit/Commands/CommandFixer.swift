@@ -96,7 +96,7 @@ struct CommandFixer {
         let terminal: Terminal = Self.ghosttyPaths.contains(where: { FileManager.default.fileExists(atPath: $0) }) ? .ghostty : .terminal
         let (executable, arguments) = Self.launch(terminal, claude: claude, arguments: arguments(command, prompt: prompt), in: source ?? folder)
         let opened = await Task.detached {
-            CommandMode.process(executable, arguments, timeout: 30)
+            Subprocess.run(executable, arguments, timeout: 30)
         }.value
         switch opened {
         case .success(let done) where done.status == 0 && !done.timedOut:

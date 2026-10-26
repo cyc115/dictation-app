@@ -9,7 +9,7 @@ struct CommandResult: Equatable {
     var details: String?
 
     /// From a finished script: on success its first line of output, else its last line of errors.
-    static func from(_ finished: CommandMode.Finished, name: String) -> CommandResult {
+    static func from(_ finished: Subprocess.Finished, name: String) -> CommandResult {
         func line(_ text: String, last: Bool) -> String? {
             let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
             return last ? lines.last : lines.first
@@ -225,7 +225,7 @@ final class CommandMode {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let check = ["run", "--quiet", "--no-project", "python", "-I", "-c", "import ast, sys; ast.parse(sys.argv[1])", script]
-                guard case .success(let finished) = uv(check), finished.status != 0 else { return continuation.resume(returning: nil) }
+                guard case .success(let finished) = Subprocess.uv(check), finished.status != 0 else { return continuation.resume(returning: nil) }
                 var lines = finished.errors.components(separatedBy: .newlines).filter { !$0.isEmpty }
                 if let start = lines.lastIndex(where: { $0.contains("File \"<unknown>\"") }) { lines = Array(lines[start...]) } else { lines = lines.suffix(1) }
                 continuation.resume(returning: lines.isEmpty ? "Python can't read it" : lines.joined(separator: "\n"))
@@ -244,71 +244,14 @@ final class CommandMode {
         }
     }
 
-    static let uvPaths = ["/opt/homebrew/bin/uv", NSHomeDirectory() + "/.local/bin/uv", "/usr/local/bin/uv"]
-
     static let saidVariable = "COMMAND_SAID"
 
     private static func runNow(script: URL, choice: String?, said: String) -> CommandResult {
         let name = script.deletingPathExtension().lastPathComponent
-        switch uv(["run", "--quiet", "--script", script.path] + (choice.map { [$0] } ?? []), environment: [saidVariable: said]) {
+        switch Subprocess.uv(["run", "--quiet", "--script", script.path] + (choice.map { [$0] } ?? []), environment: [saidVariable: said]) {
         case .success(let finished): return CommandResult.from(finished, name: name)
         case .failure(.notInstalled): return CommandResult(ok: false, message: "uv isn't installed")
         case .failure(.couldNotStart(let why)): return CommandResult(ok: false, message: "Couldn't start \(name): \(why)")
         }
-    }
-
-    /// How a uv run ended.
-    struct Finished {
-        var status: Int32
-        var output: String
-        var errors: String
-        var timedOut: Bool
-    }
-
-    enum StartError: Error {
-        case notInstalled
-        case couldNotStart(String)
-    }
-
-    /// Runs uv with `arguments` (and `environment` added), with no shell and the time limit.
-    static func uv(_ arguments: [String], environment extra: [String: String] = [:]) -> Result<Finished, StartError> {
-        guard let uv = uvPaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            return .failure(.notInstalled)
-        }
-        return process(uv, arguments, environment: extra)
-    }
-
-    /// Runs `executable` with `arguments` (and `environment` added, in `directory`), with no shell and
-    /// a time limit.
-    static func process(_ executable: String, _ arguments: [String], environment extra: [String: String] = [:],
-                        directory: URL? = nil, timeout: TimeInterval = CommandMode.timeout) -> Result<Finished, StartError> {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.currentDirectoryURL = directory
-        process.arguments = arguments
-        var environment = ProcessInfo.processInfo.environment
-        environment["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-        environment.merge(extra) { _, new in new }
-        process.environment = environment
-        let output = Pipe(), errors = Pipe()
-        process.standardOutput = output
-        process.standardError = errors
-        process.standardInput = FileHandle.nullDevice
-        do { try process.run() } catch {
-            return .failure(.couldNotStart(error.localizedDescription))
-        }
-        let limit = DispatchWorkItem { process.terminate() }
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: limit)
-        // Errors are read alongside, so a script that writes a lot of them can't block on a full pipe.
-        var errorData = Data()
-        let reading = DispatchGroup()
-        reading.enter()
-        DispatchQueue.global().async { errorData = errors.fileHandleForReading.readDataToEndOfFile(); reading.leave() }
-        let outputData = output.fileHandleForReading.readDataToEndOfFile()
-        reading.wait()
-        process.waitUntilExit()
-        limit.cancel()
-        return .success(Finished(status: process.terminationStatus, output: String(decoding: outputData, as: UTF8.self),
-                                 errors: String(decoding: errorData, as: UTF8.self), timedOut: process.terminationReason == .uncaughtSignal))
     }
 }

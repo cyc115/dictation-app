@@ -312,7 +312,7 @@ final class CommandTests: XCTestCase {
 
     func testResultIsTheFirstLineOfOutputOrTheLastLineOfErrors() {
         func result(_ status: Int32, _ output: String = "", _ errors: String = "", timedOut: Bool = false) -> CommandResult {
-            CommandResult.from(CommandMode.Finished(status: status, output: output, errors: errors, timedOut: timedOut), name: "b")
+            CommandResult.from(Subprocess.Finished(status: status, output: output, errors: errors, timedOut: timedOut), name: "b")
         }
         XCTAssertEqual(result(0, "\nBrightness 70%\nmore\n"), CommandResult(ok: true, message: "Brightness 70%"))
         XCTAssertEqual(result(0), CommandResult(ok: true, message: "Ran b"))
@@ -325,7 +325,7 @@ final class CommandTests: XCTestCase {
 
     /// The real runner, with uv: the choice reaches the script as one argument, never through a shell.
     func testRunsTheScriptWithUvAndPassesTheChoiceAsIs() async throws {
-        guard CommandMode.uvPaths.contains(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+        guard Subprocess.uvPaths.contains(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             throw XCTSkip("uv isn't installed")
         }
         let dir = folder(["echo.py": "\"\"\"Echo.\"\"\"\nimport os, sys\nprint('got', sys.argv[1:], os.environ['COMMAND_SAID'])\n",
@@ -748,7 +748,7 @@ final class CommandTests: XCTestCase {
     /// asked once more first.
     @MainActor
     func testCreateRefusesAScriptPythonCantParse() async throws {
-        guard CommandMode.uvPaths.contains(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+        guard Subprocess.uvPaths.contains(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             throw XCTSkip("uv isn't installed")
         }
         let broken = "\"\"\"Broken.\"\"\"\nif True print(1)\n"
