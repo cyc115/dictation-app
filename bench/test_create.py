@@ -1,5 +1,10 @@
 """Tests for the create-command suite. Run: uv run --with pytest pytest bench"""
+import json
+from pathlib import Path
+
 from suites import commands, create
+
+REPO = Path(__file__).resolve().parents[1]
 
 
 def test_the_prompt_is_the_apps_with_the_commands_but_not_create():
@@ -31,3 +36,13 @@ def test_checks_stop_at_the_first_problem():
     assert create.check(new, "NAME: battery\n```python\nprint(1)\n```", cmds, False)["score"] == "docstring"
     assert create.check(new, 'NAME: battery\n```python\n"""B."""\nif True print(1)\n```', cmds, False)["score"] == "syntax"
     assert create.check(new, "Sure!", cmds, False)["score"] == "format"
+
+
+def test_the_suite_asks_as_the_apps_writer_does():
+    """The constants that mirror CommandWriter and CommandMode (model, providers, name rule, time limit)."""
+    writer = (REPO / "Sources/DictationKit/Commands/CommandWriter.swift").read_text()
+    mode = (REPO / "Sources/DictationKit/Commands/CommandMode.swift").read_text()
+    assert f'static let model = "{create.MODEL.removeprefix("openrouter:")}"' in writer
+    assert "static let providers = " + json.dumps(create.PROVIDERS) in writer
+    assert f'#"{create.NAME_PATTERN.pattern}"#' in writer
+    assert f"static let timeout: TimeInterval = {create.TIMEOUT}\n" in mode
