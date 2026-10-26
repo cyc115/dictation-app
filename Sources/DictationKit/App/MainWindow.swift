@@ -79,6 +79,7 @@ final class TabSelection: ObservableObject {
 }
 
 struct MainView: View {
+    @Environment(\.dateContext) private var dates
     @ObservedObject var selection: TabSelection
     let services: AppServices
     @ObservedObject private var history: HistoryStore
@@ -106,9 +107,7 @@ struct MainView: View {
             .safeAreaInset(edge: .bottom) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Version \(AppVersion.current.version)").font(.caption.weight(.medium))
-                    Text(AppVersion.current.commit + (AppVersion.current.built.map {
-                        " · " + $0.formatted(.dateTime.month(.abbreviated).day().hour().minute())
-                    } ?? ""))
+                    Text(AppVersion.current.commit + (AppVersion.current.built.map { " · " + dates.string($0, AppVersion.builtStyle) } ?? ""))
                     .font(.caption2)
                 }
                 .foregroundStyle(.secondary)

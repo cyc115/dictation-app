@@ -22,9 +22,12 @@ struct AppVersion {
     /// "Version 1.0.25 (525e456)"
     var short: String { "Version \(version) (\(commit))" }
 
+    /// How the build time is written: "Oct 7, 1:05 AM" (here and in the sidebar).
+    static let builtStyle: Date.FormatStyle = .dateTime.month(.abbreviated).day().hour().minute()
+
     /// "Version 1.0.25 (525e456) · built Oct 7, 1:05 AM"
     var long: String {
         guard let built = built else { return short }
-        return short + " · built " + built.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+        return short + " · built " + built.formatted(Self.builtStyle)
     }
 }
