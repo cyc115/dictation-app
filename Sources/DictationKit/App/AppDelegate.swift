@@ -53,7 +53,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         if Diagnostics.runIfRequested() { return }
         muter.restore()  // undo a mute left behind if the app quit mid-dictation
-        services.history.backfillTimings(from: services.archive.infos)  // once
         defer { signalReady() }
         watchForNewBuild()
         applyAppearanceAndDock()

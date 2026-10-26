@@ -33,25 +33,4 @@ final class TimeBreakdownTests: XCTestCase {
         XCTAssertEqual(TimeBreakdownView.number(0.31), "0.3")
         XCTAssertEqual(TimeBreakdownView.number(65), "1:05")
     }
-
-    func testBackfillFromKeptRecordingsOnce() {
-        let defaults = makeDefaults(self)
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: defaults)
-        store.add(text: "Send it.", duration: 2, raw: "um send it")
-        store.add(text: "no match", duration: 2)
-        store.add(text: "already timed", duration: 2, transcribeSeconds: 0.5)
-        func info(_ transcript: String, _ t: Double?, _ p: Double?) -> RecordingInfo {
-            var info = RecordingInfo(date: Date(), model: "m", transcript: transcript, seconds: 2)
-            info.transcribeSeconds = t
-            info.polishSeconds = p
-            return info
-        }
-        store.backfillTimings(from: [info("um send it ", 1.6, 0.3), info("already timed", 9, 9)])
-        XCTAssertEqual(store.entries.map(\.transcribeSeconds), [0.5, nil, 1.6])
-        XCTAssertEqual(store.entries.last?.polishSeconds, 0.3)
-        let reloaded = HistoryStore(fileURL: store.fileURL, defaults: defaults)
-        XCTAssertEqual(reloaded.entries.last?.transcribeSeconds, 1.6, "saved")
-        reloaded.backfillTimings(from: [info("no match", 7, nil)])
-        XCTAssertNil(reloaded.entries[1].transcribeSeconds, "runs once")
-    }
 }

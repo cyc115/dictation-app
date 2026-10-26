@@ -131,25 +131,6 @@ final class HistoryStore: ObservableObject {
         save()
     }
 
-    /// Fills in transcribe and polish times on dictations from before they were saved, from kept
-    /// recordings with the same transcript (`RecordingInfo`). Once: `timingsBackfilled` in defaults.
-    func backfillTimings(from recordings: @autoclosure () -> [RecordingInfo]) {
-        guard !defaults.bool(forKey: "timingsBackfilled") else { return }
-        defaults.set(true, forKey: "timingsBackfilled")
-        var byTranscript: [String: RecordingInfo] = [:]
-        for info in recordings() where info.transcribeSeconds != nil {
-            byTranscript[info.transcript.trimmingCharacters(in: .whitespacesAndNewlines)] = info
-        }
-        var changed = false
-        for i in entries.indices where entries[i].transcribeSeconds == nil {
-            guard let info = byTranscript[entries[i].input] else { continue }
-            entries[i].transcribeSeconds = info.transcribeSeconds
-            entries[i].polishSeconds = info.polishSeconds
-            changed = true
-        }
-        if changed { save() }
-    }
-
     /// Dictations you corrected, newest first.
     var corrections: [HistoryEntry] { entries.filter { $0.correction != nil } }
 
