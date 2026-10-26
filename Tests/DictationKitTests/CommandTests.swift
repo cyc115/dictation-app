@@ -147,6 +147,22 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(questions["choice:brightness"]?["criteria"] as? [String: String], ["+10": "a bit brighter", "50": "half"])
     }
 
+    func testTheDecisionsAPIIsSharedByJevAndDecider() throws {
+        let local = LocalDecider.request(state: "The user said: mute", questions: ["command": ["type": "choice"]])
+        XCTAssertEqual(local.url?.absoluteString, "http://127.0.0.1:8080/v1/decisions")
+        XCTAssertNil(local.value(forHTTPHeaderField: "Authorization"), "Decider takes no key")
+        XCTAssertEqual(local.value(forHTTPHeaderField: "Content-Type"), "application/json")
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: local.httpBody!) as? [String: Any])
+        XCTAssertEqual(body["model"] as? String, LocalDecider.model)
+        XCTAssertEqual((body["questions"] as? [String: Any])?.keys.sorted(), ["command"])
+        let answers = OpenRouter.json(Data(#"{"answers":{"command":{"choice":"volume","confidence":0.8},"choice:volume":{"choice":"mute"}}}"#.utf8))
+        XCTAssertEqual(DecisionsAPI.answer(answers, status: 200, key: "command")?.choice, "volume")
+        XCTAssertEqual(DecisionsAPI.answer(answers, status: 200, key: "command")?.confidence, 0.8)
+        XCTAssertEqual(DecisionsAPI.answer(answers, status: 200, key: "choice:volume")?.confidence, 0, "none given")
+        XCTAssertNil(DecisionsAPI.answer(answers, status: 200, key: "choice:open"), "not asked")
+        XCTAssertNil(DecisionsAPI.answer(answers, status: 500, key: "command"), "failed")
+    }
+
     /// An app's choice means just its name: sent without a meaning (Jev reads a quarter less, same answers).
     func testChoicesNamedByThemselvesAreSentBare() throws {
         let commands = Command.all(in: makeTempURL(self, "Commands"), apps: ["Safari"], running: [])
@@ -675,7 +691,7 @@ final class CommandTests: XCTestCase {
         let prompt = CommandWriter.prompt(commands)
         XCTAssertTrue(prompt.contains("- window: Tile the front window. (choices: left = the left half, right = the right half)"))
         XCTAssertTrue(prompt.contains("- brightness: Set the screen brightness (choices: +10 = a bit brighter, -10 = a bit dimmer, "))
-        XCTAssertTrue(prompt.contains("- repeat: Do the last thing again: run the last command again, or type the last dictation again (whichever came later)\n"))
+        XCTAssertTrue(prompt.contains("- repeat: Run the last command again, or type the last dictation again\n"))
         XCTAssertFalse(prompt.contains("- create:"))
         XCTAssertTrue(prompt.contains("- open: Open an app installed on this Mac (not a website)\n"), "not the apps: the model would name one as the command")
         XCTAssertTrue(prompt.contains("- switch-app: Switch to another app that's already open, by name\n"))

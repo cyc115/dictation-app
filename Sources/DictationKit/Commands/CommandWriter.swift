@@ -42,7 +42,7 @@ struct CommandWriter {
         let (data, status) = try await OpenRouter.send(request, session: session)
         let json = OpenRouter.json(data)
         guard let text = OpenRouter.content(json, status: status) else {
-            throw TranscriptionError.message("Couldn't write it: " + (OpenRouter.errorMessage(json) ?? "HTTP \(status)"))
+            throw TranscriptionError.message("Couldn't write it: " + OpenRouter.problem(json, status: status))
         }
         guard let reply = Self.parse(text) else { throw TranscriptionError.message("Couldn't write it: the answer wasn't a script") }
         return reply

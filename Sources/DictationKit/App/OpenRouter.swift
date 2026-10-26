@@ -5,17 +5,18 @@ import Foundation
 enum OpenRouter {
     static let chatEndpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
 
-    /// A POST to `url` with the API key and the app's name.
-    static func request(_ url: URL, apiKey: String, timeout: TimeInterval = 60) -> URLRequest {
+    /// A POST to `url` with the API key and the app's name. `apiKey` nil: a server that takes none
+    /// (Decider on this Mac).
+    static func request(_ url: URL, apiKey: String?, timeout: TimeInterval = 60) -> URLRequest {
         var request = URLRequest(url: url, timeoutInterval: timeout)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        if let apiKey { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
         request.setValue("DictationApp", forHTTPHeaderField: "X-Title")
         return request
     }
 
     /// A POST of `body` as JSON.
-    static func post(_ url: URL, body: [String: Any], apiKey: String, timeout: TimeInterval = 60) -> URLRequest {
+    static func post(_ url: URL, body: [String: Any], apiKey: String?, timeout: TimeInterval = 60) -> URLRequest {
         var request = request(url, apiKey: apiKey, timeout: timeout)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
@@ -60,5 +61,10 @@ enum OpenRouter {
     /// The `error.message` OpenRouter puts in a failed response.
     static func errorMessage(_ json: [String: Any]?) -> String? {
         (json?["error"] as? [String: Any])?["message"] as? String
+    }
+
+    /// Why a call failed, for a message: `errorMessage`, else the HTTP status.
+    static func problem(_ json: [String: Any]?, status: Int) -> String {
+        errorMessage(json) ?? "HTTP \(status)"
     }
 }

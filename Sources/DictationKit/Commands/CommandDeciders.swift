@@ -34,6 +34,21 @@ struct CommandDecision: Equatable {
     }
 }
 
+/// The decisions API Jev (through OpenRouter) and Decider (on this Mac) share: a state and
+/// multiple-choice questions, each answered with a choice and a confidence.
+enum DecisionsAPI {
+    static func request(_ url: URL, model: String, state: String, questions: [String: Any], apiKey: String?,
+                        timeout: TimeInterval) -> URLRequest {
+        OpenRouter.post(url, body: ["model": model, "state": state, "questions": questions], apiKey: apiKey, timeout: timeout)
+    }
+
+    /// The answer to the question `key`; nil when the call failed or it wasn't answered.
+    static func answer(_ json: [String: Any]?, status: Int, key: String) -> (choice: String?, confidence: Double)? {
+        guard status == 200, let answer = (json?["answers"] as? [String: Any])?[key] as? [String: Any] else { return nil }
+        return (answer["choice"] as? String, answer["confidence"] as? Double ?? 0)
+    }
+}
+
 protocol CommandDecider {
     func decide(_ said: String, among commands: [Command]) async throws -> CommandDecision
     /// Called as command recording starts, so the decider is ready by the time you stop talking.
@@ -76,20 +91,17 @@ struct JevDecider: CommandDecider {
         for command in commands where !command.choices.isEmpty {
             questions["choice:" + command.name] = CommandDecision.choiceQuestion(command)
         }
-        return OpenRouter.post(endpoint, body: ["model": model, "state": CommandDecision.heard + "\nThe user said: " + said, "questions": questions],
-                               apiKey: apiKey, timeout: 10)
+        return DecisionsAPI.request(endpoint, model: model, state: CommandDecision.heard + "\nThe user said: " + said,
+                                    questions: questions, apiKey: apiKey, timeout: 10)
     }
 
     static func parse(data: Data, status: Int) -> Result<CommandDecision, Error> {
         let json = OpenRouter.json(data)
-        guard status == 200, let answers = json?["answers"] as? [String: Any],
-              let pick = answers["command"] as? [String: Any], let name = pick["choice"] as? String else {
-            let message = OpenRouter.errorMessage(json) ?? "HTTP \(status)"
-            return .failure(TranscriptionError.message("Couldn't pick a command: \(message)"))
+        guard let pick = DecisionsAPI.answer(json, status: status, key: "command"), let name = pick.choice else {
+            return .failure(TranscriptionError.message("Couldn't pick a command: \(OpenRouter.problem(json, status: status))"))
         }
-        let choice = (answers["choice:" + name] as? [String: Any])?["choice"] as? String
-        return .success(CommandDecision(command: name == "none" ? nil : name, choice: choice,
-                                        confidence: pick["confidence"] as? Double ?? 0))
+        let choice = DecisionsAPI.answer(json, status: status, key: "choice:" + name)?.choice
+        return .success(CommandDecision(command: name == "none" ? nil : name, choice: choice, confidence: pick.confidence))
     }
 }
 
@@ -133,8 +145,7 @@ struct ChatDecider: CommandDecider {
         let json = OpenRouter.json(data)
         guard let content = OpenRouter.content(json, status: status), let start = content.firstIndex(of: "{"), let end = content.lastIndex(of: "}"),
               let picked = OpenRouter.json(Data(content[start...end].utf8)) else {
-            let message = OpenRouter.errorMessage(json) ?? "HTTP \(status)"
-            return .failure(TranscriptionError.message("Couldn't pick a command: \(message)"))
+            return .failure(TranscriptionError.message("Couldn't pick a command: \(OpenRouter.problem(json, status: status))"))
         }
         guard let name = picked["command"] as? String, let command = commands.first(where: { $0.name == name }) else {
             return .success(CommandDecision(command: nil, confidence: 1))
@@ -179,24 +190,17 @@ struct LocalDecider: CommandDecider {
         } catch let error as URLError where [.cannotConnectToHost, .cannotFindHost, .networkConnectionLost].contains(error.code) {
             throw TranscriptionError.message("Decider isn't running: open it, or turn off Settings › Experimental › Decide commands on this Mac")
         }
-        return try Self.parse(data: data, status: status, key: key).get()
-    }
-
-    static func request(state: String, questions: [String: Any]) -> URLRequest {
-        var request = URLRequest(url: server.appendingPathComponent("v1/decisions"), timeoutInterval: 15)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["model": model, "state": state, "questions": questions])
-        return request
-    }
-
-    static func parse(data: Data, status: Int, key: String) -> Result<(choice: String?, confidence: Double), Error> {
         let json = OpenRouter.json(data)
-        guard status == 200, let answer = (json?["answers"] as? [String: Any])?[key] as? [String: Any] else {
-            let message = OpenRouter.errorMessage(json) ?? "HTTP \(status)"
-            return .failure(TranscriptionError.message("Decider couldn't pick a command: \(message)"))
+        guard let answer = DecisionsAPI.answer(json, status: status, key: key) else {
+            throw TranscriptionError.message("Decider couldn't pick a command: \(OpenRouter.problem(json, status: status))")
         }
-        return .success((answer["choice"] as? String, answer["confidence"] as? Double ?? 0))
+        return answer
+    }
+
+    /// One question, to Decider's own server: no key.
+    static func request(state: String, questions: [String: Any]) -> URLRequest {
+        DecisionsAPI.request(server.appendingPathComponent("v1/decisions"), model: model, state: state, questions: questions,
+                             apiKey: nil, timeout: 15)
     }
 
     /// Whether Decider can answer now, for Settings.
