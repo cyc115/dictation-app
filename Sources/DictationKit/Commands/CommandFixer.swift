@@ -1,15 +1,22 @@
 import Foundation
 
-/// "fix the volume command, louder doesn't work": starts a background Claude Code session
-/// (`claude --bg`) that finds and fixes what's wrong with the command, told what you said, the
-/// command's recent runs and its errors.log entries (FixCommand.txt). It runs in the app's source
-/// folder (a built-in is fixed there: tested, committed, pushed, rebuilt) with the commands folder
-/// added (a script is fixed in place), and shows a notification when it's done. `claude attach <id>`
-/// to watch it.
+/// "fix the volume command, louder doesn't work": opens a terminal window (Ghostty, else Terminal)
+/// running a Claude Code session that finds and fixes what's wrong with the command, told what you
+/// said, the command's recent runs and its errors.log entries (FixCommand.txt), so you can watch it
+/// work and step in. It runs in the app's source folder (a built-in is fixed there: tested, committed,
+/// pushed, rebuilt) with the commands folder added (a script is fixed in place), and shows a
+/// notification when it's done.
 struct CommandFixer {
     static let instructions = Bundle.module.url(forResource: "FixCommand", withExtension: "txt")
         .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
     static let claudePaths = [NSHomeDirectory() + "/.local/bin/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude"]
+    static let ghosttyPaths = ["/Applications/Ghostty.app", NSHomeDirectory() + "/Applications/Ghostty.app"]
+
+    /// Where the session shows: Ghostty when it's installed, else the Terminal that comes with macOS.
+    enum Terminal: String {
+        case ghostty = "Ghostty"
+        case terminal = "Terminal"
+    }
 
     /// The commands folder (a script's home, and errors.log) and the app's source (nil: built from
     /// somewhere else, so a built-in can't be fixed).
@@ -44,13 +51,41 @@ struct CommandFixer {
             .replacingOccurrences(of: "{runs}", with: runLines.isEmpty ? "(none)" : runLines.joined(separator: "\n"))
     }
 
-    /// `claude`'s arguments: in the background, with the commands folder, without asking (auto mode).
+    /// `claude`'s arguments: with the commands folder, named after the command, without asking (auto mode).
     func arguments(_ command: Command, prompt: String) -> [String] {
         // --add-dir takes several folders: an option after it ends the list, or it takes the prompt for one.
-        ["--bg", "--add-dir", folder.path, "-n", "fix-\(command.name)", "--permission-mode", "auto", prompt]
+        ["--add-dir", folder.path, "-n", "fix-\(command.name)", "--permission-mode", "auto", prompt]
     }
 
-    /// Starts the session; says how to watch it. A built-in needs the source.
+    /// What opens a new `terminal` window running `claude` with `arguments` in `directory`: the
+    /// executable and its arguments.
+    static func launch(_ terminal: Terminal, claude: String, arguments: [String], in directory: URL) -> (String, [String]) {
+        switch terminal {
+        case .ghostty:
+            // open hands the arguments over as they are (spaces, quotes and line breaks included), and
+            // Ghostty runs what follows -e in a new window; the CLI itself can't open windows on macOS.
+            return ("/usr/bin/open", ["-na", "Ghostty.app", "--args", "--working-directory=\(directory.path)", "-e", claude] + arguments)
+        case .terminal:
+            // Terminal takes one line as if typed: quoted for the shell, then for AppleScript.
+            let line = "cd \(shellQuoted(directory.path)) && exec " + ([claude] + arguments).map(shellQuoted).joined(separator: " ")
+            return ("/usr/bin/osascript", ["-e", "tell application \"Terminal\"", "-e", "activate",
+                                           "-e", "do script \(appleScriptQuoted(line))", "-e", "end tell"])
+        }
+    }
+
+    /// `text` as one shell word: single-quoted, a line break as $'\n' so the line stays one line.
+    static func shellQuoted(_ text: String) -> String {
+        text.components(separatedBy: "\n")
+            .map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+            .joined(separator: "$'\\n'")
+    }
+
+    /// `text` as an AppleScript string literal.
+    static func appleScriptQuoted(_ text: String) -> String {
+        "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+    }
+
+    /// Opens the terminal window with the session; says where. A built-in needs the source.
     func start(_ command: Command, prompt: String) async -> CommandResult {
         guard command.script != nil || source != nil else {
             return CommandResult(ok: false, message: "Fixing a built-in needs the app's source", details: "Info.plist has no DictationSource: build with build.sh")
@@ -58,30 +93,20 @@ struct CommandFixer {
         guard let claude = Self.claudePaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             return CommandResult(ok: false, message: "Claude Code isn't installed", details: "no claude at \(Self.claudePaths.joined(separator: ", "))")
         }
-        let arguments = arguments(command, prompt: prompt)
-        let started = await Task.detached { [source, folder] in
-            CommandMode.process(claude, arguments, directory: source ?? folder, timeout: 30)
+        let terminal: Terminal = Self.ghosttyPaths.contains(where: { FileManager.default.fileExists(atPath: $0) }) ? .ghostty : .terminal
+        let (executable, arguments) = Self.launch(terminal, claude: claude, arguments: arguments(command, prompt: prompt), in: source ?? folder)
+        let opened = await Task.detached {
+            CommandMode.process(executable, arguments, timeout: 30)
         }.value
-        switch started {
+        switch opened {
         case .success(let done) where done.status == 0 && !done.timedOut:
-            let id = Self.sessionID(done.output)
-            return CommandResult(ok: true, message: "Fixing \(command.name) in the background" + (id.map { " · claude attach \($0)" } ?? ""))
+            return CommandResult(ok: true, message: "Fixing \(command.name) in \(terminal.rawValue)")
         case .success(let done):
             let printed = [done.errors, done.output].joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-            return CommandResult(ok: false, message: "Couldn't start the fix",
-                                 details: (done.timedOut ? "claude --bg took over 30 s\n" : "claude exited \(done.status)\n") + printed)
+            return CommandResult(ok: false, message: "Couldn't open \(terminal.rawValue)",
+                                 details: (done.timedOut ? "\(executable) took over 30 s\n" : "\(executable) exited \(done.status)\n") + printed)
         case .failure(let error):
-            return CommandResult(ok: false, message: "Couldn't start the fix", details: "\(error)")
+            return CommandResult(ok: false, message: "Couldn't open \(terminal.rawValue)", details: "\(error)")
         }
-    }
-
-    /// The id in "backgrounded · 87c66017 · fix-volume".
-    static func sessionID(_ output: String) -> String? {
-        output.components(separatedBy: .newlines).lazy
-            .compactMap { line -> String? in
-                let parts = line.components(separatedBy: " · ")
-                return parts.count >= 2 && parts[0].hasSuffix("backgrounded") ? parts[1].trimmingCharacters(in: .whitespaces) : nil
-            }
-            .first
     }
 }

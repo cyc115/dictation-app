@@ -47,6 +47,8 @@ final class CommandMode {
         try await CommandWriter(apiKey: $2).write($0, among: $1, fixing: $3)
     }
     var pressReturn: () -> Void = { TextInjector().pressReturn() }
+    /// Pastes text into the front app (repeat's last dictation); the controller hands in its injector.
+    var typeText: (String) -> Void = { TextInjector().inject($0) }
     /// The installed apps by name, and opening one (tests fake both).
     var apps: () -> [String: URL] = { Command.installedApps() }
     var openApp: (URL) -> Void = { NSWorkspace.shared.openApplication(at: $0, configuration: NSWorkspace.OpenConfiguration()) }
@@ -128,10 +130,14 @@ final class CommandMode {
             pressReturn()
             return CommandResult(ok: true, message: "Pressed Return")
         case Command.again.name:
-            guard let last = history.commands.first(where: { $0.ok && $0.canRunAgain && $0.command != Command.again.name }),
-                  let lastName = last.command else {
-                return CommandResult(ok: false, message: "Nothing to repeat")
+            // Whichever came later: the last command that worked (not a repeat, which would be itself)
+            // runs again, or the last dictation is typed again.
+            let last = history.commands.first { $0.ok && $0.canRunAgain && $0.command != Command.again.name }
+            if let dictation = history.entries.first, dictation.date > (last?.date ?? .distantPast) {
+                typeText(dictation.text)
+                return CommandResult(ok: true, message: "Typed the last dictation again")
             }
+            guard let last, let lastName = last.command else { return CommandResult(ok: false, message: "Nothing to repeat") }
             return await perform(lastName, choice: last.choice, said: last.said, apiKey: nil, among: commands)
         case Command.openApp.name:
             guard let choice, choice != Command.noApp.value, let app = apps()[choice] else {

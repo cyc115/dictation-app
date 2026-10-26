@@ -342,6 +342,7 @@ final class CommandTests: XCTestCase {
     private var ran: [String] = []
     private var heard: [String] = []
     private var returns = 0
+    private var typed: [String] = []
 
     private func makeMode(_ decision: CommandDecision, log: EventLog = EventLog()) -> CommandMode {
         let mode = CommandMode(folder: folder(["window.py": window]), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
@@ -353,6 +354,7 @@ final class CommandTests: XCTestCase {
         }
         fakeSystem(mode, message: "Brightness 60%") { [unowned self] in ran.append($0) }
         mode.pressReturn = { [unowned self] in returns += 1 }
+        mode.typeText = { [unowned self] in typed.append($0) }
         mode.apps = { [:] }
         mode.openApp = { _ in XCTFail("opened an app") }
         return mode
@@ -458,6 +460,30 @@ final class CommandTests: XCTestCase {
         // A repeat of a repeat still runs brightness, not itself.
         _ = await mode.handle("repeat", apiKey: "k")
         XCTAssertEqual(ran, ["brightness +10", "brightness +10"])
+        XCTAssertEqual(typed, [], "no dictation yet")
+    }
+
+    @MainActor
+    func testRepeatTypesTheLastDictationAgainWhenItCameAfterTheLastCommand() async {
+        let mode = makeMode(CommandDecision(command: "repeat", confidence: 0.9))
+        mode.history.add(text: "an older dictation", duration: 1, date: Date(timeIntervalSinceNow: -60))
+        mode.history.addCommand(CommandRun(said: "brighter", command: "brightness", choice: "+10", ok: true, result: "Brightness 60%"))
+        _ = await mode.handle("repeat", apiKey: "k")
+        XCTAssertEqual(ran, ["brightness +10"], "the command came after the dictation")
+        XCTAssertEqual(typed, [])
+        mode.history.add(text: "the newest dictation", duration: 1)
+        let again = await mode.handle("repeat", apiKey: "k")
+        XCTAssertEqual(typed, ["the newest dictation"])
+        XCTAssertEqual(ran, ["brightness +10"], "not the command too")
+        XCTAssertEqual(again.result, "Typed the last dictation again")
+        XCTAssertTrue(again.ok)
+        // A repeat of that repeat types it again: the repeat itself isn't the last command.
+        _ = await mode.handle("repeat", apiKey: "k")
+        XCTAssertEqual(typed, ["the newest dictation", "the newest dictation"])
+        // No commands at all: the dictation.
+        mode.history.clearCommands()
+        _ = await mode.handle("repeat", apiKey: "k")
+        XCTAssertEqual(typed.count, 3)
     }
 
     @MainActor
@@ -525,9 +551,9 @@ final class CommandTests: XCTestCase {
         mode.log.add(CommandRun(said: "louder", command: "volume", choice: "+10", result: "Couldn't set the volume"), details: "AppleScript: no output device")
         mode.log.add(CommandRun(said: "go to yahoo finance", command: "open-website", choice: "other", result: "Which website?"), details: nil)
         var started: [(CommandFixer, Command, String)] = []
-        mode.startFix = { started.append(($0, $1, $2)); return CommandResult(ok: true, message: "Fixing \($1.name) in the background") }
+        mode.startFix = { started.append(($0, $1, $2)); return CommandResult(ok: true, message: "Fixing \($1.name) in Ghostty") }
         let run = await mode.handle("fix the volume command, turning it up doesn't work", apiKey: "k")
-        XCTAssertEqual(run.result, "Fixing volume in the background")
+        XCTAssertEqual(run.result, "Fixing volume in Ghostty")
         let (fixer, command, prompt) = try XCTUnwrap(started.first)
         XCTAssertEqual(command.name, "volume")
         XCTAssertEqual(fixer.source?.path, "/src/dictation-app")
@@ -568,15 +594,29 @@ final class CommandTests: XCTestCase {
     }
 
     @MainActor
-    func testFixingABuiltInNeedsTheSourceAndClaudeSaysWhereToWatch() async {
+    func testFixingABuiltInNeedsTheSourceAndTheSessionRunsInATerminalWindow() async {
         let fixer = CommandFixer(folder: makeTempURL(self, "Commands"), source: nil)
         let result = await fixer.start(Command.volume, prompt: "fix it")
         XCTAssertEqual(result.message, "Fixing a built-in needs the app's source")
-        XCTAssertEqual(CommandFixer.sessionID("Starting background service…\nbackgrounded · 87c66017 · fix-volume\n  claude agents  list"), "87c66017")
-        XCTAssertNil(CommandFixer.sessionID("Workspace not trusted."))
         let arguments = fixer.arguments(Command.volume, prompt: "fix it")
         XCTAssertEqual(arguments.last, "fix it")
+        XCTAssertFalse(arguments.contains("--bg"), "in front, where you can watch")
         XCTAssertTrue(arguments[arguments.firstIndex(of: "--add-dir")! + 2].hasPrefix("-"), "an option ends --add-dir's folders, or it takes the prompt for one")
+
+        let prompt = "Fix it.\nThe user said \"it's broken\" {twice}"
+        let source = URL(fileURLWithPath: "/src/my app")
+        let (open, ghostty) = CommandFixer.launch(.ghostty, claude: "/usr/local/bin/claude", arguments: ["-n", "fix-volume", prompt], in: source)
+        XCTAssertEqual(open, "/usr/bin/open")
+        XCTAssertEqual(ghostty, ["-na", "Ghostty.app", "--args", "--working-directory=/src/my app", "-e", "/usr/local/bin/claude", "-n", "fix-volume", prompt],
+                       "the arguments go through as they are")
+
+        let (osascript, terminal) = CommandFixer.launch(.terminal, claude: "/usr/local/bin/claude", arguments: ["-n", "fix-volume", prompt], in: source)
+        XCTAssertEqual(osascript, "/usr/bin/osascript")
+        XCTAssertEqual(terminal[0...3], ["-e", "tell application \"Terminal\"", "-e", "activate"])
+        XCTAssertEqual(terminal[5], "do script \"cd '/src/my app' && exec '/usr/local/bin/claude' '-n' 'fix-volume' 'Fix it.'$'\\\\n''The user said \\\"it'\\\\''s broken\\\" {twice}'\"",
+                       "quoted for the shell, then for AppleScript; one line")
+        XCTAssertEqual(CommandFixer.shellQuoted("a'b\nc"), "'a'\\''b'$'\\n''c'")
+        XCTAssertEqual(CommandFixer.appleScriptQuoted("say \"hi\" \\ bye"), "\"say \\\"hi\\\" \\\\ bye\"")
     }
 
     func testTheErrorLogFindsOneCommandsEntries() {
@@ -635,7 +675,7 @@ final class CommandTests: XCTestCase {
         let prompt = CommandWriter.prompt(commands)
         XCTAssertTrue(prompt.contains("- window: Tile the front window. (choices: left = the left half, right = the right half)"))
         XCTAssertTrue(prompt.contains("- brightness: Set the screen brightness (choices: +10 = a bit brighter, -10 = a bit dimmer, "))
-        XCTAssertTrue(prompt.contains("- repeat: Run the last command again\n"))
+        XCTAssertTrue(prompt.contains("- repeat: Do the last thing again: run the last command again, or type the last dictation again (whichever came later)\n"))
         XCTAssertFalse(prompt.contains("- create:"))
         XCTAssertTrue(prompt.contains("- open: Open an app installed on this Mac (not a website)\n"), "not the apps: the model would name one as the command")
         XCTAssertTrue(prompt.contains("- switch-app: Switch to another app that's already open, by name\n"))

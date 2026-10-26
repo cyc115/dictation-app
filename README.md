@@ -141,7 +141,7 @@ Command mode has these built in:
 | Command | Does | e.g. |
 |---|---|---|
 | `return` | presses Return in the front app | "send it" |
-| `repeat` | runs the last command again | "again" |
+| `repeat` | does the last thing again: runs the last command, or types the last dictation again, whichever came later | "again" |
 | `open` | opens an app in `/Applications`, `~/Applications` or `/System/Applications` | "打开 Safari" |
 | `switch-app` | brings an app that's already open to the front; in a chat app (WeChat, Muse, Slack, …) it also puts the cursor in the message box | "switch to WeChat" |
 | `brightness` | the display the pointer is on with [BetterDisplay](https://betterdisplay.pro) running, else the built-in one | "brightness to half" |
@@ -151,7 +151,7 @@ Command mode has these built in:
 | `ask-muse` | sends what you ask to the Muse app in a new side chat: opens Muse, presses New side chat, pastes the request and sends it | "ask Muse to look up whether we can go for a movie tonight" |
 | `open-website` | a well-known site, or any address or site you name (DuckDuckGo's first result) | "go to hacker news" |
 | `create` | writes a new command | "create command, tile the window to the left half" |
-| `fix` | starts a background [Claude Code](https://claude.com/claude-code) session (`claude --bg`) that fixes a command, told what you said, the command's recent runs and its `errors.log` entries; a notification says what it changed. No command named: the last one that failed | "fix the volume command, turning it up doesn't work" |
+| `fix` | opens a terminal window (Ghostty, else Terminal) running a [Claude Code](https://claude.com/claude-code) session that fixes a command, told what you said, the command's recent runs and its `errors.log` entries, so you can watch it work; a notification says what it changed. No command named: the last one that failed | "fix the volume command, turning it up doesn't work" |
 
 Your own commands are the scripts in `~/Library/Application Support/DictationApp/Commands/`. The
 **Commands** tab lists them and the built-ins, searchable from the toolbar and yours sorted by name

@@ -1,6 +1,6 @@
 [
   {"name": "return", "summary": "Press Return (send) in the front app", "choices": []},
-  {"name": "repeat", "summary": "Run the last command again", "choices": []},
+  {"name": "repeat", "summary": "Do the last thing again: run the last command again, or type the last dictation again (whichever came later)", "choices": []},
   {"name": "create", "summary": "Create a new command: the user asks for a new command (“create command”, “新建命令”, “写一个命令”) and describes what it should do", "choices": []},
   {"name": "fix", "summary": "Fix a command that isn't working: the user names the command (“fix the volume command”, “修一下 open-website”) and says what goes wrong", "choices": []},
   {"name": "open", "summary": "Open an app installed on this Mac (not a website)", "choices": []},

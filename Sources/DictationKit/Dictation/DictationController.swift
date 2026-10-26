@@ -88,6 +88,7 @@ final class DictationController {
         self.muter = muter
         self.commandMode = commandMode ?? CommandMode(history: history)
         self.commandMode.pressReturn = { [injector] in injector.pressReturn() }
+        self.commandMode.typeText = { [injector] in injector.inject($0) }
     }
 
     /// The app's engines, set up for `setup`.
