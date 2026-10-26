@@ -101,6 +101,8 @@ func fakeSystem(_ mode: CommandMode, message: String = "Done", ran: @escaping (S
         } as SystemCommands.Action)
     })
     mode.running = { [] }
+    mode.pressReturn = {}  // never the front app's
+    mode.typeText = { _ in }
 }
 
 /// The app's shared objects with nothing of yours in them: `settings` (else `makeSettings`), a

@@ -238,7 +238,11 @@ final class DictationController {
 
     /// `send`: press Return after the text is delivered (nothing is sent if no text came).
     func stop(send: Bool = false) {
-        guard dictating, let dictation = endDictation() else { return }
+        guard dictating else { return }
+        guard let dictation = endDictation() else {  // nothing started, so nothing is coming
+            overlay.hideUnlessMessage()
+            return onIdle()
+        }
         if settings.interactionSounds { InteractionSound.stop.play() }
         let duration = Date().timeIntervalSince(dictation.started)
         let stoppedAt = ProcessInfo.processInfo.systemUptime

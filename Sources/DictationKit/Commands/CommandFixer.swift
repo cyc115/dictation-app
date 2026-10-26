@@ -16,6 +16,10 @@ struct CommandFixer {
     enum Terminal: String {
         case ghostty = "Ghostty"
         case terminal = "Terminal"
+
+        /// How long opening the window may take: Terminal's first use asks you to allow DictationApp
+        /// to control it, and the dialog waits for you.
+        var timeout: TimeInterval { self == .terminal ? 120 : 30 }
     }
 
     /// The commands folder (a script's home, and errors.log) and the app's source (nil: built from
@@ -64,20 +68,26 @@ struct CommandFixer {
         case .ghostty:
             // open hands the arguments over as they are (spaces, quotes and line breaks included), and
             // Ghostty runs what follows -e in a new window; the CLI itself can't open windows on macOS.
-            return ("/usr/bin/open", ["-na", "Ghostty.app", "--args", "--working-directory=\(directory.path)", "-e", claude] + arguments)
+            // The window stays when claude exits, so you see why if it exits at once.
+            return ("/usr/bin/open", ["-na", "Ghostty.app", "--args", "--working-directory=\(directory.path)", "--wait-after-command=true",
+                                      "-e", claude] + arguments)
         case .terminal:
-            // Terminal takes one line as if typed: quoted for the shell, then for AppleScript.
+            // Terminal types one line into your login shell, whichever it is: it runs zsh with the
+            // real line, single-quoted (which every shell reads alike), then that's AppleScript-quoted.
             let line = "cd \(shellQuoted(directory.path)) && exec " + ([claude] + arguments).map(shellQuoted).joined(separator: " ")
             return ("/usr/bin/osascript", ["-e", "tell application \"Terminal\"", "-e", "activate",
-                                           "-e", "do script \(appleScriptQuoted(line))", "-e", "end tell"])
+                                           "-e", "do script \(appleScriptQuoted("exec /bin/zsh -c " + shellQuoted(line)))", "-e", "end tell"])
         }
     }
 
-    /// `text` as one shell word: single-quoted, a line break as $'\n' so the line stays one line.
+    /// `text` as one zsh word: single-quoted, with a line break as $'\n' (and a carriage return as
+    /// $'\r') so the line stays one line.
     static func shellQuoted(_ text: String) -> String {
-        text.components(separatedBy: "\n")
-            .map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }
-            .joined(separator: "$'\\n'")
+        text.components(separatedBy: "\n").map { line in
+            line.components(separatedBy: "\r")
+                .map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+                .joined(separator: "$'\\r'")
+        }.joined(separator: "$'\\n'")
     }
 
     /// `text` as an AppleScript string literal.
@@ -96,7 +106,7 @@ struct CommandFixer {
         let terminal: Terminal = Self.ghosttyPaths.contains(where: { FileManager.default.fileExists(atPath: $0) }) ? .ghostty : .terminal
         let (executable, arguments) = Self.launch(terminal, claude: claude, arguments: arguments(command, prompt: prompt), in: source ?? folder)
         let opened = await Task.detached {
-            Subprocess.run(executable, arguments, timeout: 30)
+            Subprocess.run(executable, arguments, timeout: terminal.timeout)
         }.value
         switch opened {
         case .success(let done) where done.status == 0 && !done.timedOut:
@@ -104,7 +114,7 @@ struct CommandFixer {
         case .success(let done):
             let printed = [done.errors, done.output].joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
             return CommandResult(ok: false, message: "Couldn't open \(terminal.rawValue)",
-                                 details: (done.timedOut ? "\(executable) took over 30 s\n" : "\(executable) exited \(done.status)\n") + printed)
+                                 details: (done.timedOut ? "\(executable) took over \(Int(terminal.timeout)) s\n" : "\(executable) exited \(done.status)\n") + printed)
         case .failure(let error):
             return CommandResult(ok: false, message: "Couldn't open \(terminal.rawValue)", details: "\(error)")
         }

@@ -74,9 +74,9 @@ final class PillLookTests: XCTestCase {
         look.glow = 0
         look.aura = .green
         XCTAssertEqual(look.edge(command: false).width, 0.5)
-        XCTAssertEqual(look.edge(command: false).color, PillLook.RGBA(255, 255, 255, alpha: 0.14), "white at 14%")
+        XCTAssertEqual(look.edge(command: false).color, PillLook.RGBA.bytes(255, 255, 255, alpha: 0.14), "white at 14%")
         XCTAssertEqual(look.edge(command: true).width, 1.2)
-        XCTAssertEqual(look.edge(command: true).color, PillLook.RGBA(127, 160, 255, alpha: 0.8), "command mode's blue")
+        XCTAssertEqual(look.edge(command: true).color, PillLook.RGBA.bytes(127, 160, 255, alpha: 0.8), "command mode's blue")
         look.glow = 1
         XCTAssertEqual(look.edge(command: false).width, 1.6)
         XCTAssertEqual(look.edge(command: false).color, PillLook.color(.green, alpha: 0.9))

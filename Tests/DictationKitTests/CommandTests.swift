@@ -623,15 +623,17 @@ final class CommandTests: XCTestCase {
         let source = URL(fileURLWithPath: "/src/my app")
         let (open, ghostty) = CommandFixer.launch(.ghostty, claude: "/usr/local/bin/claude", arguments: ["-n", "fix-volume", prompt], in: source)
         XCTAssertEqual(open, "/usr/bin/open")
-        XCTAssertEqual(ghostty, ["-na", "Ghostty.app", "--args", "--working-directory=/src/my app", "-e", "/usr/local/bin/claude", "-n", "fix-volume", prompt],
-                       "the arguments go through as they are")
+        XCTAssertEqual(ghostty, ["-na", "Ghostty.app", "--args", "--working-directory=/src/my app", "--wait-after-command=true",
+                                 "-e", "/usr/local/bin/claude", "-n", "fix-volume", prompt], "the arguments go through as they are")
 
         let (osascript, terminal) = CommandFixer.launch(.terminal, claude: "/usr/local/bin/claude", arguments: ["-n", "fix-volume", prompt], in: source)
         XCTAssertEqual(osascript, "/usr/bin/osascript")
         XCTAssertEqual(terminal[0...3], ["-e", "tell application \"Terminal\"", "-e", "activate"])
-        XCTAssertEqual(terminal[5], "do script \"cd '/src/my app' && exec '/usr/local/bin/claude' '-n' 'fix-volume' 'Fix it.'$'\\\\n''The user said \\\"it'\\\\''s broken\\\" {twice}'\"",
-                       "quoted for the shell, then for AppleScript; one line")
-        XCTAssertEqual(CommandFixer.shellQuoted("a'b\nc"), "'a'\\''b'$'\\n''c'")
+        let line = "cd '/src/my app' && exec '/usr/local/bin/claude' '-n' 'fix-volume' 'Fix it.'$'\\n''The user said \"it'\\''s broken\" {twice}'"
+        XCTAssertEqual(terminal[5], "do script " + CommandFixer.appleScriptQuoted("exec /bin/zsh -c " + CommandFixer.shellQuoted(line)),
+                       "the line, quoted for zsh; that, quoted for whatever login shell Terminal runs; then for AppleScript")
+        XCTAssertFalse(terminal[5].contains("\n"), "one line")
+        XCTAssertEqual(CommandFixer.shellQuoted("a'b\nc\rd"), "'a'\\''b'$'\\n''c'$'\\r''d'")
         XCTAssertEqual(CommandFixer.appleScriptQuoted("say \"hi\" \\ bye"), "\"say \\\"hi\\\" \\\\ bye\"")
     }
 
