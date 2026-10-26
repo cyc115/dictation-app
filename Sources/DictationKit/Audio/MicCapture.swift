@@ -80,11 +80,15 @@ final class MicCapture {
     private var switched = false
     /// Bumped by every start/stop, so late work from an earlier dictation is dropped.
     private var generation = 0
-    private var onBuffer: ((AVAudioPCMBuffer) -> Void)?
-    private var onLevel: ((Float) -> Void)?
-    private var onEvent: ((MicEvent) -> Void)?
-    private var onRestart: (() -> Bool)?
-    private var onError: ((String) -> Void)?
+    /// What the dictation gets from the mic (`start`'s callbacks): set together, cleared together.
+    private struct Handlers {
+        let buffer: (AVAudioPCMBuffer) -> Void
+        let level: ((Float) -> Void)?
+        let event: ((MicEvent) -> Void)?
+        let restart: (() -> Bool)?
+        let error: (String) -> Void
+    }
+    private var handlers: Handlers?
     private let formatKeeper = FormatKeeper()
     private var noAudioCheck: DispatchWorkItem?
 
@@ -167,11 +171,7 @@ final class MicCapture {
         guard let chosen else { throw TranscriptionError.message("no microphone is connected") }
         let source = Source(device: chosen, index: 0)
         let generation: Int = locked {
-            self.onBuffer = onBuffer
-            self.onLevel = onLevel
-            self.onEvent = onEvent
-            self.onRestart = onRestart
-            self.onError = onError
+            handlers = Handlers(buffer: onBuffer, level: onLevel, event: onEvent, restart: onRestart, error: onError)
             restarts = 0
             finished = nil
             selector = MicSelector(mics: 1)
@@ -204,11 +204,7 @@ final class MicCapture {
             active = nil
             switching = false
             switched = false
-            onBuffer = nil
-            onLevel = nil
-            onEvent = nil
-            onRestart = nil
-            onError = nil
+            handlers = nil
             return all
         }
         all.forEach { $0.input?.stop() }  // outside the lock: stopping waits for audio in flight
@@ -242,7 +238,7 @@ final class MicCapture {
             switching = true
             winner = (found, found.history.count, generation)
         }
-        let onLevel = self.onLevel, onEvent = self.onEvent
+        let onLevel = handlers?.level, onEvent = handlers?.event
         lock.unlock()
         if let level, let onLevel { DispatchQueue.main.async { onLevel(level) } }
         if let onEvent, !events.isEmpty { DispatchQueue.main.async { events.forEach(onEvent) } }
@@ -254,13 +250,13 @@ final class MicCapture {
     /// Under `lock`: one buffer to the engine, in this dictation's format.
     private func deliver(_ buffer: AVAudioPCMBuffer) {
         guard let buffer = formatKeeper.conform(buffer) else { return }
-        onBuffer?(buffer)
+        handlers?.buffer(buffer)
     }
 
     /// Main queue: the engine starts over (or not), the winner's audio is handed on, the rest close.
     private func finishSwitch(to winner: Source, mark: Int, generation: Int) {
         guard locked({ generation == self.generation }) else { return }
-        let fromStart = onRestart?() ?? false
+        let fromStart = handlers?.restart?() ?? false
         let others: [Source]? = locked {
             guard generation == self.generation else { return nil }
             if fromStart { formatKeeper.reset() }
@@ -276,14 +272,14 @@ final class MicCapture {
         guard let others else { return }
         Self.log.info("switched to \(winner.device.name, privacy: .public) (\(fromStart ? "from the start" : "from now", privacy: .public))")
         others.forEach { $0.input?.stop() }
-        onEvent?(.switched(to: winner.device))
+        handlers?.event?(.switched(to: winner.device))
     }
 
     /// Main queue, `noAudioAfter` into the dictation.
     private func reportIfSilent() {
         noAudioCheck = nil
         let silent = locked { active.map { !$0.heard } ?? false }
-        if silent { onEvent?(.noAudio) }
+        if silent { handlers?.event?(.noAudio) }
     }
 
     // MARK: Opening and reopening
@@ -344,7 +340,7 @@ final class MicCapture {
         guard isActive else { return }
         guard restarts < Self.maxRestarts else {
             Self.log.error("mic stopped again after \(self.restarts, privacy: .public) restarts; giving up")
-            onError?("The microphone stopped. Try again.")
+            handlers?.error("The microphone stopped. Try again.")
             return
         }
         restarts += 1
@@ -354,7 +350,7 @@ final class MicCapture {
             Self.log.info("mic restarted (\(self.restarts, privacy: .public))")
         } catch {
             Self.log.error("restart failed: \(error.localizedDescription, privacy: .public)")
-            onError?("could not reopen microphone: \(error.localizedDescription)")
+            handlers?.error("could not reopen microphone: \(error.localizedDescription)")
         }
     }
 
