@@ -51,11 +51,4 @@ final class FileSecretStore: SecretStore {
             try? fm.setAttributes([.posixPermissions: mode], ofItemAtPath: path)
         }
     }
-
-}
-
-final class InMemorySecretStore: SecretStore {
-    private var values: [String: String] = [:]
-    func get(_ account: String) -> String? { values[account] }
-    func set(_ value: String?, for account: String) { values[account] = (value?.isEmpty ?? true) ? nil : value }
 }

@@ -588,3 +588,10 @@ func assertFaster(than budget: TimeInterval, iterations: Int = 1, _ label: Strin
     print(String(format: "[perf] %@: %.3f ms avg (budget %.3f ms)", label, average * 1000, budget * 1000))
     XCTAssertLessThan(average, budget, "\(label) too slow", file: file, line: line)
 }
+
+/// A secret store that forgets on exit: tests' key, never the app's secrets.json.
+final class InMemorySecretStore: SecretStore {
+    private var values: [String: String] = [:]
+    func get(_ account: String) -> String? { values[account] }
+    func set(_ value: String?, for account: String) { values[account] = (value?.isEmpty ?? true) ? nil : value }
+}
