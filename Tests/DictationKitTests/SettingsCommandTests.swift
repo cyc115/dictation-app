@@ -37,7 +37,7 @@ final class SettingsCommandTests: XCTestCase {
         let s = makeSettings(self)
         XCTAssertEqual(run(settings: s), 0)
         let setup = out.first { $0.hasPrefix("setup ") }
-        XCTAssertEqual(setup?.contains("on-device  [on-device | cloud-flash | cloud-big]"), true, setup ?? "")
+        XCTAssertEqual(setup?.contains("on-device  [on-device | cloud-flash]"), true, setup ?? "")
         XCTAssertTrue(out.contains { $0.hasPrefix("aiPolishEnabled ") && $0.contains("off  [on | off]") })
         XCTAssertEqual(notified, 0)
     }
@@ -50,7 +50,7 @@ final class SettingsCommandTests: XCTestCase {
         XCTAssertEqual(polish["value"] as? Bool, false, "on/off settings are JSON booleans")
         let setup = try XCTUnwrap(rows.first { $0["name"] as? String == "setup" })
         XCTAssertEqual(setup["value"] as? String, "on-device")
-        XCTAssertEqual(setup["choices"] as? [String], ["on-device", "cloud-flash", "cloud-big"])
+        XCTAssertEqual(setup["choices"] as? [String], ["on-device", "cloud-flash"])
     }
 
     func testSetSetupSavesNotifiesAndPrints() {
@@ -99,7 +99,9 @@ final class SettingsCommandTests: XCTestCase {
 
     func testReplacedSetupIDMovesToItsSuccessor() {
         let s = makeSettings(self)
-        s.setup = .cloudBig
+        XCTAssertEqual(run("set", "setup", "cloud-big", settings: s), 0)
+        XCTAssertEqual(s.setup, .cloudFlash)
+        s.setup = .onDevice
         XCTAssertEqual(run("set", "setup", "cloud-flash-deepseek", settings: s), 0)
         XCTAssertEqual(s.setup, .cloudFlash)
     }
@@ -142,12 +144,12 @@ final class SettingsCommandTests: XCTestCase {
         let app = makeSettings(self, defaults: defaults), command = makeSettings(self, defaults: defaults)
         var changes = 0
         app.onChange = { changes += 1 }
-        run("set", "setup", "cloud-big", settings: command)
+        run("set", "setup", "cloud-flash", settings: command)
         run("set", "excludedApps", "com.example.game", settings: command)
         run("set", "aiPolishEnabled", "on", settings: command)
         XCTAssertEqual(app.setup, .onDevice, "not yet re-read")
         app.reloadFromDefaults()
-        XCTAssertEqual(app.setup, .cloudBig)
+        XCTAssertEqual(app.setup, .cloudFlash)
         XCTAssertEqual(app.excludedApps.map(\.bundleID), ["com.example.game"])
         XCTAssertTrue(app.polishEnabled)
         XCTAssertGreaterThan(changes, 0, "onChange applies them (hotkey, menu, Dock…)")

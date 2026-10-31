@@ -33,9 +33,9 @@ paths** (`Sources/DictationKit/Debug/LatencyProbe.swift`), so it includes everyt
 ./build.sh                                            # the suite drives /Applications/DictationApp.app
 bench/suite.py latency run --dry-run                  # plan + estimated time (default ≈ 2 min)
 bench/suite.py latency run                            # Cloud Flash (+backup, as the app) × {no polish, Apple polish}
-bench/suite.py latency run --local --big              # … plus On-device and Cloud Big (opt-in)
+bench/suite.py latency run --local                    # … plus On-device (opt-in)
 bench/suite.py latency run --backup                   # Cloud Flash with vs without the backup model
-bench/suite.py latency run -s flash -s big -r 10      # cloud only, 10 rounds → 90 samples per model
+bench/suite.py latency run -s flash -r 10             # Cloud Flash only, 10 rounds → 90 samples
 bench/suite.py latency run -P none -P apple \
     -P openrouter:anthropic/claude-haiku-5.5 -P openrouter:google/gemini-3.8-flash   # compare polish models
 bench/suite.py latency report --by-length --markdown  # latest result again; Markdown for notes/PRs
@@ -43,7 +43,7 @@ bench/suite.py latency polish-cost                    # polish time vs words rea
 bench/suite.py latency run --simulate                 # fake timings: try the report without a Mac/key
 ```
 
-- **Models.** Speech: `local` (On-device: Qwen3-ASR on this Mac), `flash`, `flash+backup`, `big`,
+- **Models.** Speech: `local` (On-device: Qwen3-ASR on this Mac), `flash`, `flash+backup`,
   `apple` / `apple-zh` (Apple Speech, en-US / zh-CN), or any `local:<Hugging Face id>` /
   `apple:<locale>` / `openrouter:<id>`. `+backup` has the "Backup model when slow"
   setting on (the app's default) for those dictations; `--backup` interleaves `flash` and `flash+backup`
@@ -63,8 +63,7 @@ bench/suite.py latency run --simulate                 # fake timings: try the re
   different time of day before deciding on a small gap.
 - **Cost** per default run: about **$0.003**. Cloud Flash hears ~7 min of audio (9 clips × 5
   rounds + warm-up) at the rate measured in `results/`; Apple polish is free. `--local` adds
-  On-device (free, but plays each clip in real time: ≈ +7 min); `--big` adds Cloud Big,
-  ≈ $0.02 more. A cloud polish model adds under $0.01. It scales with `--rounds` and clip length.
+  On-device (free, but plays each clip in real time: ≈ +7 min). A cloud polish model adds under $0.01. It scales with `--rounds` and clip length.
 - **Your own voice** (`--recorded`): turn on Settings → Keep recordings, dictate as usual, then
   `bench/bench.py import-recordings`. Real speech beats TTS for both suites; see below.
 - **Polish cost** (`polish-cost`): fits polish time to the transcript's length (words in) and the

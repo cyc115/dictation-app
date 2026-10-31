@@ -63,6 +63,16 @@ final class FakeMics {
 /// For AppSettings in tests: no custom setups, never the user's own setups.json.
 let noCustomSetups = URL(fileURLWithPath: "/nonexistent/DictationAppTests/setups.json")
 
+/// A second cloud setup whose backup is Cloud Flash's main model, like the Cloud Big the app once
+/// shipped (now a custom setup if anyone wants it back).
+let otherCloudSetup = try! JSONDecoder().decode(DictationSetup.self, from: Data("""
+    {"id": "cloud-muse", "title": "Cloud Muse",
+     "speech": "openrouter:meta/muse-voice-transcribe-1.0", "backup": "qwen/qwen3-asr-1.7b", "backupWait": 4,
+     "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
+     "polishBackup": "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together", "polishBackupWait": 0.8,
+     "prompt": "v7", "wrap": true}
+    """.utf8))
+
 /// A throwaway file location, removed when the test ends.
 func makeTempURL(_ test: XCTestCase, _ name: String = "history.json") -> URL {
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent("DictationAppTests-\(UUID().uuidString)")

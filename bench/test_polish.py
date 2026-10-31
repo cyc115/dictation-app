@@ -18,10 +18,10 @@ def test_prompt_versions_match_their_benchmark_files():
 
 def test_reads_the_apps_setups_and_their_prompts(tmp_path):
     built_in = polish.setups(tmp_path / "none.json")
-    assert list(built_in) == ["on-device", "cloud-flash", "cloud-big"]
+    assert list(built_in) == ["on-device", "cloud-flash"]
     assert all(s["prompt"] == ("v3" if s["polish"] == "apple" else "v7") and s["wrap"] for s in built_in.values())
     assert polish.resolve("setup:on-device", "ignored", False) == ("apple", polish.prompt_text("v3"), True)
-    assert polish.resolve("setup:cloud-big")[0] == "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra"
+    assert polish.resolve("setup:cloud-flash")[0] == "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra"
     assert polish.app_prompt("apple") == polish.prompt_text("v3")
     assert polish.app_prompt("openrouter:x") == polish.prompt_text("v7")
     assert polish.resolve("openrouter:m") == ("openrouter:m", polish.prompt_text("v7"), True)

@@ -18,7 +18,7 @@ Exit status: 0 done, 1 unknown setting or value (the error lists what it takes),
 
 | Setting | Values |
 |---|---|
-| `setup` | `on-device`, `cloud-flash`, `cloud-big`, or the `id` of [one of yours](custom-setups.md) |
+| `setup` | `on-device`, `cloud-flash`, or the `id` of [one of yours](custom-setups.md) |
 | `microphoneUID` | `default` (the system's), or a connected mic's name or UID |
 | `excludedApps` | bundle IDs, comma-separated (`com.valvesoftware.steam,com.apple.Chess`); `""` for none |
 | `openRouterKey` | `-` reads the key from stdin (a key in the arguments shows up in `ps`); `""` removes it. `get` says only `set` or `not set` |

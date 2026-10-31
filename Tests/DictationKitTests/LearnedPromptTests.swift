@@ -86,8 +86,7 @@ final class LearnedPromptStoreTests: XCTestCase {
         waitUntil { settings.setup.prompt == "v8" }
         XCTAssertEqual(settings.setup.promptText, "Learned prompt.")
         XCTAssertTrue(settings.setup.usesLearnedPrompt)
-        XCTAssertEqual(settings.setups.first { $0.id == "cloud-big" }?.prompt, "v7", "another setup keeps its own")
-        XCTAssertEqual(settings.setups.first { $0.id == "on-device" }?.prompt, "v3")
+        XCTAssertEqual(settings.setups.first { $0.id == "on-device" }?.prompt, "v3", "another setup keeps its own")
         XCTAssertTrue(settings.setups.contains(settings.setup), "the picker's list has the applied one")
 
         let cloud = try XCTUnwrap(settings.setup.polishBackend(apiKey: "sk-or-v1-test", onDevice: { _, _ in FakePolish() }) as? OpenRouterPolish)

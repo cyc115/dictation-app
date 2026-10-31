@@ -132,9 +132,9 @@ final class SettingsUITests: XCTestCase {
                        "turning it off is remembered")
         XCTAssertTrue(hosted.click(toggle))
 
-        settings.setup = .cloudBig
+        settings.setup = .cloudFlash
         hosted.settle()
-        XCTAssertTrue(settings.effectiveBackup, "Cloud Big falls back to Cloud Flash")
+        XCTAssertTrue(settings.effectiveBackup, "Cloud Flash has a backup")
         XCTAssertEqual(hosted.element(id: id)?.object.value(forKey: "accessibilityEnabled") as? Bool, true)
 
         settings.setup = .onDevice
@@ -151,7 +151,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(settings.setup.polishesOnDevice, "On-device speech: nothing leaves the Mac")
         XCTAssertTrue(hosted.allText.contains("nothing leaves it"))
         settings.setOpenRouterKey("sk-or-v1-test")
-        for model in [DictationSetup.cloudFlash, .cloudBig] {
+        for model in [DictationSetup.cloudFlash] {
             settings.setup = model
             hosted.settle()
             XCTAssertFalse(settings.setup.polishesOnDevice, model.title)
@@ -165,7 +165,7 @@ final class SettingsUITests: XCTestCase {
         let hosted = host(settings)
         XCTAssertNil(hosted.element(id: "setting.Cloud API key"), "key row only for cloud models")
         settings.setOpenRouterKey("sk-or-v1-test")
-        for setup in [DictationSetup.cloudBig, .cloudFlash] {
+        for setup in [DictationSetup.cloudFlash] {
             settings.setup = setup
             hosted.settle()
             XCTAssertNotNil(hosted.element(id: "setting.Cloud API key"), "same key for every cloud model")

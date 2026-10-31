@@ -10,7 +10,7 @@ final class SetupTests: XCTestCase {
     }
 
     func testBuiltInsUseTheirPromptsWithTags() {
-        XCTAssertEqual(DictationSetup.builtIns.map(\.id), ["on-device", "cloud-flash", "cloud-big"])
+        XCTAssertEqual(DictationSetup.builtIns.map(\.id), ["on-device", "cloud-flash"])
         for setup in DictationSetup.builtIns {
             XCTAssertEqual(setup.prompt, setup.polishesOnDevice ? "v3" : "v7", "\(setup.id): v7 is learned for cloud models")
             XCTAssertTrue(setup.wrap, setup.id)
@@ -23,11 +23,6 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(flash.polish, "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra")
         XCTAssertEqual(flash.polishBackup, "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together",
                        "the same model on another host: a backup answer is as good")
-        for setup in [DictationSetup.cloudBig] {
-            XCTAssertEqual(setup.polish, flash.polish, "\(setup.id) polishes like Cloud Flash")
-            XCTAssertEqual(setup.polishBackup, flash.polishBackup, setup.id)
-            XCTAssertEqual(setup.polishBackupWait, flash.polishBackupWait, setup.id)
-        }
         XCTAssertFalse(DictationSetup.builtIns.contains { $0.polish.contains("gpt-oss") }, "DeepSeek beat it on every column")
     }
 
@@ -39,7 +34,7 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(backup.instructions, PolishPrompt.v7, "the backup uses the setup's prompt")
         XCTAssertEqual(cloud.backupAfter, 0.8)
         XCTAssertEqual(cloud.deadline, 6)
-        let big = DictationSetup.cloudBig.polishService(apiKey: "sk-test", onDevice: onDevice)
+        let big = otherCloudSetup.polishService(apiKey: "sk-test", onDevice: onDevice)
         XCTAssertNotNil(big.backup)
         XCTAssertEqual(big.deadline, 6, "every cloud polish gives up at the deadline")
         for (setup, key) in [(DictationSetup.onDevice, "sk-test"), (DictationSetup.cloudFlash, "")] {
@@ -157,7 +152,8 @@ final class SetupTests: XCTestCase {
                                    learned: noLearnedPrompts(self))
         XCTAssertEqual(settings.setup, .cloudFlash, "it became Cloud Flash, not On-device")
         XCTAssertEqual(defaults.string(forKey: "transcriptionModel"), "cloud-flash", "saved under the new id")
-        XCTAssertEqual(DictationSetup.currentID("cloud-big"), "cloud-big")
+        XCTAssertEqual(DictationSetup.currentID("cloud-big"), "cloud-flash", "Cloud Big is gone too")
+        XCTAssertEqual(DictationSetup.currentID("cloud-flash"), "cloud-flash")
     }
 
     /// Cloud Flash's Qwen is only on DeepInfra; a backup there stalls with it (Oct 31 latency run).
@@ -167,11 +163,10 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(DictationSetup.cloudFlash.backupHelp, "If Cloud Flash hasn't answered in 2 seconds, a faster model "
             + "from another host is asked too and the first answer is used. After a slow answer, both are asked at once "
             + "for 5 minutes. Grok STT (xAI) gets more technical terms wrong.")
-        XCTAssertEqual(DictationSetup.cloudBig.backup, DictationSetup.cloudFlash.openRouterID)
     }
 
     func testCapabilities() {
-        XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash", "Cloud Big"])
+        XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash"])
     }
 
     func testModelSpecParsesAndPrintsEveryForm() {

@@ -127,10 +127,10 @@ final class CorrectionsUITests: XCTestCase {
     }
 
     func testSuggestionUsesTheChosenSetupsPrompt() throws {
-        let model = try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: .cloudBig) as? OpenRouterPolish)
+        let model = try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: otherCloudSetup) as? OpenRouterPolish)
         XCTAssertEqual(model.model, "openai/gpt-6.1-sol-pro")
-        XCTAssertEqual(model.instructions, DictationSetup.cloudBig.promptText)
-        XCTAssertEqual(model.wrap, DictationSetup.cloudBig.wrap)
+        XCTAssertEqual(model.instructions, otherCloudSetup.promptText)
+        XCTAssertEqual(model.wrap, otherCloudSetup.wrap)
         XCTAssertNil(CorrectionSuggester.backend(apiKey: "", setup: .cloudFlash), "no key, no suggestion")
     }
 

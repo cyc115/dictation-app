@@ -1,9 +1,9 @@
 """Turnaround latency: how long after you press stop until your text is ready.
 
   bench/suite.py latency run                         # Cloud Flash (+backup) × {no polish, Apple polish}, 5 rounds
-  bench/suite.py latency run --local --big           # … plus On-device and Cloud Big (opt-in)
+  bench/suite.py latency run --local                 # … plus On-device (opt-in)
   bench/suite.py latency run --backup                # Cloud Flash with vs without the backup model
-  bench/suite.py latency run -s flash -s big -r 10   # just the cloud models, 10 rounds
+  bench/suite.py latency run -s flash -r 10          # just Cloud Flash, 10 rounds
   bench/suite.py latency run -P none -P apple -P openrouter:anthropic/claude-haiku-5.5
   bench/suite.py latency run --recorded              # your own dictations (Settings → Keep recordings)
   bench/suite.py latency run --dry-run               # show the plan and how long it'll take
@@ -25,7 +25,7 @@ network hits every model alike. The first dictation per model is a warm-up (conn
 load): it's reported as "cold" and kept out of the percentiles. On-device models are one language
 each, so they're timed on clips in their language (repeated to the same count).
 
-Speech models: local (On-device: Qwen3-ASR on this Mac), flash, flash+backup, big, apple / apple-zh
+Speech models: local (On-device: Qwen3-ASR on this Mac), flash, flash+backup, apple / apple-zh
 (Apple Speech, en-US / zh-CN), or any local:<Hugging Face id> / apple:<locale> / openrouter:<model id>. "+backup" has the "Backup model when slow" setting
 on (the app's default) for that model's dictations (AdaptiveBackup in Transcription.swift). Polish: none, apple (on-device), or openrouter:<model id> (any chat model).
 Cloud models use the bench's key ($OPENROUTER_BENCH_API_KEY, from ~/.secrets), passed to the app, never its own.
@@ -61,11 +61,9 @@ STT_ALIASES = {
     "apple-zh": ("apple:zh-CN", "Apple Speech 中文"),
     "flash": ("openrouter:qwen/qwen3-asr-1.7b", "Cloud Flash"),
     "flash+backup": ("openrouter:qwen/qwen3-asr-1.7b+backup", "Cloud Flash+backup"),
-    "big": ("openrouter:meta/muse-voice-transcribe-1.0", "Cloud Big"),
 }
 POLISH_TITLES = {"none": "no polish", "apple": "Apple on-device"}
-# Cloud Flash as the app runs it by default (backup on); --local / --big (or -s) add the others.
-# Cloud Big costs ~7× Flash.
+# Cloud Flash as the app runs it by default (backup on); --local (or -s) adds others.
 DEFAULT_STT = ["flash+backup"]
 DEFAULT_POLISH = ["none", "apple"]
 BACKUP = "+backup"
@@ -535,7 +533,7 @@ def cmd_polish_cost(args) -> int:
 # ---------------------------------------------------------------- commands
 
 def cmd_run(args) -> int:
-    names = ((args.stt or DEFAULT_STT) + (["local"] if args.local else []) + (["big"] if args.big else [])
+    names = ((args.stt or DEFAULT_STT) + (["local"] if args.local else [])
              + (["flash", "flash+backup"] if args.backup else []))
     stt = list(dict.fromkeys(resolve_stt(m) for m in names))
     polish = list(dict.fromkeys(check_polish(p) for p in (args.polish or DEFAULT_POLISH)))
@@ -595,7 +593,6 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("--local", action="store_true", help="also time On-device (Qwen on this Mac; free)")
     r.add_argument("--alongside", action="store_true",
                    help="run a second copy beside the app you're using instead of quitting it (noisier timings)")
-    r.add_argument("--big", action="store_true", help="also time Cloud Big (adds ≈ $0.02 per default-size run)")
     r.add_argument("--backup", action="store_true",
                    help="time Cloud Flash with and without the backup model, interleaved")
     r.add_argument("-P", "--polish", action="append", metavar="MODEL",

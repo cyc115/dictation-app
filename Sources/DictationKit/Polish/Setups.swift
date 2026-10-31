@@ -295,13 +295,6 @@ struct DictationSetup: Codable, Hashable, Identifiable {
            "backup": "x-ai/grok-stt-1.0", "backupWait": 2, "backupNote": "Grok STT (xAI) gets more technical terms wrong.",
            "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
            "polishBackup": "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together", "polishBackupWait": 0.8,
-           "prompt": "v7", "wrap": true},
-          {"id": "cloud-big", "title": "Cloud Big",
-           "summary": "Larger cloud model — text in about two seconds. Handles English mixed into Chinese. Audio is sent to the cloud when you stop.",
-           "speech": "openrouter:meta/muse-voice-transcribe-1.0",
-           "backup": "qwen/qwen3-asr-1.7b", "backupWait": 4,
-           "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
-           "polishBackup": "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together", "polishBackupWait": 0.8,
            "prompt": "v7", "wrap": true}
         ]
         """
@@ -309,12 +302,12 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     static let builtIns: [DictationSetup] = try! JSONDecoder().decode([DictationSetup].self, from: Data(builtInJSON.utf8))
     static let onDevice = builtIns[0]
     static let cloudFlash = builtIns[1]
-    static let cloudBig = builtIns[2]
 
     /// Built-in ids that are gone, and the setup that took their place (a saved choice moves there).
     /// "Cloud Flash + DeepSeek" became Cloud Flash when DeepSeek beat gpt-oss on the hard polish
-    /// cases (Oct 11, 2026: 70% vs 57%, and faster).
-    static let replaced = ["cloud-flash-deepseek": "cloud-flash"]
+    /// cases (Oct 11, 2026: 70% vs 57%, and faster). Cloud Big (Meta Muse Voice) went unused (Oct 31);
+    /// it can come back as a custom setup (docs/custom-setups.md).
+    static let replaced = ["cloud-flash-deepseek": "cloud-flash", "cloud-big": "cloud-flash"]
 
     /// The setup id to use for a saved or recorded one.
     static func currentID(_ id: String) -> String { replaced[id] ?? id }

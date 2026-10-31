@@ -77,9 +77,9 @@ final class SettingsTests: XCTestCase {
         let defaults = makeDefaults(self)
         let s = makeSettings(self, defaults: defaults)
         XCTAssertEqual(s.setup, .onDevice)
-        s.setup = .cloudBig
+        s.setup = .cloudFlash
         let r = makeSettings(self, defaults: defaults)
-        XCTAssertEqual(r.setup, .cloudBig)
+        XCTAssertEqual(r.setup, .cloudFlash)
     }
 
     func testAPIKeyGoesToSecretStoreNotDefaults() {

@@ -3,7 +3,7 @@ import Foundation
 
 /// Records the mic to WAV while dictating, then uploads it for transcription when you stop.
 final class CloudEngine: RecordingEngine, DictationEngine {
-    var modelID = DictationSetup.cloudBig.openRouterID!
+    var modelID = DictationSetup.cloudFlash.openRouterID!
     var apiKey = ""
     var client: TranscriptionClient = OpenRouterClient()
     /// "Backup model when slow": the model also asked when `modelID` is slow, after `backupWait`
@@ -74,10 +74,9 @@ final class CloudEngine: RecordingEngine, DictationEngine {
 // MARK: - Backup model
 
 /// On by default (Settings → Model → "Backup model when slow"); off asks the chosen model only. Cloud Flash usually answers in
-/// about a second, but in slow spells lasting minutes it takes 3–50 s (bench/results/latency/); Cloud
-/// Big's tail reaches 7 s. This also asks the setup's faster backup (`DictationSetup.backup`:
-/// Grok STT for Cloud Flash, Cloud Flash for Cloud Big); the first answer wins. The backup runs on
-/// another host: Cloud Flash's Qwen is only on DeepInfra, and its old backup (Qwen 0.6B, also
+/// about a second, but in slow spells lasting minutes it takes 3–50 s (bench/results/latency/). This
+/// also asks the setup's backup (`DictationSetup.backup`: Grok STT for Cloud Flash); the first
+/// answer wins. The backup runs on another host: Cloud Flash's Qwen is only on DeepInfra, and its old backup (Qwen 0.6B, also
 /// DeepInfra) stalled with it (Oct 31: p95 16.6 s; Grok on xAI 1.3 s, worst 1.5 s).
 ///  - Normally the backup is asked only once the main model hasn't answered within its wait
 ///    (`DictationSetup.backupWait`), or failed.

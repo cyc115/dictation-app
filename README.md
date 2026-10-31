@@ -35,8 +35,8 @@ command isn't misheard; double-click the Enter button to just press Return.
 
 The *On-device* setup runs Qwen3-ASR on your Mac's GPU: text about a second after you stop, no
 network stalls, English, Chinese and both mixed. The model (2.5 GB) downloads once from Hugging
-Face, with progress in Settings. Prefer the cloud? *Cloud Flash* is about 0.5 s and *Cloud Big*
-about 2 s ([setups](#usage)).
+Face, with progress in Settings. Prefer the cloud? *Cloud Flash* is about 0.5 s
+([setups](#usage)), and you can add [your own](docs/custom-setups.md).
 
 ![Settings: picking On-device downloads the speech model, then it's ready](docs/images/on-device.gif)
 
@@ -128,7 +128,6 @@ In **Settings → Model**, pick a setup:
 |---|---|---|---|
 | **On-device** | Qwen3-ASR 1.7B, on your Mac | Apple Intelligence | Nothing leaves your Mac. Text in about 1 s. Handles mixed English/Chinese. |
 | **Cloud Flash** | Qwen3-ASR 1.7B | DeepSeek V4.1 Flash | Text in about 0.5 s. Handles mixed English/Chinese. |
-| **Cloud Big** | Meta Muse Voice | DeepSeek V4.1 Flash | Text in about 2 s. Handles mixed English/Chinese. |
 
 Cloud setups send audio to OpenRouter when you stop recording. Your API key is stored in
 `~/Library/Application Support/DictationApp/secrets.json`, readable only by your user account.

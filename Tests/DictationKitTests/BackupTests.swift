@@ -180,9 +180,9 @@ final class CloudBackupTests: XCTestCase {
 
     func testUseSetsUpEachCloudSetupWithItsFasterBackup() {
         let engine = CloudEngine()
-        engine.use(.cloudBig, apiKey: "k", backupWhenSlow: true)
-        XCTAssertEqual(engine.modelID, DictationSetup.cloudBig.openRouterID)
-        XCTAssertEqual(engine.backupModelID, Self.main, "Cloud Big falls back to Cloud Flash")
+        engine.use(otherCloudSetup, apiKey: "k", backupWhenSlow: true)
+        XCTAssertEqual(engine.modelID, otherCloudSetup.openRouterID)
+        XCTAssertEqual(engine.backupModelID, Self.main, "a setup can fall back to Cloud Flash's model")
         XCTAssertEqual(engine.backupWait, 4)
         XCTAssertEqual(engine.apiKey, "k")
         engine.use(.cloudFlash, apiKey: "k", backupWhenSlow: true)
@@ -194,13 +194,13 @@ final class CloudBackupTests: XCTestCase {
         XCTAssertNil(DictationSetup.onDevice.backup)
     }
 
-    func testSlowCloudBigIsRacedByCloudFlash() throws {
-        let big = try XCTUnwrap(DictationSetup.cloudBig.openRouterID)
-        let client = Client()  // Cloud Big never answers
+    func testASlowMainModelIsRacedByCloudFlashsModel() throws {
+        let big = try XCTUnwrap(otherCloudSetup.openRouterID)
+        let client = Client()  // the main model never answers
         client.scripts[Self.main] = Client.Script(delay: 0.05, result: Client.text("帮我 build 一下"))
         let engine = CloudEngine()
         engine.client = client
-        engine.use(.cloudBig, apiKey: "k", backupWhenSlow: true)
+        engine.use(otherCloudSetup, apiKey: "k", backupWhenSlow: true)
         engine.backupWait = 0.2
         XCTAssertTrue(engine.beginRecording())
         for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }
@@ -210,7 +210,7 @@ final class CloudBackupTests: XCTestCase {
         wait(for: [done], timeout: 3)
         XCTAssertEqual(text, "帮我 build 一下")
         XCTAssertEqual(engine.lastAnsweredBy, Self.main)
-        XCTAssertEqual(client.asked.map(\.model), [big, Self.main], "only Cloud Flash, not its own backup")
+        XCTAssertEqual(client.asked.map(\.model), [big, Self.main], "only that backup, not Cloud Flash's own")
     }
 }
 
@@ -219,11 +219,12 @@ final class AdaptiveBackupTests: XCTestCase {
     private var now: TimeInterval = 1000
     private lazy var policy = AdaptiveBackup(clock: { [unowned self] in now })
     private let main = CloudBackupTests.main
-    private let big = DictationSetup.cloudBig.openRouterID!
+    private let big = otherCloudSetup.openRouterID!
 
-    /// As CloudEngine asks: with the backup and wait of the built-in setup using `model`.
+    /// As CloudEngine asks: with the backup and wait of the setup using `model` (built in, or the test's other one).
     private func plan(_ model: String) -> UploadRace.Backup? {
-        guard let setup = DictationSetup.builtIn(speechModel: model), let backup = setup.backup else { return nil }
+        let setup = DictationSetup.builtIn(speechModel: model) ?? (model == big ? otherCloudSetup : nil)
+        guard let setup, let backup = setup.backup else { return nil }
         return policy.plan(for: model, backup: backup, wait: setup.backupWait)
     }
 
@@ -234,7 +235,7 @@ final class AdaptiveBackupTests: XCTestCase {
         XCTAssertNil(plan("unknown/model"))
     }
 
-    func testCloudBigWaitsFourSecondsForCloudFlash() {
+    func testAnotherSetupWaitsItsOwnTimeForCloudFlashsModel() {
         XCTAssertEqual(plan(big), UploadRace.Backup(model: main, delay: 4))
         learn(big, onTime: false)
         XCTAssertEqual(plan(big)?.delay, 0)

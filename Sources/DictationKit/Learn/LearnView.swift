@@ -84,7 +84,7 @@ struct LearnView: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("learn.gate")
         case .cloudOnly:
-            Text("Learning tunes the cloud setups' prompt. Choose Cloud Flash or Cloud Big in Settings › Model.")
+            Text("Learning tunes the cloud setups' prompt. Choose Cloud Flash in Settings › Model.")
                 .font(.caption).foregroundStyle(.secondary).frame(maxWidth: 200).multilineTextAlignment(.trailing)
                 .accessibilityIdentifier("learn.gate")
         case .noKey:

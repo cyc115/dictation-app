@@ -39,7 +39,7 @@ def test_options_with_their_help_and_used_ones_dropped():
 
 def test_option_values():
     models = values(["polish", "run", "-m", ""])[1]
-    assert {"apple", "setup:cloud-flash", "setup:cloud-big",
+    assert {"apple", "setup:cloud-flash",
             "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
             "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together"} <= set(models)
     assert "none" in values(["latency", "run", "-P", ""])[1]

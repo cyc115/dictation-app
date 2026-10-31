@@ -21,12 +21,11 @@ def fake_durations(monkeypatch):
 
 
 def test_aliases_match_the_apps_models():
-    """local/flash/big must name the speech models the app's setups use (DictationSetup.builtInJSON)."""
+    """local/flash must name the speech models the app's setups use (DictationSetup.builtInJSON)."""
     from suites import polish
     built_in = polish.setups(REPO / "nonexistent.json")
     assert latency.STT_ALIASES["local"][0] == built_in["on-device"]["speech"]
     assert latency.STT_ALIASES["flash"][0] == built_in["cloud-flash"]["speech"]
-    assert latency.STT_ALIASES["big"][0] == built_in["cloud-big"]["speech"]
 
 
 def test_plan_matches_what_the_app_decodes():
@@ -207,13 +206,11 @@ def test_only_cloud_flash_by_default(monkeypatch, capsys):
     assert "1 speech model(s)" in capsys.readouterr().out
     planned = []
     monkeypatch.setattr(latency, "plan_trials", lambda stt, *a: planned.append(stt) or [])
-    flash, big, local = ("openrouter:qwen/qwen3-asr-1.7b", "openrouter:meta/muse-voice-transcribe-1.0",
-                         "local:mlx-community/Qwen3-ASR-1.7B-8bit")
+    flash, local = "openrouter:qwen/qwen3-asr-1.7b", "local:mlx-community/Qwen3-ASR-1.7B-8bit"
     default = flash + "+backup"  # as the app runs Cloud Flash by default
-    for argv in ([], ["--big"], ["--local"], ["--local", "--big"], ["-s", "big"], ["-s", "big", "--big"], ["--backup"]):
+    for argv in ([], ["--local"], ["-s", "flash"], ["-s", "flash", "-s", "flash"], ["--backup"]):
         latency.main(["run", "--dry-run", "--clip", "english-01", *argv])
-    assert planned == [[default], [default, big], [default, local], [default, local, big], [big], [big],
-                       [default, flash]]
+    assert planned == [[default], [default, local], [flash], [flash], [default, flash]]
 
 
 def test_report_counts_backup_answers():
