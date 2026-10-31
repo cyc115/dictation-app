@@ -15,8 +15,8 @@ final class HotkeyTests: XCTestCase {
         return m
     }
 
-    private func down(_ m: HotkeyManager, _ key: Hotkey) { m.handleFlags(keyCode: key.keyCode, rawFlags: key.flagMask) }
-    private func up(_ m: HotkeyManager, _ key: Hotkey) { m.handleFlags(keyCode: key.keyCode, rawFlags: 0) }
+    private func down(_ m: HotkeyManager, _ key: Hotkey) { m.handleFlags(keyCode: key.keyCode!, rawFlags: key.flagMask) }
+    private func up(_ m: HotkeyManager, _ key: Hotkey) { m.handleFlags(keyCode: key.keyCode!, rawFlags: 0) }
 
     func testHoldPressAndRelease() {
         let m = makeManager()
@@ -201,6 +201,57 @@ final class HotkeyTests: XCTestCase {
         XCTAssertTrue(passes(m, .otherMouseDown, button: 5))
         spinRunLoop()
         XCTAssertEqual(events, [])
+    }
+
+    // MARK: Command key
+
+    private func commandManager(_ key: Hotkey = .fn, command: Hotkey = .rightOption) -> HotkeyManager {
+        let m = makeManager(key, .toggle)
+        m.commandKey = command
+        m.onEnter = { [unowned self] in events.append("enter") }
+        return m
+    }
+
+    func testCommandKeyTapIsEnter() {
+        let m = commandManager()
+        down(m, .rightOption)
+        XCTAssertEqual(events, [], "acts on release, like a toggle")
+        up(m, .rightOption)
+        down(m, .fn); up(m, .fn)
+        XCTAssertEqual(events, ["enter", "tap"], "the dictation key still dictates")
+    }
+
+    func testCommandKeyComboIsNotATap() {
+        let m = commandManager()
+        down(m, .rightOption); m.otherKeyPressed(); up(m, .rightOption)
+        down(m, .rightOption); up(m, .rightOption)
+        XCTAssertEqual(events, ["enter"], "Right ⌥+a types, the next tap counts")
+    }
+
+    func testCommandKeyIgnoredWhilePausedButReleaseCounts() {
+        var paused = true
+        let m = commandManager()
+        m.isPaused = { paused }
+        down(m, .rightOption); up(m, .rightOption)
+        XCTAssertEqual(events, [])
+        paused = false
+        down(m, .rightOption)
+        paused = true
+        up(m, .rightOption)
+        XCTAssertEqual(events, ["enter"], "a key held into the excluded app isn't stuck down")
+    }
+
+    func testDictationWinsWhenBothUseTheSameKey() {
+        let m = commandManager(.rightOption, command: .rightOption)
+        down(m, .rightOption); up(m, .rightOption)
+        XCTAssertEqual(events, ["tap"])
+    }
+
+    func testNoKeysWhenBothAreNone() {
+        let m = commandManager(.off, command: .off)
+        for key in Hotkey.allCases where key != .off { down(m, key); up(m, key) }
+        XCTAssertEqual(events, [])
+        XCTAssertNil(Hotkey.off.keyCode)
     }
 
     // MARK: Paused in an excluded app

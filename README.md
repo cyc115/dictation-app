@@ -20,14 +20,14 @@ with nothing lost. **Red**: no sound is coming in. Click ✓ to paste, ✕ or **
 
 ### Command mode: say it, it runs
 
-Press the Enter mouse button when you're not dictating, say what you want ("make the screen a bit
+Press the Command & Enter button (a mouse button, a key like Right ⌥, or both) when you're not dictating, say what you want ("make the screen a bit
 brighter", "声音小一点", "mute"), and press it again. A decision model picks one of your commands in
 about 0.3 s and it runs; if nothing fits, nothing runs. "打开 Safari" opens an app you installed.
 Commands are small Python scripts in a folder you can edit ([how](#commands)), or say "create
 command" and what it should do, and one is written for you (about a second). History keeps a
 Commands list with ↻ to run one again. Command mode is online: it needs your API key, whatever the
 speech setup. The speech model is told the commands' words (and the open apps' names), so a short
-command isn't misheard; double-click the Enter button to just press Return.
+command isn't misheard; press it twice to just press Return.
 
 ![Command mode: "声音小一点" runs volume −10; "open the pod bay doors" fits no command, so nothing runs](docs/images/commands.gif)
 
@@ -71,7 +71,7 @@ which model answered (main or backup), and how often the backup was needed.
 - **Optional AI polish.** Removes filler words and fixes self-corrections ("Tuesday, no,
   Wednesday") without changing your meaning: Apple Intelligence on-device, DeepSeek in the cloud.
   Off by default (menu bar → AI polish). If it fails or takes over 6 s, you get your unpolished text.
-- **Dictate and send.** The Enter mouse button, while dictating, stops, pastes and presses Return.
+- **Dictate and send.** Command & Enter, while dictating, stops, pastes and presses Return.
 - **History**, grouped by day and searchable, kept only on your Mac for as long as you choose.
 - **Lots of options.** Hold to talk or tap to toggle, apps where the hotkey is paused (e.g. games),
   mute audio while dictating, launch at login, and [your own model setups](docs/custom-setups.md); every setting can be
@@ -113,10 +113,10 @@ keeps the app's permissions when you rebuild. Then grant three permissions:
 
 | Action | How |
 |---|---|
-| Dictate | Hold **Fn**, speak, release |
+| Dictate | Hold **Fn**, speak, release (or the key / mouse button set in Settings → Shortcuts) |
 | Paste now / cancel | Click ✓ / click ✕ or press **Esc** |
-| Dictate and send | Enter mouse button while dictating: stops, pastes, presses Return |
-| Run a command | Enter mouse button when not dictating, speak, press it again |
+| Dictate and send | Command & Enter (mouse Button 6, or a key you set) while dictating: stops, pastes, presses Return |
+| Run a command | Command & Enter when not dictating, speak, press it again |
 | Toggle AI polish | Menu bar 🎙 → **AI polish** |
 | Insights | Menu bar 🎙 → **Insights…** |
 | History | Menu bar 🎙 → **History…** (⌘Y) |

@@ -92,7 +92,7 @@ struct ExcludedAppsList: View {
             HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Pause in these apps").font(.body.weight(.medium))
-                    Text("While one of them is in front, the hotkey and mouse button are ignored and keep their normal action — e.g. in a game.")
+                    Text("While one of them is in front, the shortcut keys and mouse buttons are ignored and keep their normal action — e.g. in a game.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

@@ -1,13 +1,14 @@
 import AppKit
 import ApplicationServices
 
-/// A modifier key you hold to dictate. Right-hand modifiers are told apart from
-/// left-hand ones via the device-specific bits in the event's modifier flags.
+/// A modifier key that dictates (or runs a command), or `.off` for none. Right-hand modifiers are
+/// told apart from left-hand ones via the device-specific bits in the event's modifier flags.
 enum Hotkey: String, CaseIterable {
-    case fn, rightCommand, rightOption, rightControl, rightShift
+    case off, fn, rightCommand, rightOption, rightControl, rightShift
 
     var title: String {
         switch self {
+        case .off: return "None"
         case .fn: return "Fn (🌐)"
         case .rightCommand: return "Right ⌘ Command"
         case .rightOption: return "Right ⌥ Option"
@@ -18,6 +19,7 @@ enum Hotkey: String, CaseIterable {
 
     var shortName: String {
         switch self {
+        case .off: return "None"
         case .fn: return "Fn"
         case .rightCommand: return "Right ⌘"
         case .rightOption: return "Right ⌥"
@@ -26,8 +28,9 @@ enum Hotkey: String, CaseIterable {
         }
     }
 
-    var keyCode: UInt16 {
+    var keyCode: UInt16? {
         switch self {
+        case .off: return nil
         case .fn: return 63
         case .rightCommand: return 54
         case .rightOption: return 61
@@ -39,6 +42,7 @@ enum Hotkey: String, CaseIterable {
     /// Bit in NSEvent.modifierFlags.rawValue that is set while this key is down.
     var flagMask: UInt {
         switch self {
+        case .off: return 0
         case .fn: return NSEvent.ModifierFlags.function.rawValue
         case .rightCommand: return 0x10    // NX_DEVICERCMDKEYMASK
         case .rightOption: return 0x40     // NX_DEVICERALTKEYMASK
@@ -77,8 +81,10 @@ enum MouseButton: String, CaseIterable {
 /// Watches the hotkey, the mouse buttons and Esc, and calls the actions below.
 /// - Hold mode: key-down → onPress, key-up → onRelease.
 /// - Toggle mode: a tap (press and release) → onTap; so does the dictation mouse button.
+/// - The command key: a tap → onEnter, like the Enter mouse button.
 /// Pressing any other key while the hotkey is down (e.g. Right ⌘+C) is treated as a
-/// shortcut, not dictation: hold mode calls onCancel, toggle mode ignores the tap.
+/// shortcut, not dictation: hold mode calls onCancel, toggle mode ignores the tap. Likewise a
+/// command key combo is not a tap.
 class HotkeyManager {
     var hotkey: Hotkey {
         didSet { held = false }
@@ -89,6 +95,10 @@ class HotkeyManager {
     var mouseButton: MouseButton
     /// Pressed → `onEnter` (Return). The dictation button wins if they're the same.
     var enterButton: MouseButton = .off
+    /// Tapped → `onEnter`, like `enterButton`. The hotkey wins if they're the same.
+    var commandKey: Hotkey = .off {
+        didSet { commandHeld = false }
+    }
 
     // MARK: Actions (main queue)
 
@@ -108,6 +118,8 @@ class HotkeyManager {
     private var monitors: [Any] = []
     private(set) var held = false
     private var cancelled = false
+    private var commandHeld = false
+    private var commandCancelled = false
 
     init(hotkey: Hotkey, mode: ActivationMode, mouseButton: MouseButton) {
         self.hotkey = hotkey
@@ -206,6 +218,7 @@ class HotkeyManager {
 
     /// Hotkey state machine, fed from flagsChanged events (separate so tests can drive it).
     func handleFlags(keyCode: UInt16, rawFlags: UInt) {
+        if keyCode == commandKey.keyCode, commandKey != hotkey { return commandFlags(rawFlags) }
         guard keyCode == hotkey.keyCode else { return }
         let down = rawFlags & hotkey.flagMask != 0
         if down && !held {
@@ -221,7 +234,21 @@ class HotkeyManager {
         }
     }
 
+    /// The command key: a tap alone (no other key while it's down) is `onEnter`.
+    private func commandFlags(_ rawFlags: UInt) {
+        let down = rawFlags & commandKey.flagMask != 0
+        if down && !commandHeld {
+            guard !isPaused() else { return }
+            commandHeld = true
+            commandCancelled = false
+        } else if !down && commandHeld {
+            commandHeld = false
+            if !commandCancelled { onEnter() }
+        }
+    }
+
     func otherKeyPressed() {
+        if commandHeld { commandCancelled = true }
         guard held, !cancelled else { return }
         cancelled = true
         if mode == .hold { onCancel() }

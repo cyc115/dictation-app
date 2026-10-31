@@ -76,7 +76,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // HotkeyManager prompts for Accessibility itself when needed.
             let hotkey = HotkeyManager(hotkey: self.settings.hotkey, mode: self.settings.mode,
                                        mouseButton: self.settings.mouseButton)
-            hotkey.enterButton = self.settings.effectiveEnterButton
+            hotkey.enterButton = self.settings.mouseEnterButton
+            hotkey.commandKey = self.settings.commandHotkey
             hotkey.onPress = { [weak self] in self?.dictation.start() }
             hotkey.onRelease = { [weak self] in self?.dictation.stop() }
             hotkey.onCancel = { [weak self] in self?.dictation.cancel() }
@@ -133,7 +134,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             hotkey.mode = settings.mode
         }
         hotkey?.mouseButton = settings.mouseButton
-        hotkey?.enterButton = settings.effectiveEnterButton
+        hotkey?.enterButton = settings.mouseEnterButton
+        hotkey?.commandKey = settings.commandHotkey
         exclusion.excluded = settings.excludedApps
         applyAppearanceAndDock()
         updateMenu()

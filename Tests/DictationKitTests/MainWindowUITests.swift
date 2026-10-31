@@ -41,16 +41,16 @@ final class KeptPagesTests: XCTestCase {
         let (hosted, selection) = host(.settings)
         let controls = switches(in: hosted.hostingView)
         XCTAssertFalse(controls.isEmpty)
-        XCTAssertNotNil(hosted.element(id: "setting.Hotkey"))
+        XCTAssertNotNil(hosted.element(id: "setting.Dictate"))
 
         selection.tab = .history
         hosted.settle()
-        XCTAssertNil(hosted.element(id: "setting.Hotkey"), "a hidden page is out of the accessibility tree")
+        XCTAssertNil(hosted.element(id: "setting.Dictate"), "a hidden page is out of the accessibility tree")
         XCTAssertNotNil(hosted.element(id: "history.empty") ?? hosted.elements { $0.label == "History" }.first)
 
         selection.tab = .settings
         hosted.settle()
-        XCTAssertNotNil(hosted.element(id: "setting.Hotkey"))
+        XCTAssertNotNil(hosted.element(id: "setting.Dictate"))
         XCTAssertEqual(switches(in: hosted.hostingView), controls, "the same switches, not rebuilt")
     }
 

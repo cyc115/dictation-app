@@ -87,7 +87,7 @@ final class SettingsCommandTests: XCTestCase {
     func testBadValueOrNameChangesNothing() {
         let s = makeSettings(self)
         XCTAssertEqual(run("set", "hotkey", "capsLock", settings: s), 1)
-        XCTAssertEqual(err, ["hotkey can't be \"capsLock\"; it takes: fn, rightCommand, rightOption, rightControl, rightShift"])
+        XCTAssertEqual(err, ["hotkey can't be \"capsLock\"; it takes: off, fn, rightCommand, rightOption, rightControl, rightShift"])
         XCTAssertEqual(run("set", "setup", "cloud-huge", settings: s), 1)
         XCTAssertEqual(s.setup, .onDevice)
         XCTAssertEqual(run("set", "nope", "on", settings: s), 1)

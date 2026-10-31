@@ -17,10 +17,10 @@ final class SettingsUITests: XCTestCase {
     func testEverySettingIsReachable() {
         let hosted = host(makeSettings(self))
         for title in ["Appearance", "Launch app at login", "Show app in Dock", "Microphone",
-                      "Interaction sounds", "Mute when dictating", "Hotkey", "Activation",
-                      "Mouse button", "AI polish", "Model", "On-device model", "Keep history", "Keep recordings",
+                      "Interaction sounds", "Mute when dictating", "Dictate", "Dictate.key", "Dictate.mouse",
+                      "Activation", "AI polish", "Model", "On-device model", "Keep history", "Keep recordings",
                       "Backup model when slow", "Pause in these apps", "Show detailed analytics",
-                      "Mouse button for Enter", "Enter button", "Command mode", "Commands",
+                      "Command & Enter.key", "Command & Enter.mouse", "Command mode", "Commands",
                       "Paste where you dictated", "Decide commands on this Mac"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
@@ -186,16 +186,46 @@ final class SettingsUITests: XCTestCase {
         }
     }
 
-    func testEnterButtonGreyedOutWhileMouseEnterIsOff() {
+    func testActivationGreyedOutWithoutADictationKey() {
         let settings = makeSettings(self)
         let hosted = host(settings)
         func enabled() -> Bool? {
-            hosted.element(id: "setting.Enter button")?.object.value(forKey: "accessibilityEnabled") as? Bool
+            hosted.element(id: "setting.Activation")?.object.value(forKey: "accessibilityEnabled") as? Bool
         }
         XCTAssertEqual(enabled(), true)
-        XCTAssertTrue(hosted.element(id: "setting.Mouse button for Enter").map { hosted.click($0) } ?? false)
-        XCTAssertFalse(settings.mouseEnterEnabled)
+        settings.hotkey = .off
+        hosted.settle()
+        XCTAssertEqual(enabled(), false, "a mouse button always toggles")
+    }
+
+    func testCommandAndEnterWarnsWhenItSharesDictatesKeyOrButton() {
+        let settings = makeSettings(self)
+        let hosted = host(settings)
+        XCTAssertFalse(hosted.allText.contains("dictates instead"))
+        settings.commandHotkey = settings.hotkey
+        hosted.settle()
+        XCTAssertTrue(hosted.allText.contains("Its key is also Dictate's"))
+        settings.commandHotkey = .rightOption
+        settings.mouseButton = settings.mouseEnterButton
+        hosted.settle()
+        XCTAssertTrue(hosted.allText.contains("Its button is also Dictate's"))
+        XCTAssertFalse(hosted.allText.contains("Its key is also Dictate's"))
+    }
+
+    func testCommandModeGreyedOutWithoutACommandKeyOrButton() {
+        let settings = makeSettings(self)
+        settings.setOpenRouterKey("test-key")
+        let hosted = host(settings)
+        func enabled() -> Bool? {
+            hosted.element(id: "setting.Command mode")?.object.value(forKey: "accessibilityEnabled") as? Bool
+        }
+        XCTAssertEqual(enabled(), true)
+        settings.mouseEnterButton = .off
+        hosted.settle()
         XCTAssertEqual(enabled(), false)
+        settings.commandHotkey = .rightOption
+        hosted.settle()
+        XCTAssertEqual(enabled(), true, "a keyboard key is enough")
     }
 
     func testCommandModeGreyedOutWithoutTheAPIKey() {
@@ -232,5 +262,8 @@ final class SettingsUITests: XCTestCase {
         settings.hotkey = .rightCommand
         hosted.settle()
         XCTAssertFalse(tipShown())
+        settings.commandHotkey = .fn
+        hosted.settle()
+        XCTAssertTrue(tipShown(), "also for the command key")
     }
 }

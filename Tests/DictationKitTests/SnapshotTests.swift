@@ -231,6 +231,21 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "excluded-apps")
     }
 
+    /// Settings › Shortcuts: Dictate and Command & Enter, each a keyboard key and a mouse button.
+    func testShortcuts() {
+        let settings = makeSettings(self)
+        settings.hotkey = .rightCommand
+        settings.mode = .toggle
+        settings.mouseButton = .button5
+        settings.commandHotkey = .rightOption
+        settings.mouseEnterButton = .button4
+        settings.exclude(ExcludedApp(bundleID: "com.nvidia.gfnpc.mall", name: "GeForce NOW"))
+        let view = Form { ShortcutsSection(settings: settings) }.formStyle(.grouped)
+        let hosted = HostedView(view, size: NSSize(width: 760, height: 420))
+        addTeardownBlock { hosted.close() }
+        assertSnapshot(of: hosted.hostingView, named: "shortcuts")
+    }
+
     /// Settings › Experimental's Decider row, before Decider is installed.
     func testDeciderNotInstalled() {
         let view = Form { Section { LocalDeciderRow(check: { .notInstalled }) } }.formStyle(.grouped)

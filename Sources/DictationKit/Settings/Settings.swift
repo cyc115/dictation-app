@@ -163,16 +163,17 @@ final class AppSettings: ObservableObject {
     @Setting("hotkey", default: .fn) var hotkey: Hotkey
     @Setting("activationMode", default: .hold) var mode: ActivationMode
     @Setting("mouseButton", default: .off) var mouseButton: MouseButton
-    /// A mouse button presses Return, to send what you dictated without the keyboard. On by default.
-    @Setting("mouseEnterEnabled", default: true) var mouseEnterEnabled: Bool
+    /// Command & Enter: while dictating, stops, pastes and presses Return; otherwise starts a command
+    /// (`DictationController.enter`). A keyboard key (none by default) and a mouse button (Button 6).
+    @Setting("commandHotkey", default: .off) var commandHotkey: Hotkey
     @Setting("mouseEnterButton", default: .button6) var mouseEnterButton: MouseButton
+    /// Command & Enter has a key or button.
+    var hasCommandTrigger: Bool { commandHotkey != .off || mouseEnterButton != .off }
     /// The Enter button, pressed when you're not dictating, starts a command (`CommandMode`). On by default.
     @Setting("commandMode", default: true) var commandModeEnabled: Bool
     /// What picks the command: "jev" (TypeSafe's decision model), or an OpenRouter chat model id
     /// (bench/suite.py commands compares them). No Settings row: `defaults write com.mikechen.DictationApp commandModel <id>`.
     @Setting("commandModel", default: "jev") var commandModel: String
-    /// The button that presses Return, or `.off`.
-    var effectiveEnterButton: MouseButton { mouseEnterEnabled ? mouseEnterButton : .off }
     @Setting("aiPolishEnabled", default: false) var polishEnabled: Bool
     /// CoreAudio device UID; empty means the system default input.
     @Setting("microphoneUID", default: "") var microphoneUID: String
@@ -226,6 +227,13 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// "Mouse button for Enter" was an on/off switch beside the button; off is now the button set to None.
+    private static func migrate(_ defaults: UserDefaults) {
+        guard let enabled = defaults.object(forKey: "mouseEnterEnabled") as? Bool else { return }
+        if !enabled { defaults.set(MouseButton.off.rawValue, forKey: "mouseEnterButton") }
+        defaults.removeObject(forKey: "mouseEnterEnabled")
+    }
+
     private static func excludedApps(in defaults: UserDefaults) -> [ExcludedApp] {
         defaults.data(forKey: excludedAppsKey).flatMap { try? JSONDecoder().decode([ExcludedApp].self, from: $0) } ?? []
     }
@@ -276,6 +284,7 @@ final class AppSettings: ObservableObject {
         self.learned = learned
         setup = .onDevice
         excludedApps = Self.excludedApps(in: defaults)
+        Self.migrate(defaults)
         let saved = defaults.string(forKey: Self.setupKey).map(DictationSetup.currentID)
         reloadSetups(selecting: saved)
         refreshLoginItem()
@@ -342,6 +351,10 @@ final class AppSettings: ObservableObject {
 
     /// One-line usage hint, e.g. "Hold Fn to dictate — release to paste".
     var hint: String {
+        guard hotkey != .off else {
+            return mouseButton == .off ? "No dictation shortcut — choose one in Settings › Shortcuts"
+                : "Press \(mouseButton.title) to start — press again to paste"
+        }
         switch mode {
         case .hold: return "Hold \(hotkey.shortName) to dictate — release to paste"
         case .toggle: return "Tap \(hotkey.shortName) to start — tap again to paste"

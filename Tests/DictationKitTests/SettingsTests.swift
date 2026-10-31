@@ -46,14 +46,30 @@ final class SettingsTests: XCTestCase {
     func testMouseEnterOnByDefaultWithButton6AndPersists() {
         let defaults = makeDefaults(self)
         let s = makeSettings(self, defaults: defaults)
-        XCTAssertTrue(s.mouseEnterEnabled)
-        XCTAssertEqual(s.effectiveEnterButton, .button6)
+        XCTAssertEqual(s.mouseEnterButton, .button6)
+        XCTAssertEqual(s.commandHotkey, .off, "no command key by default")
+        XCTAssertTrue(s.hasCommandTrigger)
         s.mouseEnterButton = .middle
-        s.mouseEnterEnabled = false
-        XCTAssertEqual(s.effectiveEnterButton, .off, "off keeps the chosen button")
+        s.commandHotkey = .rightOption
         let r = makeSettings(self, defaults: defaults)
-        XCTAssertFalse(r.mouseEnterEnabled)
+        XCTAssertEqual(r.commandHotkey, .rightOption)
         XCTAssertEqual(r.mouseEnterButton, .middle)
+        r.mouseEnterButton = .off
+        XCTAssertTrue(r.hasCommandTrigger, "the key is left")
+        r.commandHotkey = .off
+        XCTAssertFalse(r.hasCommandTrigger)
+    }
+
+    /// "Mouse button for Enter" was a switch beside the button: off becomes the button set to None.
+    func testEnterSwitchMigratesToTheButton() {
+        for (enabled, button) in [(false, MouseButton.off), (true, .button4)] {
+            let defaults = makeDefaults(self)
+            defaults.set(enabled, forKey: "mouseEnterEnabled")
+            defaults.set("button4", forKey: "mouseEnterButton")
+            let s = makeSettings(self, defaults: defaults)
+            XCTAssertEqual(s.mouseEnterButton, button, "enabled: \(enabled)")
+            XCTAssertNil(defaults.object(forKey: "mouseEnterEnabled"), "the old key is gone")
+        }
     }
 
     func testHint() {
@@ -62,6 +78,10 @@ final class SettingsTests: XCTestCase {
         s.hotkey = .rightShift
         s.mode = .toggle
         XCTAssertEqual(s.hint, "Tap Right ⇧ to start — tap again to paste")
+        s.hotkey = .off
+        XCTAssertEqual(s.hint, "No dictation shortcut — choose one in Settings › Shortcuts")
+        s.mouseButton = .button5
+        XCTAssertEqual(s.hint, "Press Button 5 (Forward) to start — press again to paste")
     }
 
     func testUnknownStoredValuesFallBack() {
