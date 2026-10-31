@@ -111,9 +111,10 @@ bench/suite.py polish run -m setup:cloud-flash --corrections --prompt-file ~/Lib
   one of yours in `setups.json`) runs a Settings → Model setup's polish exactly as the app does.
 - **Key:** the bench's own, `$OPENROUTER_BENCH_API_KEY` (in `~/.secrets`, chezmoi), never the app's.
 - **Prompts:** each model gets the prompt its setup uses in the app (`apple`: On-device's; cloud
-  models: Cloud Flash's), or `--prompt-file` (see `polish_prompts/`, versions `v1`–`v3`, identical to
+  models: Cloud Flash's), or `--prompt-file` (see `polish_prompts/`, versions `v1`–`v4` and `v7`, identical to
   `PolishPrompt` in `Setups.swift`; a test checks). The transcript goes in `<transcript>` tags, as
-  the app sends it; `--no-wrap` sends it bare, to compare. Built-in setups all use `v3` + tags.
+  the app sends it; `--no-wrap` sends it bare, to compare. On-device uses `v3`, Cloud Flash `v7` (both in tags);
+  `v7` on Apple's model left 2 of 11 traps alone vs `v3`'s 8 (Oct 31).
 - **Teacher bake-off:** which model should write learned prompts (`LearnController.teacherModel`)?
   `Tests/DictationKitTests/TeacherBakeoffTests.swift` runs one real tune per teacher through the
   tuner's own code path (Cloud Flash's student, `PolishPrompt.v4`, a copy of your corrections) and

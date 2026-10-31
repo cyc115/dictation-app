@@ -152,8 +152,8 @@ def test_apple_runs_through_the_app_with_text_trials(monkeypatch):
     from suites import latency
     sent = {}
 
-    def fake_app(trials, pause, timeout, key_env, on_sample, extra):
-        sent.update(trials=trials, extra=extra)
+    def fake_app(trials, pause, timeout, key_env, on_sample, extra, alongside=False):
+        sent.update(trials=trials, extra=extra, alongside=alongside)
         for i, t in enumerate(trials):
             polished = t["text"].replace("嗯", "") if i != 1 else None
             on_sample({"id": t["id"], "transcribe": 0, "raw": t["text"],
@@ -171,6 +171,11 @@ def test_apple_runs_through_the_app_with_text_trials(monkeypatch):
     default = polish.run(["apple"], cases[:1], 1, 1, "", None, 1, 30, lambda row: None)
     assert default[0]["model"] == "apple"
     assert sent["extra"] == {"wrap": True} and len(default) == 2, "the app's own prompt, in tags like the app"
+    assert sent["alongside"] is False, "the app you're using is quit unless asked"
+    polish.run(["apple"], cases[:1], 1, 1, "", None, 1, 30, lambda row: None, prompt=polish.app_prompt("apple"),
+               alongside=True)
+    assert sent["extra"]["instructions"] == polish.app_prompt("apple"), "a named prompt is sent even if it's the app's"
+    assert sent["alongside"] is True
     polish.run(["apple"], cases[:1], 1, 1, "", None, 1, 30, lambda row: None, wrap=False)
     assert sent["extra"] == {"wrap": False}, "--no-wrap reaches the app, whose default is to wrap"
     as_shipped = polish.run(["setup:on-device"], cases[:1], 1, 1, "", None, 1, 30, lambda row: None, prompt="P", wrap=False)
@@ -182,7 +187,7 @@ def test_apple_stops_the_run_when_the_installed_app_is_too_old(monkeypatch):
     from suites import latency
     calls = []
 
-    def old_app(trials, pause, timeout, key_env, on_sample, extra):
+    def old_app(trials, pause, timeout, key_env, on_sample, extra, alongside=False):
         on_sample({"id": trials[0]["id"], "error": "unknown speech model text"}, 1)
 
     monkeypatch.setattr(latency, "run_in_app", old_app)

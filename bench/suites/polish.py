@@ -251,8 +251,10 @@ def plan(specs: list[str], cases: list[dict], rounds: int, seed: int) -> list[tu
 
 
 def run(specs: list[str], cases: list[dict], rounds: int, seed: int, key: str, sort: str | None,
-        parallel: int, timeout: float, show, prompt: str | None = None, wrap: bool = True) -> list[dict]:
-    """Models run side by side (one request at a time per model, so a model never competes with itself)."""
+        parallel: int, timeout: float, show, prompt: str | None = None, wrap: bool = True,
+        alongside: bool = False) -> list[dict]:
+    """Models run side by side (one request at a time per model, so a model never competes with itself).
+    `alongside`: apple runs in a second copy of the app, leaving the one you're using alone."""
     configs = {s: resolve(s, prompt, wrap) for s in specs}
     callers = {s: Caller(m, key, p, sort, timeout, w) for s, (m, p, w) in configs.items() if m != "apple"}
     by_model: dict[str, list] = {}
@@ -263,7 +265,10 @@ def run(specs: list[str], cases: list[dict], rounds: int, seed: int, key: str, s
     def work(spec: str) -> list[dict]:
         model, spec_prompt, spec_wrap = configs[spec]
         if model == "apple":
-            return run_apple(by_model[spec], spec_prompt, spec_wrap, timeout, show, label=spec)
+            # A prompt you name is always sent: the installed build's own may be another version.
+            explicit = prompt is not None and not spec.startswith("setup:")
+            return run_apple(by_model[spec], spec_prompt, spec_wrap, timeout, show, label=spec,
+                             explicit=explicit, alongside=alongside)
         out = []
         for rnd, _, case in by_model[spec]:
             result = callers[spec](case["raw"])
@@ -286,12 +291,13 @@ def run(specs: list[str], cases: list[dict], rounds: int, seed: int, key: str, s
     return rows
 
 
-def run_apple(jobs: list, prompt: str, wrap: bool, timeout: float, show, label: str = "apple") -> list[dict]:
+def run_apple(jobs: list, prompt: str, wrap: bool, timeout: float, show, label: str = "apple",
+              explicit: bool = False, alongside: bool = False) -> list[dict]:
     """Apple's on-device model through the installed app (LatencyProbe's polish-only trials)."""
     from suites import latency
     trials = [{"id": f"{i:04d}", "file": "", "stt": "text", "polish": ["apple"], "text": case["raw"],
                "audio_seconds": 0} for i, (_, _, case) in enumerate(jobs)]
-    extra = {} if prompt == app_prompt("apple") else {"instructions": prompt}
+    extra = {"instructions": prompt} if explicit or prompt != app_prompt("apple") else {}
     extra["wrap"] = wrap
     rows = {}
 
@@ -312,7 +318,7 @@ def run_apple(jobs: list, prompt: str, wrap: bool, timeout: float, show, label: 
         rows[i] = row
         show(row)
 
-    latency.run_in_app(trials, 0.3, timeout, None, on_sample, extra)
+    latency.run_in_app(trials, 0.3, timeout, None, on_sample, extra, alongside=alongside)
     return [rows.get(i) or {"model": label, "round": jobs[i][0], "warmup": jobs[i][0] == 0, "case": jobs[i][2]["id"],
                             "category": jobs[i][2]["category"], "kind": jobs[i][2]["kind"], "error": "no result"}
             for i in range(len(jobs))]
@@ -501,7 +507,7 @@ def cmd_run(args) -> int:
     prompt = Path(args.prompt_file).read_text().strip() if args.prompt_file else None
     started = datetime.now()
     rows = run(specs, cases, args.rounds, args.seed, key, args.sort, args.parallel, args.timeout, show,
-               prompt, args.wrap)
+               prompt, args.wrap, args.alongside)
     result = {"suite": NAME, "run_at": started.isoformat(timespec="seconds"), "env": harness.environment(),
               "config": {"models": specs, "cases": [c["id"] for c in cases], "rounds": args.rounds, "seed": args.seed,
                          "sort": args.sort, "parallel": args.parallel, "where": args.where,
@@ -564,6 +570,9 @@ def parser() -> argparse.ArgumentParser:
                                          "gets in the app: On-device's for apple, Cloud Flash's for cloud models)")
     r.add_argument("--wrap", action=argparse.BooleanOptionalAction, default=True,
                    help="send the transcript inside <transcript> tags, as the app does (default; --no-wrap to compare)")
+    r.add_argument("--alongside", action="store_true",
+                   help="apple: run a second copy of the app beside the one you're using instead of quitting it "
+                        "(waits a little noisier)")
     r.add_argument("--seed", type=int, default=1)
     r.add_argument("--key-env", default=openrouter.BENCH_ENV,
                    help="env var with the OpenRouter key (default: %(default)s, from ~/.secrets)")
