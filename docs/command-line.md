@@ -31,8 +31,8 @@ New settings show up here on their own: the list is every `@Setting` in `AppSett
 ## Hammerspoon: everything on this Mac when offline
 
 With no internet (airplane mode, Wi-Fi off), switch to the On-device setup (speech and polish) and
-have commands decided on this Mac; back on power with internet, put back what was chosen before.
-Battery alone changes nothing. The working version is `~/.hammerspoon/dictation_power.lua` (chezmoi, with
+have commands decided on this Mac; back online, put back what was chosen before. Battery or AC
+doesn't matter. The working version is `~/.hammerspoon/dictation_power.lua` (chezmoi, with
 `test_dictation_power.lua`); the core of it:
 
 ```lua
@@ -45,7 +45,6 @@ end
 
 local function update()
   local online = (hs.network.reachability.internet():status() & hs.network.reachability.flags.reachable) > 0
-  local onBattery = hs.battery.powerSource() == "Battery Power"
   if not online then
     if not hs.settings.get(saved) then   -- kept from the first switch, not our own On-device
       hs.settings.set(saved, { setup = hs.execute(dictation .. " settings get setup"):gsub("%s+$", "") })
@@ -55,13 +54,12 @@ local function update()
     if hs.application.pathForBundleID("ai.perplexity.decider"):find("^/Applications/") then
       set("localCommandDecider", "on")
     end
-  elseif not onBattery and hs.settings.get(saved) then
+  elseif hs.settings.get(saved) then
     set("setup", hs.settings.get(saved).setup)   -- the real module also puts back localCommandDecider
     hs.settings.set(saved, nil)
   end
 end
 
-DictationPower = hs.battery.watcher.new(update):start()   -- for plugging in; fires on every percent: dedupe in real use
 DictationNetwork = hs.network.reachability.internet():setCallback(update):start()
 update()
 ```
