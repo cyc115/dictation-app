@@ -74,7 +74,8 @@ which model answered (main or backup), and how often the backup was needed.
 - **Dictate and send.** The Enter mouse button, while dictating, stops, pastes and presses Return.
 - **History**, grouped by day and searchable, kept only on your Mac for as long as you choose.
 - **Lots of options.** Hold to talk or tap to toggle, apps where the hotkey is paused (e.g. games),
-  mute audio while dictating, launch at login, and [your own model setups](docs/custom-setups.md).
+  mute audio while dictating, launch at login, and [your own model setups](docs/custom-setups.md); every setting can be
+  changed [from the command line](docs/command-line.md), e.g. by Hammerspoon when you unplug.
 
 ## Requirements
 

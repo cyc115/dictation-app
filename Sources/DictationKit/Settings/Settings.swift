@@ -37,25 +37,54 @@ enum AppearanceMode: String, CaseIterable {
     }
 }
 
-/// A value a `@Setting` can save in UserDefaults.
+/// A value a `@Setting` can save in UserDefaults, and show and read as text (`DictationApp settings`).
 protocol SettingValue {
     init?(stored: Any)
     var stored: Any { get }
+    init?(text: String)
+    var text: String { get }
+    /// Every value as text, or nil for free text.
+    static var choices: [String]? { get }
+}
+
+extension SettingValue {
+    static var choices: [String]? { nil }
 }
 
 extension Bool: SettingValue {
     init?(stored: Any) { guard let value = stored as? Bool else { return nil }; self = value }
     var stored: Any { self }
+    init?(text: String) {
+        switch text.lowercased() {
+        case "on", "true", "yes", "1": self = true
+        case "off", "false", "no", "0": self = false
+        default: return nil
+        }
+    }
+    var text: String { self ? "on" : "off" }
+    static var choices: [String]? { ["on", "off"] }
 }
 
 extension String: SettingValue {
     init?(stored: Any) { guard let value = stored as? String else { return nil }; self = value }
     var stored: Any { self }
+    init?(text: String) { self = text }
+    var text: String { self }
 }
 
 extension SettingValue where Self: RawRepresentable, RawValue == String {
     init?(stored: Any) { guard let value = (stored as? String).flatMap(Self.init(rawValue:)) else { return nil }; self = value }
     var stored: Any { rawValue }
+    init?(text: String) { guard let value = Self(rawValue: text) else { return nil }; self = value }
+    var text: String { rawValue }
+}
+
+extension SettingValue where Self: RawRepresentable & CaseIterable, RawValue == String {
+    static var choices: [String]? { allCases.map(\.rawValue) }
+    init?(text: String) {
+        guard let value = Self.allCases.first(where: { $0.rawValue.caseInsensitiveCompare(text) == .orderedSame }) else { return nil }
+        self = value
+    }
 }
 
 extension Hotkey: SettingValue {}
@@ -84,14 +113,44 @@ struct Setting<Value: SettingValue> {
     static subscript(_enclosingInstance settings: AppSettings,
                      wrapped _: ReferenceWritableKeyPath<AppSettings, Value>,
                      storage storage: ReferenceWritableKeyPath<AppSettings, Setting>) -> Value {
-        get {
-            let setting = settings[keyPath: storage]
-            return settings.defaults.object(forKey: setting.key).flatMap(Value.init(stored:)) ?? setting.fallback
-        }
-        set {
-            settings.objectWillChange.send()
-            settings.defaults.set(newValue.stored, forKey: settings[keyPath: storage].key)
-            settings.onChange?()
+        get { settings[keyPath: storage].value(in: settings) }
+        set { settings[keyPath: storage].save(newValue, in: settings) }
+    }
+
+    fileprivate func value(in settings: AppSettings) -> Value {
+        settings.defaults.object(forKey: key).flatMap(Value.init(stored:)) ?? fallback
+    }
+
+    fileprivate func save(_ value: Value, in settings: AppSettings) {
+        settings.objectWillChange.send()
+        settings.defaults.set(value.stored, forKey: key)
+        settings.onChange?()
+    }
+}
+
+/// One setting as text, named by its UserDefaults key: what `DictationApp settings` lists and changes.
+struct SettingEntry {
+    let name: String
+    let value: String
+    /// Every value it takes, or nil for free text.
+    let choices: [String]?
+    /// Saves the value `text` names, like changing it in Settings; false when it isn't one it takes.
+    let set: (String) -> Bool
+
+    var isOnOff: Bool { choices == Bool.choices }
+}
+
+/// A `@Setting` of any type, for `AppSettings.entries`.
+private protocol AnySetting {
+    func entry(in settings: AppSettings) -> SettingEntry
+}
+
+extension Setting: AnySetting {
+    fileprivate func entry(in settings: AppSettings) -> SettingEntry {
+        SettingEntry(name: key, value: value(in: settings).text, choices: Value.choices) { text in
+            guard let value = Value(text: text) else { return false }
+            save(value, in: settings)
+            return true
         }
     }
 }
@@ -167,6 +226,10 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    private static func excludedApps(in defaults: UserDefaults) -> [ExcludedApp] {
+        defaults.data(forKey: excludedAppsKey).flatMap { try? JSONDecoder().decode([ExcludedApp].self, from: $0) } ?? []
+    }
+
     func exclude(_ app: ExcludedApp) {
         guard !excludedApps.contains(where: { $0.bundleID == app.bundleID }) else { return }
         excludedApps.append(app)
@@ -212,8 +275,7 @@ final class AppSettings: ObservableObject {
         self.customSetupsFile = customSetupsFile
         self.learned = learned
         setup = .onDevice
-        excludedApps = defaults.data(forKey: Self.excludedAppsKey)
-            .flatMap { try? JSONDecoder().decode([ExcludedApp].self, from: $0) } ?? []
+        excludedApps = Self.excludedApps(in: defaults)
         let saved = defaults.string(forKey: Self.setupKey).map(DictationSetup.currentID)
         reloadSetups(selecting: saved)
         refreshLoginItem()
@@ -237,6 +299,24 @@ final class AppSettings: ObservableObject {
         let wanted = id ?? setup.id
         let chosen = setups.first { $0.id == wanted } ?? .onDevice
         if chosen != setup || defaults.string(forKey: Self.setupKey) != chosen.id { setup = chosen }
+    }
+
+    /// Every `@Setting`, in the order they're declared. Found by reflection, so a new one is on the
+    /// command line (`SettingsCommand`) without a line of its own.
+    var entries: [SettingEntry] {
+        Mirror(reflecting: self).children.compactMap { ($0.value as? AnySetting)?.entry(in: self) }
+    }
+
+    /// Picks up what another process saved (`DictationApp settings set …`): the `@Setting`s are read
+    /// from UserDefaults each time, so only views need telling; the setup, excluded apps and login
+    /// item are re-read. Then `onChange` applies them, as if changed in Settings.
+    func reloadFromDefaults() {
+        objectWillChange.send()
+        let excluded = Self.excludedApps(in: defaults)
+        if excluded != excludedApps { excludedApps = excluded }
+        reloadSetups(selecting: defaults.string(forKey: Self.setupKey).map(DictationSetup.currentID))
+        refreshLoginItem()
+        onChange?()
     }
 
     /// The setup's own prompt version, under any learned one.

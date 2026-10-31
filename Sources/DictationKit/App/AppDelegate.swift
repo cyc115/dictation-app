@@ -10,6 +10,7 @@ public enum DictationAppMain {
 
     @MainActor
     public static func run() {
+        if let status = SettingsCommand.runIfRequested() { exit(status) }
         let app = NSApplication.shared
         let delegate = AppDelegate()
         self.delegate = delegate
@@ -38,6 +39,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let relaunch = AppRelaunch()
     private var bundleWatcher: BundleWatcher?
     private lazy var exclusion = ExclusionWatcher(excluded: settings.excludedApps)
+    /// `DictationApp settings set …` from a script.
+    private var settingsCommands: NSObjectProtocol?
 
     /// On power, the on-device model is kept in memory (`KeepLoaded`), so load it soon after launch:
     /// the first dictation is then as quick as the rest. Never downloads here, and waits a few
@@ -64,6 +67,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         dictation.onIdle = { [weak self] in self?.relaunch.relaunchIfIdle() }
         dictation.onMissingKey = { [weak self] _ in self?.mainWindow.show(.settings) }
         settings.onChange = { [weak self] in self?.settingsChanged() }
+        settingsCommands = SettingsCommand.observe(settings)
         exclusion.onChange = { [weak self] in self?.updateStatusIcon(); self?.updateMenu() }
         exclusion.start()
         preloadLocalModel()
