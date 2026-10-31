@@ -28,24 +28,43 @@ Exit status: 0 done, 1 unknown setting or value (the error lists what it takes),
 New settings show up here on their own: the list is every `@Setting` in `AppSettings`
 (`SettingsCommandTests` checks).
 
-## Hammerspoon: cloud on power, on-device on battery or offline
+## Hammerspoon: everything on this Mac on battery or offline
+
+On battery, or with no internet (airplane mode, Wi-Fi off), switch to the On-device setup (speech
+and polish) and have commands decided on this Mac; on power with internet, put back what was
+chosen before. The working version is `~/.hammerspoon/dictation_power.lua` (chezmoi, with
+`test_dictation_power.lua`); the core of it:
 
 ```lua
--- ~/.hammerspoon/dictation.lua; require("dictation") from init.lua.
 local dictation = "/Applications/DictationApp.app/Contents/MacOS/DictationApp"
-local internet = hs.network.reachability.internet()
-local current
+local saved = "dictation_power.saved"   -- your choice from before, in hs.settings
 
-local function update()
-  local online = (internet:status() & hs.network.reachability.flags.reachable) > 0
-  local onPower = hs.battery.powerSource() == "AC Power"
-  local setup = (onPower and online) and "cloud-flash" or "on-device"
-  if setup == current then return end  -- the battery watcher fires on every percent
-  current = setup
-  hs.task.new(dictation, nil, { "settings", "set", "setup", setup }):start()
+local function set(name, value)
+  hs.execute(dictation .. " settings set " .. name .. " " .. value)
 end
 
-DictationPower = hs.battery.watcher.new(update):start()
-DictationNetwork = internet:setCallback(update):start()  -- airplane mode, Wi-Fi off
+local function update()
+  local online = (hs.network.reachability.internet():status() & hs.network.reachability.flags.reachable) > 0
+  local onBattery = hs.battery.powerSource() == "Battery Power"
+  if onBattery or not online then
+    if not hs.settings.get(saved) then   -- kept from the first switch, not our own On-device
+      hs.settings.set(saved, { setup = hs.execute(dictation .. " settings get setup"):gsub("%s+$", "") })
+    end
+    set("setup", "on-device")
+    -- Only with Decider for Mac in /Applications: without it every command fails.
+    if hs.application.pathForBundleID("ai.perplexity.decider"):find("^/Applications/") then
+      set("localCommandDecider", "on")
+    end
+  elseif hs.settings.get(saved) then
+    set("setup", hs.settings.get(saved).setup)   -- the real module also puts back localCommandDecider
+    hs.settings.set(saved, nil)
+  end
+end
+
+DictationPower = hs.battery.watcher.new(update):start()   -- fires on every percent: dedupe in real use
+DictationNetwork = hs.network.reachability.internet():setCallback(update):start()
 update()
 ```
+
+`hs.application.pathForBundleID` returns `""`, not `nil`, for an app that isn't there, and also
+finds stray copies (a `Decider.app` in a download folder), hence the `/Applications` check.
