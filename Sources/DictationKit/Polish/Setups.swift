@@ -235,7 +235,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     /// Settings help for "Backup model when slow"; nil when this setup has no backup.
     var backupHelp: String? {
         guard let backup else { return nil }
-        let name = Self.builtIns.first { $0.openRouterID == backup }?.title ?? "a smaller, faster model"
+        let name = Self.builtIns.first { $0.openRouterID == backup }?.title ?? "a faster model from another host"
         return "If \(title) hasn't answered in \(Int(backupWait)) seconds, \(name) is asked too and the first "
             + "answer is used. After a slow answer, both are asked at once for 5 minutes."
             + (backupNote.map { " " + $0 } ?? "")
@@ -292,7 +292,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
           {"id": "cloud-flash", "title": "Cloud Flash",
            "summary": "Fastest cloud model — text in about half a second. Handles English mixed into Chinese. Audio is sent to the cloud when you stop.",
            "speech": "openrouter:qwen/qwen3-asr-1.7b",
-           "backup": "qwen/qwen3-asr-0.6b", "backupWait": 2, "backupNote": "The smaller model gets more technical terms wrong.",
+           "backup": "x-ai/grok-stt-1.0", "backupWait": 2, "backupNote": "Grok STT (xAI) gets more technical terms wrong.",
            "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
            "polishBackup": "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together", "polishBackupWait": 0.8,
            "prompt": "v7", "wrap": true},

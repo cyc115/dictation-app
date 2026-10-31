@@ -132,7 +132,7 @@ In **Settings → Model**, pick a setup:
 
 Cloud setups send audio to OpenRouter when you stop recording. Your API key is stored in
 `~/Library/Application Support/DictationApp/secrets.json`, readable only by your user account.
-If the cloud model hasn't answered after a couple of seconds, a smaller, faster backup model is
+If the cloud model hasn't answered after a couple of seconds, a backup model on another host (Grok STT) is
 asked too and the first answer is used (Settings → *Backup model when slow*).
 
 ## Commands

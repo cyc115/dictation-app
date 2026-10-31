@@ -69,13 +69,13 @@ final class LatencyRunnerTests: XCTestCase {
         let runner = LatencyRunner()
         runner.backupWait = 0.1
         let client = FakeTranscriptionClient()  // the main model never answers
-        client.scripts["qwen/qwen3-asr-0.6b"] = FakeTranscriptionClient.Script(delay: 0, result: FakeTranscriptionClient.text("backup"))
+        client.scripts["x-ai/grok-stt-1.0"] = FakeTranscriptionClient.Script(delay: 0, result: FakeTranscriptionClient.text("backup"))
         runner.transcriptionClient = client
         let sample = try XCTUnwrap(run(runner, LatencyTrial(id: "on", file: Self.clip,
                                                             stt: "openrouter:qwen/qwen3-asr-1.7b+backup", polish: [])))
         XCTAssertEqual(sample.raw, "backup")
-        XCTAssertEqual(sample.answeredBy, "openrouter:qwen/qwen3-asr-0.6b")
-        XCTAssertEqual(client.asked.map(\.model), ["qwen/qwen3-asr-1.7b", "qwen/qwen3-asr-0.6b"])
+        XCTAssertEqual(sample.answeredBy, "openrouter:x-ai/grok-stt-1.0")
+        XCTAssertEqual(client.asked.map(\.model), ["qwen/qwen3-asr-1.7b", "x-ai/grok-stt-1.0"])
     }
 
     func testWithoutTheSuffixOnlyTheMainModelIsAsked() throws {

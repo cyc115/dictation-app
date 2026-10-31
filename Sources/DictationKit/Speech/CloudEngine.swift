@@ -76,7 +76,9 @@ final class CloudEngine: RecordingEngine, DictationEngine {
 /// On by default (Settings → Model → "Backup model when slow"); off asks the chosen model only. Cloud Flash usually answers in
 /// about a second, but in slow spells lasting minutes it takes 3–50 s (bench/results/latency/); Cloud
 /// Big's tail reaches 7 s. This also asks the setup's faster backup (`DictationSetup.backup`:
-/// a smaller sibling for Cloud Flash, Cloud Flash for Cloud Big); the first answer wins.
+/// Grok STT for Cloud Flash, Cloud Flash for Cloud Big); the first answer wins. The backup runs on
+/// another host: Cloud Flash's Qwen is only on DeepInfra, and its old backup (Qwen 0.6B, also
+/// DeepInfra) stalled with it (Oct 31: p95 16.6 s; Grok on xAI 1.3 s, worst 1.5 s).
 ///  - Normally the backup is asked only once the main model hasn't answered within its wait
 ///    (`DictationSetup.backupWait`), or failed.
 ///  - After the main model was late, both are asked at once for `spell`: the next answers would
@@ -84,7 +86,7 @@ final class CloudEngine: RecordingEngine, DictationEngine {
 ///  - Late or on time is the main model's own answer within the wait, whoever won: the backup is
 ///    faster, so judging by the winner kept a spell going for as long as the backup kept winning
 ///    (43% of real dictations went to the less accurate backup).
-/// The backup is less accurate on mixed Chinese/English with technical terms (85% vs 90%, bench/).
+/// The backup is less accurate on mixed Chinese/English with technical terms (84% vs 90%, bench/).
 /// The app keeps one instance, so a slow spell carries over between dictations.
 final class AdaptiveBackup {
     var spell: TimeInterval = 5 * 60

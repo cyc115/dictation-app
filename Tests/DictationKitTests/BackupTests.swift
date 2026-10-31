@@ -6,7 +6,7 @@ import XCTest
 final class CloudBackupTests: XCTestCase {
     typealias Client = FakeTranscriptionClient
     static let main = "qwen/qwen3-asr-1.7b"
-    static let backup = "qwen/qwen3-asr-0.6b"
+    static let backup = "x-ai/grok-stt-1.0"
 
     private func dictate(_ client: Client, backup: AdaptiveBackup?, backupWait: TimeInterval = 0.2) -> (engine: CloudEngine, text: String?, error: String?) {
         let engine = CloudEngine()
@@ -74,7 +74,7 @@ final class CloudBackupTests: XCTestCase {
     func testMainStillWinsIfItAnswersFirstAfterTheBackupStarted() {
         let client = Client()
         client.scripts[Self.main] = Client.Script(delay: 0.3, result: Client.text("from 1.7b"))
-        client.scripts[Self.backup] = Client.Script(delay: 1.0, result: Client.text("from 0.6b"))
+        client.scripts[Self.backup] = Client.Script(delay: 1.0, result: Client.text("from the backup"))
         let r = dictate(client, backup: AdaptiveBackup(), backupWait: 0.1)
         XCTAssertEqual(r.text, "from 1.7b")
         XCTAssertEqual(r.engine.lastAnsweredBy, Self.main)
@@ -117,7 +117,7 @@ final class CloudBackupTests: XCTestCase {
         wait(for: [done], timeout: 3)
         let json = try String(contentsOf: XCTUnwrap(archive.recordings.first).deletingPathExtension()
             .appendingPathExtension("json"), encoding: .utf8)
-        XCTAssertTrue(json.contains("qwen3-asr-0.6b"))
+        XCTAssertTrue(json.contains("grok-stt-1.0"))
     }
 
     // MARK: On: across dictations
@@ -146,9 +146,9 @@ final class CloudBackupTests: XCTestCase {
         shared.learn(Self.main, onTime: false)
         let client = Client()
         client.scripts[Self.main] = Client.Script(delay: 0.12, result: Client.text("from 1.7b"))
-        client.scripts[Self.backup] = Client.Script(delay: 0.02, result: Client.text("from 0.6b"))
+        client.scripts[Self.backup] = Client.Script(delay: 0.02, result: Client.text("from the backup"))
         let r = dictate(client, backup: shared, backupWait: 0.3)
-        XCTAssertEqual(r.text, "from 0.6b", "the first answer is still used")
+        XCTAssertEqual(r.text, "from the backup", "the first answer is still used")
         XCTAssertTrue(shared.inSlowSpell(Self.main), "not judged yet: the main model is still answering")
         spinRunLoop(0.2)
         XCTAssertFalse(shared.inSlowSpell(Self.main), "the main model answered within its wait: spell over")
@@ -158,7 +158,7 @@ final class CloudBackupTests: XCTestCase {
         let shared = AdaptiveBackup()
         shared.learn(Self.main, onTime: false)
         let client = Client()  // the main model never answers
-        client.scripts[Self.backup] = Client.Script(delay: 0.02, result: Client.text("from 0.6b"))
+        client.scripts[Self.backup] = Client.Script(delay: 0.02, result: Client.text("from the backup"))
         _ = dictate(client, backup: shared, backupWait: 0.1)
         spinRunLoop(0.2)
         XCTAssertTrue(shared.inSlowSpell(Self.main))

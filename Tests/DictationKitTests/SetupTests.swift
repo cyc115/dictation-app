@@ -160,6 +160,16 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(DictationSetup.currentID("cloud-big"), "cloud-big")
     }
 
+    /// Cloud Flash's Qwen is only on DeepInfra; a backup there stalls with it (Oct 31 latency run).
+    func testCloudFlashsSpeechBackupIsOnAnotherHost() {
+        XCTAssertEqual(DictationSetup.cloudFlash.openRouterID, "qwen/qwen3-asr-1.7b")
+        XCTAssertEqual(DictationSetup.cloudFlash.backup, "x-ai/grok-stt-1.0")
+        XCTAssertEqual(DictationSetup.cloudFlash.backupHelp, "If Cloud Flash hasn't answered in 2 seconds, a faster model "
+            + "from another host is asked too and the first answer is used. After a slow answer, both are asked at once "
+            + "for 5 minutes. Grok STT (xAI) gets more technical terms wrong.")
+        XCTAssertEqual(DictationSetup.cloudBig.backup, DictationSetup.cloudFlash.openRouterID)
+    }
+
     func testCapabilities() {
         XCTAssertEqual(DictationSetup.builtIns.map(\.title), ["On-device", "Cloud Flash", "Cloud Big"])
     }
