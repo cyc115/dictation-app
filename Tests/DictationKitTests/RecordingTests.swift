@@ -28,7 +28,11 @@ final class RecordingArchiveTests: XCTestCase {
             date: date, model: "apple:en-US", transcript: "hello there", seconds: 1)))
         XCTAssertFalse(FileManager.default.fileExists(atPath: source.path), "moved, not copied")
         XCTAssertEqual(kept.deletingLastPathComponent().lastPathComponent, "Recordings")
-        XCTAssertTrue(kept.lastPathComponent.hasPrefix("20261008-225700-"))
+        // Named in this Mac's time zone, whichever it is.
+        let local = DateFormatter()
+        local.locale = Locale(identifier: "en_US_POSIX")
+        local.dateFormat = "yyyyMMdd-HHmmss-"
+        XCTAssertTrue(kept.lastPathComponent.hasPrefix(local.string(from: date)), kept.lastPathComponent)
         let saved = try info(kept)
         XCTAssertEqual(saved.transcript, "hello there")
         XCTAssertEqual(saved.model, "apple:en-US")
