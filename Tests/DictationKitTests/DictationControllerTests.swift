@@ -123,7 +123,7 @@ final class DictationControllerTests: XCTestCase {
     /// nothing to your wait.
     func testHistoryIsRecordedAfterThePaste() {
         let controller = makeController()
-        let recorded = history.$entries.dropFirst().sink { [unowned self] _ in keys.append("history") }
+        let recorded = history.objectWillChange.sink { [unowned self] _ in keys.append("history") }
         defer { recorded.cancel() }
         controller.start()
         controller.stop()
@@ -271,7 +271,7 @@ final class DictationControllerTests: XCTestCase {
         let controller = makeController()
         settings.polishEnabled = true
         controller.makePolish = { _ in PolishService(backend: FakePolish(delay: 0.01)) }
-        let recorded = history.$entries.dropFirst().sink { [unowned self] _ in keys.append("history") }
+        let recorded = history.objectWillChange.sink { [unowned self] _ in keys.append("history") }
         defer { recorded.cancel() }
         controller.start()
         controller.stop()

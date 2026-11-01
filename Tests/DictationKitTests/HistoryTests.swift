@@ -1,5 +1,6 @@
 import AppKit
 import AVFoundation
+import Combine
 import XCTest
 @testable import DictationKit
 
@@ -114,6 +115,26 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(entry.text, "old")
         XCTAssertNil(entry.raw); XCTAssertNil(entry.setup); XCTAssertNil(entry.correction)
         XCTAssertEqual(entry.input, "old", "no raw: the text stands in for it")
+    }
+
+    /// Every page that shows History redraws when it publishes; a correction being typed publishes
+    /// with its save, once typing pauses, not on every keystroke.
+    func testTypingACorrectionPublishesOnceTypingPauses() {
+        let store = makeHistory(self)
+        store.add(text: "Cloud Code", duration: 1)
+        let id = store.entries[0].id
+        var published = 0
+        let watching = store.objectWillChange.sink { _ in published += 1 }
+        defer { watching.cancel() }
+        store.setCorrection("Cloud Code", for: id)
+        XCTAssertEqual(published, 1, "a new correction shows everywhere at once")
+        store.setCorrection("Claude Cod", for: id)
+        store.setCorrection("Claude Code", for: id)
+        XCTAssertEqual(published, 1, "typing doesn't publish…")
+        XCTAssertEqual(store.corrections.first?.correction, "Claude Code", "…but reads back at once")
+        waitUntil(timeout: 1) { published == 2 }  // with the save
+        store.setCorrection("", for: id)
+        XCTAssertEqual(published, 3, "removing it shows everywhere at once")
     }
 
     func testCorrectionsAreSavedEditedAndRemovedWhenEmptied() {

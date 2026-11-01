@@ -197,6 +197,40 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// Typing in a correction must not stall: with every page kept mounted (MainView) and a 2k-entry
+    /// History, each keystroke's redraw stays well under a frame.
+    func testKeystrokeInACorrectionWithEveryPageMounted() {
+        let defaults = makeDefaults(self)
+        let url = makeTempURL(self)
+        let sentence = "This is a fairly typical dictation of about twenty words, the kind people send in chat all day."
+        var entries = (0..<2_000).map {
+            HistoryEntry(date: Date().addingTimeInterval(Double(-$0 * 60)), text: sentence, duration: 6,
+                         transcribeSeconds: 0.4, polishSeconds: 0.3)
+        }
+        entries[0].correction = sentence
+        try? JSONFile.write(entries, to: url)
+        let store = HistoryStore(fileURL: url, defaults: defaults)
+        let selection = TabSelection()
+        selection.tab = .home
+        let hosted = host(MainView(selection: selection, services: makeServices(self, history: store)),
+                          size: NSSize(width: 860, height: 620))
+        let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+        NSApplication.shared.accessibilitySetValue(false, forAttribute: enhanced)
+        addTeardownBlock { NSApplication.shared.accessibilitySetValue(true, forAttribute: enhanced) }
+        for tab in MainTab.allCases { selection.tab = tab; hosted.settle() }  // every page is now kept
+        selection.tab = .corrections
+        hosted.settle()
+        let id = store.entries[0].id
+        var n = 0
+        assertFaster(than: 0.008, iterations: 20, "keystroke in a correction, every page mounted, 2k history") {
+            n += 1
+            store.setCorrection("\(sentence) \(n)", for: id)
+            spinRunLoop(0.001)
+            hosted.hostingView.layoutSubtreeIfNeeded()
+            hosted.hostingView.display()
+        }
+    }
+
     /// Also report XCTest's own metrics (visible in the test log; no pass/fail outside Xcode).
     func testMicLevelMetrics() {
         let buffer = makeBuffer(amplitude: 0.2)

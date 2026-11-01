@@ -76,7 +76,14 @@ enum HistoryRetention: String, CaseIterable {
 /// Dictation history, newest first, saved as JSON in Application Support. Never leaves the Mac.
 /// Command-mode commands are kept beside it, in their own file and list (`commands`).
 final class HistoryStore: ObservableObject {
-    @Published private(set) var entries: [HistoryEntry] = []
+    /// Published as it changes, except for a correction being typed: that publishes with its save, once
+    /// typing pauses (`CorrectionCard` shows what you type itself), so a keystroke doesn't redraw every
+    /// page that shows History — with them all kept mounted that took ~70 ms a key at 2k entries.
+    private(set) var entries: [HistoryEntry] = [] {
+        willSet { if !typing { objectWillChange.send() } }
+    }
+    private var typing = false
+    private var unpublishedEdit = false
     @Published private(set) var commands: [CommandRun] = []
     @Published var retention: HistoryRetention {
         didSet {
@@ -142,8 +149,15 @@ final class HistoryStore: ObservableObject {
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
         guard entries[i].correction != value else { return }
         let edit = entries[i].correction != nil && value != nil
+        typing = edit
         entries[i].correction = value
-        if edit { saveSoon() } else { save() }
+        typing = false
+        if edit {
+            unpublishedEdit = true
+            saveSoon()
+        } else {
+            save()
+        }
     }
 
     /// Writes an edit that's waiting for typing to pause (at quit).
@@ -190,6 +204,10 @@ final class HistoryStore: ObservableObject {
     private func save() {
         pendingSave?.cancel()
         pendingSave = nil
+        if unpublishedEdit {
+            unpublishedEdit = false
+            objectWillChange.send()
+        }
         JSONFile.save(entries, to: fileURL)
     }
 }
