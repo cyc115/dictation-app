@@ -110,7 +110,8 @@ final class LocalSpeechModel: ObservableObject {
             break
         }
         try await prepare().value
-        let samples = try Self.samples(wav)
+        let read = readSamples
+        let samples = try await Task.detached(priority: .userInitiated) { try read(wav) }.value
         let text = try await runtime.transcribe(samples, maxTokens: Self.maxTokens(seconds: Double(samples.count) / 16_000),
                                                 context: context)
         lastUsed = now()
@@ -140,6 +141,10 @@ final class LocalSpeechModel: ObservableObject {
         }
         idleTimer?.tolerance = idleCheckEvery / 2
     }
+
+    /// Reads a recording's samples (`samples(_:)`) for `transcribe`, off the main thread: a long
+    /// dictation decodes to tens of MB. Tests swap it to look.
+    var readSamples: (URL) throws -> [Float] = LocalSpeechModel.samples
 
     /// 16 kHz mono samples from a WAV the app recorded (`WAVRecorder`).
     nonisolated static func samples(_ wav: URL) throws -> [Float] {

@@ -125,6 +125,19 @@ final class LocalSpeechTests: XCTestCase {
         XCTAssertGreaterThan(samples.map(abs).max() ?? 0, 0.1)
     }
 
+    /// A long dictation's WAV decodes to tens of MB of samples: not on the main thread, where the
+    /// pill and the paste wait for it.
+    func testTheRecordingIsReadOffTheMainThread() async throws {
+        let (model, _) = model()
+        let threads = EventLog()
+        model.readSamples = { url in
+            threads.add(Thread.isMainThread ? "main" : "background")
+            return try LocalSpeechModel.samples(url)
+        }
+        _ = try await model.transcribe(wav: wav(seconds: 1))
+        XCTAssertEqual(threads.events, ["background"])
+    }
+
     // MARK: Engine
 
     /// The real LocalEngine.stop() path, as CloudBackupTests runs CloudEngine's.
