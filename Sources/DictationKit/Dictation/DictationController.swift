@@ -351,19 +351,21 @@ final class DictationController {
                 let (polished, error, polishedBy) = await polisher.polishReporting(raw)
                 let seconds = ProcessInfo.processInfo.systemUptime - started
                 overlay.hide()
-                history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt,
-                            transcribeSeconds: transcribed, polishSeconds: seconds,
-                            transcribedBy: transcribedBy, polishedBy: polishedBy)
                 type(polished, to: target, delivery: delivery) {
-                    // After typing it, so saving it adds nothing to your wait.
+                    // After typing it, so saving it (History rewrites its whole file) adds nothing to your wait.
+                    self.history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt,
+                                     transcribeSeconds: transcribed, polishSeconds: seconds,
+                                     transcribedBy: transcribedBy, polishedBy: polishedBy)
                     note?.polished(polished, seconds: seconds, error: error)
                     self.finished(delivery)
                 }
             }
         } else {
-            history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed,
-                        transcribedBy: transcribedBy)
-            type(raw, to: target, delivery: delivery) { [weak self] in self?.finished(delivery) }
+            type(raw, to: target, delivery: delivery) { [weak self] in
+                self?.history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed,
+                                  transcribedBy: transcribedBy)
+                self?.finished(delivery)
+            }
         }
     }
 }

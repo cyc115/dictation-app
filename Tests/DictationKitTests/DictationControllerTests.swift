@@ -1,4 +1,5 @@
 import AVFoundation
+import Combine
 import XCTest
 @testable import DictationKit
 
@@ -116,6 +117,18 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(idle, 1)
     }
 
+    /// History is written (the whole file) once the text is in front of you, so saving it adds
+    /// nothing to your wait.
+    func testHistoryIsRecordedAfterThePaste() {
+        let controller = makeController()
+        let recorded = history.$entries.dropFirst().sink { [unowned self] _ in keys.append("history") }
+        defer { recorded.cancel() }
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(keys, ["paste:hello world", "history"])
+    }
+
     /// A Bluetooth mic: the pill shows it starting until the mic reports live, and follows a switch.
     func testBluetoothMicShowsTheWaitUntilLive() {
         let controller = makeController()
@@ -218,6 +231,18 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(history.entries.first?.raw, "hello world")
         XCTAssertNotNil(history.entries.first?.transcribeSeconds)
         XCTAssertGreaterThanOrEqual(history.entries.first?.polishSeconds ?? 0, 0.01, "saved for Insights' time bar")
+    }
+
+    func testPolishedTextIsRecordedAfterThePaste() {
+        let controller = makeController()
+        settings.polishEnabled = true
+        controller.makePolish = { _ in PolishService(backend: FakePolish(delay: 0.01)) }
+        let recorded = history.$entries.dropFirst().sink { [unowned self] _ in keys.append("history") }
+        defer { recorded.cancel() }
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(keys, ["paste:hello world。", "history"])
     }
 
     /// Settings → Show detailed analytics shows which model answered each dictation, main or backup.
