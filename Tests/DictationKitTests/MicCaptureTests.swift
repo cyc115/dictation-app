@@ -90,6 +90,16 @@ final class MicCaptureTests: XCTestCase {
         XCTAssertTrue(opened.allSatisfy { !$0.isRunning })
     }
 
+    /// A dictation hands over the mics it already looked up; the capture opens them without looking again.
+    func testOpensTheMicsItIsGivenWithoutLookingThemUp() throws {
+        let mic = capture(backups: [FakeMics.builtIn])
+        mic.resolveInput = { _ in XCTFail("looked the mic up again"); return nil }
+        mic.backupInputs = { _ in XCTFail("looked the backups up again"); return [] }
+        try mic.start(mics: MicPick(chosen: FakeMics.wired, backups: [FakeMics.webcam]), onBuffer: { _ in }, onError: { XCTFail($0) })
+        XCTAssertEqual(mic.openDevices, [FakeMics.wired, FakeMics.webcam])
+        mic.stop()
+    }
+
     /// The Pixel Buds are chosen but in their case; you're talking into the webcam's mic. The
     /// dictation moves to it and the engine starts over with everything it heard, from the start.
     func testMovesToTheMicThatHearsYouClearlyBetter() throws {

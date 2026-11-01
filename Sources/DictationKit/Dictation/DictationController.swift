@@ -28,7 +28,9 @@ final class DictationController {
         setup.polishService(apiKey: self.settings.openRouterKey, onDevice: self.onDevicePolish(instructions:wrap:))
     }
     /// The mic a dictation with this preferred UID records from (tests fake it).
-    var activeInput: (String) -> AudioInputDevice? = { AudioDevices.activeInput(preferredUID: $0) }
+    /// The mics for a dictation, from the Microphone setting and whether Intelligent mic selection is
+    /// on: `AudioDevices.pick`, once per start (tests swap it).
+    var pickMics: (String, Bool) -> MicPick? = { AudioDevices.pick(preferredUID: $0, backups: $1) }
     /// A cloud model was chosen without an API key.
     var onMissingKey: (DictationSetup) -> Void = { _ in }
     /// `dictating` changed (the menu-bar icon follows it).
@@ -174,7 +176,8 @@ final class DictationController {
         engine.note = note
         current = Dictation(kind: kind, engine: engine, setup: setup, polisher: polisher, note: note, started: Date())
         setDictating(true)
-        let mic = activeInput(settings.microphoneUID)
+        let mics = pickMics(settings.microphoneUID, settings.intelligentMicSelection)
+        let mic = mics?.chosen
         // A Bluetooth mic takes about a second to send audio: the pill shows the wait, and the start
         // sound waits for it too, so it means "talk now".
         let warmingUp = mic?.isBluetooth == true
@@ -182,8 +185,7 @@ final class DictationController {
         cuePending = warmingUp
         if !warmingUp { startCue() }
         engine.start(
-            inputUID: settings.microphoneUID,
-            backups: settings.intelligentMicSelection,
+            mics: mics,
             onLevel: { [weak self] level in
                 guard self?.dictating == true else { return }
                 self?.overlay.setLevel(level)

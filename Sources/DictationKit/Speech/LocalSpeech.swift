@@ -281,10 +281,10 @@ final class LocalEngine: RecordingEngine, DictationEngine {
         self.model = model
     }
 
-    override func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
+    override func start(mics: MicPick?, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
                         onError: @escaping (String) -> Void) {
         MainActor.assumeIsolated { _ = model.prepare() }  // loads while you speak
-        super.start(inputUID: inputUID, backups: backups, onLevel: onLevel, onMic: onMic, onError: onError)
+        super.start(mics: mics, onLevel: onLevel, onMic: onMic, onError: onError)
     }
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {

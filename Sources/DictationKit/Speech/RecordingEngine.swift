@@ -24,11 +24,17 @@ class RecordingEngine {
         recordings.append(buffer)
     }
 
+    /// `start(mics:)` with the mics looked up here, for tests and probes.
     func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
+               onError: @escaping (String) -> Void) {
+        start(mics: mic.pick(inputUID, backups: backups), onLevel: onLevel, onMic: onMic, onError: onError)
+    }
+
+    func start(mics: MicPick?, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
                onError: @escaping (String) -> Void) {
         guard beginRecording() else { return onError("Couldn't create a recording file.") }
         // A better mic won (onRestart): its audio from the start replaces what was recorded.
-        mic.startDictation(inputUID: inputUID, backups: backups, onBuffer: { [weak self] in self?.record($0) }, onLevel: onLevel,
+        mic.startDictation(mics: mics, onBuffer: { [weak self] in self?.record($0) }, onLevel: onLevel,
                   onEvent: onMic, onRestart: { [weak self] in self?.beginRecording() ?? false }, onError: onError)
     }
 

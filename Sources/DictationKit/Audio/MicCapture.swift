@@ -138,12 +138,11 @@ final class MicCapture {
 
     /// `start` for a dictation, reporting a mic that won't open through `onError`. False if it didn't open.
     @discardableResult
-    func startDictation(inputUID: String, backups: Bool, onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
+    func startDictation(mics: MicPick?, onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
                onLevel: @escaping (Float) -> Void, onEvent: @escaping (MicEvent) -> Void,
                onRestart: @escaping () -> Bool, onError: @escaping (String) -> Void) -> Bool {
         do {
-            try start(inputUID: inputUID, backups: backups, onBuffer: onBuffer, onLevel: onLevel, onEvent: onEvent,
-                      onRestart: onRestart, onError: onError)
+            try start(mics: mics, onBuffer: onBuffer, onLevel: onLevel, onEvent: onEvent, onRestart: onRestart, onError: onError)
             return true
         } catch {
             onError("could not open microphone: \(error.localizedDescription)")
@@ -163,12 +162,28 @@ final class MicCapture {
     func start(inputUID: String, backups: Bool = false, onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
                onLevel: ((Float) -> Void)? = nil, onEvent: ((MicEvent) -> Void)? = nil,
                onRestart: (() -> Bool)? = nil, onError: @escaping (String) -> Void) throws {
-        stop()
-        let chosen = resolveInput(inputUID)
-        if !inputUID.isEmpty, chosen?.uid != inputUID {
+        try start(mics: pick(inputUID, backups: backups), onBuffer: onBuffer, onLevel: onLevel, onEvent: onEvent,
+                  onRestart: onRestart, onError: onError)
+    }
+
+    /// The mics `start(inputUID:)` opens, found as `AudioDevices.pick` does (through `resolveInput` and
+    /// `backupInputs`, which tests swap).
+    func pick(_ inputUID: String, backups: Bool) -> MicPick? {
+        guard let chosen = resolveInput(inputUID) else { return nil }
+        if !inputUID.isEmpty, chosen.uid != inputUID {
             Self.log.error("input \(inputUID, privacy: .public) isn't connected; using the default")
         }
-        guard let chosen else { throw TranscriptionError.message("no microphone is connected") }
+        return MicPick(chosen: chosen, backups: backups ? backupInputs(chosen) : [])
+    }
+
+    /// `start` with the mics already looked up (a dictation looks them up once, for the pill and for
+    /// here); nil: no microphone is connected.
+    func start(mics: MicPick?, onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
+               onLevel: ((Float) -> Void)? = nil, onEvent: ((MicEvent) -> Void)? = nil,
+               onRestart: (() -> Bool)? = nil, onError: @escaping (String) -> Void) throws {
+        stop()
+        guard let mics else { throw TranscriptionError.message("no microphone is connected") }
+        let chosen = mics.chosen
         let source = Source(device: chosen, index: 0)
         let generation: Int = locked {
             handlers = Handlers(buffer: onBuffer, level: onLevel, event: onEvent, restart: onRestart, error: onError)
@@ -190,7 +205,7 @@ final class MicCapture {
         let check = DispatchWorkItem { [weak self] in self?.reportIfSilent() }
         noAudioCheck = check
         DispatchQueue.main.asyncAfter(deadline: .now() + noAudioAfter, execute: check)
-        if backups { openBackups(backupInputs(chosen), generation: generation) }
+        if !mics.backups.isEmpty { openBackups(mics.backups, generation: generation) }
     }
 
     func stop() {

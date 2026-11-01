@@ -49,13 +49,19 @@ class SpeechEngine {
     func start(inputUID: String = "", backups: Bool = false, onLevel: @escaping (Float) -> Void,
                onMic: @escaping (MicEvent) -> Void = { _ in },
                onUtterance: ((String) -> Void)? = nil, onError: @escaping (String) -> Void) {
+        start(mics: mic.pick(inputUID, backups: backups), onLevel: onLevel, onMic: onMic, onUtterance: onUtterance, onError: onError)
+    }
+
+    /// `start` with the mics already looked up (`DictationEngine.start(mics:)`).
+    func start(mics: MicPick?, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
+               onUtterance: ((String) -> Void)?, onError: @escaping (String) -> Void) {
         guard let (recognizer, request, id) = prepare(onError: onError) else { return }
 
         startRecording()
         restartWith = (recognizer, onUtterance, onError)
         handedOut = false
         // The request is only swapped by `restart`, while no audio is handed on.
-        guard mic.startDictation(inputUID: inputUID, backups: backups, onBuffer: { [weak self] buffer in
+        guard mic.startDictation(mics: mics, onBuffer: { [weak self] buffer in
             self?.request?.append(buffer)
             self?.recordings.append(buffer)
         }, onLevel: onLevel, onEvent: onMic, onRestart: { [weak self] in self?.restart() ?? false }, onError: onError) else {

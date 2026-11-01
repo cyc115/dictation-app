@@ -10,9 +10,10 @@ protocol DictationEngine: AnyObject {
     var archive: RecordingArchive? { get set }
     /// Set with `archive`, before each dictation: the polish half of its JSON.
     var note: RecordingNote? { get set }
-    /// `backups`: Intelligent mic selection (also record from the other wired and built-in mics and
-    /// move to the one that hears you best). `onMic` gets the mic's events on the main queue.
-    func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
+    /// `mics`: the mic to record from and, with Intelligent mic selection, the backups (also recorded
+    /// from, moving to the one that hears you best); nil when none is connected (reported through
+    /// `onError`). `onMic` gets the mic's events on the main queue.
+    func start(mics: MicPick?, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
                onError: @escaping (String) -> Void)
     /// Ends recording; exactly one of `completion` / `failure` is called on the main queue.
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void)
@@ -48,9 +49,9 @@ extension SpeechEngine: DictationEngine {
         get { SpeechContext(words: contextualWords) }
         set { contextualWords = newValue.words }
     }
-    func start(inputUID: String, backups: Bool, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
+    func start(mics: MicPick?, onLevel: @escaping (Float) -> Void, onMic: @escaping (MicEvent) -> Void,
                onError: @escaping (String) -> Void) {
-        start(inputUID: inputUID, backups: backups, onLevel: onLevel, onMic: onMic, onUtterance: nil, onError: onError)
+        start(mics: mics, onLevel: onLevel, onMic: onMic, onUtterance: nil, onError: onError)
     }
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
         if mic.heardOnlySilence {

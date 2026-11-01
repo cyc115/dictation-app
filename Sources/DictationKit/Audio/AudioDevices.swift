@@ -3,6 +3,7 @@ import AVFoundation
 import AudioToolbox
 import CoreAudio
 import IOKit
+import os
 
 struct AudioInputDevice: Hashable {
     let id: AudioDeviceID
@@ -13,6 +14,13 @@ struct AudioInputDevice: Hashable {
     var isBluetooth = false
 }
 
+/// The mics a dictation records from: the one `chosen` (the preferred mic if it's connected, else the
+/// system default input) and, with Intelligent mic selection, the `backups` opened alongside it.
+struct MicPick: Equatable {
+    let chosen: AudioInputDevice
+    var backups: [AudioInputDevice] = []
+}
+
 /// CoreAudio helpers: list microphones, pick the one to record from, read/write output mute and volume.
 enum AudioDevices {
     static func inputDevices() -> [AudioInputDevice] {
@@ -20,40 +28,55 @@ enum AudioDevices {
     }
 
     /// The microphone `id`, if it is one.
-    static func input(_ id: AudioDeviceID) -> AudioInputDevice? {
+    static func input(_ id: AudioDeviceID) -> AudioInputDevice? { input(id, transport: transportType(id)) }
+
+    private static func input(_ id: AudioDeviceID, transport: UInt32) -> AudioInputDevice? {
         guard inputChannelCount(id) > 0,
               let uid = stringProperty(id, kAudioDevicePropertyDeviceUID),
               let name = stringProperty(id, kAudioObjectPropertyName) else { return nil }
-        let transport = transportType(id)
         return AudioInputDevice(id: id, uid: uid, name: name,
                                 isBluetooth: transport == kAudioDeviceTransportTypeBluetooth
                                     || transport == kAudioDeviceTransportTypeBluetoothLE)
     }
 
-    /// The microphone with `uid`, if it's connected (nil for an empty uid).
-    static func connectedInput(uid: String) -> AudioInputDevice? {
-        uid.isEmpty ? nil : inputDevices().first { $0.uid == uid }
-    }
-
     static func defaultInputDevice() -> AudioDeviceID? { defaultDevice(kAudioHardwarePropertyDefaultInputDevice) }
 
-    /// The mic a dictation will actually use: the preferred one if it's connected, otherwise the
-    /// system default input.
-    static func activeInput(preferredUID: String) -> AudioInputDevice? {
-        connectedInput(uid: preferredUID) ?? defaultInputDevice().flatMap(input)
+    /// The mics a dictation records from, in one pass over the devices (each question CoreAudio is
+    /// asked is a round trip to coreaudiod, and it's asked several per device): `chosen` is the
+    /// preferred mic if it's connected, else the system default input; nil when none is connected.
+    /// With `backups`, Intelligent mic selection's backups too: every other connected mic that's real
+    /// wired or built-in hardware. Not Bluetooth (opening a headset's mic drops its audio to call
+    /// quality), virtual devices (Steam, Jump Desktop), an iPhone's Continuity mic, or the Mac's own
+    /// mic while the lid is closed (it then records pure silence).
+    static func pick(preferredUID: String, backups: Bool) -> MicPick? {
+        let lidClosed = backups && isLidClosed()
+        var inputs: [(device: AudioInputDevice, backup: Bool)] = []
+        for id in allDevices() {
+            let transport = transportType(id)
+            guard let device = input(id, transport: transport) else { continue }
+            inputs.append((device, wiredTransports.contains(transport) && !(lidClosed && transport == kAudioDeviceTransportTypeBuiltIn)))
+        }
+        let preferred = preferredUID.isEmpty ? nil : inputs.first { $0.device.uid == preferredUID }?.device
+        guard let chosen = preferred ?? defaultInputDevice().flatMap({ id in inputs.first { $0.device.id == id }?.device }) else {
+            return nil
+        }
+        if preferred == nil, !preferredUID.isEmpty {
+            log.error("input \(preferredUID, privacy: .public) isn't connected; using the default")
+        }
+        return MicPick(chosen: chosen, backups: backups ? inputs.filter { $0.backup && $0.device.id != chosen.id }.map(\.device) : [])
     }
 
-    /// Intelligent mic selection's backups: every connected mic that's real wired or built-in
-    /// hardware, besides `chosen`. Not Bluetooth (opening a headset's mic drops its audio to call
-    /// quality), virtual devices (Steam, Jump Desktop), an iPhone's Continuity mic, or the Mac's
-    /// own mic while the lid is closed (it then records pure silence).
-    static func backupInputs(excluding chosen: AudioInputDevice) -> [AudioInputDevice] {
-        let lidClosed = isLidClosed()
-        return allDevices().filter { id in
-            let transport = transportType(id)
-            return wiredTransports.contains(transport) && !(lidClosed && transport == kAudioDeviceTransportTypeBuiltIn)
-        }.compactMap(input).filter { $0.id != chosen.id }
+    /// The mic a dictation will actually use (`pick` without the backups).
+    static func activeInput(preferredUID: String) -> AudioInputDevice? {
+        pick(preferredUID: preferredUID, backups: false)?.chosen
     }
+
+    /// Intelligent mic selection's backups besides `chosen` (see `pick`).
+    static func backupInputs(excluding chosen: AudioInputDevice) -> [AudioInputDevice] {
+        pick(preferredUID: chosen.uid, backups: true)?.backups ?? []
+    }
+
+    private static let log = Logger(subsystem: "com.mikechen.DictationApp", category: "mic")
 
     private static let wiredTransports: Set<UInt32> = [
         kAudioDeviceTransportTypeBuiltIn, kAudioDeviceTransportTypeUSB, kAudioDeviceTransportTypeFireWire,
