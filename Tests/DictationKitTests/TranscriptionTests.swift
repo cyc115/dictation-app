@@ -89,12 +89,6 @@ final class WAVRecorderTests: XCTestCase {
 /// the moment of upload. Regression for "Provider could not process the audio input": the
 /// file was uploaded unfinished (header declaring 0 bytes), which Qwen rejects.
 final class CloudEngineTests: XCTestCase {
-    private func feedSpeech(_ engine: CloudEngine, seconds: Double) {
-        for _ in 0..<Int(seconds * 48_000 / 1024) {
-            engine.record(AudioLevelTests.buffer(amplitude: 0.2))  // 48 kHz mono, 1024 frames
-        }
-    }
-
     private func u32(_ d: Data, _ at: Int) -> Int {
         Int(d[at]) | Int(d[at + 1]) << 8 | Int(d[at + 2]) << 16 | Int(d[at + 3]) << 24
     }
@@ -105,13 +99,11 @@ final class CloudEngineTests: XCTestCase {
         engine.client = fake
         engine.modelID = "qwen/qwen3-asr-1.7b"
         XCTAssertTrue(engine.beginRecording())
-        feedSpeech(engine, seconds: 1)
-        let done = expectation(description: "stopped")
-        var text: String?
-        engine.stop(completion: { text = $0; done.fulfill() }, failure: { XCTFail($0); done.fulfill() })
-        wait(for: [done], timeout: 2)
+        feedSpeech(engine)
+        let result = stopAndWait(engine, timeout: 2)
+        XCTAssertNil(result.error)
 
-        XCTAssertEqual(text, "ok")
+        XCTAssertEqual(result.text, "ok")
         XCTAssertEqual(fake.asked.map(\.model), ["qwen/qwen3-asr-1.7b"])
         let wav = try XCTUnwrap(fake.uploadedData)
         XCTAssertEqual(String(decoding: wav.prefix(4), as: UTF8.self), "RIFF")
@@ -131,7 +123,7 @@ final class CloudEngineTests: XCTestCase {
         engine.client = fake
         engine.modelID = "hang"
         XCTAssertTrue(engine.beginRecording())
-        feedSpeech(engine, seconds: 1)
+        feedSpeech(engine)
         engine.stop(completion: { _ in XCTFail("hung upload answered") }, failure: { XCTFail($0) })
         let wav = try XCTUnwrap(engine.uploading?.url)
         XCTAssertTrue(FileManager.default.fileExists(atPath: wav.path))
@@ -144,10 +136,8 @@ final class CloudEngineTests: XCTestCase {
         let engine = CloudEngine()
         engine.client = FakeTranscriptionClient(text: "ok")
         XCTAssertTrue(engine.beginRecording())
-        feedSpeech(engine, seconds: 1)
-        let done = expectation(description: "stopped")
-        engine.stop(completion: { _ in done.fulfill() }, failure: { XCTFail($0); done.fulfill() })
-        wait(for: [done], timeout: 2)
+        feedSpeech(engine)
+        XCTAssertNil(stopAndWait(engine, timeout: 2).error)
         XCTAssertNil(engine.uploading)
     }
 
@@ -157,9 +147,7 @@ final class CloudEngineTests: XCTestCase {
         engine.client = fake
         XCTAssertTrue(engine.beginRecording())
         feedSpeech(engine, seconds: 0.1)
-        let done = expectation(description: "stopped")
-        engine.stop(completion: { XCTAssertEqual($0, ""); done.fulfill() }, failure: { _ in done.fulfill() })
-        wait(for: [done], timeout: 2)
+        XCTAssertEqual(stopAndWait(engine, timeout: 2).text, "")
         XCTAssertNil(fake.uploaded, "a tap of the key shouldn't cost an API call")
     }
 
@@ -169,21 +157,16 @@ final class CloudEngineTests: XCTestCase {
         fake.answer = .init(result: FakeTranscriptionClient.error("Provider could not process the audio input"))
         engine.client = fake
         XCTAssertTrue(engine.beginRecording())
-        feedSpeech(engine, seconds: 1)
-        let done = expectation(description: "stopped")
-        engine.stop(completion: { _ in XCTFail("should fail"); done.fulfill() },
-                    failure: { XCTAssertTrue($0.contains("Provider")); done.fulfill() })
-        wait(for: [done], timeout: 2)
+        feedSpeech(engine)
+        let result = stopAndWait(engine, timeout: 2)
+        XCTAssertNil(result.text)
+        XCTAssertTrue(result.error?.contains("Provider") == true, result.error ?? "no error")
     }
 
     /// Same path against the real API. Opt-in: LIVE_OPENROUTER=1 OPENROUTER_API_KEY=…
     func testLiveUploadThroughCloudEngine() throws {
-        let env = ProcessInfo.processInfo.environment
-        guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_API_KEY"] else {
-            throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_API_KEY to run")
-        }
-        let src = try AVAudioFile(forReading: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../../bench/audio/mixed-01.wav").standardized)
+        let key = try liveOpenRouterKey()
+        let src = try AVAudioFile(forReading: benchFolder.appendingPathComponent("audio/mixed-01.wav"))
         let input = AVAudioPCMBuffer(pcmFormat: src.processingFormat, frameCapacity: AVAudioFrameCount(src.length))!
         try src.read(into: input)
         // Every model the app can ask, backups included.
@@ -197,11 +180,9 @@ final class CloudEngineTests: XCTestCase {
             engine.apiKey = key
             XCTAssertTrue(engine.beginRecording())
             engine.record(input)  // 16 kHz clip; WAVRecorder converts whatever the mic format is
-            let done = expectation(description: "\(model)")
-            var text = ""
-            engine.stop(completion: { text = $0; done.fulfill() },
-                        failure: { XCTFail("\(model): \($0)"); done.fulfill() })
-            wait(for: [done], timeout: 60)
+            let result = stopAndWait(engine, timeout: 60)
+            XCTAssertNil(result.error, model)
+            let text = result.text ?? ""
             XCTAssertTrue(text.lowercased().contains("repository"), "\(model): \(text)")
         }
     }

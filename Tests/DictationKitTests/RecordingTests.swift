@@ -11,7 +11,7 @@ final class RecordingArchiveTests: XCTestCase {
     private func wav(seconds: Double) throws -> URL {
         let url = makeTempURL(self, "\(UUID().uuidString).wav")
         let recorder = try WAVRecorder(url: url)
-        for _ in 0..<Int(seconds * 48_000 / 1024) { recorder.append(AudioLevelTests.buffer(amplitude: 0.2)) }
+        for _ in 0..<Int(seconds * 48_000 / 1024) { recorder.append(makeBuffer(amplitude: 0.2)) }
         recorder.finish()
         return url
     }
@@ -58,10 +58,8 @@ final class KeepRecordingsEngineTests: XCTestCase {
         engine.archive = archive
         engine.note = note
         XCTAssertTrue(engine.beginRecording())
-        for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }  // 1 s
-        let done = expectation(description: "stopped")
-        engine.stop(completion: { _ in done.fulfill() }, failure: { _ in done.fulfill() })
-        wait(for: [done], timeout: 2)
+        feedSpeech(engine)
+        _ = stopAndWait(engine, timeout: 2)
     }
 
     func testCloudDictationIsKeptWithItsTranscript() throws {
@@ -100,19 +98,19 @@ final class KeepRecordingsEngineTests: XCTestCase {
         engine.archive = archive
         engine.localeIdentifier = "zh-CN"
         var recorder = try XCTUnwrap(engine.startRecording())
-        for _ in 0..<47 { recorder.append(AudioLevelTests.buffer(amplitude: 0.2)) }  // what the mic tap does
+        for _ in 0..<47 { recorder.append(makeBuffer(amplitude: 0.2)) }  // what the mic tap does
         engine.finishRecording(transcript: "你好")
         XCTAssertEqual(archive.recordings.count, 1)
         let json = try String(contentsOf: archive.recordings[0].deletingPathExtension().appendingPathExtension("json"), encoding: .utf8)
         XCTAssertTrue(json.contains("apple:zh-CN") && json.contains("你好"))
 
         recorder = try XCTUnwrap(engine.startRecording())
-        for _ in 0..<47 { recorder.append(AudioLevelTests.buffer(amplitude: 0.2)) }
+        for _ in 0..<47 { recorder.append(makeBuffer(amplitude: 0.2)) }
         engine.cancel()
         XCTAssertFalse(FileManager.default.fileExists(atPath: recorder.url.path), "cancelled dictations are thrown away")
 
         recorder = try XCTUnwrap(engine.startRecording())
-        recorder.append(AudioLevelTests.buffer(amplitude: 0.2))  // a tap of the key
+        recorder.append(makeBuffer(amplitude: 0.2))  // a tap of the key
         engine.finishRecording(transcript: "")
         XCTAssertEqual(archive.recordings.count, 1, "too short to keep")
     }
@@ -154,7 +152,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
         engine.note = note
         let recorder = try XCTUnwrap(engine.startRecording())
         engine.note = RecordingNote(polishModel: nil)  // the next dictation starts first
-        for _ in 0..<47 { recorder.append(AudioLevelTests.buffer(amplitude: 0.2)) }
+        for _ in 0..<47 { recorder.append(makeBuffer(amplitude: 0.2)) }
         engine.finishRecording(transcript: "hello")
         let saved = try info(try XCTUnwrap(archive.recordings.first))
         XCTAssertEqual(saved.polishEnabled, true, "uses the note from when this recording started")

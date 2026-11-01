@@ -4,8 +4,7 @@ import XCTest
 /// The turnaround benchmark's in-app side: real CloudEngine stop → upload path and
 /// PolishService, with fakes standing in for the network.
 final class LatencyRunnerTests: XCTestCase {
-    static let clip = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-        .appendingPathComponent("../../bench/audio/mixed-01.wav").standardized.path
+    static let clip = benchFolder.appendingPathComponent("audio/mixed-01.wav").path
 
     private func run(_ runner: LatencyRunner, _ trial: LatencyTrial) -> LatencySample? {
         let done = expectation(description: trial.id)

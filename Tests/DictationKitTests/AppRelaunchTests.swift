@@ -15,7 +15,7 @@ final class MicSilenceTests: XCTestCase {
     }
 
     private func feed(_ deliver: (AVAudioPCMBuffer) -> Void, amplitude: Float, count: Int) {
-        for _ in 0..<count { deliver(AudioLevelTests.buffer(amplitude: amplitude)) }
+        for _ in 0..<count { deliver(makeBuffer(amplitude: amplitude)) }
     }
 
     func testAllZeroAudioIsFlaggedAfterHalfASecond() throws {
@@ -51,7 +51,7 @@ final class MicSilenceTests: XCTestCase {
         let mic = MicCapture()
         var got = 0
         let deliver = try start(mic, onBuffer: { _ in got += 1 })
-        deliver(AudioLevelTests.buffer(amplitude: 0))
+        deliver(makeBuffer(amplitude: 0))
         XCTAssertEqual(got, 1)
     }
 
@@ -63,12 +63,10 @@ final class MicSilenceTests: XCTestCase {
         engine.modelID = CloudBackupTests.main
         let mics = FakeMics(engine.mic)
         engine.start(inputUID: "", backups: false, onLevel: { _ in }, onMic: { _ in }, onError: { XCTFail($0) })
-        for _ in 0..<47 { mics.feeds[FakeMics.wired.id]?(AudioLevelTests.buffer(amplitude: 0)) }  // 1 s of zeros through the tap path
-        let done = expectation(description: "stopped")
-        var error: String?
-        engine.stop(completion: { XCTFail("got text: \($0)"); done.fulfill() }, failure: { error = $0; done.fulfill() })
-        wait(for: [done], timeout: 2)
-        XCTAssertEqual(error, MicCapture.silenceMessage)
+        for _ in 0..<47 { mics.feeds[FakeMics.wired.id]?(makeBuffer(amplitude: 0)) }  // 1 s of zeros through the tap path
+        let result = stopAndWait(engine, timeout: 2)
+        XCTAssertNil(result.text, "got text")
+        XCTAssertEqual(result.error, MicCapture.silenceMessage)
         XCTAssertTrue(client.asked.isEmpty, "silence isn't sent to the cloud model")
     }
 

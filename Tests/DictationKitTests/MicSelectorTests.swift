@@ -61,7 +61,7 @@ final class MicSelectorTests: XCTestCase {
     }
 
     func testDecibels() {
-        XCTAssertEqual(MicSelector.decibels(of: AudioLevelTests.buffer(amplitude: 0)), MicSelector.silence)
-        XCTAssertEqual(MicSelector.decibels(of: AudioLevelTests.buffer(amplitude: 0.1)), -23, accuracy: 0.5)  // sine RMS = A/√2
+        XCTAssertEqual(MicSelector.decibels(of: makeBuffer(amplitude: 0)), MicSelector.silence)
+        XCTAssertEqual(MicSelector.decibels(of: makeBuffer(amplitude: 0.1)), -23, accuracy: 0.5)  // sine RMS = A/√2
     }
 }

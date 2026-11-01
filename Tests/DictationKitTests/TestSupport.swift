@@ -60,6 +60,23 @@ final class FakeMics {
     }
 }
 
+/// This checkout: tests read the bench's cases and fixtures and the app's own sources from it.
+let repoRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../..").standardized
+/// The bench folder of this checkout (`bench/`).
+let benchFolder = repoRoot.appendingPathComponent("bench")
+/// The app's code (`Sources/DictationKit`).
+let sourcesFolder = repoRoot.appendingPathComponent("Sources/DictationKit")
+
+/// The API key for a test that calls the real OpenRouter; skips the test unless `./test.sh --live`
+/// opted in (LIVE_OPENROUTER=1 OPENROUTER_API_KEY=…).
+func liveOpenRouterKey() throws -> String {
+    let env = ProcessInfo.processInfo.environment
+    guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_API_KEY"] else {
+        throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_API_KEY to run")
+    }
+    return key
+}
+
 /// For AppSettings in tests: no custom setups, never the user's own setups.json.
 let noCustomSetups = URL(fileURLWithPath: "/nonexistent/DictationAppTests/setups.json")
 
@@ -115,10 +132,15 @@ func fakeSystem(_ mode: CommandMode, message: String = "Done", ran: @escaping (S
     mode.typeText = { _ in }
 }
 
+/// An empty History in a throwaway file with throwaway defaults: never the user's own.
+func makeHistory(_ test: XCTestCase) -> HistoryStore {
+    HistoryStore(fileURL: makeTempURL(test), defaults: makeDefaults(test))
+}
+
 /// The app's shared objects with nothing of yours in them: `settings` (else `makeSettings`), a
 /// throwaway History, Insights and recordings folder, and an empty commands folder.
 func makeServices(_ test: XCTestCase, settings: AppSettings? = nil, history: HistoryStore? = nil) -> AppServices {
-    let history = history ?? HistoryStore(fileURL: makeTempURL(test), defaults: makeDefaults(test))
+    let history = history ?? makeHistory(test)
     let commands = CommandMode(folder: makeTempURL(test, "Commands"), history: history)
     fakeSystem(commands)
     commands.apps = { [:] }  // not this Mac's
@@ -260,6 +282,32 @@ final class FakePolish: PolishBackend {
     }
 }
 
+/// One mic buffer as CoreAudio delivers them (48 kHz mono, 1024 frames): a 440 Hz tone at `amplitude`.
+func makeBuffer(amplitude: Float, frames: Int = 1024) -> AVAudioPCMBuffer {
+    let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
+    let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames))!
+    buffer.frameLength = AVAudioFrameCount(frames)
+    let samples = buffer.floatChannelData![0]
+    for i in 0..<frames { samples[i] = amplitude * sin(Float(i) * 2 * .pi * 440 / 48_000) }
+    return buffer
+}
+
+/// Records `seconds` of speech-level audio into `engine`, buffer by buffer as the mic tap would.
+func feedSpeech(_ engine: RecordingEngine, seconds: Double = 1) {
+    for _ in 0..<Int((seconds * 48_000 / 1024).rounded(.up)) { engine.record(makeBuffer(amplitude: 0.2)) }
+}
+
+extension XCTestCase {
+    /// The engine's real `stop`, waited for: the text it gave, or the error it reported.
+    func stopAndWait(_ engine: DictationEngine, timeout: TimeInterval = 3) -> (text: String?, error: String?) {
+        let done = expectation(description: "stopped")
+        var text: String?, error: String?
+        engine.stop(completion: { text = $0; done.fulfill() }, failure: { error = $0; done.fulfill() })
+        wait(for: [done], timeout: timeout)
+        return (text, error)
+    }
+}
+
 /// Spins the main run loop until `done` (fails after `timeout`).
 func waitUntil(timeout: TimeInterval = 2, file: StaticString = #filePath, line: UInt = #line, _ done: () -> Bool) {
     let end = Date().addingTimeInterval(timeout)
@@ -344,10 +392,36 @@ final class HostedView<Content: View> {
 
     /// Text of every node (label + value), for "is this string on screen" checks.
     var allText: String {
-        elements { _ in true }.map { "\($0.label ?? "") \($0.value ?? "")" }.joined(separator: "\n")
+        elements { _ in true }.map(\.text).joined(separator: "\n")
     }
 
     func close() { window.close() }
+}
+
+extension XCTestCase {
+    /// A `HostedView` of `view`, closed when the test ends.
+    func host<V: View>(_ view: V, size: NSSize, appearance: NSAppearance.Name = .aqua) -> HostedView<V> {
+        let hosted = HostedView(view, size: size, appearance: appearance)
+        addTeardownBlock { hosted.close() }
+        return hosted
+    }
+
+    /// The Settings page for `services`, hosted at its real width and tall enough to show every section.
+    func hostSettings(_ services: AppServices, height: CGFloat = 3000) -> HostedView<SettingsView> {
+        host(SettingsView(services: services), size: NSSize(width: 640, height: height))
+    }
+
+    /// The pill's window, hidden when the test ends. `fixedScale`: its panel is an `OffscreenPanel`,
+    /// so a snapshot of it doesn't depend on the display the mouse is on.
+    func makeOverlay(fixedScale: Bool = false) -> OverlayWindow {
+        let overlay = OverlayWindow()
+        if fixedScale {
+            overlay.makePanel = { OffscreenPanel(contentRect: $0, styleMask: [.borderless, .nonactivatingPanel],
+                                                 backing: .buffered, defer: false) }
+        }
+        addTeardownBlock { overlay.hide() }
+        return overlay
+    }
 }
 
 /// A window whose drawing doesn't depend on the display it's on; `assertSnapshot` only takes these.
@@ -380,6 +454,10 @@ struct AXNode {
     var label: String? { attr("accessibilityLabel") as? String }
     var value: String? { attr("accessibilityValue").map { "\($0)" } }
     var frame: NSRect? { (attr("accessibilityFrame") as? NSValue)?.rectValue }
+    /// Whether the control takes input; nil when the node isn't a control.
+    var isEnabled: Bool? { object.value(forKey: "accessibilityEnabled") as? Bool }
+    /// Label and value together, for "does this node say X" checks.
+    var text: String { "\(label ?? "") \(value ?? "")" }
     var children: [AXNode] {
         var objects = ((attr("accessibilityChildren") as? [Any]) ?? []).compactMap { $0 as? NSObject }
         // List rows host their content in separate views that aren't always linked into the

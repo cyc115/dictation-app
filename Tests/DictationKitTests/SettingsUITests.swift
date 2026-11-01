@@ -7,11 +7,7 @@ import XCTest
 /// (and a user) would, and checks the app state they change.
 final class SettingsUITests: XCTestCase {
     private func host(_ settings: AppSettings, history: HistoryStore? = nil) -> HostedView<SettingsView> {
-        let history = history ?? HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let hosted = HostedView(SettingsView(services: makeServices(self, settings: settings, history: history)),
-                                size: NSSize(width: 640, height: 3000))
-        addTeardownBlock { hosted.close() }
-        return hosted
+        hostSettings(makeServices(self, settings: settings, history: history))
     }
 
     func testEverySettingIsReachable() {
@@ -71,9 +67,8 @@ final class SettingsUITests: XCTestCase {
     func testDecidersRowLeadsToInstallingIt() {
         var opened: [URL] = [], launched = 0
         func row(_ status: LocalDecider.Status) -> HostedView<some View> {
-            let hosted = HostedView(Form { Section { LocalDeciderRow(check: { status }, openURL: { opened.append($0) }, launch: { launched += 1 }) } }
+            let hosted = host(Form { Section { LocalDeciderRow(check: { status }, openURL: { opened.append($0) }, launch: { launched += 1 }) } }
                 .formStyle(.grouped), size: NSSize(width: 640, height: 160))
-            addTeardownBlock { hosted.close() }
             return hosted
         }
         func button(_ title: String, in hosted: HostedView<some View>) -> AXNode? { hosted.elements { $0.label == title }.first }
@@ -118,7 +113,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(settings.backupWhenSlow, "on by default")
         let hosted = host(settings)
         let id = "setting.Backup model when slow"
-        XCTAssertEqual(hosted.element(id: id)?.object.value(forKey: "accessibilityEnabled") as? Bool, false,
+        XCTAssertEqual(hosted.element(id: id)?.isEnabled, false,
                        "On-device has no backup")
 
         settings.setOpenRouterKey("sk-or-v1-test")
@@ -135,7 +130,7 @@ final class SettingsUITests: XCTestCase {
         settings.setup = .cloudFlash
         hosted.settle()
         XCTAssertTrue(settings.effectiveBackup, "Cloud Flash has a backup")
-        XCTAssertEqual(hosted.element(id: id)?.object.value(forKey: "accessibilityEnabled") as? Bool, true)
+        XCTAssertEqual(hosted.element(id: id)?.isEnabled, true)
 
         settings.setup = .onDevice
         hosted.settle()
@@ -190,7 +185,7 @@ final class SettingsUITests: XCTestCase {
         let settings = makeSettings(self)
         let hosted = host(settings)
         func enabled() -> Bool? {
-            hosted.element(id: "setting.Activation")?.object.value(forKey: "accessibilityEnabled") as? Bool
+            hosted.element(id: "setting.Activation")?.isEnabled
         }
         XCTAssertEqual(enabled(), true)
         settings.hotkey = .off
@@ -217,7 +212,7 @@ final class SettingsUITests: XCTestCase {
         settings.setOpenRouterKey("test-key")
         let hosted = host(settings)
         func enabled() -> Bool? {
-            hosted.element(id: "setting.Command mode")?.object.value(forKey: "accessibilityEnabled") as? Bool
+            hosted.element(id: "setting.Command mode")?.isEnabled
         }
         XCTAssertEqual(enabled(), true)
         settings.mouseEnterButton = .off
@@ -232,7 +227,7 @@ final class SettingsUITests: XCTestCase {
         let settings = makeSettings(self)
         let hosted = host(settings)
         func enabled() -> Bool? {
-            hosted.element(id: "setting.Command mode")?.object.value(forKey: "accessibilityEnabled") as? Bool
+            hosted.element(id: "setting.Command mode")?.isEnabled
         }
         XCTAssertEqual(enabled(), false)
         XCTAssertFalse(settings.commandModeOn)

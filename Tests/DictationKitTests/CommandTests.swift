@@ -200,7 +200,7 @@ final class CommandTests: XCTestCase {
     /// spoken, and the open apps, each once.
     func testTheSpeechModelIsToldTheCommandsWords() {
         let mode = CommandMode(folder: folder(["tail-error-log.py": brightness]),
-                               history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
+                               history: makeHistory(self))
         mode.running = { ["Muse", "Ghostty"] }
         let words = mode.speechContext().words
         XCTAssertEqual(Array(words.prefix(2)), ["press Enter", "send"])
@@ -361,7 +361,7 @@ final class CommandTests: XCTestCase {
     private var typed: [String] = []
 
     private func makeMode(_ decision: CommandDecision, log: EventLog = EventLog()) -> CommandMode {
-        let mode = CommandMode(folder: folder(["window.py": window]), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
+        let mode = CommandMode(folder: folder(["window.py": window]), history: makeHistory(self))
         mode.makeDecider = { _, _ in FakeDecider(decision: decision, log: log) }
         mode.runScript = { [unowned self] url, choice, said in
             ran.append(url.deletingPathExtension().lastPathComponent + " " + (choice ?? "-"))
@@ -845,11 +845,8 @@ final class CommandTests: XCTestCase {
     /// nothing on this Mac changes). Opt-in: ./test.sh --live (LIVE_OPENROUTER=1 OPENROUTER_API_KEY=…, ~$0.0004).
     @MainActor
     func testLiveJevPicksTheBuiltInCommands() async throws {
-        let env = ProcessInfo.processInfo.environment
-        guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_API_KEY"] else {
-            throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_API_KEY to run")
-        }
-        let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
+        let key = try liveOpenRouterKey()
+        let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: makeHistory(self))
         fakeSystem(mode)
         mode.running = { ["Ghostty", "Safari", "WeChat"] }
         mode.pressReturn = {}
@@ -878,7 +875,7 @@ final class CommandTests: XCTestCase {
     func testLiveLocalDeciderPicksTheBuiltInCommands() async throws {
         guard ProcessInfo.processInfo.environment["LIVE_OPENROUTER"] == "1" else { throw XCTSkip("./test.sh --live runs it") }
         guard await LocalDecider.status() == .ready else { throw XCTSkip("open Decider for Mac to run it") }
-        let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
+        let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: makeHistory(self))
         fakeSystem(mode)
         mode.running = { ["Ghostty", "Safari", "WeChat"] }
         mode.pressReturn = {}
@@ -898,10 +895,7 @@ final class CommandTests: XCTestCase {
     /// Jev on a connection opened 1 s before (as command recording starts) vs a new one: prints both
     /// waits, so `./test.sh --live` shows what `prepare` saves on this network (~$0.0008).
     func testLiveJevOnAPreparedConnection() async throws {
-        let env = ProcessInfo.processInfo.environment
-        guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_API_KEY"] else {
-            throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_API_KEY to run")
-        }
+        let key = try liveOpenRouterKey()
         let commands = Command.builtIn
         var cold: [Double] = [], prepared: [Double] = []
         for _ in 0..<4 {
@@ -925,11 +919,8 @@ final class CommandTests: XCTestCase {
     /// script into an empty folder, and the app can read it (not run). Opt-in like the one above (~$0.001).
     @MainActor
     func testLiveCreateWritesACommand() async throws {
-        let env = ProcessInfo.processInfo.environment
-        guard env["LIVE_OPENROUTER"] == "1", let key = env["OPENROUTER_API_KEY"] else {
-            throw XCTSkip("set LIVE_OPENROUTER=1 and OPENROUTER_API_KEY to run")
-        }
-        let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
+        let key = try liveOpenRouterKey()
+        let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: makeHistory(self))
         fakeSystem(mode)
         let started = Date()
         let run = await mode.handle("create command, um, tell me the battery percentage", apiKey: key)

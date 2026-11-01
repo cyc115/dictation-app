@@ -130,14 +130,13 @@ final class RecentLatencyTests: XCTestCase {
         XCTAssertFalse(settings.showDetailedAnalytics)
         let selection = TabSelection()
         selection.tab = .settings
-        let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let history = makeHistory(self)
         Self.tonight.reversed().forEach { e in
             history.add(text: e.text, duration: e.duration, transcribeSeconds: e.transcribeSeconds, polishSeconds: e.polishSeconds,
                         transcribedBy: e.transcribedBy, polishedBy: e.polishedBy, date: Date().addingTimeInterval(e.date.timeIntervalSince(Self.now)))
         }
-        let hosted = HostedView(MainView(selection: selection, services: makeServices(self, settings: settings, history: history)),
-                                size: NSSize(width: 860, height: 2800))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(MainView(selection: selection, services: makeServices(self, settings: settings, history: history)),
+                          size: NSSize(width: 860, height: 2800))
         selection.tab = .home
         hosted.settle()
         XCTAssertNotNil(hosted.element(id: "insights.breakdown"))
@@ -160,8 +159,7 @@ final class RecentLatencyTests: XCTestCase {
     }
 
     func testWindowPickerChangesTheRows() throws {
-        let hosted = HostedView(RecentLatencyView(entries: Self.tonight, now: Self.now), size: NSSize(width: 680, height: 1400))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(RecentLatencyView(entries: Self.tonight, now: Self.now), size: NSSize(width: 680, height: 1400))
         XCTAssertEqual(hosted.elements(id: "recent.row").count, 11)
         // A click on the "10 min" segment: NSSegmentedControl selects it, then sends its action.
         let picker = try XCTUnwrap(hosted.elements { $0.object is NSSegmentedControl }.first?.object as? NSSegmentedControl)
@@ -174,21 +172,16 @@ final class RecentLatencyTests: XCTestCase {
     }
 
     func testEmptyWindowSaysSo() {
-        let hosted = HostedView(RecentLatencyView(entries: [Self.entry(60, 1, 0.2)], now: Self.now, window: .tenMinutes),
-                                size: NSSize(width: 680, height: 300))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(RecentLatencyView(entries: [Self.entry(60, 1, 0.2)], now: Self.now, window: .tenMinutes),
+                          size: NSSize(width: 680, height: 300))
         XCTAssertNotNil(hosted.element(id: "recent.empty"))
         XCTAssertNil(hosted.element(id: "recent.typical"))
     }
 
     func testStatsAndComparisonsOnScreen() {
         let usual = TimeBreakdown(speaking: 13.9, transcribing: 1.3, polishing: 0.3, count: 100)
-        let hosted = HostedView(RecentLatencyView(entries: Self.tonight, usual: usual, now: Self.now), size: NSSize(width: 680, height: 1400))
-        addTeardownBlock { hosted.close() }
-        func text(_ id: String) -> String {
-            guard let node = hosted.element(id: id) else { return "<missing \(id)>" }
-            return "\(node.label ?? "") \(node.value ?? "")"
-        }
+        let hosted = host(RecentLatencyView(entries: Self.tonight, usual: usual, now: Self.now), size: NSSize(width: 680, height: 1400))
+        func text(_ id: String) -> String { hosted.element(id: id)?.text ?? "<missing \(id)>" }
         XCTAssertTrue(text("recent.typical").contains("6.2"), text("recent.typical"))
         XCTAssertTrue(text("recent.slowest").contains("29.9"), text("recent.slowest"))
         XCTAssertTrue(text("recent.slow").contains("7") && text("recent.slow").contains("of 11"), text("recent.slow"))

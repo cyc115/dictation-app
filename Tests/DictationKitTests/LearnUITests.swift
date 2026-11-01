@@ -54,8 +54,7 @@ struct LearnFixture {
 
     /// The tile measures the current prompt as it appears; this waits for that to finish.
     func host(_ test: XCTestCase, height: CGFloat = 900) -> HostedView<CorrectionsView> {
-        let hosted = HostedView(CorrectionsView(store: history, learn: controller), size: NSSize(width: 760, height: height))
-        test.addTeardownBlock { hosted.close() }
+        let hosted = test.host(CorrectionsView(store: history, learn: controller), size: NSSize(width: 760, height: height))
         waitUntil(timeout: 5) { !controller.measuring }
         hosted.settle()
         return hosted
@@ -85,8 +84,7 @@ final class LearnUITests: XCTestCase {
     func testTheTileMeasuresTheCurrentPromptWhenItHasNothingToShow() {
         let fx = LearnFixture(self, studentDelay: 0.3)
         XCTAssertNil(fx.store.measurement(setup: "cloud-flash", prompt: "v7"))
-        let hosted = HostedView(CorrectionsView(store: fx.history, learn: fx.controller), size: NSSize(width: 760, height: 600))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(CorrectionsView(store: fx.history, learn: fx.controller), size: NSSize(width: 760, height: 600))
         hosted.settle()
         XCTAssertEqual(fx.controller.gate, .measuring)
         XCTAssertEqual(hosted.element(id: "learn.button")?.label, "Measuring…")
@@ -188,7 +186,7 @@ final class LearnUITests: XCTestCase {
         droppedHosted.settle()
         XCTAssertEqual(dropped.controller.result?.verdict, .generalDropped)
         XCTAssertEqual(droppedHosted.element(id: "learn.verdict")?.value, "Not kept: the general set dropped more than 2 points.")
-        XCTAssertEqual(droppedHosted.element(id: "learn.keep")?.object.value(forKey: "accessibilityEnabled") as? Bool, false)
+        XCTAssertEqual(droppedHosted.element(id: "learn.keep")?.isEnabled, false)
         XCTAssertEqual(droppedHosted.element(id: "learn.score.general")?.label, "50, %, -50, General test set · guard")
         dropped.controller.keep()
         XCTAssertNil(dropped.store.active(for: "cloud-flash"), "keep() refuses a failed verdict")
@@ -207,16 +205,14 @@ final class LearnUITests: XCTestCase {
 
     func testSettingsOffersThePromptVersions() {
         let fx = LearnFixture(self)
-        let hosted = HostedView(SettingsView(services: makeServices(self, settings: fx.settings, history: fx.history)),
-                                size: NSSize(width: 640, height: 2300))
-        addTeardownBlock { hosted.close() }
+        let hosted = hostSettings(makeServices(self, settings: fx.settings, history: fx.history), height: 2300)
         let row = "setting.Polish prompt"
         XCTAssertFalse(fx.settings.polishEnabled)
-        XCTAssertEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, false, "no polish, no prompt to choose")
+        XCTAssertEqual(hosted.element(id: row)?.isEnabled, false, "no polish, no prompt to choose")
         XCTAssertTrue(hosted.allText.contains("Turn on AI polish to choose the prompt it polishes with."))
         fx.settings.polishEnabled = true
         hosted.settle()
-        XCTAssertNotEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, false,
+        XCTAssertNotEqual(hosted.element(id: row)?.isEnabled, false,
                           "nothing learned yet: the prompt in use is shown, not greyed out")
         XCTAssertFalse(hosted.allText.contains("Unavailable"), hosted.allText)
         XCTAssertTrue(hosted.allText.contains("Learn one from your corrections in the Corrections tab."))
@@ -226,7 +222,7 @@ final class LearnUITests: XCTestCase {
         fx.store.keep(makeLearned(errors: [id: 0.0], errorsBefore: [id: 0.2]))
         waitUntil { fx.settings.setup.prompt == "v8" }
         hosted.settle()
-        XCTAssertEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, true)
+        XCTAssertEqual(hosted.element(id: row)?.isEnabled, true)
         XCTAssertTrue(hosted.allText.contains("v8 · learned from 15 corrections: 65% → 74% on them, general set 71%."), hosted.allText)
         XCTAssertTrue(hosted.allText.contains("v8 · 74% · from v7 · Oct 13"), hosted.allText)
 
@@ -246,11 +242,9 @@ final class LearnUITests: XCTestCase {
         let fx = LearnFixture(self, setup: .onDevice)
         fx.settings.polishEnabled = true
         fx.store.keep(makeLearned())
-        let hosted = HostedView(SettingsView(services: makeServices(self, settings: fx.settings, history: fx.history)),
-                                size: NSSize(width: 640, height: 2300))
-        addTeardownBlock { hosted.close() }
+        let hosted = hostSettings(makeServices(self, settings: fx.settings, history: fx.history), height: 2300)
         let row = "setting.Polish prompt"
-        XCTAssertNotEqual(hosted.element(id: row)?.object.value(forKey: "accessibilityEnabled") as? Bool, false, "v8 can be chosen here")
+        XCTAssertNotEqual(hosted.element(id: row)?.isEnabled, false, "v8 can be chosen here")
         XCTAssertTrue(hosted.allText.contains("The built-in prompt."), hosted.allText)
 
         fx.store.activate("v8", for: "on-device")

@@ -5,7 +5,7 @@ import XCTest
 
 final class HistoryUITests: XCTestCase {
     private func makeStore() -> HistoryStore {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "Hello from the history page.", duration: 2)
         store.add(text: "还有一个问题，中英文混用 works too.", duration: 3)
         return store
@@ -17,8 +17,7 @@ final class HistoryUITests: XCTestCase {
         addTeardownBlock { HistoryRow.pasteboard = .general }
 
         let store = makeStore()
-        let hosted = HostedView(HistoryView(store: store), size: NSSize(width: 760, height: 560))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(HistoryView(store: store), size: NSSize(width: 760, height: 560))
 
         let copyButtons = hosted.elements(id: "history.copy")
         XCTAssertEqual(copyButtons.count, 2, "one copy button per entry")
@@ -28,25 +27,22 @@ final class HistoryUITests: XCTestCase {
     }
 
     func testEmptyStateWhenNoHistory() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let hosted = HostedView(HistoryView(store: store), size: NSSize(width: 760, height: 400))
-        addTeardownBlock { hosted.close() }
+        let store = makeHistory(self)
+        let hosted = host(HistoryView(store: store), size: NSSize(width: 760, height: 400))
         XCTAssertTrue(hosted.elements(id: "history.copy").isEmpty)
         XCTAssertEqual(hosted.element(id: "history.empty").flatMap { $0.label ?? $0.value }?.hasPrefix("No dictations yet"), true)
     }
 
     func testEmptyStateSaysWhereToTurnHistoryBackOn() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.retention = .off
-        let hosted = HostedView(HistoryView(store: store), size: NSSize(width: 760, height: 400))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(HistoryView(store: store), size: NSSize(width: 760, height: 400))
         XCTAssertEqual(hosted.element(id: "history.empty").flatMap { $0.label ?? $0.value }?.contains("Settings"), true)
     }
 
     func testNewDictationAppearsLive() {
         let store = makeStore()
-        let hosted = HostedView(HistoryView(store: store), size: NSSize(width: 760, height: 560))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(HistoryView(store: store), size: NSSize(width: 760, height: 560))
         store.add(text: "Just dictated.", duration: 1)
         hosted.settle()
         XCTAssertEqual(hosted.elements(id: "history.copy").count, 3)
@@ -55,11 +51,10 @@ final class HistoryUITests: XCTestCase {
 
 final class CorrectionsUITests: XCTestCase {
     func testPencilMakesACorrectionAndOpensIt() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "Can you install Cloud Code?", duration: 2)
         var opened: UUID?
-        let hosted = HostedView(HistoryView(store: store, onCorrect: { opened = $0 }), size: NSSize(width: 760, height: 400))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(HistoryView(store: store, onCorrect: { opened = $0 }), size: NSSize(width: 760, height: 400))
         let pencil = hosted.element(id: "history.correct")
         XCTAssertEqual(pencil?.label, "Correct this dictation")
         XCTAssertTrue(pencil.map(hosted.click) ?? false)
@@ -72,13 +67,12 @@ final class CorrectionsUITests: XCTestCase {
     }
 
     func testCardsShowBothSidesAndTypingSaves() throws {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "Can you install Cloud Code?", duration: 2, raw: "can you install cloud code", setup: "cloud-flash", prompt: "v3")
         store.add(text: "Not corrected.", duration: 1)
         let id = store.entries[1].id
         store.setCorrection("Can you install Claude Code?", for: id)
-        let hosted = HostedView(CorrectionsView(store: store, editing: id), size: NSSize(width: 760, height: 480))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(CorrectionsView(store: store, editing: id), size: NSSize(width: 760, height: 480))
 
         XCTAssertEqual(hosted.elements(id: "corrections.card").count, 1, "only corrected dictations")
         XCTAssertTrue(hosted.allText.contains("Cloud Flash · prompt v3"), hosted.allText)
@@ -107,13 +101,12 @@ final class CorrectionsUITests: XCTestCase {
     }
 
     func testPencilPrefillsACloudPolishOfWhatYouSaid() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "Can you install Cloud Code?", duration: 2, raw: "can you install cloud code", setup: "cloud-flash", prompt: "v3")
         let log = EventLog()
         let polish = FakePolish(delay: 0.5, output: "Can you install Claude Code?", log: log)
         let suggester = CorrectionSuggester { polish }
-        let hosted = HostedView(HistoryView(store: store, suggester: suggester), size: NSSize(width: 760, height: 400))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(HistoryView(store: store, suggester: suggester), size: NSSize(width: 760, height: 400))
         hosted.click(hosted.element(id: "history.correct")!)
         XCTAssertEqual(store.entries[0].correction, "Can you install Cloud Code?", "the app's text until the model answers")
         XCTAssertEqual(suggester.pending, [store.entries[0].id])
@@ -135,7 +128,7 @@ final class CorrectionsUITests: XCTestCase {
     }
 
     func testSuggestionDoesNotOverwriteWhatYouTyped() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "Cloud Code", duration: 1)
         let suggester = CorrectionSuggester { FakePolish(delay: 0.2, output: "Claude Code") }
         store.setCorrection("Cloud Code", for: store.entries[0].id)
@@ -146,7 +139,7 @@ final class CorrectionsUITests: XCTestCase {
     }
 
     func testSuggestionFailureKeepsTheAppsTextAndSaysWhy() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "Cloud Code", duration: 1)
         let suggester = CorrectionSuggester { FakePolish(error: .failed("No credits.")) }
         store.setCorrection("Cloud Code", for: store.entries[0].id)
@@ -172,13 +165,9 @@ final class InsightsUITests: XCTestCase {
         let insights = Insights(defaults: makeDefaults(self))
         // 19,400 words over 3h31m.
         insights.record(text: Array(repeating: "w", count: 19_400).joined(separator: " "), duration: 3 * 3600 + 31 * 60)
-        let hosted = HostedView(InsightsView(insights: insights), size: NSSize(width: 600, height: 260))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(InsightsView(insights: insights), size: NSSize(width: 600, height: 260))
 
-        func text(_ caption: String) -> String {
-            guard let card = hosted.element(id: "insights." + caption) else { return "<missing>" }
-            return "\(card.label ?? "") \(card.value ?? "")"
-        }
+        func text(_ caption: String) -> String { hosted.element(id: "insights." + caption)?.text ?? "<missing>" }
         XCTAssertTrue(text("Words dictated").contains("19.4K"), text("Words dictated"))
         XCTAssertTrue(text("Total dictation time").contains("3") && text("Total dictation time").contains("31"),
                       text("Total dictation time"))

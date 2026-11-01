@@ -127,8 +127,7 @@ final class SystemCommandsTests: XCTestCase {
     /// bench/built_in_commands.json is what the bench asks the deciders and the writer about: the
     /// app's built-ins, word for word (open's, switch-app's and fix's choices come from this Mac).
     func testTheBenchKnowsTheBuiltInCommands() throws {
-        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../../bench/built_in_commands.json").standardizedFileURL
+        let file = benchFolder.appendingPathComponent("built_in_commands.json")
         let bench = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [[String: Any]])
         let app: [[String: Any]] = Command.builtIn.map { command in
             ["name": command.name, "summary": command.summary,
@@ -139,8 +138,7 @@ final class SystemCommandsTests: XCTestCase {
 
     /// The bench tells its deciders what the app's are told about misheard speech, word for word.
     func testTheBenchToldTheDecidersTheSpeechMayBeMisheard() throws {
-        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../../bench/suites/commands.py").standardizedFileURL
+        let file = benchFolder.appendingPathComponent("suites/commands.py")
         XCTAssertTrue(try String(contentsOf: file, encoding: .utf8).contains("HEARD = \"\(CommandDecision.heard)\""))
     }
 }

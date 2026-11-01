@@ -22,8 +22,7 @@ final class SettingsCommandTests: XCTestCase {
 
     /// Every `@Setting` in Settings.swift is on the command line, so a new one can't be left out.
     func testEverySettingIsListed() throws {
-        let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../../Sources/DictationKit/Settings/Settings.swift").standardizedFileURL
+        let source = sourcesFolder.appendingPathComponent("Settings/Settings.swift")
         let declared = try String(contentsOf: source, encoding: .utf8).components(separatedBy: "@Setting(\"").dropFirst()
             .compactMap { $0.split(separator: "\"").first.map(String.init) }
         XCTAssertGreaterThan(declared.count, 15)

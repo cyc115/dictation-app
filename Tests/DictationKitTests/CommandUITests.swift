@@ -5,10 +5,9 @@ import XCTest
 
 final class CommandUITests: XCTestCase {
     func testHistoryShowsTheCommandsSwitchOnlyOnceThereAreCommands() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "hello", duration: 1)
-        let hosted = HostedView(HistoryView(store: store), size: NSSize(width: 760, height: 400))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(HistoryView(store: store), size: NSSize(width: 760, height: 400))
         XCTAssertNil(hosted.element(id: "history.list"))
         store.addCommand(CommandRun(said: "mute", command: "volume", choice: "mute", ok: true, result: "Muted"))
         spinRunLoop(0.05)
@@ -18,13 +17,12 @@ final class CommandUITests: XCTestCase {
     }
 
     func testRunAgainRunsTheCommandAsItWas() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.addCommand(CommandRun(said: "brighter", command: "volume", choice: "+10", ok: true, result: "Volume 50%"))
         let mode = CommandMode(folder: makeTempURL(self, "Commands"), history: store)
         var ran: [String] = []
         fakeSystem(mode, message: "Volume 60%") { ran.append($0) }
-        let hosted = HostedView(HistoryView(store: store, commandMode: mode, shown: .commands), size: NSSize(width: 760, height: 400))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(HistoryView(store: store, commandMode: mode, shown: .commands), size: NSSize(width: 760, height: 400))
         XCTAssertEqual(hosted.elements(id: "history.command").count, 1)
         XCTAssertTrue(hosted.click(try! XCTUnwrap(hosted.element(id: "history.runAgain"))))
         waitUntil { store.commands.count == 2 }
@@ -45,8 +43,7 @@ final class CommandUITests: XCTestCase {
         for (name, text) in scripts { try text.write(to: folder.appendingPathComponent(name), atomically: true, encoding: .utf8) }
         let view = CommandsView(mode: services.commands, settings: services.settings, history: services.history, search: search,
                                 onOpenSettings: onOpenSettings, trash: { try FileManager.default.removeItem(at: $0) })
-        let hosted = HostedView(view, size: NSSize(width: 760, height: 1400))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(view, size: NSSize(width: 760, height: 1400))
         return (hosted, folder, services)
     }
 
@@ -63,8 +60,7 @@ final class CommandUITests: XCTestCase {
     func testSettingsTurnsCommandModeOnAndSendsYouToTheTab() {
         let services = makeServices(self)
         var shown = 0
-        let hosted = HostedView(SettingsView(services: services, onShowCommands: { shown += 1 }), size: NSSize(width: 640, height: 3000))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(SettingsView(services: services, onShowCommands: { shown += 1 }), size: NSSize(width: 640, height: 3000))
         XCTAssertNotNil(hosted.element(id: "setting.Command mode"))
         XCTAssertNil(hosted.element(id: "command.volume"), "the list is in the Commands tab")
         XCTAssertTrue(hosted.click(try! XCTUnwrap(hosted.element(id: "setting.Commands"))))

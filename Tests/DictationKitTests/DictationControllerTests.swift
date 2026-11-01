@@ -65,10 +65,11 @@ final class DictationControllerTests: XCTestCase {
     private var desk = FakeDesk()
 
     /// `realEngines`: the app's own engine choice instead of `engine`.
-    private func makeController(realEngines: Bool = false, overlay: OverlayWindow = OverlayWindow()) -> DictationController {
+    private func makeController(realEngines: Bool = false, overlay: OverlayWindow? = nil) -> DictationController {
+        let overlay = overlay ?? makeOverlay(fixedScale: true)
         settings = makeSettings(self)
         settings.interactionSounds = false
-        history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        history = makeHistory(self)
         insights = Insights(defaults: makeDefaults(self))
         engine = FakeEngine()
         let pasteboard = makePasteboard(self)
@@ -82,9 +83,6 @@ final class DictationControllerTests: XCTestCase {
             keys.append("paste:" + (pasted.last ?? ""))
         }
         injector.postReturn = { [unowned self] in keys.append("return") }
-        overlay.makePanel = { OffscreenPanel(contentRect: $0, styleMask: [.borderless, .nonactivatingPanel],
-                                             backing: .buffered, defer: false) }
-        addTeardownBlock { overlay.hide() }
         commands = CommandMode(folder: makeTempURL(self, "Commands"), history: history)
         fakeSystem(commands, message: "Volume 40%") { [unowned self] in ran.append($0) }
         commands.makeDecider = { [unowned self] _, _ in FakeDecider(decision: decision, log: decided) }

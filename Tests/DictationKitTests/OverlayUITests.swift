@@ -5,11 +5,10 @@ import XCTest
 
 final class OverlayUITests: XCTestCase {
     func testListeningPillAtBottomCenterWithButtons() throws {
-        let overlay = OverlayWindow()
+        let overlay = makeOverlay()
         var confirmed = 0, cancelled = 0
         overlay.onConfirm = { confirmed += 1 }
         overlay.onCancel = { cancelled += 1 }
-        addTeardownBlock { overlay.hide() }
 
         overlay.showListening()
         spinRunLoop(0.2)
@@ -33,8 +32,7 @@ final class OverlayUITests: XCTestCase {
     }
 
     func testWaveformFollowsLevelOnlyWhileListening() {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         overlay.showListening()
         XCTAssertEqual(overlay.waveform.levels.max(), 0)
         overlay.setLevel(0.9)
@@ -46,8 +44,7 @@ final class OverlayUITests: XCTestCase {
     }
 
     func testMessageModeWidensAndHidesButtons() throws {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         overlay.show(.plain("On-device recognition unavailable — check Dictation languages", seconds: 10))
         XCTAssertNotNil(overlay.panel)
         XCTAssertEqual(overlay.mode, .message)
@@ -58,8 +55,7 @@ final class OverlayUITests: XCTestCase {
     }
 
     func testMicNameShownUnderWaveform() throws {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         overlay.showListening(micName: "MacBook Pro Microphone")
         XCTAssertFalse(overlay.micLabel.isHidden)
         XCTAssertTrue(overlay.micLabel.stringValue.hasSuffix("MacBook Pro Microphone"), overlay.micLabel.stringValue)
@@ -75,8 +71,7 @@ final class OverlayUITests: XCTestCase {
 
     /// A Bluetooth mic: the pill says it's starting, with ✓ dimmed, until the first real audio.
     func testSlowMicShowsStartingUntilLive() throws {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         var clock: TimeInterval = 100
         overlay.now = { clock }
         overlay.reduceMotion = { false }
@@ -109,8 +104,7 @@ final class OverlayUITests: XCTestCase {
 
     /// Stop: the listening pill narrows into the processing one instead of jumping to it.
     func testStopNarrowsIntoTheProcessingPill() throws {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         var clock: TimeInterval = 0
         overlay.now = { clock }
         overlay.showListening(micName: "MacBook Pro Microphone")
@@ -139,8 +133,7 @@ final class OverlayUITests: XCTestCase {
     /// Cloud Flash's text (~0.5 s) can land while the pill is still narrowing (0.4 s), and polish
     /// then asks for the processing pill again: the narrowing carries on instead of jumping to its end.
     func testProcessingAgainDoesntCutTheNarrowingShort() {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         var clock: TimeInterval = 0
         overlay.now = { clock }
         overlay.showListening(micName: "MacBook Pro Microphone")
@@ -154,8 +147,7 @@ final class OverlayUITests: XCTestCase {
     /// The window keeps its size when the narrowing ends: resizing it then could show the pill a
     /// frame out of place, a flash.
     func testNarrowingEndsWithoutResizingTheWindow() throws {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         var clock: TimeInterval = 0
         overlay.now = { clock }
         overlay.showListening(micName: "MacBook Pro Microphone")
@@ -173,16 +165,14 @@ final class OverlayUITests: XCTestCase {
     }
 
     func testProcessingFromHiddenAppearsAtOnce() {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         overlay.showProcessing()
         XCTAssertFalse(overlay.isNarrowing)
         XCTAssertEqual(overlay.pillFrame.width, PillLayout.processingWidth)
     }
 
     func testMessageDuringNarrowingWins() {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         overlay.showListening(micName: "MacBook Pro Microphone")
         overlay.showProcessing()
         overlay.show(.plain("Couldn't reach the cloud model", seconds: 10))
@@ -192,8 +182,7 @@ final class OverlayUITests: XCTestCase {
     }
 
     func testFastMicSkipsTheWait() {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         overlay.showListening(micName: "MacBook Pro Microphone")
         XCTAssertFalse(overlay.isWarmingUp)
         overlay.micLive()  // every mic reports live; only a waiting pill reacts
@@ -203,8 +192,7 @@ final class OverlayUITests: XCTestCase {
 
     /// Intelligent mic selection moved to a better mic: its name, a yellow flash, the wait over.
     func testSwitchedMicFlashesYellowWithItsName() throws {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         var clock: TimeInterval = 0
         overlay.now = { clock }
         overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
@@ -228,8 +216,7 @@ final class OverlayUITests: XCTestCase {
 
     /// No audio 3 s in: a red glow fades in, and stays until audio arrives.
     func testNoAudioGlowsRedUntilLive() throws {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         var clock: TimeInterval = 0
         overlay.now = { clock }
         overlay.showListening(micName: "USB Mic")
@@ -252,8 +239,7 @@ final class OverlayUITests: XCTestCase {
     }
 
     func testOtherModesEndTheWait() {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
         overlay.show(.plain("The microphone sent only silence.", seconds: 10))
         XCTAssertFalse(overlay.isWarmingUp)
@@ -264,8 +250,7 @@ final class OverlayUITests: XCTestCase {
     }
 
     func testFullMicNameFitsWithoutTruncation() throws {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         for name in ["MacBook Pro Microphone", "iPhone (53) Microphone", "HD Pro Webcam C920", "Steam Streaming Microphone"] {
             overlay.showListening(micName: name)
             let needed = overlay.micLabel.attributedStringValue.size().width

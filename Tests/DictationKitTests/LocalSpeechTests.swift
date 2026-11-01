@@ -17,7 +17,7 @@ final class LocalSpeechTests: XCTestCase {
     private func wav(seconds: Double = 2) throws -> URL {
         let url = makeTempURL(self, "clip.wav")
         let recorder = try WAVRecorder(url: url)
-        for _ in 0..<Int(seconds * 47) { recorder.append(AudioLevelTests.buffer(amplitude: 0.2)) }
+        for _ in 0..<Int(seconds * 47) { recorder.append(makeBuffer(amplitude: 0.2)) }
         recorder.finish()
         return url
     }
@@ -134,12 +134,10 @@ final class LocalSpeechTests: XCTestCase {
         let engine = LocalEngine(model: model)
         engine.archive = archive
         XCTAssertTrue(engine.beginRecording())
-        for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }  // 1 s
-        let done = expectation(description: "stopped")
-        var text: String?
-        engine.stop(completion: { text = $0; done.fulfill() }, failure: { XCTFail($0); done.fulfill() })
-        wait(for: [done], timeout: 3)
-        XCTAssertEqual(text, "帮我 build 一下")
+        feedSpeech(engine)
+        let result = stopAndWait(engine, timeout: 3)
+        XCTAssertNil(result.error)
+        XCTAssertEqual(result.text, "帮我 build 一下")
         XCTAssertEqual(engine.lastAnswer, ModelAnswer(main: "local:test/qwen"), "History names the model")
         XCTAssertEqual(runtime.log, ["load", "transcribe"])
         XCTAssertEqual(runtime.contexts, [""], "plain dictation: no context")
@@ -154,10 +152,8 @@ final class LocalSpeechTests: XCTestCase {
         let engine = LocalEngine(model: model)
         engine.context = SpeechContext(words: ["press Enter", "brightness"])
         XCTAssertTrue(engine.beginRecording())
-        for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }
-        let done = expectation(description: "stopped")
-        engine.stop(completion: { _ in done.fulfill() }, failure: { XCTFail($0); done.fulfill() })
-        wait(for: [done], timeout: 3)
+        feedSpeech(engine)
+        XCTAssertNil(stopAndWait(engine, timeout: 3).error)
         XCTAssertEqual(runtime.contexts, [engine.context.prompt])
         XCTAssertEqual(engine.context.prompt, "press Enter, brightness")
     }
@@ -167,12 +163,10 @@ final class LocalSpeechTests: XCTestCase {
         runtime.error = LocalSpeechError.notLoaded
         let engine = LocalEngine(model: model)
         XCTAssertTrue(engine.beginRecording())
-        for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }
-        let done = expectation(description: "stopped")
-        var message: String?
-        engine.stop(completion: { _ in XCTFail("no text"); done.fulfill() }, failure: { message = $0; done.fulfill() })
-        wait(for: [done], timeout: 3)
-        XCTAssertEqual(message, "The on-device model isn't loaded.")
+        feedSpeech(engine)
+        let result = stopAndWait(engine, timeout: 3)
+        XCTAssertNil(result.text)
+        XCTAssertEqual(result.error, "The on-device model isn't loaded.")
         XCTAssertNil(engine.lastAnswer)
     }
 
@@ -191,9 +185,9 @@ final class LocalSpeechTests: XCTestCase {
         }
         wait(for: [loaded], timeout: 1800)
         XCTAssertEqual(model.state, .ready)
-        let bench = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../bench/audio")
+        let bench = benchFolder.appendingPathComponent("audio")
         // A command's context (what command mode gives it) mustn't change what it hears in a dictation.
-        let commandWords = CommandMode(folder: makeTempURL(self), history: HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self)))
+        let commandWords = CommandMode(folder: makeTempURL(self), history: makeHistory(self))
             .speechContext()
         var clips = [("mixed-01", ["帮我", "build", "push", "repository"]), ("english-01", ["notes", "meeting"]), ("chinese-01", ["天气", "公园"])]
             .flatMap { clip, heard in [(bench.appendingPathComponent(clip + ".wav"), heard, SpeechContext.none),
@@ -214,12 +208,11 @@ final class LocalSpeechTests: XCTestCase {
             engine.context = context
             XCTAssertTrue(engine.beginRecording())
             XCTAssertTrue(LatencyRunner.read(wav, into: engine.record))
-            let done = expectation(description: clip)
-            var text = ""
             let started = Date()
-            engine.stop(completion: { text = $0; done.fulfill() }, failure: { XCTFail("\(clip): \($0)"); done.fulfill() })
-            wait(for: [done], timeout: 30)
+            let result = stopAndWait(engine, timeout: 30)
             let seconds = Date().timeIntervalSince(started)
+            XCTAssertNil(result.error, clip)
+            let text = result.text ?? ""
             print("[local] \(clip): \(String(format: "%.2f", seconds)) s — \(text)")
             for word in heard { XCTAssertTrue(text.lowercased().contains(word), "\(clip): \(text)") }
             XCTAssertLessThan(seconds, 3, "\(clip): stop to text")
@@ -288,11 +281,7 @@ final class LocalSpeechTests: XCTestCase {
         let runtime = FakeSpeechRuntime()
         let model = LocalSpeechModel(repo: DictationSetup.onDevice.localModelID!, runtime: runtime)
         state(runtime, model)
-        let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let hosted = HostedView(SettingsView(services: makeServices(self, settings: makeSettings(self, localModel: model), history: history)),
-                                size: NSSize(width: 640, height: 2100))
-        addTeardownBlock { hosted.close() }
-        return hosted
+        return hostSettings(makeServices(self, settings: makeSettings(self, localModel: model)), height: 2100)
     }
 
     func testSettingsShowsTheModelInsteadOfALanguage() {

@@ -11,8 +11,7 @@ final class SidebarTests: XCTestCase {
         for tab in MainTab.allCases {
             let selection = TabSelection()
             selection.tab = tab
-            let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-            let hosted = HostedView(MainView(selection: selection, services: makeServices(self, history: history)), size: NSSize(width: 860, height: 620))
+            let hosted = HostedView(MainView(selection: selection, services: makeServices(self)), size: NSSize(width: 860, height: 620))
             let sidebar = hosted.elements { $0.object is NSTableView }.first?.object as? NSTableView
             XCTAssertEqual(sidebar?.numberOfRows, MainTab.allCases.count)
             XCTAssertEqual(sidebar?.selectedRow, MainTab.allCases.firstIndex(of: tab), "\(tab.title) row highlighted")
@@ -26,10 +25,8 @@ final class KeptPagesTests: XCTestCase {
     private func host(_ tab: MainTab, settings: AppSettings? = nil) -> (HostedView<MainView>, TabSelection) {
         let selection = TabSelection()
         selection.tab = tab
-        let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let hosted = HostedView(MainView(selection: selection, services: makeServices(self, settings: settings, history: history)),
-                                size: NSSize(width: 860, height: 620))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(MainView(selection: selection, services: makeServices(self, settings: settings)),
+                          size: NSSize(width: 860, height: 620))
         return (hosted, selection)
     }
 
@@ -60,8 +57,7 @@ final class KeptPagesTests: XCTestCase {
     func testOneToolbarSearchFieldAcrossKeptPages() {
         let selection = TabSelection()
         selection.tab = .history
-        let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let window = MainWindowController.makeWindow(rootView: MainView(selection: selection, services: makeServices(self, history: history)))
+        let window = MainWindowController.makeWindow(rootView: MainView(selection: selection, services: makeServices(self)))
         window.setFrameOrigin(NSPoint(x: -10_000, y: -10_000))
         window.orderFront(nil)
         addTeardownBlock { window.close() }
@@ -82,15 +78,13 @@ final class KeptPagesTests: XCTestCase {
 
     /// The query typed in MainView's toolbar field filters the page in front.
     func testSearchFiltersHistoryAndCorrections() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "Book the flight.", duration: 1)
         store.add(text: "Call the dentist.", duration: 1)
         store.entries.forEach { store.setCorrection($0.text + "!", for: $0.id) }
-        let history = HostedView(HistoryView(store: store, search: "dentist"), size: NSSize(width: 760, height: 400))
-        addTeardownBlock { history.close() }
+        let history = host(HistoryView(store: store, search: "dentist"), size: NSSize(width: 760, height: 400))
         XCTAssertEqual(history.elements(id: "history.row").count, 1)
-        let corrections = HostedView(CorrectionsView(store: store, search: "flight"), size: NSSize(width: 760, height: 480))
-        addTeardownBlock { corrections.close() }
+        let corrections = host(CorrectionsView(store: store, search: "flight"), size: NSSize(width: 760, height: 480))
         XCTAssertEqual(corrections.elements(id: "corrections.card").count, 1)
     }
 
@@ -130,14 +124,13 @@ final class KeptCorrectionsTests: XCTestCase {
     /// History's pencil opens Corrections on the new correction even when Corrections is already
     /// built (kept hidden), and a hidden Corrections lets go of the keyboard.
     func testOpeningAKeptCorrectionsFocusesTheEditedOne() throws {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "First.", duration: 1)
         store.add(text: "Second.", duration: 1)
         store.setCorrection("First!", for: store.entries[1].id)
         let tab = KeptTab()
         tab.page.shown = true
-        let hosted = HostedView(KeptCorrections(tab: tab, store: store), size: NSSize(width: 760, height: 480))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(KeptCorrections(tab: tab, store: store), size: NSSize(width: 760, height: 480))
 
         tab.page.shown = false
         hosted.settle()

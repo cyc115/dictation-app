@@ -60,7 +60,7 @@ final class HistoryStoreTests: XCTestCase {
     }
 
     func testDeleteAndClear() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "a", duration: 1); store.add(text: "b", duration: 1); store.add(text: "c", duration: 1)
         store.delete(store.entries[1])
         XCTAssertEqual(store.entries.map(\.text), ["c", "a"])
@@ -69,13 +69,13 @@ final class HistoryStoreTests: XCTestCase {
     }
 
     func testEmptyTextIgnored() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "", duration: 1)
         XCTAssertTrue(store.entries.isEmpty)
     }
 
     func testRetentionOffKeepsNothing() {
-        let store = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
+        let store = makeHistory(self)
         store.add(text: "kept", duration: 1)
         store.retention = .off
         XCTAssertTrue(store.entries.isEmpty, "switching to Don't keep clears history")

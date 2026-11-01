@@ -27,9 +27,7 @@ final class AppFilesTests: XCTestCase {
 /// default lets a view or test reach your real History, settings or commands without saying so.
 final class ArchitectureTests: XCTestCase {
     func testNoSharedSingletonsInTheApp() throws {
-        let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../../Sources/DictationKit").standardizedFileURL
-        let files = try XCTUnwrap(FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil))
+        let files = try XCTUnwrap(FileManager.default.enumerator(at: sourcesFolder, includingPropertiesForKeys: nil))
             .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" }
         XCTAssertGreaterThan(files.count, 30)
         let systemShared = ["URLSession", "NSWorkspace", "NSApplication"]

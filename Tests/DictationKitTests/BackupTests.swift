@@ -18,12 +18,9 @@ final class CloudBackupTests: XCTestCase {
         }
         engine.backupWait = backupWait
         XCTAssertTrue(engine.beginRecording())
-        for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }  // 1 s
-        let done = expectation(description: "stopped")
-        var text: String?, error: String?
-        engine.stop(completion: { text = $0; done.fulfill() }, failure: { error = $0; done.fulfill() })
-        wait(for: [done], timeout: 3)
-        return (engine, text, error)
+        feedSpeech(engine)
+        let result = stopAndWait(engine, timeout: 3)
+        return (engine, result.text, result.error)
     }
 
     // MARK: Off (the default)
@@ -111,10 +108,8 @@ final class CloudBackupTests: XCTestCase {
         engine.backupWait = 0.05
         engine.backupModelID = Self.backup
         XCTAssertTrue(engine.beginRecording())
-        for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }
-        let done = expectation(description: "stopped")
-        engine.stop(completion: { _ in done.fulfill() }, failure: { _ in done.fulfill() })
-        wait(for: [done], timeout: 3)
+        feedSpeech(engine)
+        _ = stopAndWait(engine, timeout: 3)
         let json = try String(contentsOf: XCTUnwrap(archive.recordings.first).deletingPathExtension()
             .appendingPathExtension("json"), encoding: .utf8)
         XCTAssertTrue(json.contains("grok-stt-1.0"))
@@ -203,12 +198,8 @@ final class CloudBackupTests: XCTestCase {
         engine.use(otherCloudSetup, apiKey: "k", backupWhenSlow: true)
         engine.backupWait = 0.2
         XCTAssertTrue(engine.beginRecording())
-        for _ in 0..<47 { engine.record(AudioLevelTests.buffer(amplitude: 0.2)) }
-        let done = expectation(description: "stopped")
-        var text: String?
-        engine.stop(completion: { text = $0; done.fulfill() }, failure: { _ in done.fulfill() })
-        wait(for: [done], timeout: 3)
-        XCTAssertEqual(text, "帮我 build 一下")
+        feedSpeech(engine)
+        XCTAssertEqual(stopAndWait(engine, timeout: 3).text, "帮我 build 一下")
         XCTAssertEqual(engine.lastAnsweredBy, Self.main)
         XCTAssertEqual(client.asked.map(\.model), [big, Self.main], "only that backup, not Cloud Flash's own")
     }

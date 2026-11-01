@@ -9,7 +9,7 @@ import XCTest
 final class PerformanceTests: XCTestCase {
     /// Runs on the audio thread ~47×/s (1024 frames at 48 kHz = 21 ms per buffer).
     func testMicLevelPerBuffer() {
-        let buffer = AudioLevelTests.buffer(amplitude: 0.2)
+        let buffer = makeBuffer(amplitude: 0.2)
         assertFaster(than: 0.000_5, iterations: 2_000, "mic level per 1024-frame buffer") {
             _ = MicCapture.level(of: buffer)
         }
@@ -31,7 +31,7 @@ final class PerformanceTests: XCTestCase {
     /// (on-device and cloud alike); a buffer arrives every 21 ms.
     /// Worst case: a silent buffer is scanned in full on every tap until a sample is non-zero.
     func testSilenceCheckPerBuffer() {
-        let silent = AudioLevelTests.buffer(amplitude: 0)
+        let silent = makeBuffer(amplitude: 0)
         assertFaster(than: 0.000_2, iterations: 2_000, "mic silence check per 1024-frame buffer") {
             _ = MicCapture.hasSignal(silent)
         }
@@ -39,7 +39,7 @@ final class PerformanceTests: XCTestCase {
 
     func testRecordingPerBuffer() throws {
         let recorder = try WAVRecorder(url: makeTempURL(self, "rec.wav"))
-        let buffer = AudioLevelTests.buffer(amplitude: 0.2)
+        let buffer = makeBuffer(amplitude: 0.2)
         assertFaster(than: 0.002, iterations: 500, "WAV recorder append per 1024-frame buffer") {
             recorder.append(buffer)
         }
@@ -60,8 +60,7 @@ final class PerformanceTests: XCTestCase {
 
     /// From hotkey press to the pill on screen.
     func testOverlayShowLatency() {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         assertFaster(than: 0.01, iterations: 50, "overlay showListening") {
             overlay.showListening()
         }
@@ -72,7 +71,7 @@ final class PerformanceTests: XCTestCase {
     /// at 16 kHz.
     func testMicSelectionPerBuffer() {
         var selector = MicSelector(mics: 4)
-        let buffer = AudioLevelTests.buffer(amplitude: 0.05)
+        let buffer = makeBuffer(amplitude: 0.05)
         let keeper = FormatKeeper(format: MicCapture.backupFormat)
         var mic = 0
         assertFaster(than: 0.0005, iterations: 500, "selector + 16 kHz copy for one buffer") {
@@ -85,8 +84,7 @@ final class PerformanceTests: XCTestCase {
 
     /// 60 times a second while a Bluetooth mic starts and as it goes live (~1.5 s per dictation).
     func testOverlayWarmUpFrame() {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         var clock: TimeInterval = 0
         overlay.now = { clock }
         overlay.showListening(micName: "Mike’s Pixel Buds Pro", warmingUp: true)
@@ -101,8 +99,7 @@ final class PerformanceTests: XCTestCase {
 
     /// 60 times a second for the 0.4 s after you stop, as the pill narrows into the processing one.
     func testOverlayNarrowingFrame() {
-        let overlay = OverlayWindow()
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay()
         var clock: TimeInterval = 0
         overlay.now = { clock }
         let view = { overlay.panel!.contentView! }
@@ -175,10 +172,8 @@ final class PerformanceTests: XCTestCase {
     func testTabSwitch() {
         let selection = TabSelection()
         selection.tab = .settings
-        let history = HistoryStore(fileURL: makeTempURL(self), defaults: makeDefaults(self))
-        let hosted = HostedView(MainView(selection: selection, services: makeServices(self, history: history)),
-                                size: NSSize(width: 860, height: 620))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(MainView(selection: selection, services: makeServices(self)),
+                          size: NSSize(width: 860, height: 620))
         // Without the accessibility tree HostedView turns on (as when no assistive app is running).
         let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
         NSApplication.shared.accessibilitySetValue(false, forAttribute: enhanced)
@@ -195,7 +190,7 @@ final class PerformanceTests: XCTestCase {
 
     /// Also report XCTest's own metrics (visible in the test log; no pass/fail outside Xcode).
     func testMicLevelMetrics() {
-        let buffer = AudioLevelTests.buffer(amplitude: 0.2)
+        let buffer = makeBuffer(amplitude: 0.2)
         measure(metrics: [XCTClockMetric(), XCTCPUMetric()]) {
             for _ in 0..<1_000 { _ = MicCapture.level(of: buffer) }
         }

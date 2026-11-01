@@ -1,10 +1,6 @@
 import XCTest
 @testable import DictationKit
 
-/// The bench folder of this checkout (tests read its cases and fixtures).
-let benchFolder = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-    .appendingPathComponent("../../bench").standardized
-
 final class ScoreTests: XCTestCase {
     struct Row: Decodable {
         let reference: String, hypothesis: String, error: Double, must: [String], must_not: [String], passed: Bool

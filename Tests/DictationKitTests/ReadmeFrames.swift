@@ -69,9 +69,8 @@ final class ReadmeFrames: XCTestCase {
         let model = LocalSpeechModel(repo: DictationSetup.onDevice.localModelID!, runtime: runtime)
         let settings = makeSettings(self, localModel: model)
         settings.setup = .onDevice
-        let hosted = HostedView(Form { SpeechModelSection(settings: settings) }.formStyle(.grouped),
-                                size: NSSize(width: 640, height: 250))
-        addTeardownBlock { hosted.close() }
+        let hosted = host(Form { SpeechModelSection(settings: settings) }.formStyle(.grouped),
+                          size: NSSize(width: 640, height: 250))
         var frames: [[String: Any]] = []
         func frame(_ ms: Int, caption: String) throws {
             spinRunLoop(0.05)
@@ -103,10 +102,7 @@ final class ReadmeFrames: XCTestCase {
     private func recordPill(_ out: URL, length: Double, talking: [ClosedRange<Double>],
                             beats: [(Double, (OverlayWindow) -> Void)], captions: [(Double, String)] = [],
                             shakeAt: Double? = nil) throws {
-        let overlay = OverlayWindow()
-        overlay.makePanel = { OffscreenPanel(contentRect: $0, styleMask: [.borderless, .nonactivatingPanel],
-                                             backing: .buffered, defer: false) }
-        addTeardownBlock { overlay.hide() }
+        let overlay = makeOverlay(fixedScale: true)
         var clock: TimeInterval = 0
         overlay.now = { clock }
         overlay.reduceMotion = { false }
