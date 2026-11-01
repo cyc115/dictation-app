@@ -13,16 +13,32 @@ final class FileSecretStore: SecretStore {
     static let defaultFile = AppPaths.file("secrets.json")
     let file: URL
 
+    /// Which file the cached values came from: inode, size and modification time. The command-line
+    /// tool rewrites the file from another process, which changes all three.
+    private struct Stamp: Equatable {
+        let inode: ino_t, size: off_t, modified: timespec
+        init(_ status: stat) {
+            inode = status.st_ino
+            size = status.st_size
+            modified = status.st_mtimespec
+        }
+        static func == (a: Stamp, b: Stamp) -> Bool {
+            a.inode == b.inode && a.size == b.size
+                && a.modified.tv_sec == b.modified.tv_sec && a.modified.tv_nsec == b.modified.tv_nsec
+        }
+    }
+    private var cached: (stamp: Stamp, values: [String: String])?
+    private let lock = NSLock()
+
     init(file: URL = FileSecretStore.defaultFile) { self.file = file }
 
     func get(_ account: String) -> String? {
-        tighten()
-        let value = read()[account]
+        let value = values()[account]
         return value?.isEmpty == false ? value : nil
     }
 
     func set(_ value: String?, for account: String) {
-        var values = read()
+        var values = values()
         values[account] = value?.isEmpty == false ? value : nil
         let fm = FileManager.default
         let dir = file.deletingLastPathComponent()
@@ -36,19 +52,27 @@ final class FileSecretStore: SecretStore {
             ? (try? fm.replaceItemAt(file, withItemAt: temp)) != nil
             : (try? fm.moveItem(at: temp, to: file)) != nil
         if !moved { try? fm.removeItem(at: temp) }
-        tighten()
+        lock.withLock { cached = nil }
     }
 
-    private func read() -> [String: String] {
-        guard let data = FileManager.default.contents(atPath: file.path) else { return [:] }
-        return (try? JSONSerialization.jsonObject(with: data) as? [String: String]) ?? [:]
-    }
-
-    private func tighten() {
-        let fm = FileManager.default
-        for (path, mode) in [(file.deletingLastPathComponent().path, 0o700), (file.path, 0o600)] {
-            guard let current = (try? fm.attributesOfItem(atPath: path))?[.posixPermissions] as? Int, current != mode else { continue }
-            try? fm.setAttributes([.posixPermissions: mode], ofItemAtPath: path)
+    /// The file's values. Its permissions are checked (and tightened) on every call, with one `stat`;
+    /// its contents are read again only when it has changed since last time.
+    private func values() -> [String: String] {
+        lock.withLock {
+            var status = stat()
+            guard stat(file.path, &status) == 0 else {
+                cached = nil
+                return [:]
+            }
+            if status.st_mode & 0o777 != 0o600 { chmod(file.path, 0o600) }
+            let stamp = Stamp(status)
+            if let cached, cached.stamp == stamp { return cached.values }
+            let dir = file.deletingLastPathComponent().path
+            if stat(dir, &status) == 0, status.st_mode & 0o777 != 0o700 { chmod(dir, 0o700) }
+            let values = FileManager.default.contents(atPath: file.path)
+                .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: String] } ?? [:]
+            cached = (stamp, values)
+            return values
         }
     }
 }

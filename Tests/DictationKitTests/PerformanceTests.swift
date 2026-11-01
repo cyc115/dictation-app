@@ -167,6 +167,15 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// Read 2–4 times per dictation start and on every Settings redraw.
+    func testReadingTheAPIKey() {
+        let store = FileSecretStore(file: makeTempURL(self, "secrets.json"))
+        store.set("sk-test", for: "openRouter")
+        assertFaster(than: 0.000_05, iterations: 500, "read the API key") {
+            XCTAssertEqual(store.get("openRouter"), "sk-test")
+        }
+    }
+
     /// Switching tabs shows a kept page instead of rebuilding it: ~23 ms, including Settings' refresh
     /// as it opens; rebuilding Settings took ~100 ms.
     func testTabSwitch() {

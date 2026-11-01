@@ -23,6 +23,31 @@ final class AppFilesTests: XCTestCase {
     }
 }
 
+/// secrets.json, which the command-line tool (`dictationapp set openRouterKey -`) writes from
+/// another process while the app runs.
+final class SecretStoreTests: XCTestCase {
+    func testAKeyWrittenByAnotherProcessIsSeen() throws {
+        let file = makeTempURL(self, "secrets.json")
+        let store = FileSecretStore(file: file)
+        store.set("first", for: "openRouter")
+        XCTAssertEqual(store.get("openRouter"), "first")
+        let other = FileSecretStore(file: file)  // the command-line tool's own store
+        other.set("second", for: "openRouter")
+        XCTAssertEqual(store.get("openRouter"), "second")
+        other.set(nil, for: "openRouter")
+        XCTAssertNil(store.get("openRouter"))
+    }
+
+    func testLoosenedPermissionsAreTightenedOnRead() throws {
+        let file = makeTempURL(self, "secrets.json")
+        let store = FileSecretStore(file: file)
+        store.set("k", for: "openRouter")
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
+        XCTAssertEqual(store.get("openRouter"), "k")
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? Int, 0o600)
+    }
+}
+
 /// The app's shared objects come from `AppServices`, handed in: a `static let shared` or a `= .shared`
 /// default lets a view or test reach your real History, settings or commands without saying so.
 final class ArchitectureTests: XCTestCase {
