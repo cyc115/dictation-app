@@ -36,23 +36,15 @@ struct HistoryView: View {
                   : store.retention == .off ? "History is off. Turn it on in Settings › Keep history."
                   : "No dictations yet. Hold your hotkey and start talking.")
         } else {
-            List {
-                ForEach(Self.grouped(filtered, by: \.date, dates), id: \.title) { group in
-                    Section(group.title) {
-                        ForEach(group.items) { entry in
-                            HistoryRow(entry: entry, onDelete: { store.delete(entry) }, onCorrect: {
-                                if entry.correction == nil {
-                                    store.setCorrection(entry.text, for: entry.id)
-                                    suggester?.suggest(for: entry, in: store)
-                                }
-                                onCorrect(entry.id)
-                            })
-                        }
+            groupedList(filtered, by: \.date) { entry in
+                HistoryRow(entry: entry, onDelete: { store.delete(entry) }, onCorrect: {
+                    if entry.correction == nil {
+                        store.setCorrection(entry.text, for: entry.id)
+                        suggester?.suggest(for: entry, in: store)
                     }
-                }
+                    onCorrect(entry.id)
+                })
             }
-            .listStyle(.inset(alternatesRowBackgrounds: false))
-            .scrollContentBackground(.hidden)
         }
     }
 
@@ -60,19 +52,25 @@ struct HistoryView: View {
         if filteredCommands.isEmpty {
             empty("No matches.")
         } else {
-            List {
-                ForEach(Self.grouped(filteredCommands, by: \.date, dates), id: \.title) { group in
-                    Section(group.title) {
-                        ForEach(group.items) { run in
-                            CommandRow(run: run, onDelete: { store.deleteCommand(run) },
-                                       onRunAgain: commandMode.map { mode in { Task { @MainActor in _ = await mode.again(run) } } })
-                        }
-                    }
+            groupedList(filteredCommands, by: \.date) { run in
+                CommandRow(run: run, onDelete: { store.deleteCommand(run) },
+                           onRunAgain: commandMode.map { mode in { Task { @MainActor in _ = await mode.again(run) } } })
+            }
+        }
+    }
+
+    /// The items under a heading per day ("Today", "Yesterday", then the date), newest first.
+    private func groupedList<Item: Identifiable, Row: View>(_ items: [Item], by date: (Item) -> Date,
+                                                            @ViewBuilder row: @escaping (Item) -> Row) -> some View {
+        List {
+            ForEach(Self.grouped(items, by: date, dates), id: \.title) { group in
+                Section(group.title) {
+                    ForEach(group.items, content: row)
                 }
             }
-            .listStyle(.inset(alternatesRowBackgrounds: false))
-            .scrollContentBackground(.hidden)
         }
+        .listStyle(.inset(alternatesRowBackgrounds: false))
+        .scrollContentBackground(.hidden)
     }
 
     private func empty(_ text: String) -> some View {
@@ -159,34 +157,17 @@ struct HistoryRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
-            Text(dates.string(entry.date, Date.FormatStyle(date: .omitted, time: .shortened)))
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 70, alignment: .leading)
+            RowTime(date: entry.date)
             Text(entry.text)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Button(action: onCorrect) {
-                Image(systemName: entry.correction == nil ? "pencil" : "pencil.circle.fill")
-                    .frame(width: 16, height: 16)
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(entry.correction == nil ? Color.secondary : Color.accentColor)
-            .help(entry.correction == nil ? "Correct this dictation" : "Corrected — open in Corrections")
-            .accessibilityLabel(entry.correction == nil ? "Correct this dictation" : "Open correction")
-            .accessibilityIdentifier("history.correct")
-            .opacity(hovering || entry.correction != nil ? 1 : 0.3)
-            Button(action: copy) {
-                Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                    .frame(width: 16, height: 16)
-            }
-            .buttonStyle(.borderless)
-            .help("Copy transcript")
-            .accessibilityLabel("Copy transcript")
-            .accessibilityIdentifier("history.copy")
-            // Faint until hover rather than invisible: fully transparent views drop out of
-            // accessibility, which would hide the button from VoiceOver.
-            .opacity(hovering || copied ? 1 : 0.3)
+            RowIconButton(symbol: entry.correction == nil ? "pencil" : "pencil.circle.fill",
+                          help: entry.correction == nil ? "Correct this dictation" : "Corrected — open in Corrections",
+                          label: entry.correction == nil ? "Correct this dictation" : "Open correction",
+                          id: "history.correct", opacity: hovering || entry.correction != nil ? 1 : 0.3, action: onCorrect)
+                .foregroundStyle(entry.correction == nil ? Color.secondary : Color.accentColor)
+            RowIconButton(symbol: copied ? "checkmark" : "doc.on.doc", help: "Copy transcript",
+                          id: "history.copy", opacity: hovering || copied ? 1 : 0.3, action: copy)
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())

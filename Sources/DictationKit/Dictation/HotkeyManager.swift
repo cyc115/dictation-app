@@ -87,17 +87,17 @@ enum MouseButton: String, CaseIterable {
 /// command key combo is not a tap.
 class HotkeyManager {
     var hotkey: Hotkey {
-        didSet { held = false }
+        didSet { if hotkey != oldValue { dictate = ModifierTap() } }
     }
     var mode: ActivationMode {
-        didSet { held = false }
+        didSet { if mode != oldValue { dictate = ModifierTap() } }
     }
     var mouseButton: MouseButton
     /// Pressed → `onEnter` (Return). The dictation button wins if they're the same.
     var enterButton: MouseButton = .off
     /// Tapped → `onEnter`, like `enterButton`. The hotkey wins if they're the same.
     var commandKey: Hotkey = .off {
-        didSet { commandHeld = false }
+        didSet { if commandKey != oldValue { command = ModifierTap() } }
     }
 
     // MARK: Actions (main queue)
@@ -116,10 +116,9 @@ class HotkeyManager {
 
     private var eventTap: CFMachPort?
     private var monitors: [Any] = []
-    private(set) var held = false
-    private var cancelled = false
-    private var commandHeld = false
-    private var commandCancelled = false
+    private var dictate = ModifierTap()
+    private var command = ModifierTap()
+    var held: Bool { dictate.held }
 
     init(hotkey: Hotkey, mode: ActivationMode, mouseButton: MouseButton) {
         self.hotkey = hotkey
@@ -196,7 +195,7 @@ class HotkeyManager {
             guard event.getIntegerValueField(.keyboardEventKeycode) == Self.escapeKeyCode, isRecording() else {
                 return Unmanaged.passUnretained(event)
             }
-            if held { cancelled = true }  // the hotkey's release must not paste afterwards
+            _ = dictate.cancel()  // the hotkey's release must not paste afterwards
             DispatchQueue.main.async { [weak self] in self?.onEscape() }
             return nil
         }
@@ -218,39 +217,59 @@ class HotkeyManager {
 
     /// Hotkey state machine, fed from flagsChanged events (separate so tests can drive it).
     func handleFlags(keyCode: UInt16, rawFlags: UInt) {
-        if keyCode == commandKey.keyCode, commandKey != hotkey { return commandFlags(rawFlags) }
-        guard keyCode == hotkey.keyCode else { return }
-        let down = rawFlags & hotkey.flagMask != 0
-        if down && !held {
-            // Releases still count while paused, so a key held into the excluded app isn't stuck down.
-            guard !isPaused() else { return }
-            held = true
-            cancelled = false
-            if mode == .hold { onPress() }
-        } else if !down && held {
-            held = false
-            guard !cancelled else { return }
-            if mode == .hold { onRelease() } else { onTap() }
+        // Presses don't start while paused; releases still count, so a key held into the excluded
+        // app isn't stuck down.
+        if keyCode == commandKey.keyCode, commandKey != hotkey {
+            // The command key: a tap alone (no other key while it's down) is `onEnter`.
+            if case .released(cancelled: false) = command.update(down: rawFlags & commandKey.flagMask != 0, canStart: !isPaused()) {
+                onEnter()
+            }
+            return
         }
-    }
-
-    /// The command key: a tap alone (no other key while it's down) is `onEnter`.
-    private func commandFlags(_ rawFlags: UInt) {
-        let down = rawFlags & commandKey.flagMask != 0
-        if down && !commandHeld {
-            guard !isPaused() else { return }
-            commandHeld = true
-            commandCancelled = false
-        } else if !down && commandHeld {
-            commandHeld = false
-            if !commandCancelled { onEnter() }
+        guard keyCode == hotkey.keyCode else { return }
+        switch dictate.update(down: rawFlags & hotkey.flagMask != 0, canStart: !isPaused()) {
+        case .pressed: if mode == .hold { onPress() }
+        case .released(cancelled: false): if mode == .hold { onRelease() } else { onTap() }
+        case .released(cancelled: true), nil: break
         }
     }
 
     func otherKeyPressed() {
-        if commandHeld { commandCancelled = true }
-        guard held, !cancelled else { return }
+        _ = command.cancel()
+        if dictate.cancel(), mode == .hold { onCancel() }
+    }
+}
+
+/// One modifier key's press-and-release tracking: another key pressed while it's down turns the
+/// tap into a shortcut (`cancelled`), which the release then reports instead of firing.
+private struct ModifierTap {
+    private(set) var held = false
+    private var cancelled = false
+
+    enum Event {
+        case pressed
+        case released(cancelled: Bool)
+    }
+
+    /// Feeds the key's current state; `canStart` is only consulted on a press.
+    mutating func update(down: Bool, canStart: @autoclosure () -> Bool) -> Event? {
+        if down && !held {
+            guard canStart() else { return nil }
+            held = true
+            cancelled = false
+            return .pressed
+        }
+        if !down && held {
+            held = false
+            return .released(cancelled: cancelled)
+        }
+        return nil
+    }
+
+    /// Marks the tap a shortcut; true the first time while the key is held.
+    mutating func cancel() -> Bool {
+        guard held, !cancelled else { return false }
         cancelled = true
-        if mode == .hold { onCancel() }
+        return true
     }
 }

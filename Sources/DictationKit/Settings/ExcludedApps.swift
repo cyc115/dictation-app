@@ -8,12 +8,9 @@ struct ExcludedApp: Codable, Hashable, Identifiable {
     let bundleID: String
     let name: String
     var id: String { bundleID }
+}
 
-    init(bundleID: String, name: String) {
-        self.bundleID = bundleID
-        self.name = name
-    }
-
+extension ExcludedApp {
     /// The app bundle at `url` (from Choose…); nil if it isn't one.
     init?(appAt url: URL) {
         guard let bundle = Bundle(url: url), let id = bundle.bundleIdentifier else { return nil }

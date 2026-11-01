@@ -106,15 +106,15 @@ final class OnDevicePolish: PolishBackend {
         guard case .available = SystemLanguageModel.default.availability else { return }
         let session = LanguageModelSession(instructions: instructions)
         session.prewarm()
-        lock.lock(); prepared = session; lock.unlock()
+        lock.withLock { prepared = session }
     }
 
     /// The prewarmed session, used once.
     private func takePrepared() -> LanguageModelSession? {
-        lock.lock(); defer { lock.unlock() }
-        let session = prepared
-        prepared = nil
-        return session
+        lock.withLock {
+            defer { prepared = nil }
+            return prepared
+        }
     }
 
     func polish(_ text: String) async throws -> String {

@@ -68,17 +68,19 @@ struct CommandWriter {
     /// "EXISTING: <name>", or "NAME: <name>" and a ```python block; nil for anything else.
     static func parse(_ text: String) -> Reply? {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        func capture(_ pattern: String) -> String? {
-            guard let regex = try? NSRegularExpression(pattern: pattern),
-                  let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+        func capture(_ regex: NSRegularExpression) -> String? {
+            guard let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
                   let range = Range(match.range(at: 1), in: text) else { return nil }
             return String(text[range])
         }
-        if let name = capture(#"\AEXISTING:\s*([\w-]+)\s*\z"#) { return .existing(name) }
-        guard let name = capture(#"(?m)^NAME:\s*(\S+)\s*$"#),
-              let script = capture(#"(?s)```(?:python)?[ \t]*\n(.*?)```"#) else { return nil }
+        if let name = capture(existingLine) { return .existing(name) }
+        guard let name = capture(nameLine), let script = capture(pythonBlock) else { return nil }
         return .new(name: name, script: script.trimmingCharacters(in: .newlines) + "\n")
     }
+
+    private static let existingLine = try! NSRegularExpression(pattern: #"\AEXISTING:\s*([\w-]+)\s*\z"#)
+    private static let nameLine = try! NSRegularExpression(pattern: #"(?m)^NAME:\s*(\S+)\s*$"#)
+    private static let pythonBlock = try! NSRegularExpression(pattern: #"(?s)```(?:python)?[ \t]*\n(.*?)```"#)
 
     /// One to a few lowercase words joined by hyphens: window-left.
     static func validName(_ name: String) -> Bool {

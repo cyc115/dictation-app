@@ -11,22 +11,25 @@ final class RecordingSlot {
     @discardableResult
     func begin(archive: RecordingArchive?, note: RecordingNote?) -> DictationRecording? {
         let new = DictationRecording(archive: archive, note: note)
-        lock.lock(); let old = recording; recording = new; lock.unlock()
+        let old = lock.withLock { swap(new) }
         old?.discard()  // outside the lock: it's file I/O
         return new
     }
 
     /// From the mic's thread.
     func append(_ buffer: AVAudioPCMBuffer) {
-        lock.lock(); recording?.append(buffer); lock.unlock()
+        lock.withLock { recording?.append(buffer) }
     }
 
     /// Hands the recording over, leaving none.
     func take() -> DictationRecording? {
-        lock.lock(); defer { lock.unlock() }
-        let taken = recording
-        recording = nil
-        return taken
+        lock.withLock { swap(nil) }
+    }
+
+    /// Under the lock: the recording so far, replaced by `new`.
+    private func swap(_ new: DictationRecording?) -> DictationRecording? {
+        defer { recording = new }
+        return recording
     }
 
     func discard() { take()?.discard() }

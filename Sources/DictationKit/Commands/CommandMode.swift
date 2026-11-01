@@ -94,10 +94,7 @@ final class CommandMode {
             if let name = decision.command, decision.confidence >= CommandDecision.minConfidence {
                 run.command = name
                 run.choice = decision.choice
-                let result = await perform(name, choice: decision.choice, said: said, apiKey: apiKey, among: commands)
-                run.ok = result.ok
-                run.result = result.message
-                if !result.ok { log.add(run, details: result.details) }
+                record(await perform(name, choice: decision.choice, said: said, apiKey: apiKey, among: commands), in: &run)
             } else {
                 run.result = "Command not found"
             }
@@ -113,13 +110,17 @@ final class CommandMode {
     func again(_ previous: CommandRun) async -> CommandRun {
         var run = CommandRun(said: previous.said, command: previous.command, choice: previous.choice)
         if let name = previous.command {
-            let result = await perform(name, choice: previous.choice, said: previous.said, apiKey: nil, among: commands)
-            run.ok = result.ok
-            run.result = result.message
-            if !result.ok { log.add(run, details: result.details) }
+            record(await perform(name, choice: previous.choice, said: previous.said, apiKey: nil, among: commands), in: &run)
         }
         history.addCommand(run)
         return run
+    }
+
+    /// The outcome goes on the run; a failure's details go to errors.log too.
+    private func record(_ result: CommandResult, in run: inout CommandRun) {
+        run.ok = result.ok
+        run.result = result.message
+        if !result.ok { log.add(run, details: result.details) }
     }
 
     /// `apiKey`: nil when it's run again from History, which doesn't create.
@@ -153,7 +154,7 @@ final class CommandMode {
         case Command.fix.name:
             return await fix(choice, said: said, among: commands)
         case _ where system[name] != nil:
-            return await system[name]!(choice, said)
+            return await system[name]?(choice, said) ?? CommandResult(ok: false, message: "No \(name) command")
         default:
             guard let script = commands.first(where: { $0.name == name })?.script else {
                 return CommandResult(ok: false, message: "No \(name) script")

@@ -135,6 +135,24 @@ final class LatencyRunner {
             if raw.isEmpty { sample.error = error ?? "empty transcript" }
             completion(sample)
         }
+        /// Feeds the clip into a recording engine, then times `stop()`; `answeredBy` is asked once the text is in.
+        func time(_ engine: RecordingEngine & DictationEngine, answeredBy: @escaping () -> String?) {
+            // Recording happens before you press stop, so the clip goes in at full speed.
+            guard engine.beginRecording(), Self.read(url, into: engine.record) else {
+                engine.cancel()  // deletes the recording file
+                sample.error = "could not read \(url.path)"
+                return completion(sample)
+            }
+            let started = clock()
+            engine.stop(completion: { raw in
+                            sample.answeredBy = answeredBy()
+                            finish(raw, started, nil)
+                        },
+                        failure: { message in
+                            sample.error = message
+                            completion(sample)
+                        })
+        }
         switch ModelSpec(trial.stt) {
         case .openRouter(var model, _):
             let withBackup = model.hasSuffix("+backup")
@@ -151,40 +169,12 @@ final class LatencyRunner {
             }
             if let backupWait { engine.backupWait = backupWait }
             cloud = engine
-            // Recording happens before you press stop, so the clip goes in at full speed.
-            guard engine.beginRecording(), Self.read(url, into: engine.record) else {
-                engine.cancel()  // deletes the recording file
-                sample.error = "could not read \(url.path)"
-                return completion(sample)
-            }
-            let started = clock()
-            engine.stop(completion: { [weak engine] raw in
-                            sample.answeredBy = engine?.lastAnsweredBy.map { ModelSpec.openRouter(id: $0, providers: nil).description }
-                            finish(raw, started, nil)
-                        },
-                        failure: { message in
-                            sample.error = message
-                            completion(sample)
-                        })
+            time(engine) { [weak engine] in engine?.lastAnsweredBy.map { ModelSpec.openRouter(id: $0, providers: nil).description } }
         case .local(let id):
-            // As the app runs it: the model loads while you speak (here, while the clip goes in),
-            // and the clip goes in at full speed, since recording happens before you press stop.
+            // As the app runs it: the model loads while you speak (here, while the clip goes in).
             let engine = LocalEngine(model: MainActor.assumeIsolated { .named(id) })
             MainActor.assumeIsolated { _ = engine.model.prepare() }
-            guard engine.beginRecording(), Self.read(url, into: engine.record) else {
-                engine.cancel()
-                sample.error = "could not read \(url.path)"
-                return completion(sample)
-            }
-            let started = clock()
-            engine.stop(completion: { raw in
-                            sample.answeredBy = "local:\(id)"
-                            finish(raw, started, nil)
-                        },
-                        failure: { message in
-                            sample.error = message
-                            completion(sample)
-                        })
+            time(engine) { "local:\(id)" }
         case .apple(let locale?):
             // Real-time pace, so the recognizer has kept up by the time you press stop, as with the mic.
             let speech = self.speech
@@ -258,7 +248,7 @@ final class LatencyProbe {
 
     init?(planPath: String, outPath: String, apiKey: String) {
         guard let data = FileManager.default.contents(atPath: planPath),
-              let plan = try? JSONDecoder().decode(LatencyPlan.self, from: data) else { return nil }
+              let plan = try? JSONFile.decoder.decode(LatencyPlan.self, from: data) else { return nil }
         self.plan = plan
         self.outPath = outPath
         runner.apiKey = apiKey
@@ -292,7 +282,7 @@ final class LatencyProbe {
 
     private func record(_ sample: LatencySample) {
         token += 1
-        if let data = try? JSONEncoder().encode(sample), let line = String(data: data, encoding: .utf8) {
+        if let data = try? JSONFile.encoder.encode(sample), let line = String(data: data, encoding: .utf8) {
             output += line + "\n"
             try? output.write(toFile: outPath, atomically: true, encoding: .utf8)
         }

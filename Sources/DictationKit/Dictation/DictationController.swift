@@ -346,20 +346,18 @@ final class DictationController {
         if let polisher = dictation.polisher {
             overlay.showProcessing()
             let started = ProcessInfo.processInfo.systemUptime
-            Task { [weak self] in
+            Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 let (polished, error, polishedBy) = await polisher.polishReporting(raw)
                 let seconds = ProcessInfo.processInfo.systemUptime - started
-                await MainActor.run {
-                    self.overlay.hide()
-                    self.history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt,
-                                     transcribeSeconds: transcribed, polishSeconds: seconds,
-                                     transcribedBy: transcribedBy, polishedBy: polishedBy)
-                    self.type(polished, to: target, delivery: delivery) {
-                        // After typing it, so saving it adds nothing to your wait.
-                        note?.polished(polished, seconds: seconds, error: error)
-                        self.finished(delivery)
-                    }
+                overlay.hide()
+                history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt,
+                            transcribeSeconds: transcribed, polishSeconds: seconds,
+                            transcribedBy: transcribedBy, polishedBy: polishedBy)
+                type(polished, to: target, delivery: delivery) {
+                    // After typing it, so saving it adds nothing to your wait.
+                    note?.polished(polished, seconds: seconds, error: error)
+                    self.finished(delivery)
                 }
             }
         } else {

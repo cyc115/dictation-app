@@ -245,10 +245,16 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     /// on-device, with this setup's prompt.
     func polishBackend(apiKey: String?, onDevice: (String, Bool) -> PolishBackend) -> PolishBackend {
         let instructions = promptText
-        guard !polishesOnDevice, let key = apiKey, !key.isEmpty,
+        guard let key = cloudKey(apiKey),
               let backend = Self.polishBackend(spec: polish, apiKey: key, instructions: instructions, wrap: wrap)
         else { return onDevice(instructions, wrap) }
         return backend
+    }
+
+    /// The key the cloud polish model is called with; nil when this setup polishes on-device or there's no key.
+    private func cloudKey(_ apiKey: String?) -> String? {
+        guard !polishesOnDevice, let key = apiKey, !key.isEmpty else { return nil }
+        return key
     }
 
     /// "openrouter:<id>[@Provider[,Provider…]]" as an `OpenRouterPolish`, as bench/suite.py polish runs it; nil otherwise.
@@ -299,7 +305,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
         ]
         """
 
-    static let builtIns: [DictationSetup] = try! JSONDecoder().decode([DictationSetup].self, from: Data(builtInJSON.utf8))
+    static let builtIns: [DictationSetup] = try! JSONFile.decoder.decode([DictationSetup].self, from: Data(builtInJSON.utf8))
     static let onDevice = builtIns[0]
     static let cloudFlash = builtIns[1]
 
@@ -315,7 +321,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     /// What polishes a dictation, with the backup and deadline when it's the cloud model.
     func polishService(apiKey: String?, onDevice: (String, Bool) -> PolishBackend) -> PolishService {
         let main = polishBackend(apiKey: apiKey, onDevice: onDevice)
-        guard !polishesOnDevice, let key = apiKey, !key.isEmpty else { return PolishService(backend: main) }
+        guard let key = cloudKey(apiKey) else { return PolishService(backend: main) }
         let backup = polishBackup.flatMap { Self.polishBackend(spec: $0, apiKey: key, instructions: promptText, wrap: wrap) }
         return PolishService(backend: main, backup: backup, backupAfter: polishBackupWait, deadline: polishDeadline)
     }
@@ -337,7 +343,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
         guard let data = FileManager.default.contents(atPath: url.path) else { return ([], nil) }
         struct File: Decodable { let setups: [DictationSetup] }
         let file: File
-        do { file = try JSONDecoder().decode(File.self, from: data) } catch {
+        do { file = try JSONFile.decoder.decode(File.self, from: data) } catch {
             return ([], "\(url.lastPathComponent): \(Self.describe(error))")
         }
         var setups: [DictationSetup] = [], problems: [String] = []

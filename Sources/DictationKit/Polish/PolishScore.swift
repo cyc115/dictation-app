@@ -100,14 +100,13 @@ struct GeneralCase: Codable, Equatable, Identifiable {
 
     enum CodingKeys: String, CodingKey { case id, raw, expected, must, mustNot = "must_not", kind }
 
-    init(id: String, raw: String, expected: String, must: [String] = [], mustNot: [String] = [], kind: String = "") {
-        self.id = id; self.raw = raw; self.expected = expected; self.must = must; self.mustNot = mustNot; self.kind = kind
-    }
-
     /// A dictation that asks a question or gives an instruction: a polish model must clean it up, not
     /// carry it out. Its `must_not` phrases are the signs it did.
     var isTrap: Bool { kind == "trap" }
+}
 
+/// In an extension so the memberwise `init(id:raw:expected:must:mustNot:kind:)` stays available.
+extension GeneralCase {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
@@ -121,7 +120,7 @@ struct GeneralCase: Codable, Equatable, Identifiable {
     /// The cases in a bench file (`{"cases": [...]}`).
     static func load(_ url: URL) throws -> [GeneralCase] {
         struct File: Decodable { let cases: [GeneralCase] }
-        return try JSONDecoder().decode(File.self, from: Data(contentsOf: url)).cases
+        return try JSONFile.decoder.decode(File.self, from: Data(contentsOf: url)).cases
     }
 
     /// The main and held-out sets, as build.sh copies them into the app (nil: not there).

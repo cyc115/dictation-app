@@ -226,7 +226,7 @@ class SpeechEngine {
     func finishRecording(transcript text: String?) {
         guard let recording = recordings.take() else { return }
         guard let text else { return recording.discard() }
-        recording.done(RecordingInfo(date: Date(), model: "apple:\(localeIdentifier)", transcript: text,
+        recording.done(RecordingInfo(date: Date(), model: ModelSpec.apple(locale: localeIdentifier).description, transcript: text,
                                      seconds: recording.duration))
     }
 

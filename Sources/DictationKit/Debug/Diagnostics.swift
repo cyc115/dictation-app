@@ -71,9 +71,10 @@ final class MicProbe {
         var buffers = 0, firstBuffer: TimeInterval?, rate: Double?
         do {
             try mic.start(inputUID: uid, backups: backups, onBuffer: { buffer in
-                lock.lock(); defer { lock.unlock() }
-                buffers += 1
-                if firstBuffer == nil { firstBuffer = clock() - opened; rate = buffer.format.sampleRate }
+                lock.withLock {
+                    buffers += 1
+                    if firstBuffer == nil { firstBuffer = clock() - opened; rate = buffer.format.sampleRate }
+                }
             }, onEvent: { event in
                 switch event {
                 case .live: result["live"] = Self.ms(clock() - opened)
@@ -88,11 +89,11 @@ final class MicProbe {
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [mic] in
             result["mics"] = mic.openDevices.map(\.name)
             mic.stop()
-            lock.lock()
-            result["buffers"] = buffers
-            result["firstBuffer"] = firstBuffer.map(Self.ms) ?? NSNull()
-            result["sampleRate"] = rate ?? NSNull()
-            lock.unlock()
+            lock.withLock {
+                result["buffers"] = buffers
+                result["firstBuffer"] = firstBuffer.map(Self.ms) ?? NSNull()
+                result["sampleRate"] = rate ?? NSNull()
+            }
             if result["live"] == nil { result["live"] = NSNull() }
             let data = (try? JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])) ?? Data()
             done(String(data: data, encoding: .utf8) ?? "{}")

@@ -43,10 +43,7 @@ struct CommandRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
-            Text(dates.string(run.date, Date.FormatStyle(date: .omitted, time: .shortened)))
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 70, alignment: .leading)
+            RowTime(date: run.date)
             Text(run.said)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -68,16 +65,10 @@ struct CommandRow: View {
             .frame(width: 190, alignment: .leading)
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("history.command.result")
-            Button { onRunAgain?() } label: {
-                Image(systemName: "arrow.clockwise").frame(width: 16, height: 16)
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.secondary)
-            .help("Run again")
-            .accessibilityLabel("Run again")
-            .accessibilityIdentifier("history.runAgain")
-            .disabled(!run.canRunAgain || onRunAgain == nil)
-            .opacity(!run.canRunAgain ? 0 : hovering ? 1 : 0.3)
+            RowIconButton(symbol: "arrow.clockwise", help: "Run again", id: "history.runAgain",
+                          opacity: !run.canRunAgain ? 0 : hovering ? 1 : 0.3) { onRunAgain?() }
+                .foregroundStyle(.secondary)
+                .disabled(!run.canRunAgain || onRunAgain == nil)
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())

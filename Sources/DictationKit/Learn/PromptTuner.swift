@@ -263,23 +263,23 @@ final class PromptTuner {
             send = report
         }
 
-        func report() { lock.lock(); send(.racing(progress)); lock.unlock() }
+        func report() { lock.withLock { send(.racing(progress)) } }
 
         func writing(_ lens: Lens, _ delta: Int) {
-            lock.lock()
-            writers[lens, default: 0] += delta
-            progress[lens]!.writing = writers[lens]! > 0
-            send(.racing(progress))
-            lock.unlock()
+            lock.withLock {
+                writers[lens, default: 0] += delta
+                progress[lens]!.writing = writers[lens]! > 0
+                send(.racing(progress))
+            }
         }
 
         func scored(_ lens: Lens, _ error: Double) {
-            lock.lock()
-            sums[lens, default: 0] += error
-            progress[lens]!.scored += 1
-            progress[lens]!.score = 100 * (1 - sums[lens]! / Double(progress[lens]!.scored))
-            send(.racing(progress))
-            lock.unlock()
+            lock.withLock {
+                sums[lens, default: 0] += error
+                progress[lens]!.scored += 1
+                progress[lens]!.score = 100 * (1 - sums[lens]! / Double(progress[lens]!.scored))
+                send(.racing(progress))
+            }
         }
     }
 
@@ -343,14 +343,13 @@ final class PromptTuner {
                 group.addTask {
                     let output = try await self.polish(c.input, with: backend)
                     let error = PolishScore.errorRate(reference: c.wanted, hypothesis: output)
-                    let (done, mean): (Bool, Double) = {
-                        lock.lock(); defer { lock.unlock() }
+                    let (done, mean): (Bool, Double) = lock.withLock {
                         scored[c.id, default: Scored(error: 0, output: output)].error += error
                         counts[c.id, default: 0] += 1
                         let done = counts[c.id] == self.repeats
                         if done { scored[c.id]!.error /= Double(self.repeats) }
                         return (done, scored[c.id]!.error)
-                    }()
+                    }
                     if done { onCase?(c.id, mean) }
                 }
             }

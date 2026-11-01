@@ -35,16 +35,9 @@ class TextInjector {
         let text = Self.needsSpace(after: charBeforeCursor(), before: text) ? " " + text : text
 
         // 1. Save everything currently on the clipboard (all types, not just text).
-        var saved: [[NSPasteboard.PasteboardType: Data]] = []
-        if let items = pasteboard.pasteboardItems {
-            for item in items {
-                var dict: [NSPasteboard.PasteboardType: Data] = [:]
-                for type in item.types {
-                    if let data = item.data(forType: type) { dict[type] = data }
-                }
-                saved.append(dict)
-            }
-        }
+        let saved: [[NSPasteboard.PasteboardType: Data]] = pasteboard.pasteboardItems?.map { item in
+            Dictionary(uniqueKeysWithValues: item.types.compactMap { type in item.data(forType: type).map { (type, $0) } })
+        } ?? []
 
         // 2. Put our text on the clipboard.
         pasteboard.clearContents()
@@ -110,27 +103,24 @@ class TextInjector {
     }
 
     static func postCommandV() {
-        if let source = CGEventSource(stateID: .hidSystemState) {
-            let vDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) // 0x09 = V
-            vDown?.flags = .maskCommand
-            vDown?.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
-            let vUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
-            vUp?.flags = .maskCommand
-            vUp?.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
-            vDown?.post(tap: .cghidEventTap)
-            Thread.sleep(forTimeInterval: 0.03)
-            vUp?.post(tap: .cghidEventTap)
-        }
+        press(0x09, flags: .maskCommand, source: .hidSystemState, gap: 0.03)  // 0x09 = V; the gap lets slow apps see the ⌘
     }
 
     /// Private source, so a modifier you're holding doesn't turn it into ⌘↩ or ⇧↩.
     static func postReturnKey() {
-        let source = CGEventSource(stateID: .privateState)
+        press(0x24, flags: [], source: .privateState)  // 0x24 = Return
+    }
+
+    /// Presses and releases `key`, tagged with `syntheticMarker` so the app's own hotkey watching
+    /// doesn't take it for a key the user pressed. `gap`: how long the key stays down.
+    static func press(_ key: CGKeyCode, flags: CGEventFlags, source: CGEventSourceStateID, gap: TimeInterval = 0) {
+        let source = CGEventSource(stateID: source)
         for keyDown in [true, false] {
-            guard let event = CGEvent(keyboardEventSource: source, virtualKey: 0x24, keyDown: keyDown) else { continue }  // 0x24 = Return
-            event.flags = []
+            guard let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: keyDown) else { continue }
+            event.flags = flags
             event.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
             event.post(tap: .cghidEventTap)
+            if keyDown, gap > 0 { Thread.sleep(forTimeInterval: gap) }
         }
     }
 }

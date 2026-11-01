@@ -222,7 +222,7 @@ final class AppSettings: ObservableObject {
     /// Apps in which the hotkey and mouse button are ignored (ExclusionWatcher), in the order added.
     @Published private(set) var excludedApps: [ExcludedApp] {
         didSet {
-            defaults.set(try? JSONEncoder().encode(excludedApps), forKey: Self.excludedAppsKey)
+            defaults.set(try? JSONFile.encoder.encode(excludedApps), forKey: Self.excludedAppsKey)
             onChange?()
         }
     }
@@ -235,7 +235,7 @@ final class AppSettings: ObservableObject {
     }
 
     private static func excludedApps(in defaults: UserDefaults) -> [ExcludedApp] {
-        defaults.data(forKey: excludedAppsKey).flatMap { try? JSONDecoder().decode([ExcludedApp].self, from: $0) } ?? []
+        defaults.data(forKey: excludedAppsKey).flatMap { try? JSONFile.decoder.decode([ExcludedApp].self, from: $0) } ?? []
     }
 
     func exclude(_ app: ExcludedApp) {

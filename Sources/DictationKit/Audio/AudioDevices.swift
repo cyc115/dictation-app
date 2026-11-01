@@ -80,43 +80,44 @@ enum AudioDevices {
 
     static func uid(of id: AudioDeviceID) -> String? { stringProperty(id, kAudioDevicePropertyDeviceUID) }
 
+    /// nil when the device has no mute switch (then `volume` is the way to silence it).
     static func isMuted(_ id: AudioDeviceID) -> Bool? {
-        var address = outputAddress(kAudioDevicePropertyMute)
-        guard AudioObjectHasProperty(id, &address) else { return nil }
-        var value: UInt32 = 0
-        var size = UInt32(MemoryLayout<UInt32>.size)
-        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr else { return nil }
-        return value != 0
+        outputProperty(id, kAudioDevicePropertyMute, UInt32.self).map { $0 != 0 }
     }
 
     static func setMuted(_ id: AudioDeviceID, _ muted: Bool) -> Bool {
-        var address = outputAddress(kAudioDevicePropertyMute)
-        var settable: DarwinBoolean = false
-        guard AudioObjectHasProperty(id, &address),
-              AudioObjectIsPropertySettable(id, &address, &settable) == noErr, settable.boolValue else { return false }
-        var value: UInt32 = muted ? 1 : 0
-        return AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value) == noErr
+        setOutputProperty(id, kAudioDevicePropertyMute, UInt32(muted ? 1 : 0))
     }
 
     static func volume(_ id: AudioDeviceID) -> Float? {
-        var address = outputAddress(kAudioHardwareServiceDeviceProperty_VirtualMainVolume)
+        outputProperty(id, kAudioHardwareServiceDeviceProperty_VirtualMainVolume, Float32.self)
+    }
+
+    static func setVolume(_ id: AudioDeviceID, _ volume: Float) -> Bool {
+        setOutputProperty(id, kAudioHardwareServiceDeviceProperty_VirtualMainVolume, Float32(volume))
+    }
+
+    // MARK: Private
+
+    /// An output-scope property's value, or nil if the device doesn't have the property.
+    private static func outputProperty<T: AdditiveArithmetic>(_ id: AudioDeviceID, _ selector: AudioObjectPropertySelector, _: T.Type) -> T? {
+        var address = outputAddress(selector)
         guard AudioObjectHasProperty(id, &address) else { return nil }
-        var value: Float32 = 0
-        var size = UInt32(MemoryLayout<Float32>.size)
+        var value = T.zero
+        var size = UInt32(MemoryLayout<T>.size)
         guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr else { return nil }
         return value
     }
 
-    static func setVolume(_ id: AudioDeviceID, _ volume: Float) -> Bool {
-        var address = outputAddress(kAudioHardwareServiceDeviceProperty_VirtualMainVolume)
+    /// False if the device doesn't have the property, won't let it be set, or refused the value.
+    private static func setOutputProperty<T>(_ id: AudioDeviceID, _ selector: AudioObjectPropertySelector, _ value: T) -> Bool {
+        var address = outputAddress(selector)
         var settable: DarwinBoolean = false
         guard AudioObjectHasProperty(id, &address),
               AudioObjectIsPropertySettable(id, &address, &settable) == noErr, settable.boolValue else { return false }
-        var value = Float32(volume)
-        return AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<Float32>.size), &value) == noErr
+        var value = value
+        return AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<T>.size), &value) == noErr
     }
-
-    // MARK: Private
 
     /// Every audio device, input or output.
     private static func allDevices() -> [AudioDeviceID] {
@@ -190,9 +191,10 @@ final class OutputMuter {
         guard defaults.dictionary(forKey: Self.pendingKey) == nil,
               let device = AudioDevices.defaultOutputDevice(),
               let uid = AudioDevices.uid(of: device) else { return }
-        if AudioDevices.isMuted(device) == false, AudioDevices.setMuted(device, true) {
+        let muted = AudioDevices.isMuted(device)
+        if muted == false, AudioDevices.setMuted(device, true) {
             save(["uid": uid, "kind": "mute"])
-        } else if AudioDevices.isMuted(device) == nil,
+        } else if muted == nil,
                   let volume = AudioDevices.volume(device), volume > 0,
                   AudioDevices.setVolume(device, 0) {
             save(["uid": uid, "kind": "volume", "volume": volume])
@@ -217,17 +219,11 @@ final class OutputMuter {
 }
 
 /// Short system sounds for start / stop / cancel.
-enum InteractionSound {
-    case start, stop, cancel
+enum InteractionSound: String {
+    case start = "Tink", stop = "Pop", cancel = "Bottle"
 
     func play() {
-        let name: String
-        switch self {
-        case .start: name = "Tink"
-        case .stop: name = "Pop"
-        case .cancel: name = "Bottle"
-        }
-        guard let sound = NSSound(named: NSSound.Name(name))?.copy() as? NSSound else { return }
+        guard let sound = NSSound(named: NSSound.Name(rawValue))?.copy() as? NSSound else { return }
         sound.volume = 0.35
         sound.play()
     }

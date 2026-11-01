@@ -76,8 +76,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // HotkeyManager prompts for Accessibility itself when needed.
             let hotkey = HotkeyManager(hotkey: self.settings.hotkey, mode: self.settings.mode,
                                        mouseButton: self.settings.mouseButton)
-            hotkey.enterButton = self.settings.mouseEnterButton
-            hotkey.commandKey = self.settings.commandHotkey
+            self.applyShortcuts(to: hotkey)
             hotkey.onPress = { [weak self] in self?.dictation.start() }
             hotkey.onRelease = { [weak self] in self?.dictation.stop() }
             hotkey.onCancel = { [weak self] in self?.dictation.cancel() }
@@ -127,15 +126,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         polishItem.state = settings.polishEnabled ? .on : .off
     }
 
+    /// The Shortcuts settings, applied at start and whenever Settings change.
+    private func applyShortcuts(to hotkey: HotkeyManager) {
+        hotkey.hotkey = settings.hotkey
+        hotkey.mode = settings.mode
+        hotkey.mouseButton = settings.mouseButton
+        hotkey.enterButton = settings.mouseEnterButton
+        hotkey.commandKey = settings.commandHotkey
+    }
+
     private func settingsChanged() {
-        if let hotkey = hotkey, hotkey.hotkey != settings.hotkey || hotkey.mode != settings.mode {
-            dictation.cancel()
-            hotkey.hotkey = settings.hotkey
-            hotkey.mode = settings.mode
+        if let hotkey = hotkey {
+            // A new key or mode mid-dictation would leave it with no release to stop it.
+            if hotkey.hotkey != settings.hotkey || hotkey.mode != settings.mode { dictation.cancel() }
+            applyShortcuts(to: hotkey)
         }
-        hotkey?.mouseButton = settings.mouseButton
-        hotkey?.enterButton = settings.mouseEnterButton
-        hotkey?.commandKey = settings.commandHotkey
         exclusion.excluded = settings.excludedApps
         applyAppearanceAndDock()
         updateMenu()

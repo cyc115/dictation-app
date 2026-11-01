@@ -15,6 +15,15 @@ struct RecentLatency {
             case .last25: return "Last 25"
             }
         }
+
+        /// How far back the window reaches; nil when it's the last 25 dictations instead.
+        var seconds: TimeInterval? {
+            switch self {
+            case .tenMinutes: return 10 * 60
+            case .thirtyMinutes: return 30 * 60
+            case .last25: return nil
+            }
+        }
     }
 
     struct Row: Identifiable {
@@ -79,12 +88,8 @@ struct RecentLatency {
     /// Timed dictations only (History is newest first).
     init(_ entries: [HistoryEntry], window: Window, now: Date) {
         let timed = entries.filter { $0.transcribeSeconds != nil }
-        let picked: [HistoryEntry]
-        switch window {
-        case .tenMinutes: picked = timed.filter { now.timeIntervalSince($0.date) <= 10 * 60 }
-        case .thirtyMinutes: picked = timed.filter { now.timeIntervalSince($0.date) <= 30 * 60 }
-        case .last25: picked = Array(timed.prefix(25))
-        }
+        let picked = window.seconds.map { seconds in timed.filter { now.timeIntervalSince($0.date) <= seconds } }
+            ?? Array(timed.prefix(25))
         rows = picked.map {
             Row(id: $0.id, date: $0.date, speaking: $0.duration, transcribing: $0.transcribeSeconds ?? 0,
                 polishing: $0.polishSeconds, transcribedByBackup: $0.transcribedBy?.byBackup == true,

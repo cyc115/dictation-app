@@ -91,13 +91,7 @@ enum AskMuse {
 
     /// ⌘A in the front app.
     private static func selectAll() {
-        let source = CGEventSource(stateID: .hidSystemState)
-        for keyDown in [true, false] {
-            guard let event = CGEvent(keyboardEventSource: source, virtualKey: 0x00, keyDown: keyDown) else { continue }  // 0x00 = A
-            event.flags = .maskCommand
-            event.setIntegerValueField(.eventSourceUserData, value: TextInjector.syntheticMarker)
-            event.post(tap: .cghidEventTap)
-        }
+        TextInjector.press(0x00, flags: .maskCommand, source: .hidSystemState)  // 0x00 = A
     }
 
     /// `check`'s first answer, tried every 100 ms for up to `seconds`.

@@ -134,10 +134,6 @@ final class UploadRace {
         let seconds: TimeInterval
         /// The backup was asked too (the main model was late or failed).
         var backupAsked = false
-        var answeredBy: String? {
-            if case .text(_, let model) = outcome { return model }
-            return nil
-        }
     }
 
     private let wav: URL

@@ -45,11 +45,13 @@ enum Websites {
         return search.url.map { ("the first result for “\(named)”", $0) }
     }
 
+    /// The words that ask, at the start ("open", "go to", "打开"…) or the end ("website", "网站"…).
+    private static let asking = try! NSRegularExpression(
+        pattern: #"^\W*(please\s+|帮我|请)?(open( up)?|go to|take me to|show me|launch|打开|去|进入)(\s+the)?\s*|\s*(website|web site|site|page|网站|网页)\W*$"#,
+        options: .caseInsensitive)
+
     /// What was said, without the words that asked: "Go to the Swift forums website." → "Swift forums".
     static func query(_ said: String) -> String {
-        let asking = try! NSRegularExpression(
-            pattern: #"^\W*(please\s+|帮我|请)?(open( up)?|go to|take me to|show me|launch|打开|去|进入)(\s+the)?\s*|\s*(website|web site|site|page|网站|网页)\W*$"#,
-            options: .caseInsensitive)
         var text = said.trimmingCharacters(in: .whitespacesAndNewlines)
         for _ in 0..<2 {  // the asking words at the start, then the end
             text = asking.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "")

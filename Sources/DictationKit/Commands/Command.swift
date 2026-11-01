@@ -134,14 +134,16 @@ struct Command: Hashable {
     /// scripts by name (one named like a built-in is skipped).
     static func all(in folder: URL, apps: [String] = installedApps().keys.sorted(),
                     running: [String] = SwitchApp.running().keys.sorted()) -> [Command] {
-        func named(_ apps: [String], _ command: Command) -> Command {
-            Command(name: command.name, summary: command.summary,
-                    choices: apps.prefix(maxApps).map { Choice(value: $0, meaning: $0) } + [noApp], script: nil)
-        }
-        let commands = builtIn.map { $0 == openApp ? named(apps, $0) : $0 == switchApp ? named(running, $0) : $0 }
+        func appChoices(_ apps: [String]) -> [Choice] { apps.prefix(maxApps).map { Choice(value: $0, meaning: $0) } + [noApp] }
+        let commands = builtIn.map { $0 == openApp ? $0.with(choices: appChoices(apps)) : $0 == switchApp ? $0.with(choices: appChoices(running)) : $0 }
             + scripts(in: folder).filter { script in !builtIn.contains { $0.name == script.name } }
         let fixable = commands.filter { $0 != fix }.map { Choice(value: $0.name, meaning: $0.summary) }
-        return commands.map { $0 == fix ? Command(name: fix.name, summary: fix.summary, choices: fixable + [noCommand], script: nil) : $0 }
+        return commands.map { $0 == fix ? $0.with(choices: fixable + [noCommand]) : $0 }
+    }
+
+    /// The same command with other choices.
+    func with(choices: [Choice]) -> Command {
+        Command(name: name, summary: summary, choices: choices, script: script)
     }
 
     /// Open's and switch-app's choices are the apps on this Mac, not fixed ones.
