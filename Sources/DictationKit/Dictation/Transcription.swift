@@ -38,9 +38,14 @@ struct SpeechContext: Equatable {
 
     static let none = SpeechContext()
 
-    /// For Qwen3-ASR's context (its system prompt): just the words. An English sentence around them
-    /// made it translate Chinese into English ("帮我 build 一个" came back "Help me build one").
-    var prompt: String { words.joined(separator: ", ") }
+    /// For Qwen3-ASR's context (its system prompt): just the words, the Chinese ones first. The words
+    /// it reads first tell it the language: an English sentence around them, or English words first,
+    /// made it translate mixed Chinese into English ("帮我 build 一个" came back "Help me build one";
+    /// 2–3 of the bench's 21 mixed clips with English first, none with Chinese first).
+    var prompt: String {
+        let chinese = words.filter { $0.unicodeScalars.contains(where: PolishScore.isCJK) }
+        return (chinese + words.filter { !chinese.contains($0) }).joined(separator: ", ")
+    }
 }
 
 extension SpeechEngine: DictationEngine {

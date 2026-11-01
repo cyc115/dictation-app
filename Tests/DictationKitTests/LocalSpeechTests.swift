@@ -199,10 +199,11 @@ final class LocalSpeechTests: XCTestCase {
         wait(for: [loaded], timeout: 1800)
         XCTAssertEqual(model.state, .ready)
         let bench = benchFolder.appendingPathComponent("audio")
-        // A command's context (what command mode gives it) mustn't change what it hears in a dictation.
+        // A command's context (what command mode gives it) mustn't change what it hears in a dictation;
+        // the two mixed clips came back translated into English when it listed the English words first.
         let commandWords = CommandMode(folder: makeTempURL(self), history: makeHistory(self))
             .speechContext()
-        var clips = [("mixed-01", ["帮我", "build", "push", "repository"]), ("english-01", ["notes", "meeting"]), ("chinese-01", ["天气", "公园"])]
+        var clips = [("mixed-01", ["帮我", "build", "push", "repository"]), ("mixed-noisy-03", ["下个季度", "retention"]), ("english-01", ["notes", "meeting"]), ("chinese-01", ["天气", "公园"])]
             .flatMap { clip, heard in [(bench.appendingPathComponent(clip + ".wav"), heard, SpeechContext.none),
                                        (bench.appendingPathComponent(clip + ".wav"), heard, commandWords)] }
         // Short commands (macOS's voice, so clean speech: this checks the context reaches the real model).

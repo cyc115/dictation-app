@@ -207,8 +207,17 @@ final class CommandTests: XCTestCase {
         XCTAssertTrue(words.contains("亮度"))
         XCTAssertEqual(Array(words.suffix(2)), ["tail error log", "Ghostty"], "Muse is already a built-in word")
         XCTAssertEqual(words.count, Set(words).count)
+        XCTAssertTrue(mode.speechContext().prompt.hasPrefix("回车, 发送, 亮度"), "Chinese first: English first made Qwen translate")
         XCTAssertTrue(mode.speechContext().prompt.hasSuffix("tail error log, Ghostty"))
         XCTAssertEqual(SpeechContext.none.prompt, "", "plain dictation: no context")
+    }
+
+    /// The on-device model's context: the Chinese words first, otherwise in order.
+    func testTheSpeechPromptPutsChineseWordsFirst() {
+        XCTAssertEqual(SpeechContext(words: ["press Enter", "回车", "open WeChat", "打开"]).prompt,
+                       "回车, 打开, press Enter, open WeChat")
+        XCTAssertEqual(SpeechContext(words: ["Ghostty", "打开 WeChat"]).prompt, "打开 WeChat, Ghostty", "a word with Chinese in it counts")
+        XCTAssertEqual(SpeechContext(words: ["press Enter", "brightness"]).prompt, "press Enter, brightness")
     }
 
     // MARK: Chat models
