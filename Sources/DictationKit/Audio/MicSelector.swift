@@ -28,6 +28,10 @@ struct MicSelector {
         var recent: [Float] = []
         /// Buffers of speech so far.
         var speech = 0
+        /// How clearly it hears you lately: the loud end (90th percentile) of `recent`, so pauses
+        /// between words don't count against it. Kept up to date by `add` (one sort per buffer),
+        /// since `better(than:)` asks for every mic's on every buffer.
+        private(set) var clarity: Float = 0
 
         mutating func add(_ decibels: Float) {
             guard decibels > MicSelector.silence + 1 else { return push(0) }  // zeros: hears nothing
@@ -41,14 +45,8 @@ struct MicSelector {
         private mutating func push(_ rise: Float) {
             recent.append(rise)
             if recent.count > MicSelector.window { recent.removeFirst(recent.count - MicSelector.window) }
-        }
-
-        /// How clearly it hears you lately: the loud end (90th percentile) of `recent`, so pauses
-        /// between words don't count against it.
-        var clarity: Float {
-            guard !recent.isEmpty else { return 0 }
             let sorted = recent.sorted()
-            return sorted[min(sorted.count - 1, Int(Float(sorted.count) * 0.9))]
+            clarity = sorted[min(sorted.count - 1, Int(Float(sorted.count) * 0.9))]
         }
     }
 

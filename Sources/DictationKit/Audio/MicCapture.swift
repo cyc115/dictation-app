@@ -132,9 +132,9 @@ final class MicCapture {
 
     /// RMS of the first channel (`MicSelector.decibels`) mapped from -50…-10 dBFS onto 0…1, for the
     /// waveform.
-    static func level(of buffer: AVAudioPCMBuffer) -> Float {
-        min(max((MicSelector.decibels(of: buffer) + 50) / 40, 0), 1)
-    }
+    static func level(of buffer: AVAudioPCMBuffer) -> Float { level(decibels: MicSelector.decibels(of: buffer)) }
+
+    static func level(decibels: Float) -> Float { min(max((decibels + 50) / 40, 0), 1) }
 
     /// `start` for a dictation, reporting a mic that won't open through `onError`. False if it didn't open.
     @discardableResult
@@ -241,10 +241,13 @@ final class MicCapture {
             if source === active { events.append(.live) }
         }
         let isActive = source === active
-        if sources.count > 1, !switched { selector.add(MicSelector.decibels(of: buffer), mic: source.index) }
+        let judging = sources.count > 1 && !switched
+        // One RMS per buffer, for the selector and for the waveform.
+        let decibels = judging || (isActive && !switching) ? MicSelector.decibels(of: buffer) : nil
+        if judging, let decibels { selector.add(decibels, mic: source.index) }
         if isActive, !switching {
             deliver(buffer)
-            level = Self.level(of: buffer)
+            level = decibels.map(Self.level(decibels:))
         } else if !isActive, !switched, let kept = source.resampler.conform(buffer) {
             source.history.append(kept)
         }

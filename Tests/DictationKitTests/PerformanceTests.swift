@@ -7,6 +7,17 @@ import XCTest
 /// Each prints "[perf] …" timings; budgets are ~10x the measured time on an M-series Mac,
 /// so they catch real regressions (e.g. an accidental O(n²)) without flaking.
 final class PerformanceTests: XCTestCase {
+    /// Intelligent mic selection judges every buffer of every open mic (~47×/s each, four mics open).
+    func testMicSelectorPerBuffer() {
+        var selector = MicSelector(mics: 4)
+        var n: Float = 0
+        assertFaster(than: 0.000_1, iterations: 2_000, "mic selector: judge one buffer with 4 mics open") {
+            n += 1
+            selector.add(-40 + (n.truncatingRemainder(dividingBy: 7)) * 3, mic: Int(n) % 4)
+            _ = selector.better(than: 0)
+        }
+    }
+
     /// Runs on the audio thread ~47×/s (1024 frames at 48 kHz = 21 ms per buffer).
     func testMicLevelPerBuffer() {
         let buffer = makeBuffer(amplitude: 0.2)
