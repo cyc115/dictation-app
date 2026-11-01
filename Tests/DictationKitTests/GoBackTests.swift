@@ -48,7 +48,7 @@ final class FakeDesk {
         guard keys else { return }
         let injector = goBack.injector
         injector.canPaste = { true }
-        injector.charBeforeCursor = { nil }
+        injector.charBeforeCursor = { _ in nil }
         injector.restoreDelay = 0.01
         injector.paste = { [unowned self] in log.append("paste:\(injector.pasteboard.string(forType: .string) ?? "")@\(names[front]!)") }
         injector.postReturn = { [unowned self] in log.append("return@\(names[front]!)") }

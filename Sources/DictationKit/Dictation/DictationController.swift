@@ -326,8 +326,9 @@ final class DictationController {
     /// Pastes `text`, then presses Return if it's being sent. If you've moved on from `target`, `GoBack`
     /// takes it there instead (nothing's pasted if it can't); `done` runs once it's all over.
     private func type(_ text: String, to target: TextSpot?, delivery: Delivery, done: @escaping () -> Void) {
-        guard let target, !goBack.isStill(at: target) else {
-            injector.inject(text)
+        let here = goBack.current()  // asked once: for whether you moved on, and for the paste
+        guard let target, !target.isSame(as: here) else {
+            injector.inject(text, in: here?.field)
             if delivery.send { pressReturnSoon() }
             return done()
         }

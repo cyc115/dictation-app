@@ -64,6 +64,8 @@ final class DictationControllerTests: XCTestCase {
     private var ran: [String] = []
     /// Where you are while dictating (Paste where you dictated).
     private var desk = FakeDesk()
+    /// The text box each paste asked about the character before the cursor (nil: it had none to ask).
+    private var askedFields: [AXUIElement?] = []
 
     /// `realEngines`: the app's own engine choice instead of `engine`.
     private func makeController(realEngines: Bool = false, overlay: OverlayWindow? = nil) -> DictationController {
@@ -78,7 +80,7 @@ final class DictationControllerTests: XCTestCase {
         injector.pasteboard = pasteboard
         injector.restoreDelay = 0.01
         injector.canPaste = { true }
-        injector.charBeforeCursor = { nil }
+        injector.charBeforeCursor = { [unowned self] field in askedFields.append(field); return nil }
         injector.paste = { [unowned self] in
             pasted.append(pasteboard.string(forType: .string) ?? "")
             keys.append("paste:" + (pasted.last ?? ""))
@@ -127,6 +129,24 @@ final class DictationControllerTests: XCTestCase {
         controller.stop()
         waitUntil { !controller.isBusy }
         XCTAssertEqual(keys, ["paste:hello world", "history"])
+    }
+
+    /// Each Accessibility question to the front app is a round trip with a 0.1 s limit: where you are is
+    /// asked once when you stop and once when the text arrives, and the paste asks that same text box
+    /// about the character before the cursor instead of looking it up a third time.
+    func testThePasteAsksTheTextBoxItAlreadyFound() {
+        let controller = makeController()
+        settings.pasteWhereDictated = true
+        let where_ = controller.goBack.current
+        var lookedUp = 0
+        controller.goBack.current = { lookedUp += 1; return where_() }
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(pasted, ["hello world"])
+        XCTAssertEqual(lookedUp, 2, "at stop, and when the text arrived")
+        XCTAssertEqual(askedFields.count, 1)
+        XCTAssertTrue(askedFields.first.flatMap { $0 }.map { CFEqual($0, FakeDesk.slack.field) } ?? false)
     }
 
     /// The mics are looked up once per start (CoreAudio asks every device several things): the one

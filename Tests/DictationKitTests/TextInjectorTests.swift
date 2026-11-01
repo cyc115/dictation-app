@@ -16,7 +16,7 @@ final class TextInjectorTests: XCTestCase {
         injector.pasteboard = pasteboard
         injector.restoreDelay = 0.05
         injector.canPaste = { true }
-        injector.charBeforeCursor = { nil }
+        injector.charBeforeCursor = { _ in nil }
         var seenAtPaste: String?
         injector.paste = { seenAtPaste = pasteboard.string(forType: .string) }
 
@@ -36,10 +36,33 @@ final class TextInjectorTests: XCTestCase {
         var pasted: [String] = []
         injector.paste = { pasted.append(pasteboard.string(forType: .string) ?? "") }
         for before: Character? in ["d", " ", nil] {
-            injector.charBeforeCursor = { before }
+            injector.charBeforeCursor = { _ in before }
             injector.inject("next")
         }
         XCTAssertEqual(pasted, [" next", "next", "next"])
+    }
+
+    /// ⌘V's key-up comes 30 ms after its key-down (slow apps miss a shorter press); the main thread
+    /// doesn't wait for it.
+    func testAKeyHeldForAGapIsReleasedLaterWithoutWaiting() {
+        let start = ProcessInfo.processInfo.systemUptime
+        var events: [(down: Bool, at: TimeInterval, marked: Bool)] = []
+        TextInjector.press(0x09, flags: .maskCommand, source: .privateState, gap: 0.03) { event in
+            events.append((event.type == .keyDown, ProcessInfo.processInfo.systemUptime - start,
+                           event.getIntegerValueField(.eventSourceUserData) == TextInjector.syntheticMarker))
+        }
+        XCTAssertEqual(events.map(\.down), [true])
+        XCTAssertLessThan(events[0].at, 0.01, "returns at once")
+        spinRunLoop(0.1)
+        XCTAssertEqual(events.map(\.down), [true, false])
+        XCTAssertGreaterThanOrEqual(events[1].at, 0.03)
+        XCTAssertTrue(events.allSatisfy(\.marked), "both tagged as this app's own")
+    }
+
+    func testAKeyWithoutAGapIsPressedAndReleasedAtOnce() {
+        var types: [CGEventType] = []
+        TextInjector.press(0x24, flags: [], source: .privateState) { types.append($0.type) }
+        XCTAssertEqual(types, [.keyDown, .keyUp])
     }
 
     func testSpaceRule() {

@@ -112,7 +112,7 @@ final class GoBack {
             blockInput(false)
             return lost(text, target)
         }
-        injector.inject(text)
+        injector.inject(text, in: target.field)
         let pasted = ProcessInfo.processInfo.systemUptime
         if send() {
             await sleep(sendDelay)

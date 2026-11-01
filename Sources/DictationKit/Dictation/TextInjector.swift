@@ -10,8 +10,9 @@ class TextInjector {
     var restoreDelay: TimeInterval = 0.8
     var canPaste: () -> Bool = { AXIsProcessTrusted() }
     var paste: () -> Void = TextInjector.postCommandV
-    /// The character before the cursor in the focused field (nil: none, or the app doesn't say).
-    var charBeforeCursor: () -> Character? = TextInjector.focusedCharBeforeCursor
+    /// The character before the cursor in a text box (nil: none, or the app doesn't say); given nil,
+    /// the front app's focused one.
+    var charBeforeCursor: (AXUIElement?) -> Character? = TextInjector.charBeforeCursor(in:)
 
     /// Tag on every key event this app synthesizes, so its own key monitors can ignore them.
     static let syntheticMarker: Int64 = 0x4449_4354  // "DICT"
@@ -29,10 +30,12 @@ class TextInjector {
         pasteboard.setString(text, forType: .string)
     }
 
-    func inject(_ text: String) {
+    /// `field`: the text box the paste goes into, when the caller has already found it (one
+    /// Accessibility round trip fewer); nil asks the front app.
+    func inject(_ text: String, in field: AXUIElement? = nil) {
         guard canPaste() else { return }
         let pasteboard = self.pasteboard
-        let text = Self.needsSpace(after: charBeforeCursor(), before: text) ? " " + text : text
+        let text = Self.needsSpace(after: charBeforeCursor(field), before: text) ? " " + text : text
 
         // 1. Save everything currently on the clipboard (all types, not just text).
         let saved: [[NSPasteboard.PasteboardType: Data]] = pasteboard.pasteboardItems?.map { item in
@@ -83,11 +86,11 @@ class TextInjector {
         return (0x3000...0x303F).contains(s) || (0xFF00...0xFFEF).contains(s)
     }
 
-    /// Asks the frontmost app, with a 0.1 s limit so a hung app doesn't hold up the paste.
-    /// Terminals report the cursor at 0: no space.
-    static func focusedCharBeforeCursor() -> Character? {
-        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,
-              let field = TextSpot.focusedElement(of: pid) else { return nil }
+    /// Asks `field`, or the frontmost app's focused one (with a 0.1 s limit so a hung app doesn't
+    /// hold up the paste). Terminals report the cursor at 0: no space.
+    static func charBeforeCursor(in field: AXUIElement?) -> Character? {
+        guard let field = field ?? NSWorkspace.shared.frontmostApplication.flatMap({ TextSpot.focusedElement(of: $0.processIdentifier) })
+        else { return nil }
         var selection: CFTypeRef?
         var range = CFRange()
         guard AXUIElementCopyAttributeValue(field, kAXSelectedTextRangeAttribute as CFString, &selection) == .success,
@@ -112,15 +115,23 @@ class TextInjector {
     }
 
     /// Presses and releases `key`, tagged with `syntheticMarker` so the app's own hotkey watching
-    /// doesn't take it for a key the user pressed. `gap`: how long the key stays down.
-    static func press(_ key: CGKeyCode, flags: CGEventFlags, source: CGEventSourceStateID, gap: TimeInterval = 0) {
+    /// doesn't take it for a key the user pressed. `gap`: how long the key stays down; the release is
+    /// scheduled on the main queue rather than waited for. `post`: what sends each event (tests look).
+    static func press(_ key: CGKeyCode, flags: CGEventFlags, source: CGEventSourceStateID, gap: TimeInterval = 0,
+                      post: @escaping (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) }) {
         let source = CGEventSource(stateID: source)
-        for keyDown in [true, false] {
-            guard let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: keyDown) else { continue }
-            event.flags = flags
-            event.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
-            event.post(tap: .cghidEventTap)
-            if keyDown, gap > 0 { Thread.sleep(forTimeInterval: gap) }
+        func event(down: Bool) -> CGEvent? {
+            let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down)
+            event?.flags = flags
+            event?.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
+            return event
+        }
+        guard let down = event(down: true), let up = event(down: false) else { return }
+        post(down)
+        if gap > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + gap) { post(up) }
+        } else {
+            post(up)
         }
     }
 }
