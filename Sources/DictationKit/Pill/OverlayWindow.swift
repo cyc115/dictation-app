@@ -246,7 +246,7 @@ class OverlayWindow {
 
     /// Runs the animation if something needs it, else shows the look as it is now.
     private func animate() {
-        if state.isAnimating { startAnimation() } else { applyLook() }
+        if state.isAnimating(at: now()) { startAnimation() } else { applyLook() }
     }
 
     /// Back to the plain pill, with no animation running.
@@ -272,7 +272,7 @@ class OverlayWindow {
             return
         }
         apply(state.look(at: time, reduceMotion: reduceMotion()))
-        if !state.isAnimating, animation != nil {
+        if !state.isAnimating(at: time), animation != nil {
             animation?.invalidate()
             animation = nil
         }

@@ -32,8 +32,12 @@ struct PillState: Equatable {
     var isWarmingUp: Bool { warmingSince != nil }
     var isNarrowing: Bool { narrowingSince != nil }
     var isShowingNoAudio: Bool { silentSince != nil }
-    /// Something is moving, so the pill needs redrawing every frame.
-    var isAnimating: Bool { warmingSince != nil || flash != nil || silentSince != nil || narrowingSince != nil }
+    /// Something is moving at `time`, so the pill needs redrawing every frame. The red glow only
+    /// while it fades in: settled, it looks the same every frame until the mic is live again.
+    func isAnimating(at time: TimeInterval) -> Bool {
+        warmingSince != nil || flash != nil || narrowingSince != nil
+            || silentSince.map { time - $0 < PillLook.silentFadeIn } ?? false
+    }
 
     /// The mic sent its first real audio: the wait (if any) ends in a green flash; red goes.
     mutating func micLive(at time: TimeInterval) {

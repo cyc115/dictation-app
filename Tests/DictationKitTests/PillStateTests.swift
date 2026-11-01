@@ -10,7 +10,7 @@ final class PillStateTests: XCTestCase {
         XCTAssertFalse(state.isWarmingUp)
         XCTAssertEqual(state.look(at: 1.125, reduceMotion: false), .ready(since: 0.125, reduceMotion: false))
         XCTAssertEqual(state.look(at: 2, reduceMotion: false), .plain)
-        XCTAssertFalse(state.isAnimating, "the finished flash is dropped")
+        XCTAssertFalse(state.isAnimating(at: 2), "the finished flash is dropped")
     }
 
     func testRedShowsOverTheWarmUpDots() {
@@ -27,10 +27,17 @@ final class PillStateTests: XCTestCase {
         state.micSilent(at: 3)
         state.micSilent(at: 5)  // reported again: the fade doesn't restart
         XCTAssertEqual(state.look(at: 3 + PillLook.silentFadeIn, reduceMotion: false).glow, 1)
-        XCTAssertTrue(state.isAnimating)
+        XCTAssertTrue(state.isAnimating(at: 3.5), "fading in")
+        XCTAssertFalse(state.isAnimating(at: 3 + PillLook.silentFadeIn), "the settled glow needs no redraw")
         state.micLive(at: 9)
         XCTAssertEqual(state.look(at: 9, reduceMotion: false), .plain, "a mic that wasn't warming up doesn't flash")
-        XCTAssertFalse(state.isAnimating)
+        XCTAssertFalse(state.isAnimating(at: 9))
+    }
+
+    func testTheWarmUpDotsKeepMovingUnderASettledRedGlow() {
+        var state = PillState.listening(warmingUp: true, at: 0)
+        state.micSilent(at: 3)
+        XCTAssertTrue(state.isAnimating(at: 3 + PillLook.silentFadeIn))
     }
 
     func testASwitchFlashesYellowOverRedAndEndsTheWait() {
