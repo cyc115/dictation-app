@@ -145,7 +145,8 @@ func makeServices(_ test: XCTestCase, settings: AppSettings? = nil, history: His
     fakeSystem(commands)
     commands.apps = { [:] }  // not this Mac's
     return AppServices(settings: settings ?? makeSettings(test), history: history, insights: Insights(defaults: makeDefaults(test)),
-                       archive: RecordingArchive(directory: makeTempURL(test, "Recordings")), commands: commands, general: [])
+                       archive: RecordingArchive(directory: makeTempURL(test, "Recordings")), commands: commands,
+                       updates: Updates(backend: FakeUpdater()), general: [])  // as in the installed app
 }
 
 /// A settings store with throwaway defaults, no saved key, no custom setups and no learned prompts.

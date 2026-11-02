@@ -29,8 +29,9 @@ done
 LOG="${TMPDIR:-/tmp}/dictationapp-test.log"
 swift test "${args[@]}" 2>&1 | tee "$LOG" | grep -E "error:|failed|Executed .* tests|\[perf\]|\[local\]" || true
 # A compile error or failed assertion; not a SwiftPM warning that mentions one ("warning: …: skipping
-# cache due to an error: …", printed by a fresh clone's first resolve).
-if grep -vE "^warning:" "$LOG" | grep -qE "error:|with [1-9][0-9]* failures?"; then
+# cache due to an error: …", printed by a fresh clone's first resolve). Not `grep -q`: it quits at the
+# first match, the first grep then dies of SIGPIPE, and pipefail turned that into "no failure".
+if grep -vE "^warning:" "$LOG" | grep -E "error:|with [1-9][0-9]* failures?" >/dev/null; then
   echo "❌ tests failed (full log: $LOG)"
   exit 1
 fi
