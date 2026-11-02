@@ -91,17 +91,10 @@ if [[ -n "$BUNDLE_ONLY" ]]; then
   exit 0
 fi
 
-# A running copy keeps running from the old files, but macOS revokes its microphone access once
-# they're replaced, so it watches for this swap and relaunches itself when no dictation is running.
-swap_in() {
-  local old="/Applications/.DictationApp-old-$$.app"
-  [[ -d "$INSTALLED" ]] && mv "$INSTALLED" "$old"
-  mv "$APP" "$INSTALLED"
-  rm -rf "$old"
-}
+swap_in() { scripts/swap-in.sh "$APP" "$INSTALLED"; }
 
 if $KEEP_RUNNING && pgrep -x DictationApp >/dev/null; then
-  echo "==> Installing to $INSTALLED (the running copy keeps going; quit and reopen it for this build)…"
+  echo "==> Installing to $INSTALLED (the running copy relaunches into it once no dictation is running)…"
   swap_in
   exit 0
 fi

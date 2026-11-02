@@ -103,18 +103,25 @@ final class BundleWatcherTests: XCTestCase {
         wait(for: [replaced], timeout: 3)
     }
 
-    /// What build.sh --keep-running does: move the old bundle aside, move the new one in, delete the old.
+    /// build.sh --keep-running's own swap script: move the old bundle aside, move the new one in, delete the old.
+    /// Twice, as after two builds in a row: each relaunched copy watches its own executable.
     func testNoticesTheBundleSwap() throws {
-        let exe = try install("DictationApp.app", contents: "old")
-        _ = try install(".DictationApp-new.app", contents: "new")
-        let replaced = expectation(description: "replaced")
-        let watcher = BundleWatcher(executable: exe) { replaced.fulfill() }
-        try waitForReplaced(watcher, replaced) {
-            let fm = FileManager.default
-            let installed = dir.appendingPathComponent("DictationApp.app"), old = dir.appendingPathComponent(".old.app")
-            try fm.moveItem(at: installed, to: old)
-            try fm.moveItem(at: dir.appendingPathComponent(".DictationApp-new.app"), to: installed)
-            try fm.removeItem(at: old)
+        for build in 1...2 {
+            let exe = try install("DictationApp.app", contents: "build \(build)")
+            let new = try install(".DictationApp-new.app", contents: "build \(build + 1)")
+            let replaced = expectation(description: "replaced")
+            let watcher = BundleWatcher(executable: exe) { replaced.fulfill() }
+            try waitForReplaced(watcher, replaced) {
+                let swap = Process()
+                swap.executableURL = repoRoot.appendingPathComponent("scripts/swap-in.sh")
+                swap.arguments = [new.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().path,
+                                  dir.appendingPathComponent("DictationApp.app").path]
+                try swap.run()
+                swap.waitUntilExit()
+                XCTAssertEqual(swap.terminationStatus, 0)
+            }
+            XCTAssertEqual(try String(contentsOf: exe, encoding: .utf8), "build \(build + 1)")
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), ["DictationApp.app"], "old copy deleted")
         }
     }
 

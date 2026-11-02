@@ -54,7 +54,7 @@ final class BundleWatcher {
         if let now = Self.identity(of: executable), now != original {
             source?.cancel()
             source = nil
-            AppRelaunch.log.info("installed build replaced; relaunching when idle")
+            AppRelaunch.log.notice("installed build replaced; relaunching when idle")
             return onReplaced()
         }
         guard attempt < 20 else { return }  // moved away for good (uninstalled): nothing to relaunch into
@@ -64,6 +64,8 @@ final class BundleWatcher {
 
 /// Relaunches into a newly installed build, but never in the middle of a dictation.
 final class AppRelaunch {
+    /// `.notice` and up: macOS keeps those for days, `.info` only for minutes (`/usr/bin/log show
+    /// --predicate 'category == "relaunch"'`; a bare `log` in zsh is its own builtin, and shows nothing).
     static let log = Logger(subsystem: "com.mikechen.DictationApp", category: "relaunch")
 
     /// True while a dictation is recording or its text is still on the way.
@@ -77,6 +79,7 @@ final class AppRelaunch {
     /// A new build was installed: relaunch now, or once the dictation in progress is done.
     func updateInstalled() {
         pending = true
+        if isBusy() { Self.log.notice("dictation in progress; relaunching once it's done") }
         relaunchIfIdle()
     }
 
@@ -89,6 +92,7 @@ final class AppRelaunch {
             self.scheduled = false
             guard self.pending, !self.isBusy() else { return }  // a dictation started meanwhile: wait for it
             self.pending = false
+            Self.log.notice("relaunching into the new build")
             self.relaunch()
         }
     }
