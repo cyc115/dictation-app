@@ -126,6 +126,12 @@ final class AppVersionTests: XCTestCase {
         XCTAssertTrue(v.long.hasPrefix("Version 1.0.25 (525e456) · built "), v.long)
     }
 
+    /// Builds with updates keep the commit beside the build number (the commit count Sparkle compares).
+    func testCommitComesFromItsOwnKey() {
+        let v = AppVersion(info: ["CFBundleShortVersionString": "1.0.220", "CFBundleVersion": "220", "DictationCommit": "6f2c4a8"])
+        XCTAssertEqual(v.short, "Version 1.0.220 (6f2c4a8)")
+    }
+
     func testUnstampedBuildSaysDev() {
         let v = AppVersion(info: [:])
         XCTAssertEqual(v.short, "Version dev (-)")

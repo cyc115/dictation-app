@@ -17,7 +17,7 @@ final class SettingsUITests: XCTestCase {
                       "Activation", "AI polish", "Model", "On-device model", "Keep history", "Keep recordings",
                       "Backup model when slow", "Pause in these apps", "Show detailed analytics",
                       "Command & Enter.key", "Command & Enter.mouse", "Command mode", "Commands",
-                      "Paste where you dictated", "Decide commands on this Mac"] {
+                      "Paste where you dictated", "Decide commands on this Mac", "Check for updates automatically"] {
             XCTAssertNotNil(hosted.element(id: "setting." + title), "missing control: \(title)")
         }
     }

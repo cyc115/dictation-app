@@ -9,6 +9,8 @@ let package = Package(
         .package(url: "https://github.com/Blaizzy/mlx-audio-swift", revision: "244458d"),
         .package(url: "https://github.com/ml-explore/mlx-swift.git", .upToNextMajor(from: "0.30.6")),
         .package(url: "https://github.com/huggingface/swift-huggingface.git", .upToNextMajor(from: "0.8.1")),
+        // App updates from GitHub Releases (Update/).
+        .package(url: "https://github.com/sparkle-project/Sparkle", .upToNextMajor(from: "2.10.1")),
     ],
     targets: [
         // All app code lives in the library so tests can import it.
@@ -19,6 +21,7 @@ let package = Package(
                 .product(name: "MLXAudioCore", package: "mlx-audio-swift"),
                 .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "HuggingFace", package: "swift-huggingface"),
+                .product(name: "Sparkle", package: "Sparkle"),
             ],
             // Command mode's instructions for writing a new command ("create") and fixing one ("fix").
             resources: [.copy("Commands/WriteCommand.txt"), .copy("Commands/FixCommand.txt")],
@@ -31,7 +34,9 @@ let package = Package(
         .executableTarget(
             name: "DictationApp",
             dependencies: ["DictationKit"],
-            swiftSettings: [.swiftLanguageMode(.v5)]
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            // build.sh puts Sparkle.framework in Contents/Frameworks.
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
         .testTarget(
             name: "DictationKitTests",

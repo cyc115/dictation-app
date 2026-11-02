@@ -25,6 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var polishItem: NSMenuItem!
     private var hintItem: NSMenuItem!
+    private var updateItem: NSMenuItem!
     private var hotkey: HotkeyManager?
     private let overlay = OverlayWindow()
     private let injector = TextInjector()
@@ -64,13 +65,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         overlay.onCancel = { [weak self] in self?.dictation.cancel() }
         overlay.onConfirm = { [weak self] in self?.dictation.stop() }
         dictation.onDictatingChanged = { [weak self] in self?.updateStatusIcon() }
-        dictation.onIdle = { [weak self] in self?.relaunch.relaunchIfIdle() }
+        dictation.onIdle = { [weak self] in self?.relaunch.relaunchIfIdle(); self?.services.updates.relaunchIfIdle() }
         dictation.onMissingKey = { [weak self] _ in self?.mainWindow.show(.settings) }
         settings.onChange = { [weak self] in self?.settingsChanged() }
         settingsCommands = SettingsCommand.observe(settings)
         exclusion.onChange = { [weak self] in self?.updateStatusIcon(); self?.updateMenu() }
         exclusion.start()
         preloadLocalModel()
+        services.updates.relaunch.isBusy = { [weak self] in self?.dictation.isBusy ?? false }
+        services.updates.onChange = { [weak self] in self?.updateMenu() }
+        services.updates.start()
         Permissions.requestAll { [weak self] granted in
             guard let self = self else { return }
             // HotkeyManager prompts for Accessibility itself when needed.
@@ -113,6 +117,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(item)
         }
         menu.addItem(.separator())
+        updateItem = NSMenuItem(title: "", action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        menu.addItem(updateItem)
         let versionItem = NSMenuItem(title: AppVersion.current.long, action: nil, keyEquivalent: "")
         versionItem.isEnabled = false
         menu.addItem(versionItem)
@@ -124,6 +131,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateMenu() {
         hintItem.title = exclusion.pausedFor.map { "Paused while \($0.name) is in front" } ?? settings.hint
         polishItem.state = settings.polishEnabled ? .on : .off
+        updateItem.title = services.updates.available.map { "Install Update \($0)…" } ?? "Check for Updates…"
+        updateItem.isHidden = !services.updates.isAvailable
     }
 
     /// The Shortcuts settings, applied at start and whenever Settings change.
@@ -197,6 +206,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openHome() { mainWindow.show(.home) }
     @objc private func openHistory() { mainWindow.show(.history) }
     @objc private func openSettings() { mainWindow.show(.settings) }
+    @objc private func checkForUpdates() { services.updates.checkNow() }
     @objc private func togglePolish() { settings.polishEnabled.toggle() }
 
     /// Waveform glyph matching the app icon; red while the mic is open, struck through while paused.

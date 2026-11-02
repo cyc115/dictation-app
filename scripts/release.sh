@@ -8,6 +8,10 @@
 #
 # The version matches build.sh (1.0.<commit count>), so the release and an app built from the
 # same commit show the same version. Needs a clean tree on main, in sync with origin, and `gh`.
+#
+# Each release also carries appcast.xml, signed with the update key: installed apps read the latest
+# release's (Info.plist's SUFeedURL) to find and check updates. The key's private half is
+# ~/.config/dictation-app/sparkle-private-key (age-encrypted in chezmoi), or $SPARKLE_KEY_FILE.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -23,6 +27,9 @@ for arg in "$@"; do
 done
 
 fail() { echo "❌ $1" >&2; exit 1; }
+
+SPARKLE_KEY="${SPARKLE_KEY_FILE:-$HOME/.config/dictation-app/sparkle-private-key}"
+[[ -r "$SPARKLE_KEY" ]] || fail "no update key at $SPARKLE_KEY (chezmoi apply ~/.config/dictation-app)"
 
 [[ -z "$(git status --porcelain --untracked-files=no)" ]] || fail "uncommitted changes; commit or stash them first"
 [[ "$(git branch --show-current)" == main ]] || fail "not on main"
@@ -42,9 +49,24 @@ ZIP="$OUT/DictationApp-$VERSION.zip"
 # ditto keeps the code signature and extended attributes, which `zip` drops.
 ditto -c -k --keepParent "$OUT/DictationApp.app" "$ZIP"
 echo "==> $ZIP ($(du -h "$ZIP" | cut -f1))"
-$DRY_RUN && exit 0
 
 PREV=$(git describe --tags --abbrev=0 2>/dev/null || true)
+CHANGES=$([[ -n "$PREV" ]] && git log --no-merges --format='- %s' "$PREV..HEAD" || echo "First release.")
+
+# The appcast: this release only, with its changes as the notes Sparkle shows. Its own folder, so
+# generate_appcast sees just this zip.
+FEED="$OUT/feed"
+mkdir -p "$FEED"
+cp "$ZIP" "$FEED/"
+{ [[ -n "$PREV" ]] && echo "## Changes since $PREV" && echo; echo "$CHANGES"; } > "$FEED/DictationApp-$VERSION.md"
+.build/artifacts/sparkle/Sparkle/bin/generate_appcast --ed-key-file - --embed-release-notes \
+  --download-url-prefix "https://github.com/cyc115/dictation-app/releases/download/$TAG/" \
+  --link "https://github.com/cyc115/dictation-app" "$FEED" < "$SPARKLE_KEY"
+APPCAST="$FEED/appcast.xml"
+grep -q 'sparkle:edSignature=' "$APPCAST" || fail "appcast.xml has no signature"
+echo "==> $APPCAST"
+$DRY_RUN && exit 0
+
 NOTES="$OUT/notes.md"
 {
   echo "## Install"
@@ -55,18 +77,15 @@ NOTES="$OUT/notes.md"
   echo "   or open it once, then System Settings → Privacy & Security → **Open Anyway**."
   echo "3. Grant Microphone, Speech Recognition and Accessibility, then relaunch the app."
   echo
+  echo "Already have a version whose menu has **Check for Updates…**? Use that instead."
+  echo
   echo "Needs macOS 26 or later on Apple silicon. See the [README](https://github.com/cyc115/dictation-app#readme)."
   echo
-  if [[ -n "$PREV" ]]; then
-    echo "## Changes since $PREV"
-    echo
-    git log --no-merges --format='- %s' "$PREV..HEAD"
-  else
-    echo "First release."
-  fi
+  [[ -n "$PREV" ]] && echo "## Changes since $PREV" && echo
+  echo "$CHANGES"
 } > "$NOTES"
 
 git tag -a "$TAG" -m "DictationApp $VERSION"
 git push -q origin "$TAG"
-gh release create "$TAG" "$ZIP" --title "DictationApp $VERSION" --notes-file "$NOTES" --verify-tag "${DRAFT[@]}"
+gh release create "$TAG" "$ZIP" "$APPCAST" --title "DictationApp $VERSION" --notes-file "$NOTES" --verify-tag "${DRAFT[@]}"
 rm -rf "$OUT"

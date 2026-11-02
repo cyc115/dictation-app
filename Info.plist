@@ -16,6 +16,14 @@
     <string>1</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
+    <!-- Updates (Sparkle): the appcast scripts/release.sh attaches to every GitHub release, and
+         the public half of the key it signs them with (the private half: ~/.config/dictation-app). -->
+    <key>SUFeedURL</key>
+    <string>https://github.com/cyc115/dictation-app/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>LQeDcnkyWmsEckmtFQ74hkC6b6eU+J71sq2qwDeR6zE=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>

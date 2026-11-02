@@ -2,7 +2,7 @@ import Foundation
 
 /// Version stamped into Info.plist by build.sh:
 /// 1.0.<commit count> (+"-dev" with uncommitted changes), the git commit, the build time, and the
-/// source folder it was built from.
+/// source folder it was built from. (Builds before updates kept the commit in CFBundleVersion.)
 struct AppVersion {
     let version: String
     let commit: String
@@ -14,7 +14,7 @@ struct AppVersion {
 
     init(info: [String: Any]) {
         version = info["CFBundleShortVersionString"] as? String ?? "dev"
-        commit = info["CFBundleVersion"] as? String ?? "-"
+        commit = info["DictationCommit"] as? String ?? info["CFBundleVersion"] as? String ?? "-"
         built = (info["DictationBuildDate"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
         source = (info["DictationSource"] as? String).map { URL(fileURLWithPath: $0, isDirectory: true) }
     }

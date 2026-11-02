@@ -93,6 +93,10 @@ Developer ID, so macOS blocks it the first time: run
 `xattr -dr com.apple.quarantine /Applications/DictationApp.app`, or open it once and then click
 System Settings → Privacy & Security → **Open Anyway**. Releases are built for Apple silicon.
 
+**Updates:** the app checks GitHub once a day for a newer release. A new one shows in the menu bar
+menu (**Install Update…**) and Settings › Updates; it installs and relaunches when you say so, never
+during a dictation. Updates are signed, and the app checks the signature before installing.
+
 **Or build from source:**
 
 ```sh
@@ -197,6 +201,8 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
 
 - The mic is on **only** while you're dictating, never in the background.
 - With the On-device setup, audio and text never leave your Mac.
+- Checking for updates (once a day; Settings › Updates turns it off) fetches the latest release's
+  appcast from GitHub, which sends nothing about you but your IP address and the app's version.
 - Audio is thrown away once it's transcribed, unless you turn on *Keep recordings* (commands'
   go in `Recordings/Commands`). Those, and your history, stay in `~/Library/Application Support/DictationApp/`.
 - History is kept for as long as you choose (Settings → *Keep history*), and **Clear All…**

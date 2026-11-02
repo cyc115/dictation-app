@@ -56,14 +56,16 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 cp "$BIN" "$APP/Contents/MacOS/DictationApp"
 cp Info.plist "$APP/Contents/Info.plist"
-# Version: 1.0.<commit count>, "-dev" if the tree has uncommitted changes; build = commit.
+# Version: 1.0.<commit count>, "-dev" if the tree has uncommitted changes. The build number is the
+# commit count too: Sparkle compares it with the appcast's to find a newer release.
 COUNT=$(git rev-list --count HEAD 2>/dev/null || echo 0)
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 VERSION="1.0.$COUNT"
 [[ -n "$(git status --porcelain --untracked-files=no 2>/dev/null)" ]] && VERSION="$VERSION-dev"
 PLIST="$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST"
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $COMMIT" "$PLIST"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $COUNT" "$PLIST"
+/usr/libexec/PlistBuddy -c "Add :DictationCommit string $COMMIT" "$PLIST"
 /usr/libexec/PlistBuddy -c "Add :DictationBuildDate string $(date -u +%Y-%m-%dT%H:%M:%SZ)" "$PLIST"
 /usr/libexec/PlistBuddy -c "Add :DictationSource string $(pwd)" "$PLIST"   # where "fix" works on the built-ins
 echo "    version $VERSION ($COMMIT)"
@@ -74,6 +76,10 @@ cp Assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"   # regenerate: sw
 cp -R "$(dirname "$BIN")"/*.bundle "$APP/Contents/Resources/"
 cp bench/polish_cases.json bench/polish_cases_holdout.json "$APP/Contents/Resources/"   # the guard when learning a prompt
 chmod +x "$APP/Contents/MacOS/DictationApp"
+# Sparkle (updates). Its XPC services are only for sandboxed apps, which this isn't.
+mkdir -p "$APP/Contents/Frameworks"
+ditto "$(dirname "$BIN")/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
+rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" "$APP/Contents/Frameworks/Sparkle.framework/XPCServices"
 
 echo "==> Signing with stable local identity…"
 ensure_signing_identity

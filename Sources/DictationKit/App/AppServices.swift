@@ -14,10 +14,13 @@ final class AppServices {
     let suggester: CorrectionSuggester
     /// Corrections' Learn tile.
     let learn: LearnController
+    /// App updates from GitHub Releases: the menu and Settings › Updates.
+    let updates: Updates
 
     init(settings: AppSettings, history: HistoryStore, insights: Insights, archive: RecordingArchive,
-         commands: CommandMode, general: [GeneralCase] = GeneralCase.app ?? []) {
+         commands: CommandMode, updates: Updates = Updates(backend: nil), general: [GeneralCase] = GeneralCase.app ?? []) {
         self.settings = settings
+        self.updates = updates
         self.history = history
         self.insights = insights
         self.archive = archive
@@ -35,6 +38,6 @@ final class AppServices {
     static func live() -> AppServices {
         let history = HistoryStore()
         return AppServices(settings: AppSettings(learned: LearnedPromptStore()), history: history, insights: Insights(),
-                           archive: RecordingArchive(), commands: CommandMode(history: history))
+                           archive: RecordingArchive(), commands: CommandMode(history: history), updates: .live())
     }
 }

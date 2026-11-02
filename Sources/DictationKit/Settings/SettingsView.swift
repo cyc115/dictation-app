@@ -25,6 +25,7 @@ struct SettingsView: View {
             CommandsSection(settings: settings, onShowCommands: onShowCommands)
             PolishSection(settings: settings)
             HistorySection(settings: settings, history: services.history, archive: services.archive)
+            UpdatesSection(updates: services.updates)
             ExperimentalSection(settings: settings)
         }
         .formStyle(.grouped)

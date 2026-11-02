@@ -217,6 +217,15 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "shortcuts")
     }
 
+    /// Settings › Updates with a newer release found by the daily check.
+    func testUpdateAvailable() {
+        let updates = Updates(backend: FakeUpdater(lastChecked: fixedDate(2026, 10, 7, 1, 5)))
+        updates.setAvailable("1.0.220")
+        let view = Form { UpdatesSection(updates: updates, version: "1.0.213") }.formStyle(.grouped)
+        let hosted = host(view, size: NSSize(width: 640, height: 200))
+        assertSnapshot(of: hosted.hostingView, named: "update-available")
+    }
+
     /// Settings › Experimental's Decider row, before Decider is installed.
     func testDeciderNotInstalled() {
         let view = Form { Section { LocalDeciderRow(check: { .notInstalled }) } }.formStyle(.grouped)
