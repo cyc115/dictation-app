@@ -23,4 +23,7 @@ def test_the_bench_has_its_own_key():
 
 def test_headers_name_the_app():
     assert openrouter.headers("k") == {"Authorization": "Bearer k", "Content-Type": "application/json",
-                                       "X-Title": "DictationApp bench"}
+                                       "HTTP-Referer": "http://dictation-app-bench.mac/",
+                                       "X-OpenRouter-Title": "DictationApp bench",
+                                       "X-Title": "DictationApp bench",
+                                       "X-OpenRouter-App-Visibility": "hidden"}

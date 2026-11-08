@@ -11,9 +11,18 @@ enum OpenRouter {
         var request = URLRequest(url: url, timeoutInterval: timeout)
         request.httpMethod = "POST"
         if let apiKey { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
-        request.setValue("DictationApp", forHTTPHeaderField: "X-Title")
+        for (field, value) in appHeaders { request.setValue(value, forHTTPHeaderField: field) }
         return request
     }
+
+    /// OpenRouter app attribution, so Activity lists the app by name. HTTP-Referer is what creates
+    /// the app (a title alone stays "Unknown"); hidden keeps it out of OpenRouter's public rankings.
+    static let appHeaders = [
+        "HTTP-Referer": "http://dictation-app.mac/",
+        "X-OpenRouter-Title": "DictationApp",
+        "X-Title": "DictationApp",
+        "X-OpenRouter-App-Visibility": "hidden",
+    ]
 
     /// A POST of `body` as JSON.
     static func post(_ url: URL, body: [String: Any], apiKey: String?, timeout: TimeInterval = 60) -> URLRequest {

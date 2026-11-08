@@ -40,6 +40,9 @@ final class OpenRouterPolishTests: XCTestCase {
         XCTAssertEqual(request.url, OpenRouter.chatEndpoint)
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-test")
+        // OpenRouter attributes the call to the app only when HTTP-Referer is set.
+        XCTAssertEqual(request.value(forHTTPHeaderField: "HTTP-Referer"), "http://dictation-app.mac/")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-OpenRouter-Title"), "DictationApp")
         let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
         XCTAssertEqual(body["model"] as? String, "anthropic/claude-haiku-5.5")
         XCTAssertEqual(body["temperature"] as? Int, 0)

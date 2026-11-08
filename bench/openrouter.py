@@ -14,6 +14,12 @@ from pathlib import Path
 BENCH_ENV = "OPENROUTER_BENCH_API_KEY"
 DOT_SECRETS = Path.home() / ".secrets"
 CHAT = "https://openrouter.ai/api/v1/chat/completions"
+APP_HEADERS = {
+    "HTTP-Referer": "http://dictation-app-bench.mac/",
+    "X-OpenRouter-Title": "DictationApp bench",
+    "X-Title": "DictationApp bench",
+    "X-OpenRouter-App-Visibility": "hidden",
+}
 # Lowest reasoning settings to try, in order, for models that can't turn it off.
 REASONING_FALLBACKS = [{"enabled": False}, {"effort": "minimal"}, {"effort": "low"}]
 
@@ -54,7 +60,8 @@ def key_problem(key: str) -> str | None:
 
 
 def headers(key: str, content_type: str = "application/json") -> dict[str, str]:
-    return {"Authorization": f"Bearer {key}", "Content-Type": content_type, "X-Title": "DictationApp bench"}
+    # HTTP-Referer is what makes OpenRouter list the bench as its own app (a title alone is "Unknown").
+    return {"Authorization": f"Bearer {key}", "Content-Type": content_type, **APP_HEADERS}
 
 
 def post_json(url: str, body: dict, key: str, timeout: float = 30) -> dict:
