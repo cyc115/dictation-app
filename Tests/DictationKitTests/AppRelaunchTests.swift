@@ -125,6 +125,21 @@ final class BundleWatcherTests: XCTestCase {
         }
     }
 
+    /// A swap that can't move the new build in puts the installed one back, rather than leaving
+    /// /Applications with only a hidden `.DictationApp-old-….app`.
+    func testFailedSwapKeepsTheInstalledApp() throws {
+        let exe = try install("DictationApp.app", contents: "installed")
+        let swap = Process()
+        swap.executableURL = repoRoot.appendingPathComponent("scripts/swap-in.sh")
+        swap.arguments = [dir.appendingPathComponent("missing.app").path, dir.appendingPathComponent("DictationApp.app").path]
+        swap.standardError = FileHandle.nullDevice
+        try swap.run()
+        swap.waitUntilExit()
+        XCTAssertNotEqual(swap.terminationStatus, 0)
+        XCTAssertEqual(try String(contentsOf: exe, encoding: .utf8), "installed")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), ["DictationApp.app"])
+    }
+
     func testNoticesAnInPlaceCopy() throws {
         let exe = try install("DictationApp.app", contents: "old")
         let replaced = expectation(description: "replaced")
