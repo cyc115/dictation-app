@@ -2,7 +2,7 @@
 
 macOS menu-bar dictation app. Swift package: `Sources/DictationKit` (all app code), `Sources/DictationApp` (entry point), `Tests/DictationKitTests`.
 
-`Sources/DictationKit` is one folder per feature: `App` (launch, main window, `AppServices`, where files live), `Dictation` (the controller, hotkeys, typing the text), `Audio` (mics, recording, kept recordings), `Speech` (the engines: cloud, Apple, on-device), `Polish` (AI polish, setups), `Pill` (the recording bar), `History` (History, Insights, analytics, Corrections), `Learn` (learning a prompt), `Commands` (command mode), `Settings`, `Debug` (latency probe, diagnostics). A new feature gets its own folder, with its Settings section and History view next to its logic.
+`Sources/DictationKit` is one folder per feature: `App` (launch, main window, `AppServices`, where files live), `Dictation` (the controller, hotkeys, typing the text), `Audio` (mics, recording, kept recordings), `Speech` (the engines: cloud, Apple, on-device), `Polish` (AI polish, setups), `Pill` (the recording bar), `History` (History, Insights, analytics, Corrections), `Learn` (learning a prompt), `Commands` (command mode), `Settings`, `Update` (Sparkle updates, Settings › Updates), `Debug` (latency probe, diagnostics). A new feature gets its own folder, with its Settings section and History view next to its logic.
 
 ## Workflow
 - Before implementing a feature or fix, look for refactoring that makes it cleaner and easier to maintain (split out a testable piece, delete a workaround the change makes unnecessary) and do it as part of the change. If a change to app *behavior* would be simpler to maintain long term, don't just make it — propose it to the user with the trade-off and let them decide.

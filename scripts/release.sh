@@ -3,7 +3,7 @@
 #
 #   scripts/release.sh               # test, build, zip, tag v1.0.<commit count>, publish
 #   scripts/release.sh --draft       # publish as a draft (review it on GitHub, then publish there)
-#   scripts/release.sh --dry-run     # build and zip only; prints where the zip is
+#   scripts/release.sh --dry-run     # build, zip and sign the appcast only; prints where they are
 #   scripts/release.sh --skip-tests  # don't run ./test.sh first
 #
 # The version matches build.sh (1.0.<commit count>), so the release and an app built from the
