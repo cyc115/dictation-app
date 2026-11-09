@@ -83,6 +83,7 @@ struct JevDecider: CommandDecider {
     static func warm(session: URLSession) {
         var request = URLRequest(url: endpoint, timeoutInterval: 5)
         request.httpMethod = "HEAD"
+        for (field, value) in OpenRouter.appHeaders { request.setValue(value, forHTTPHeaderField: field) }
         session.dataTask(with: request).resume()
     }
 

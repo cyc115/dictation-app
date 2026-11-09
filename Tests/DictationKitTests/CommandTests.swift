@@ -182,6 +182,8 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(StubURLProtocol.sent.map(\.httpMethod), ["HEAD"])
         XCTAssertEqual(StubURLProtocol.sent.first?.url, JevDecider.endpoint)
         XCTAssertNil(StubURLProtocol.sent.first?.value(forHTTPHeaderField: "Authorization"))
+        // Every OpenRouter request names the app, the keyless warm-up included.
+        XCTAssertEqual(StubURLProtocol.sent.first?.value(forHTTPHeaderField: "HTTP-Referer"), "http://dictation-app.mac/")
     }
 
     func testReadsJevsAnswer() throws {
