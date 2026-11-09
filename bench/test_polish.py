@@ -304,3 +304,18 @@ def test_prompt_text_reads_learned_versions(tmp_path):
         polish.prompt_text("v9", learned)
     with pytest.raises(SystemExit):
         polish.prompt_text("v9", tmp_path / "missing.json")
+
+
+def test_polish_calls_name_the_bench_to_openrouter(monkeypatch):
+    # Rule: every OpenRouter call sends HTTP-Referer, or OpenRouter files it under "Unknown".
+    sent = []
+
+    def fake_urlopen(req, timeout=None):
+        sent.append(req)
+        raise OSError("offline")
+
+    monkeypatch.setattr(polish.urllib.request, "urlopen", fake_urlopen)
+    assert "error" in polish.stream({"model": "m"}, "sk-test", 1)
+    headers = {k.lower(): v for k, v in sent[0].header_items()}
+    expected = {k.lower(): v for k, v in polish.openrouter.headers("sk-test").items()}
+    assert headers == expected

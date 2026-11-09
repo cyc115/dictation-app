@@ -27,3 +27,19 @@ def test_headers_name_the_app():
                                        "X-OpenRouter-Title": "DictationApp bench",
                                        "X-Title": "DictationApp bench",
                                        "X-OpenRouter-App-Visibility": "hidden"}
+
+
+def test_the_key_check_names_the_app_too(monkeypatch):
+    # The key check is a run's first OpenRouter request, so it carries the attribution headers as well.
+    sent = []
+
+    def fake_urlopen(req, timeout=None):
+        sent.append(req)
+        raise OSError("offline")
+
+    monkeypatch.setattr(openrouter.urllib.request, "urlopen", fake_urlopen)
+    assert openrouter.key_problem("k") is None
+    headers = {k.lower(): v for k, v in sent[0].header_items()}
+    assert headers["authorization"] == "Bearer k"
+    assert headers["http-referer"] == "http://dictation-app-bench.mac/"
+    assert headers["x-openrouter-app-visibility"] == "hidden"

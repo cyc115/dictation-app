@@ -176,8 +176,7 @@ def request_body(model: str, text: str, prompt: str, provider: str | None, sort:
 
 def stream(body: dict, key: str, timeout: float) -> dict:
     """One streamed completion: wall time, time to first text, the text, who served it, cost."""
-    req = urllib.request.Request(ENDPOINT, data=json.dumps(body).encode(), method="POST", headers={
-        "Authorization": f"Bearer {key}", "Content-Type": "application/json", "X-Title": "DictationApp bench"})
+    req = urllib.request.Request(ENDPOINT, data=json.dumps(body).encode(), method="POST", headers=openrouter.headers(key))
     started = time.monotonic()
     first, text, usage, provider = None, "", {}, None
     try:

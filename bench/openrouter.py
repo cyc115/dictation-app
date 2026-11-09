@@ -45,7 +45,7 @@ def key(env: str = BENCH_ENV) -> str:
 def key_problem(key: str) -> str | None:
     """Why OpenRouter won't take this key, checked once before a run; None if it's fine
     (or OpenRouter couldn't be reached, which the requests themselves will report)."""
-    req = urllib.request.Request("https://openrouter.ai/api/v1/key", headers={"Authorization": f"Bearer {key}"})
+    req = urllib.request.Request("https://openrouter.ai/api/v1/key", headers={"Authorization": f"Bearer {key}", **APP_HEADERS})
     try:
         urllib.request.urlopen(req, timeout=15).close()
         return None
