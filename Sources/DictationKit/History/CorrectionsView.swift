@@ -43,6 +43,7 @@ struct CorrectionsView: View {
                                 CorrectionCard(entry: entry, focused: $focused,
                                                suggesting: suggester.pending.contains(entry.id),
                                                suggestionError: suggester.failed[entry.id],
+                                               suggesterName: suggester.modelName(),
                                                fit: learn?.fit(for: entry.id),
                                                onChange: { store.setCorrection($0, for: entry.id) },
                                                onDelete: { store.setCorrection("", for: entry.id) })
@@ -92,6 +93,8 @@ struct CorrectionCard: View {
     var focused: FocusState<UUID?>.Binding
     var suggesting = false
     var suggestionError: String?
+    /// The model suggesting, for the messages.
+    var suggesterName = CorrectionSuggester.defaultModel
     /// How far off this dictation was before and after the learned prompt ("v4 38% off → v5 9% off").
     var fit: LearnController.Fit?
     let onChange: (String) -> Void
@@ -99,11 +102,12 @@ struct CorrectionCard: View {
     @State private var draft: String
 
     init(entry: HistoryEntry, focused: FocusState<UUID?>.Binding, suggesting: Bool = false, suggestionError: String? = nil,
-         fit: LearnController.Fit? = nil, onChange: @escaping (String) -> Void, onDelete: @escaping () -> Void) {
+         suggesterName: String = CorrectionSuggester.defaultModel, fit: LearnController.Fit? = nil, onChange: @escaping (String) -> Void, onDelete: @escaping () -> Void) {
         self.entry = entry
         self.focused = focused
         self.suggesting = suggesting
         self.suggestionError = suggestionError
+        self.suggesterName = suggesterName
         self.fit = fit
         self.onChange = onChange
         self.onDelete = onDelete
@@ -170,13 +174,13 @@ struct CorrectionCard: View {
             if suggesting {
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
-                    Text("\(CorrectionSuggester.modelName) is polishing a suggestion…")
+                    Text("\(suggesterName) is polishing a suggestion…")
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("corrections.suggesting")
             } else if let suggestionError {
-                Text("Couldn't get \(CorrectionSuggester.modelName)'s suggestion: \(suggestionError)")
+                Text("Couldn't get \(suggesterName)'s suggestion: \(suggestionError)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("corrections.suggestionError")

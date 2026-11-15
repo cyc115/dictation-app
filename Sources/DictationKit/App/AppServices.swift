@@ -25,9 +25,11 @@ final class AppServices {
         self.insights = insights
         self.archive = archive
         self.commands = commands
-        suggester = CorrectionSuggester { [weak settings] in
-            settings.flatMap { s in s.openRouterKey.flatMap { CorrectionSuggester.backend(apiKey: $0, setup: s.setup) } }
-        }
+        suggester = CorrectionSuggester(backend: { [weak settings] in
+            settings.flatMap { s in
+                s.openRouterKey.flatMap { CorrectionSuggester.backend(apiKey: $0, setup: s.setup, model: s.correctionModel) }
+            }
+        }, modelName: { [weak settings] in CorrectionSuggester.modelID(settings?.correctionModel ?? "") })
         // Made on the main thread, like every other user of these (launch, tests).
         learn = MainActor.assumeIsolated {
             LearnController(settings: settings, history: history, store: settings.learned, general: general)

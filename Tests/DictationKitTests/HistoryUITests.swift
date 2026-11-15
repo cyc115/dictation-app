@@ -121,10 +121,45 @@ final class CorrectionsUITests: XCTestCase {
 
     func testSuggestionUsesTheChosenSetupsPrompt() throws {
         let model = try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: otherCloudSetup) as? OpenRouterPolish)
-        XCTAssertEqual(model.model, "openai/gpt-6.1-sol-pro")
+        XCTAssertEqual(model.model, "openai/gpt-6.1-sol-pro", "the default model")
         XCTAssertEqual(model.instructions, otherCloudSetup.promptText)
         XCTAssertEqual(model.wrap, otherCloudSetup.wrap)
         XCTAssertNil(CorrectionSuggester.backend(apiKey: "", setup: .cloudFlash), "no key, no suggestion")
+    }
+
+    func testSuggestionModelIsASettingWithThinkingOff() throws {
+        let settings = makeServices(self).settings
+        XCTAssertEqual(settings.correctionModel, "openai/gpt-6.1-sol-pro", "the default")
+        func backend(_ model: String) throws -> OpenRouterPolish {
+            try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: otherCloudSetup, model: model) as? OpenRouterPolish)
+        }
+        XCTAssertEqual(try backend(" anthropic/claude-haiku-5.5 ").model, "anthropic/claude-haiku-5.5", "trimmed")
+        XCTAssertEqual(try backend("  ").model, "openai/gpt-6.1-sol-pro", "blank is the default")
+        XCTAssertEqual(try backend("qwen/qwen3.8-27b@Cerebras").provider, "Cerebras")
+        // Every model is asked with thinking off, or at the lowest effort when it can't be turned off.
+        let expected: [(String, [String: Any])] = [("anthropic/claude-haiku-5.5", ["enabled": false]), ("openai/gpt-6.1-sol-pro", ["effort": "minimal"])]
+        for (model, reasoning) in expected {
+            let polish = try backend(model)
+            let request = OpenRouterPolish.request(model: polish.model, apiKey: "k", text: "t", instructions: "i", reasoning: polish.reasoning)
+            let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+            XCTAssertEqual(body["reasoning"] as? NSDictionary, reasoning as NSDictionary, model)
+        }
+        XCTAssertTrue(settings.entries.contains { $0.name == "correctionModel" }, "on the settings command line")
+    }
+
+    /// A model the app doesn't know has to think still works: the refusal is answered at minimal effort.
+    func testAModelThatRefusesReasoningOffIsAskedAgainAtMinimalEffort() async throws {
+        StubURLProtocol.respond = { request in
+            let reasoning = StubURLProtocol.body(request)?["reasoning"] as? [String: Any]
+            return reasoning?["enabled"] != nil
+                ? .success((400, #"{"error":{"message":"Reasoning is mandatory for this endpoint and cannot be disabled."}}"#))
+                : .success((200, #"{"choices":[{"message":{"content":"Claude Code"}}]}"#))
+        }
+        let polish = OpenRouterPolish(model: "acme/thinker-1", apiKey: "k", session: StubURLProtocol.session())
+        let text = try await polish.polish("cloud code")
+        XCTAssertEqual(text, "Claude Code")
+        XCTAssertEqual(StubURLProtocol.sent.compactMap(StubURLProtocol.body).map { $0["reasoning"] as? NSDictionary },
+                       [["enabled": false] as NSDictionary, ["effort": "minimal"] as NSDictionary], "off first, then minimal")
     }
 
     func testSuggestionDoesNotOverwriteWhatYouTyped() {

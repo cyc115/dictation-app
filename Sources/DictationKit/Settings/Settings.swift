@@ -174,6 +174,10 @@ final class AppSettings: ObservableObject {
     /// What picks the command: "jev" (TypeSafe's decision model), or an OpenRouter chat model id
     /// (bench/suite.py commands compares them). No Settings row: `defaults write com.mikechen.DictationApp commandModel <id>`.
     @Setting("commandModel", default: "jev") var commandModel: String
+    /// The OpenRouter chat model that suggests a correction's text when you start one (`CorrectionSuggester`);
+    /// blank is its default. Thinking is off whatever the model. No Settings row:
+    /// `defaults write com.mikechen.DictationApp correctionModel <id>`, or `DictationApp settings set correctionModel <id>`.
+    @Setting("correctionModel", default: CorrectionSuggester.defaultModel) var correctionModel: String
     @Setting("aiPolishEnabled", default: false) var polishEnabled: Bool
     /// CoreAudio device UID; empty means the system default input.
     @Setting("microphoneUID", default: "") var microphoneUID: String

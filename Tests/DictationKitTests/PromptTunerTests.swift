@@ -314,7 +314,7 @@ final class PromptTunerTests: XCTestCase {
 
     func testTeacherIsSonnetNotSolPro() {
         XCTAssertEqual(LearnController.teacherModel, "anthropic/claude-sonnet-5.5", "the Oct 14 bake-off's pick: best tune, fastest")
-        XCTAssertEqual(CorrectionSuggester.model, "openrouter:openai/gpt-6.1-sol-pro", "suggestions keep the pro model: one call, accuracy matters most")
+        XCTAssertEqual(CorrectionSuggester.defaultModel, "openai/gpt-6.1-sol-pro", "suggestions default to the pro model: one call, accuracy matters most")
     }
 
     /// The real teacher and student through the tuner's own code path (`LearnController.appTuner`):

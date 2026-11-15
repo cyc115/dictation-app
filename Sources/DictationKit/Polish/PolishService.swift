@@ -144,10 +144,25 @@ struct OpenRouterPolish: PolishBackend {
     var name: String { ModelSpec.openRouter(id: model, providers: provider).description }
 
     func polish(_ text: String) async throws -> String {
-        let request = Self.request(model: model, apiKey: apiKey, text: PolishService.userMessage(text, wrap: wrap),
-                                   instructions: instructions, provider: provider, reasoning: reasoning)
-        let (data, status) = try await OpenRouter.send(request, session: session)
-        return try Self.parse(data: data, status: status).get()
+        let message = PolishService.userMessage(text, wrap: wrap)
+        func ask(_ reasoning: [String: Any]?) async throws -> Result<String, Error> {
+            let request = Self.request(model: model, apiKey: apiKey, text: message, instructions: instructions,
+                                       provider: provider, reasoning: reasoning)
+            let (data, status) = try await OpenRouter.send(request, session: session)
+            return Self.parse(data: data, status: status)
+        }
+        let first = try await ask(reasoning)
+        // A model not in `OpenRouter.mustThink` that still refuses "reasoning off" (the model is a
+        // setting for Corrections): ask again at the lowest effort.
+        if reasoning == nil, case .failure(let error) = first, Self.refusesReasoningOff(error) {
+            return try await ask(["effort": "minimal"]).get()
+        }
+        return try first.get()
+    }
+
+    /// OpenRouter's "Reasoning is mandatory for this endpoint and cannot be disabled" answer.
+    static func refusesReasoningOff(_ error: Error) -> Bool {
+        error.localizedDescription.lowercased().contains("reasoning is mandatory")
     }
 
     static func request(model: String, apiKey: String, text: String,

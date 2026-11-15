@@ -20,20 +20,30 @@ enum WordDiff {
     }
 }
 
-/// Starts a new correction from GPT-6.1 Sol Pro's polish of what you said (with your setup's prompt), so you fix less by hand.
-/// The most accurate polish model benchmarked (100% on bench/suite.py polish, both test sets), but ~3 s
-/// and ~$5 per 1,000: too slow and costly while dictating, fine for an occasional correction. Asks
-/// once, when the pencil makes the correction; the answer replaces the app's text only if you haven't
-/// typed yet. Without a cloud API key the correction stays as the app wrote it.
+/// Starts a new correction from a cloud model's polish of what you said (with your setup's prompt), so you fix less by hand.
+/// The model is the `correctionModel` setting (an OpenRouter model id, optionally "@Provider"); the
+/// default, GPT-6.1 Sol Pro, is the most accurate polish model benchmarked (100% on bench/suite.py
+/// polish, both test sets), but ~3 s and ~$5 per 1,000: too slow and costly while dictating, fine for
+/// an occasional correction. Thinking is always off, or the lowest effort for a model that can't
+/// turn it off (`OpenRouter.reasoning(for:)`). Asks once, when the pencil makes the correction; the
+/// answer replaces the app's text only if you haven't typed yet. Without a cloud API key the
+/// correction stays as the app wrote it.
 final class CorrectionSuggester: ObservableObject {
-    static let model = "openrouter:openai/gpt-6.1-sol-pro"
-    static let modelName = "GPT-6.1 Sol Pro"
+    static let defaultModel = "openai/gpt-6.1-sol-pro"
     /// Suggests nothing (no model): the default where no suggester is handed in.
     static var off: CorrectionSuggester { CorrectionSuggester { nil } }
 
-    /// The model with the AI polish prompt of the setup chosen in Settings, so it polishes the way the app does.
-    static func backend(apiKey: String, setup: DictationSetup) -> PolishBackend? {
-        apiKey.isEmpty ? nil : DictationSetup.polishBackend(spec: model, apiKey: apiKey, instructions: setup.promptText, wrap: setup.wrap)
+    /// `model` (an OpenRouter model id; blank is the default) with the AI polish prompt of the setup
+    /// chosen in Settings, so it polishes the way the app does.
+    static func backend(apiKey: String, setup: DictationSetup, model: String = defaultModel) -> PolishBackend? {
+        apiKey.isEmpty ? nil : DictationSetup.polishBackend(spec: "openrouter:" + modelID(model), apiKey: apiKey,
+                                                            instructions: setup.promptText, wrap: setup.wrap)
+    }
+
+    /// The model id as typed, trimmed; the default when blank.
+    static func modelID(_ model: String) -> String {
+        let id = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        return id.isEmpty ? defaultModel : id
     }
 
     /// Corrections waiting for the model.
@@ -41,8 +51,13 @@ final class CorrectionSuggester: ObservableObject {
     /// Why the last suggestion failed, by correction.
     @Published private(set) var failed: [UUID: String] = [:]
     private let backend: () -> PolishBackend?
+    /// The model's name, for the messages in Corrections.
+    let modelName: () -> String
 
-    init(backend: @escaping () -> PolishBackend?) { self.backend = backend }
+    init(backend: @escaping () -> PolishBackend?, modelName: @escaping () -> String = { CorrectionSuggester.defaultModel }) {
+        self.backend = backend
+        self.modelName = modelName
+    }
 
     func suggest(for entry: HistoryEntry, in store: HistoryStore) {
         guard !pending.contains(entry.id), let backend = backend() else { return }

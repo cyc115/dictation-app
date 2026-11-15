@@ -55,6 +55,10 @@ corrections, one click tunes the cloud setups' polish prompt from them: a strong
 three ways, your own polish model runs each, and the best becomes the next version. You see its
 score on your corrections (cross-validated) and on a general test set before you keep it.
 
+Starting a correction also asks a cloud model for a first draft (GPT-6.1 Sol Pro by default). Pick
+another OpenRouter model with `DictationApp settings set correctionModel <model id>`. Thinking is
+off for every model, or at the lowest effort for one that can't turn it off.
+
 ![Corrections: correct a few dictations, Learn writes a new polish prompt, and it's scored before you keep it](docs/images/learn.gif)
 
 ### Detailed analytics: where the wait went
