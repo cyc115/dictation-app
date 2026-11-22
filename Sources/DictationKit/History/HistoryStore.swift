@@ -204,8 +204,9 @@ final class HistoryStore: ObservableObject {
         typing = edit
         entries[i].correction = value
         // A correction typed on a captured edit makes it yours; taking yours away dismisses the capture,
-        // so its edit doesn't go on feeding vocabulary unseen.
-        if var capture = entries[i].capture {
+        // so its edit doesn't go on feeding vocabulary unseen. One you dismissed stays dismissed: a
+        // correction you type on it is simply yours.
+        if var capture = entries[i].capture, capture.state != .dismissed {
             capture.state = value == nil ? .dismissed : .accepted
             if capture != entries[i].capture { entries[i].capture = capture }
         }

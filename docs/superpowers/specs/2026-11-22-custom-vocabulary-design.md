@@ -236,7 +236,8 @@ delays typing.
   A capture saved at idle schedules the idle pass.
 - **Your correction wins:** one capture per dictation, never on a corrected one, none when History
   is off (no entry to keep it on). Deleting the correction on a captured entry dismisses the
-  capture, so its edit doesn't go on feeding vocabulary unseen. The History pencil on a waiting
+  capture, so its edit doesn't go on feeding vocabulary unseen. A correction typed on a dismissed capture is
+  simply yours (it stays dismissed; "captured" and the tile count only `accepted` and `auto`). The History pencil on a waiting
   dictation opens it in Corrections as it is (no correction started from what the app wrote).
 - **Timing:** arming does no Accessibility call; the probe runs 0.15 s after the paste (the app
   takes the ⌘V asynchronously) on a background queue, and keys typed before it has an answer go
@@ -249,13 +250,20 @@ delays typing.
   after the watch it starts. Clicks (keystroke mode's give-up) come from a passive monitor that
   exists only while a keystroke-mode watch runs, so clicks never go through the tap. Return means
   ↩, ⇧↩, ⌘↩ and keypad Enter alike.
-- **The span's end:** text typed right at the end of the pasted text that starts with a space (or
-  after text typed there) isn't part of the edit; typed onto the last word, it is. In readback, a
-  read whose change crosses the span's edge (the box cleared by a send button, a selection reaching
-  past it) ends the watch on the last good read. Readback keeps a `TypedEdit` alongside: when your
-  keys agree with the box, they trim text typed after the span in the same burst ("cloud." →
-  "Claude. and more" with no pause); when they don't (autocorrect, an app's own completion), the
-  read stands as it is.
+- **The span's edges:** text typed right at the end of the pasted text belongs to it up to the
+  first space or sentence mark; the rest, and anything typed after it, isn't part of the edit.
+  Text typed right at its start is the dictation's only when nothing was put in front of the paste
+  (an empty box, or after a space). In readback, a read whose change crosses the span's edge or
+  takes all of it (the box cleared by a send button, a selection reaching past it) ends the watch
+  on the last good read, and so does one that leaves no word of the paste in the span unless your
+  keys say that's what you typed (sent, then a new message typed by hand, is not an edit). A click
+  reads the box at once. Readback keeps a `TypedEdit` alongside: when your keys agree with the box,
+  they trim text typed after the span in the same burst ("cloud." → "Claude. and more" with no
+  pause); when they don't (autocorrect, an app's own completion), the read stands, which can keep
+  text typed onto the last word without a space (Chinese has none).
+- **Ended before the probe answered** (Return within 0.15 s of the paste), nothing is kept: it
+  hadn't checked for a password field yet. The Enter button's own Return (a key the tap skips) ends
+  the watch too.
 - **Keystroke mode** also gives up on a move or delete into text it never saw (before or after the
   paste), a word move over Chinese (apps split it with a dictionary), ↑/↓, Tab, Esc and dead keys.
   ⌥⌫ and ⌥←/→ follow the Mac's word rule (letters, digits, apostrophes).

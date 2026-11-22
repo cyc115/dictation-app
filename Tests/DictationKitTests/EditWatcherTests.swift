@@ -146,6 +146,43 @@ final class SpanTrackerTests: XCTestCase {
         XCTAssertEqual(u.span, " cloud")
     }
 
+    /// The paste was the whole box: sent, then a new message typed, is not an edit of it.
+    func testAllOfItReplacedCantBeFollowed() {
+        var t = tracker("I use cloud", pasted: "I use cloud")!
+        XCTAssertFalse(t.update(""), "the box cleared")
+        XCTAssertEqual(t.span, "I use cloud")
+        XCTAssertTrue(t.update("ok sounds good"), "the box's text changes…")
+        XCTAssertFalse(t.sharesAWordWithThePaste, "…but none of the paste is left: only keys can say it's an edit")
+        var u = tracker("Hi I use cloud", pasted: " I use cloud")!
+        XCTAssertTrue(u.update("Hi I use Claude"))
+        XCTAssertTrue(u.sharesAWordWithThePaste)
+    }
+
+    /// Typed onto its last word, only up to the first space or sentence mark is the span's.
+    func testTextTypedOntoTheEndStopsAtASpaceOrSentenceMark() {
+        var t = tracker("I use cloud", pasted: "I use cloud")!
+        XCTAssertTrue(t.update("I use clouds, and my address is 1 Main St"))
+        XCTAssertEqual(t.span, "I use clouds")
+        var u = tracker("我用克劳的", pasted: "我用克劳的")!
+        XCTAssertTrue(u.update("我用克劳的。好的"))
+        XCTAssertEqual(u.span, "我用克劳的")
+    }
+
+    /// A paste with nothing put in front: text typed at its start is its first word. With a space put
+    /// in front, it's the text before it.
+    func testTextTypedAtTheStart() {
+        var t = tracker("This is great", pasted: "This is great")!
+        XCTAssertTrue(t.update(" is great"))
+        XCTAssertTrue(t.update("That is great"))
+        XCTAssertEqual(t.span, "That is great")
+        var u = tracker("Hi is great", pasted: " is great")!
+        XCTAssertTrue(u.update("Hi there is great"))
+        XCTAssertEqual(u.span, " is great")
+        var v = tracker("Hi there", pasted: "there")!
+        XCTAssertTrue(v.update("Hi so there"), "typed before it, ending in a space")
+        XCTAssertEqual(v.span, "there")
+    }
+
     func testOffsetsAreUTF16() {
         var t = tracker("😀 我用克劳的", pasted: " 我用克劳的")!
         XCTAssertTrue(t.update("😀😀 我用克劳的"))
@@ -325,6 +362,38 @@ final class EditWatcherTests: XCTestCase {
         XCTAssertEqual(capture?.mode, .keystrokes)
     }
 
+    /// Ended before the probe had an answer (it hadn't checked for a password field): nothing kept.
+    func testEndedBeforeTheProbeKeepsNothing() {
+        paste("I use cloud", probe: false)
+        desk.press(Array(repeating: .backspace, count: 5)); desk.type("Claude"); desk.press([.returnKey])
+        XCTAssertFalse(watcher.isWatching)
+        XCTAssertNil(capture)
+    }
+
+    /// A click in readback mode (it may have sent the text) reads the box at once.
+    func testAClickReadsTheBox() {
+        paste("I use cloud")
+        desk.type("x"); desk.show("Hi I use Claude")
+        desk.clicks?()
+        XCTAssertEqual(desk.reads, 2)
+        desk.show("Hi ")  // sent: the box emptied
+        desk.type("o"); desk.show("Hi ok sounds good")
+        desk.press([.returnKey])
+        XCTAssertEqual(capture?.edited, "I use Claude", "what was there before the click sent it")
+    }
+
+    /// Dictated into an empty box, sent with a click, then the next message typed by hand: that
+    /// message is not an edit of the dictation.
+    func testANewMessageAfterASendIsNotAnEdit() {
+        let id = history.add(text: "I use cloud", duration: 1)!
+        desk.show("I use cloud")
+        watcher.arm(spot: FakeDesk.slack, pasted: "I use cloud", text: "I use cloud", entry: id)
+        desk.clock.advance(EditWatcher.probeDelay)
+        desk.type("ok sounds good"); desk.show("ok sounds good")
+        desk.press([.returnKey])
+        XCTAssertNil(capture)
+    }
+
     func testTheProbeFailsWhenThePasteIsntWhereTheCursorIs() {
         paste("I use cloud", probe: false)
         desk.show("Hi I use cloud", cursor: 2)
@@ -415,7 +484,7 @@ final class EditWatcherTests: XCTestCase {
         let reads = desk.reads
         desk.type("y")
         desk.show("Hi I use Claude Code")
-        watcher.newDictation()
+        watcher.endNow()
         XCTAssertEqual(desk.reads, reads, "start() waits on nothing")
         XCTAssertFalse(watcher.isWatching)
         XCTAssertEqual(capture?.edited, "I use Claude", "what it had")

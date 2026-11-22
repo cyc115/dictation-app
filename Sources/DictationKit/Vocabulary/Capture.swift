@@ -31,6 +31,9 @@ struct Capture: Codable, Equatable {
     var app: String
     var state: State = .waiting
 
+    /// It trains Learn as a captured fix (the "captured" badge, the tile's count).
+    var trains: Bool { state == .accepted || state == .auto }
+
     init(edited: String, mode: Mode, app: String, state: State = .waiting) {
         self.edited = edited
         self.mode = mode

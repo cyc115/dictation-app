@@ -157,6 +157,9 @@ final class DictationController {
     /// start a command (or, with command mode off, just press Return); double-clicked, it presses
     /// Return instead of starting one.
     func enter() {
+        // Whatever it does, the watch on the last paste is over: its Return (ours, so the tap skips it)
+        // sends that text, and a command or dictation starts something new.
+        editWatcher?.endNow()
         if dictating, let current, current.kind == .command, Date().timeIntervalSince(current.started) < doublePressWindow {
             cancel(sound: false)
             return injector.pressReturn()
@@ -168,7 +171,7 @@ final class DictationController {
 
     func start(_ kind: DictationKind = .text) {
         guard !dictating else { return }
-        editWatcher?.newDictation()  // the last dictation's watch ends on what it has; no read here
+        editWatcher?.endNow()  // the last dictation's watch ends on what it has; no read here
         let setup = settings.setup
         guard let engine = makeEngine(setup) else {
             overlay.show(.plain("Add your cloud API key in Settings to use \(setup.title)", seconds: 4))

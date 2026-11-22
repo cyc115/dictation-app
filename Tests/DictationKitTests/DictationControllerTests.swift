@@ -578,6 +578,20 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertFalse(watcher.isWatching)
     }
 
+    /// The Enter button's Return is the app's own (the tap skips it), so the button ends the watch itself.
+    func testTheEnterButtonEndsTheWatch() {
+        let controller = makeController()
+        let (watcher, _) = watchEdits(controller)
+        settings.commandModeEnabled = false
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertTrue(watcher.isWatching)
+        controller.enter()
+        XCTAssertEqual(keys.last, "return")
+        XCTAssertFalse(watcher.isWatching)
+    }
+
     func testANewDictationEndsTheWatch() {
         let controller = makeController()
         let (watcher, _) = watchEdits(controller)

@@ -124,7 +124,7 @@ final class LearnController: ObservableObject {
     /// Corrections you typed, and captured edits that train (`accepted` and `auto`): the tile's
     /// "28 yours · 12 captured".
     var counts: (yours: Int, captured: Int) {
-        let captured = corrections.filter { $0.capture != nil }.count
+        let captured = corrections.filter { $0.capture?.trains == true }.count
         return (corrections.count - captured, captured)
     }
 

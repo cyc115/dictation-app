@@ -203,7 +203,7 @@ struct CorrectionCard: View {
             HStack(spacing: 10) {
                 Text(dates.string(entry.date, .dateTime.month(.abbreviated).day().hour().minute()))
                 if let about { Text(about).padding(.horizontal, 8).padding(.vertical, 1).background(.quaternary, in: Capsule()) }
-                if entry.capture != nil {
+                if entry.capture?.trains == true {
                     // From your edit after the paste (accepted, or phase 4's unreviewed `auto`), not typed here.
                     Text("captured").font(.caption2.weight(.semibold))
                         .padding(.horizontal, 6).padding(.vertical, 1)

@@ -279,6 +279,17 @@ final class CapturedFixTests: XCTestCase {
         XCTAssertNil(store.entries[0].fixTarget)
     }
 
+    /// A correction you type on a capture you dismissed is yours: it stays dismissed (no "captured").
+    func testACorrectionOnADismissedCaptureIsYours() {
+        let store = makeHistory(self)
+        let id = captured(store)
+        store.dismiss(id)
+        store.setCorrection("I use cloud code.", for: id)  // the pencil starts from what the app wrote
+        XCTAssertEqual(store.entries[0].capture?.state, .dismissed)
+        XCTAssertEqual(store.entries[0].capture?.trains, false)
+        XCTAssertEqual(store.corrections.count, 1)
+    }
+
     func testOneCapturePerDictationAndNeverOverACorrection() {
         let store = makeHistory(self)
         let id = captured(store)

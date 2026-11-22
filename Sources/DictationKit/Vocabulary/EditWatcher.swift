@@ -124,7 +124,7 @@ final class EditWatcher {
     /// Starts watching `spot` after `pasted` went in (leading space included) for History entry
     /// `entry`, whose text is `text`. Ends a watch already on.
     func arm(spot: TextSpot, pasted: String, text: String, entry: UUID) {
-        newDictation()
+        endNow()
         guard settings.learnFromEdits, !secureInput(),
               !settings.excludedApps.contains(where: { $0.bundleID == bundleID(spot.pid) }) else { return }
         let watch = Watch(spot: spot, pasted: pasted, text: text, entry: entry, at: now())
@@ -136,8 +136,9 @@ final class EditWatcher {
         after(Self.timeLimit) { [weak self] in self?.end(watch, read: true) }
     }
 
-    /// A new dictation is starting: the watch ends from what it has (no read: `start()` waits on nothing).
-    func newDictation() {
+    /// A new dictation is starting, or the app is pressing Return itself (the Enter button: a key the
+    /// tap doesn't pass on): the watch ends from what it has, with no read (nothing waits on it).
+    func endNow() {
         guard let watch else { return }
         end(watch, read: false)
     }
@@ -146,11 +147,11 @@ final class EditWatcher {
 
     private func probe(_ watch: Watch) {
         guard watch === self.watch else { return }
-        let spot = watch.spot, read = self.read, isSecureField = self.isSecureField
+        let spot = watch.spot, read = self.read, isSecureField = self.isSecureField, toMain = self.toMain
         background { [weak self] in
             let secure = isSecureField(spot)
             let box = secure ? nil : read(spot)
-            self?.toMain { self?.probed(watch, secure: secure, box: box) }
+            toMain { self?.probed(watch, secure: secure, box: box) }
         }
     }
 
@@ -163,6 +164,8 @@ final class EditWatcher {
             watch.mode = .readback(tracker)
             // Keys typed before this read may not be in it: read again once typing pauses.
             if watch.keys > 0 { schedulePause(watch) }
+            // A click may have moved the cursor or sent the text: read now, before anything else changes.
+            watchClicks { [weak self] in self?.readInBackground(watch) }
             return
         }
         record { $0.probeFailed(in: app) }
@@ -242,10 +245,10 @@ final class EditWatcher {
     private func readInBackground(_ watch: Watch) {
         guard case .readback = watch.mode, !watch.reading else { return }
         watch.reading = true
-        let keys = watch.keys, spot = watch.spot, read = self.read
+        let keys = watch.keys, spot = watch.spot, read = self.read, toMain = self.toMain
         background { [weak self] in
             let box = read(spot)
-            self?.toMain {
+            toMain {
                 guard let self else { return }
                 watch.reading = false
                 guard watch === self.watch else { return }
@@ -261,8 +264,10 @@ final class EditWatcher {
     private func take(_ box: Read, into watch: Watch, keys: Int? = nil) {
         guard case .readback(var tracker) = watch.mode else { return }
         guard !secureInput() else { return stop() }
+        // Followed, and either still an edit of the paste or your keys say it is.
         let followed = tracker.update(box.value)
-        watch.mode = .readback(tracker)
+            && (tracker.sharesAWordWithThePaste || watch.typed?.span == tracker.span)
+        if followed { watch.mode = .readback(tracker) }
         watch.keysRead = keys ?? watch.keys
         if !followed || !box.focused { end(watch, read: false) }
     }
@@ -278,22 +283,25 @@ final class EditWatcher {
         finish(watch)
     }
 
-    /// Saves the capture, if the edit changed any word.
+    /// Saves the capture, if the edit changed any word: worked out and saved after whatever's in
+    /// progress (a Return the tap is holding, a dictation starting). Ended before the probe had an
+    /// answer, nothing is kept (it hadn't checked for a password field yet).
     private func finish(_ watch: Watch) {
         guard watch === self.watch else { return }
         let span: String?, mode: Capture.Mode
         switch watch.mode {
         case .readback(let tracker): span = Self.span(tracker.span, typed: watch.typed); mode = .readback
-        case .probing, .keystrokes: span = watch.typed?.span; mode = .keystrokes
+        case .keystrokes: span = watch.typed?.span; mode = .keystrokes
+        case .probing: span = nil; mode = .keystrokes
         }
         stop()
         guard let span, !secureInput() else { return }
-        let edited = span.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !FixIntake.changes(from: watch.text, to: edited).isEmpty else { return }
-        let capture = Capture(edited: edited, mode: mode, app: watch.spot.name)
+        let text = watch.text, entry = watch.entry, app = watch.spot.name
         toMain { [weak self] in
-            self?.history.setCapture(capture, for: watch.entry)
-            self?.onCapture()
+            let edited = span.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let self, !FixIntake.changes(from: text, to: edited).isEmpty else { return }
+            self.history.setCapture(Capture(edited: edited, mode: mode, app: app), for: entry)
+            self.onCapture()
         }
     }
 
