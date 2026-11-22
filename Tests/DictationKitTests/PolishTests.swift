@@ -169,7 +169,9 @@ final class PolishFallbackTests: XCTestCase {
         let result = await service.polishReporting("my words")
         XCTAssertEqual(result.text, "my words")
         XCTAssertEqual(result.error, "main down")
-        XCTAssertNil(result.by, "no model's answer was used")
+        // Since a604047 `by` is kept when polish gives up, so History shows the failure: no answer used, both failures kept.
+        XCTAssertEqual(result.by?.failed, true, "no model's answer was used")
+        XCTAssertEqual(result.by?.failures?.map(\.model), ["main", "backup"])
     }
 
     func testDeadlineGivesYourWordsInsteadOfWaiting() async {
