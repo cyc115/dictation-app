@@ -1,5 +1,4 @@
 import Foundation
-import FoundationModels
 import XCTest
 @testable import DictationKit
 
@@ -19,8 +18,6 @@ final class JudgePassTests: XCTestCase {
     /// What a request hands back to the main thread, run once it has finished.
     private var landed: [() -> Void] = []
     private let lock = NSLock()
-    /// Times a request was cancelled.
-    private var cancels = 0
     /// Hold the pass's work back (to land an answer while a pass runs).
     private var holdPass = false
     private var heldPasses: [() -> Void] = []
@@ -38,7 +35,6 @@ final class JudgePassTests: XCTestCase {
         }
         intake.send = { [unowned self] work in
             requests.append(work)
-            return { [unowned self] in cancels += 1 }
         }
         intake.background = { [unowned self] work in if holdPass { heldPasses.append(work) } else { work() } }
     }
@@ -81,12 +77,25 @@ final class JudgePassTests: XCTestCase {
         XCTAssertTrue(timers.isEmpty)
     }
 
-    /// No judge for the setup (no key, no Apple Intelligence): the rules count, nothing is sent.
+    /// No judge for the setup (no key, or the On-device setup): the rules count, nothing is sent.
     func testNothingWithoutAJudge() {
         intake.judgeBackend = { nil }
         correct(five())
         intake.tabShown()
         XCTAssertEqual(intake.batches, 0)
+        XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"])
+    }
+
+    /// The On-device setup, with a key and the setting on: the app's own choice of judge is none, so
+    /// nothing is sent and the rules count.
+    func testTheOnDeviceSetupSendsNothing() {
+        settings.setOpenRouterKey("sk-test")
+        settings.setup = .onDevice
+        intake.judgeBackend = { [unowned self] in FixJudge.backend(settings: settings) }
+        correct(five())
+        intake.tabShown()
+        XCTAssertEqual(intake.batches, 0)
+        XCTAssertTrue(requests.isEmpty)
         XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"])
     }
 
@@ -147,7 +156,7 @@ final class JudgePassTests: XCTestCase {
         XCTAssertEqual(intake.batches, 1, "not asked again")
     }
 
-    /// Up to 10 fixes a request (1 for Apple Intelligence), one request at a time; each answer runs
+    /// Up to 10 fixes a request, one request at a time; each answer runs
     /// the pass again, which sends the next batch while 5 or more wait.
     func testBatchesOfTenOneAtATime() {
         correct((1...23).map { ("ask cloud about \($0)", "ask Claude about \($0)") })
@@ -158,13 +167,6 @@ final class JudgePassTests: XCTestCase {
         XCTAssertEqual(judge.asked.map(\.count), [10, 10, 3], "the last 3 too: the tab was shown")
         XCTAssertTrue(FixJudge.pending(history.entries).isEmpty)
 
-        let onDevice = FakeJudge()
-        onDevice.batchSize = 1
-        intake.judgeBackend = { onDevice }
-        correct(Array(five().prefix(2)))
-        intake.tabShown()
-        answer()
-        XCTAssertEqual(onDevice.asked.map(\.count), [1, 1], "one fix a call")
         correct(Array(five().prefix(2)))
         intake.runIfIdle()
         XCTAssertTrue(requests.isEmpty, "fewer than 5 wait for their 10 minutes")
@@ -236,7 +238,7 @@ final class JudgePassTests: XCTestCase {
         XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard)
     }
 
-    /// A refused request (a bad model id, no credit, Apple Intelligence declining) would fail the same
+    /// A refused request (a bad model id, no credit) would fail the same
     /// way again: it counts a try, so one fix that always fails can't hold the others up forever.
     func testARefusedRequestCountsATry() {
         judge.answer = { _ in throw JudgeFailure(json: ["error": ["message": "No such model"]], status: 400) }
@@ -249,60 +251,9 @@ final class JudgePassTests: XCTestCase {
         intake.tabShown()
         XCTAssertEqual(intake.batches, FixJudge.maxTries, "then it's asked no more")
         XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"], "and the rules count it")
-        XCTAssertTrue(FixJudge.countsATry(LanguageModelSession.GenerationError.guardrailViolation(.init(debugDescription: "no"))))
-        XCTAssertFalse(FixJudge.countsATry(LanguageModelSession.GenerationError.rateLimited(.init(debugDescription: "busy"))))
-        XCTAssertFalse(FixJudge.countsATry(PolishError.unavailable("Apple Intelligence isn't available on this Mac.")))
         XCTAssertFalse(FixJudge.countsATry(JudgeFailure(json: nil, status: 429)))
         XCTAssertFalse(FixJudge.countsATry(JudgeFailure(json: nil, status: 503)))
         XCTAssertFalse(FixJudge.countsATry(URLError(.timedOut)))
-    }
-
-    /// An on-device judge call stops when a dictation starts, costs no try, and is asked again at the
-    /// next pass. A cloud one is left to finish (it's paid for, and it doesn't use this Mac).
-    func testADictationStopsAnOnDeviceCall() {
-        let onDevice = OnDeviceFake()
-        intake.judgeBackend = { onDevice }
-        correct([five()[0]])
-        intake.tabShown()
-        intake.dictationStarted()
-        XCTAssertEqual(cancels, 1)
-        onDevice.cancelled = true
-        answer()
-        XCTAssertNil(history.entries[0].intake?.tries)
-        XCTAssertNil(history.entries[0].intake?.changes.first?.verdict)
-        onDevice.cancelled = false
-        intake.runIfIdle()
-        XCTAssertEqual(intake.batches, 1, "no back-off, but under 5 waiting: waits for the tab or 10 minutes")
-        intake.tabShown()
-        answer()
-        XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard)
-
-        // However the stopped call fails, it costs no try.
-        onDevice.failure = LanguageModelSession.GenerationError.guardrailViolation(.init(debugDescription: "stopped"))
-        correct([five()[1]])
-        intake.tabShown()
-        intake.dictationStarted()
-        answer()
-        XCTAssertNil(history.entries[0].intake?.tries)
-
-        intake.judgeBackend = { [unowned self] in judge }
-        intake.tabShown()
-        intake.dictationStarted()
-        XCTAssertEqual(cancels, 2, "a cloud call isn't stopped")
-        answer()
-        XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard)
-    }
-
-    private final class OnDeviceFake: FixJudgeBackend {
-        var batchSize: Int { 1 }
-        var onThisMac: Bool { true }
-        var cancelled = false
-        var failure: Error?
-        func judge(_ items: [JudgeItem], terms: [String]) async throws -> JudgeAnswer {
-            if cancelled { throw CancellationError() }
-            if let failure { throw failure }
-            return JudgeAnswer(verdicts: items.map { $0.changes.map { _ in .misheard } }, usage: nil)
-        }
     }
 
     /// Turned off while the judge was asked: its answer isn't used, nor one held for the next pass.
@@ -407,7 +358,6 @@ final class JudgePassTests: XCTestCase {
     func testTheJudgeIsToldYourTerms() {
         var told: [String] = []
         final class Spy: FixJudgeBackend {
-            var batchSize = 10
             var terms: (([String]) -> Void)?
             func judge(_ items: [JudgeItem], terms: [String]) async throws -> JudgeAnswer {
                 self.terms?(terms)

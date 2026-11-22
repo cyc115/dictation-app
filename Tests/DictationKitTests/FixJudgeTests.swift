@@ -5,7 +5,6 @@ import XCTest
 /// A judge that answers at once from `verdict` (by the change's new words; misheard when not given),
 /// keeping every batch it was asked.
 final class FakeJudge: FixJudgeBackend {
-    var batchSize = FixJudge.batchSize
     var asked: [[JudgeItem]] = []
     var verdict: [String: WordChange.Verdict] = [:]
     /// Replaces the answer (a malformed one, a failure).
@@ -265,27 +264,31 @@ final class FixJudgeTests: XCTestCase {
 
     // MARK: Backends
 
-    func testTheJudgeGoesWherePolishGoes() throws {
+    /// The judge needs a cloud setup: on one that polishes on this Mac it never runs (nothing is sent;
+    /// the rules count), even with a key and the setting on.
+    func testTheJudgeNeedsACloudSetup() throws {
         let settings = makeSettings(self)
+        settings.judgeFixes = true
+        settings.setOpenRouterKey("sk-test")
         settings.setup = .onDevice
-        XCTAssertTrue(FixJudge.backend(settings: settings, appleAvailable: true) is OnDeviceJudge)
-        XCTAssertNil(FixJudge.backend(settings: settings, appleAvailable: false), "no Apple Intelligence: the rules")
+        XCTAssertNil(FixJudge.backend(settings: settings), "On-device: no judge, even with a key")
 
         settings.setup = .cloudFlash
-        XCTAssertNil(FixJudge.backend(settings: settings, appleAvailable: true), "no key")
-        settings.setOpenRouterKey("sk-test")
         XCTAssertEqual((FixJudge.backend(settings: settings) as? OpenRouterJudge)?.model, LearnController.teacherModel)
         settings.judgeModel = " google/gemini-3.8-flash "
         XCTAssertEqual((FixJudge.backend(settings: settings) as? OpenRouterJudge)?.model, "google/gemini-3.8-flash")
+        settings.setOpenRouterKey(nil)
+        XCTAssertNil(FixJudge.backend(settings: settings), "no key")
+        settings.setOpenRouterKey("sk-test")
 
         // Mixed setups: the judge follows the polish model, not the speech model.
         let cloudSpeechApplePolish = try setup(#"{"id": "a", "title": "A", "speech": "openrouter:qwen/qwen3-asr-1.7b", "polish": "apple", "prompt": "v3"}"#)
         settings.setup = cloudSpeechApplePolish
         XCTAssertTrue(cloudSpeechApplePolish.usesCloud)
-        XCTAssertTrue(FixJudge.backend(settings: settings, appleAvailable: true) is OnDeviceJudge)
+        XCTAssertNil(FixJudge.backend(settings: settings))
         let localSpeechCloudPolish = try setup(#"{"id": "b", "title": "B", "speech": "apple", "polish": "openrouter:deepseek/deepseek-v4.1-flash", "prompt": "v7"}"#)
         settings.setup = localSpeechCloudPolish
-        XCTAssertTrue(FixJudge.backend(settings: settings, appleAvailable: true) is OpenRouterJudge)
+        XCTAssertTrue(FixJudge.backend(settings: settings) is OpenRouterJudge)
     }
 
     private func setup(_ json: String) throws -> DictationSetup {

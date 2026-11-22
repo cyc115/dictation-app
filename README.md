@@ -92,9 +92,11 @@ is added. The count is a setting with no row: `DictationApp settings set vocabul
 
 **Ask a model about my fixes** (Settings › Vocabulary, off by default) tells a misheard word from a
 change of style or of mind. When the app is idle and 5 fixes wait (or one has waited 10 minutes, or
-you open Vocabulary or Corrections), it asks a model about each word change: Claude Sonnet 5.5 on
-the cloud setups, 10 fixes a request (`DictationApp settings set judgeModel <model id>` picks
-another), Apple Intelligence on-device, one at a time. Nothing in a dictation waits on it.
+you open Vocabulary or Corrections), it asks a cloud model about each word change: Claude Sonnet
+5.5, 10 fixes a request (`DictationApp settings set judgeModel <model id>` picks another). Nothing
+in a dictation waits on it. It needs a cloud setup: on the On-device setup nothing is sent and the
+rules above count your fixes (Apple Intelligence got 37% of the bench's changes right, so it isn't
+used).
 
 - Only changes it calls misheard go into vocabulary; while it's on, a change waits for its verdict.
   A fix it can't answer about after 3 tries is counted by the rules above.
@@ -264,8 +266,9 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
   fields, apps where secure input is on, or the apps in *Pause in these apps*, and sends nothing
   anywhere unless *Ask a model about my fixes* is on. Per-app counts (no text) are in `edit-watch.json`.
 - *Ask a model about my fixes* (off by default) sends each fix (what the app wrote and what you
-  changed it to: your corrections and captured edits) and your vocabulary's terms where polish goes:
-  OpenRouter on the cloud setups (whether or not AI polish is on), Apple Intelligence on-device. Text you type by hand never left
+  changed it to: your corrections and captured edits) and your vocabulary's terms to OpenRouter on
+  the cloud setups (whether or not AI polish is on). On the On-device setup it sends nothing, and
+  isn't asked of Apple Intelligence either. Text you type by hand never left
   the Mac before this, which is why it's off. The verdicts are kept with the fix in your history.
 - Your vocabulary stays on this Mac, in `vocabulary.json`, with the terms seen in your corrections
   (each with what the app wrote and the ids of the dictations it was in). The word changes worked

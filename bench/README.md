@@ -204,7 +204,12 @@ Each request's cost is recorded and the run's total printed. The estimate prices
 `PRICES` in `suites/edits.py` (only models a saved result gives a price for: Claude Sonnet 5.5, $2 /
 $10 per million) or `--price`; the default run is estimated at about 6¢. Batching stays in the app
 only if batches of 10 score as well as one at a time; then the cheapest model that ties the best
-becomes `judgeModel`'s default. Apple Intelligence (the On-device setup's judge) isn't in this suite.
+becomes `judgeModel`'s default.
+
+Nov 22, 2026 (`results/edits/README.md`, 6.9¢ for three models): Claude Sonnet 5.5 98% in batches
+of 10, 94% one at a time; DeepSeek V4.1 Flash 93%; Gemini 3.8 Flash 89%. Sonnet and batches of 10
+stay the defaults. Apple Intelligence, tried once outside the suite, got 37%, so the On-device
+setup has no judge.
 
 ## Speech-to-text accuracy (`suite.py accuracy` = `bench.py`)
 

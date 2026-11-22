@@ -297,7 +297,8 @@ delays typing.
 - **Model:** `judgeModel`, default `LearnController.teacherModel` (Claude Sonnet 5.5) until the
   bench picks one. Through `OpenRouter.chat`, so it names the app like every other call.
 - **On-device setup:** Apple Intelligence, one fix a call. If it scores poorly on the suite, the
-  On-device setup uses phase 2's rule instead.
+  On-device setup uses phase 2's rule instead. **It did (Nov 22): the On-device setup uses the
+  rules** and sends nothing (see "Phase 4 as built").
 - **What verdicts do:**
   - *misheard* changes count toward candidates;
   - a captured fix's target becomes `text` with only its *misheard* and *style* changes applied;
@@ -316,7 +317,7 @@ delays typing.
 Decisions the draft didn't make; where it was silent, the choice sends less, trains less, or never
 delays a dictation.
 
-- **Where it runs:** `FixJudge` (`Vocabulary/FixJudge.swift`) is the logic and two backends; phase
+- **Where it runs:** `FixJudge` (`Vocabulary/FixJudge.swift`) is the logic and the cloud backend; phase
   2's idle pass (`VocabularyIntake`) sends the batches after each pass. No second scheduler, no new
   shared object. `AppServices.live()` hands in the real backend; tests (`makeServices`) get none.
 - **Send rules:** after a pass (30 s idle, launch, a wake-up), when 5 fixes wait or the oldest has
@@ -331,29 +332,26 @@ delays a dictation.
   verdicts are saved only if its target and word changes are still the ones judged.
 - **Retries:** `Intake.tries` (saved): a paid answer that leaves a fix out, or can't be read, adds
   one; at 3 it's asked no more and the rules count it. A request that would fail the same way again
-  (a refused request, an answer with no text, Apple Intelligence refusing, a guardrail, a fix too
-  long) adds one to each fix in it, so one fix that always fails can't hold the others up; offline,
-  a timeout, 429 or 5xx, Apple Intelligence unavailable, rate limited or busy add none. While the
-  judge can't be reached (offline), vocabulary counting waits with it. A failure, or an answer that covers nothing, waits 10 minutes before the next request (a
-  tab shown still asks).
-- **On-device calls stop when a dictation starts** (cancelled; however it then fails, no try;
-  asked again at the next pass), so the judge never competes with on-device polish for Apple Intelligence. Whether
-  cancelling stops the model's work at once is unverified. Cloud calls run on: they're paid for and
-  don't use the Mac.
+  (a refused request, an answer with no text) adds one to each fix in it, so one fix that always
+  fails can't hold the others up; offline, a timeout, 429 or 5xx add none. While the judge can't be
+  reached (offline), vocabulary counting waits with it. A failure, or an answer that covers nothing,
+  waits 10 minutes before the next request (a tab shown still asks).
 - **Counting:** with the judge on and able to run, a change with no verdict waits instead of
-  counting by the rules (phase 2's "with `judgeFixes` off"). Unable to run (no key on a cloud setup,
-  no Apple Intelligence on-device), the rules count as before. Verdicts already saved still count
-  after the setting is turned off.
+  counting by the rules (phase 2's "with `judgeFixes` off"). Unable to run (no key, or the On-device
+  setup), the rules count as before and every capture waits for Accept. Verdicts already saved
+  still count after the setting is turned off.
 - **What verdicts do, beyond the draft:** the kept target is built by `WordDiff` position (a word
   can repeat). What isn't a word change (a period added, a filler taken out) stays as you made it:
   putting it back would teach Learn the opposite of your edit. `unclear` changes are put back, as
   the draft says. A capture with **words only added** (no verdict covers them: maybe a change of
   mind) waits for Accept instead of `auto`. A kept target equal to what the app wrote dismisses it.
   The rewritten capture's intake keeps the verdicts with `of` = the new target, so it isn't judged again.
-- **Which judge:** where polish goes, by the current setup's polish model (`polishesOnDevice`), not
-  its speech model, like the terms block; whether or not AI polish is switched on, and for every
-  fix, including ones dictated on another setup. `judgeModel` blank is the default; thinking off (or lowest),
-  temperature 0, no `response_format` (not every model takes it).
+- **Which setups:** decided by the current setup's polish model (`polishesOnDevice`), not its speech
+  model, like the terms block: a cloud polish model gets the cloud judge, whether or not AI polish
+  is switched on, and for every fix, including ones dictated on another setup; one that polishes on
+  this Mac gets none. `judgeModel` blank is the default; thinking off (or lowest), temperature 0, no
+  `response_format` (not every model takes it). Settings › Vocabulary shows the row as unavailable
+  on the On-device setup, saying nothing is sent and the rules count.
 - **Message:** the instructions are `Vocabulary/JudgeFixes.txt`, a package resource the bench sends
   too; then the terms (up to 100, most used first; none with *Use vocabulary* off), then the fixes,
   numbered. `bench/judge_message_fixture.json` pins the message and how answers are read for both.
@@ -364,12 +362,16 @@ delays a dictation.
   is short.
 - **Cost:** each request's usage is added up in memory (`VocabularyIntake.judgeUsage`); the app keeps
   no record of spend, so it isn't saved.
-- **On-device:** a fresh session per fix, as on-device polish. Its accuracy is **not measured**: the
-  edits suite calls OpenRouter only. Until it is, the On-device setup uses the Apple judge, not the
-  rules (the draft's fallback is still to decide).
-- **Batches of 10 ship before the bench has run:** the draft keeps batching only if it matches one
-  at a time. Until `bench/suite.py edits run` says so, that's open; `FixJudge.batchSize` is the one
-  constant to change.
+- **No on-device judge (measured Nov 22):** Apple Intelligence through a one-fix-a-call judge, on the
+  45 bench cases (a one-off test, not the suite), got 20 of 54 changes right (37%), covered 36 of 54,
+  misheard precision 11 of 24, changed mind 3 of 12, style 6 of 18, unclear 0 of 4, 1.7 s a fix
+  (p50). It called changes of mind misheard (GPT → Claude, Sarah → Daniel, three → five), which
+  would teach vocabulary wrong variants. So, as the draft says, the On-device setup uses phase 2's
+  rules and sends nothing.
+- **Cloud bench (Nov 22, 6.9¢, `bench/results/edits/README.md`):** Claude Sonnet 5.5 98% in batches
+  of 10, 94% one at a time (misheard precision 95% / 87%); DeepSeek V4.1 Flash 93% both (83%);
+  Gemini 3.8 Flash 89% both. Batching held accuracy, so the defaults stay: Sonnet 5.5, batches of
+  10. The live batch (`./test.sh --live`) passed ($0.0025, 1.3 s).
 - **Taking an `auto` capture back:** Corrections shows it among your corrections with the
   "captured" badge; its trash button dismisses it (clears the correction), editing it makes it
   `accepted`. No Dismiss button was added for it.
@@ -389,11 +391,12 @@ delays a dictation.
 ## Privacy
 
 - Vocabulary stays on the Mac. Its terms go where polish already goes (OpenRouter on cloud setups,
-  Apple Intelligence on-device).
+  Apple Intelligence on-device; the judge only on cloud setups).
 - The watcher keeps only the pasted text and its edited version, and only with *Learn from my
   edits* on. It doesn't run in excluded apps or password fields.
 - The judge sends each fix (what the app wrote, what you changed it to) to OpenRouter on cloud
-  setups. Hand-typed text has never left the Mac before, so `judgeFixes` is off by default.
+  setups, and nothing on the On-device setup. Hand-typed text has never left the Mac before, so
+  `judgeFixes` is off by default.
 - Learn now also sends accepted and `auto` captured fixes to the teacher and student models.
 - README's Privacy section changes in the same commit as each phase.
 

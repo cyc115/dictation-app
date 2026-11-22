@@ -1,5 +1,4 @@
 import Foundation
-import FoundationModels
 
 /// One fix as the judge is shown it: what the app wrote, what it should have been (`fixTarget`), and
 /// its word changes (without verdicts).
@@ -17,17 +16,10 @@ struct JudgeAnswer {
     var usage: OpenRouter.Usage?
 }
 
-/// A model that judges fixes (`FixJudge.backend` picks yours; tests pass fakes).
+/// A model that judges fixes, up to `FixJudge.batchSize` a call (`FixJudge.backend` picks yours;
+/// tests pass fakes).
 protocol FixJudgeBackend {
-    /// Fixes one call carries.
-    var batchSize: Int { get }
-    /// It runs on this Mac (Apple Intelligence): a dictation starting stops it.
-    var onThisMac: Bool { get }
     func judge(_ items: [JudgeItem], terms: [String]) async throws -> JudgeAnswer
-}
-
-extension FixJudgeBackend {
-    var onThisMac: Bool { false }
 }
 
 /// A cloud judge call that failed. `transient` (rate limited, a timeout, the host down): asking again
@@ -48,9 +40,10 @@ struct JudgeFailure: LocalizedError {
 /// mind, unclear), so only misheard words go into vocabulary and a clear captured edit trains Learn
 /// unreviewed. The idle pass (`VocabularyIntake`) sends the batches; nothing here runs during a
 /// dictation. This is the logic: which fixes wait, the message, reading the answer, and what the
-/// verdicts do.
+/// verdicts do. Cloud setups only: on the On-device setup nothing is sent and the rules count.
 enum FixJudge {
-    /// Fixes in one cloud request; Apple Intelligence gets one a call.
+    /// Fixes in one request. Batches of 10 scored as well as one at a time (better, for Claude
+    /// Sonnet 5.5) in the Nov 22 run (bench/results/edits/README.md).
     static let batchSize = 10
     /// A batch goes once this many fixes wait…
     static let enough = 5
@@ -161,18 +154,10 @@ enum FixJudge {
         return entry
     }
 
-    /// A failed call that would fail the same way again (a refused request, an answer with no text,
-    /// Apple Intelligence refusing, a guardrail, a fix too long): it counts a try. Offline, a timeout,
-    /// a busy host, Apple Intelligence unavailable, rate limited or busy: not.
+    /// A failed call that would fail the same way again (a refused request, an answer with no text):
+    /// it counts a try. Offline, a timeout, a rate limit, a busy host: not.
     static func countsATry(_ error: Error) -> Bool {
         if let failure = error as? JudgeFailure { return !failure.transient }
-        if let error = error as? LanguageModelSession.GenerationError {
-            switch error {
-            case .assetsUnavailable, .rateLimited, .concurrentRequests: return false
-            default: return true
-            }
-        }
-        if case PolishError.unavailable = error { return false }
         return !(error is URLError)
     }
 
@@ -182,17 +167,12 @@ enum FixJudge {
         return id.isEmpty ? LearnController.teacherModel : id
     }
 
-    /// Apple Intelligence can answer now.
-    static var appleAvailable: Bool {
-        if case .available = SystemLanguageModel.default.availability { return true }
-        return false
-    }
-
-    /// Your judge, where polish goes: Apple Intelligence when the setup polishes on this Mac (nil
-    /// when it isn't available), else `judgeModel` on OpenRouter with your key (nil without one).
-    /// Nil: the judge can't run, and the rules count changes as with the setting off.
-    static func backend(settings: AppSettings, appleAvailable: Bool = FixJudge.appleAvailable) -> FixJudgeBackend? {
-        if settings.setup.polishesOnDevice { return appleAvailable ? OnDeviceJudge() : nil }
+    /// Your judge: `judgeModel` on OpenRouter with your key, on a setup whose polish goes to the cloud.
+    /// Nil (the judge can't run; the rules count changes as with the setting off, and every capture
+    /// waits for Accept) on a setup that polishes on this Mac, where nothing may leave it: Apple
+    /// Intelligence got 37% of the bench's changes right (Nov 22) and isn't used. Nil without a key.
+    static func backend(settings: AppSettings) -> FixJudgeBackend? {
+        if settings.setup.polishesOnDevice { return nil }
         guard let key = settings.openRouterKey, !key.isEmpty else { return nil }
         return OpenRouterJudge(model: modelID(settings.judgeModel), apiKey: key)
     }
@@ -206,8 +186,6 @@ struct OpenRouterJudge: FixJudgeBackend {
     let model: String
     let apiKey: String
     var session: URLSession = .shared
-
-    var batchSize: Int { FixJudge.batchSize }
 
     func judge(_ items: [JudgeItem], terms: [String]) async throws -> JudgeAnswer {
         func ask(_ reasoning: [String: Any]?) async throws -> ([String: Any]?, Int) {
@@ -229,23 +207,5 @@ struct OpenRouterJudge: FixJudgeBackend {
         return OpenRouter.chat(model: model, system: FixJudge.instructions,
                                userContent: OpenRouter.content(caching: prefix, then: rest, model: model),
                                apiKey: apiKey, reasoning: reasoning)
-    }
-}
-
-/// The On-device judge: Apple Intelligence, one fix a call, each in a fresh session (as
-/// `OnDevicePolish` asks it), so nothing leaves the Mac.
-struct OnDeviceJudge: FixJudgeBackend {
-    var batchSize: Int { 1 }
-    var onThisMac: Bool { true }
-
-    func judge(_ items: [JudgeItem], terms: [String]) async throws -> JudgeAnswer {
-        guard FixJudge.appleAvailable else { throw PolishError.unavailable("Apple Intelligence isn't available on this Mac.") }
-        var verdicts: [[WordChange.Verdict]?] = []
-        for item in items {
-            let (prefix, rest) = FixJudge.message([item], terms: terms)
-            let text = try await LanguageModelSession(instructions: FixJudge.instructions).respond(to: prefix + rest).content
-            verdicts += FixJudge.parse(text, items: [item])
-        }
-        return JudgeAnswer(verdicts: verdicts, usage: nil)
     }
 }

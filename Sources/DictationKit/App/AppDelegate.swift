@@ -64,10 +64,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         installEditMenu()
         overlay.onCancel = { [weak self] in self?.dictation.cancel() }
         overlay.onConfirm = { [weak self] in self?.dictation.stop() }
-        dictation.onDictatingChanged = { [weak self] in
-            self?.updateStatusIcon()
-            if self?.dictation.dictating == true { self?.services.intake.dictationStarted() }
-        }
+        dictation.onDictatingChanged = { [weak self] in self?.updateStatusIcon() }
         dictation.onIdle = { [weak self] in
             self?.relaunch.relaunchIfIdle()
             self?.services.updates.relaunchIfIdle()

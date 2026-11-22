@@ -23,7 +23,10 @@ struct VocabularySection: View {
             if settings.learnFromEdits && !editStats.apps.isEmpty {
                 EditWatchStatsView(stats: editStats)
             }
-            SettingRow("Ask a model about my fixes", "When the app is idle, asks a model whether each word you changed was misheard, style, or a change of mind: only misheard words go into vocabulary, and an edit it's sure of (read back from the text box) trains Learn without waiting for Accept. Sends what the app wrote and what you changed it to where polish goes: a cloud model on the cloud setups (with your API key), Apple Intelligence on-device.") {
+            SettingRow("Ask a model about my fixes", settings.setup.polishesOnDevice
+                       ? "Needs a cloud setup. On the On-device setup nothing is sent: your fixes are counted by the rules, and captured edits wait for your Accept."
+                       : "When the app is idle, asks a cloud model whether each word you changed was misheard, style, or a change of mind: only misheard words go into vocabulary, and an edit it's sure of (read back from the text box) trains Learn without waiting for Accept. Sends what the app wrote and what you changed it to. On the On-device setup nothing is sent and the rules count your fixes.",
+                       available: !settings.setup.polishesOnDevice, badge: "Online · needs API key") {
                 Toggle("Ask a model about my fixes", isOn: $settings.judgeFixes)
             }
             SettingRow("Vocabulary", "Add, edit, turn off and delete your terms in the Vocabulary tab.") {
