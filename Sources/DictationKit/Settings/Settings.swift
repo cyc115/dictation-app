@@ -195,6 +195,13 @@ final class AppSettings: ObservableObject {
     /// Watch how you edit a dictation right after it's pasted (`EditWatcher`) and keep it as a captured
     /// fix, waiting in Corrections for your Accept. Off by default: it reads the text box you typed into.
     @Setting("learnFromEdits", default: false) var learnFromEdits: Bool
+    /// Ask a model what each word change of a fix was: misheard, style, a change of mind or unclear
+    /// (`FixJudge`), when the app is idle. Off by default: it sends your corrections and captured
+    /// edits (what the app wrote, what you changed it to) where polish goes.
+    @Setting("judgeFixes", default: false) var judgeFixes: Bool
+    /// The OpenRouter model that judges fixes on the cloud setups; blank is the default. No Settings
+    /// row: `DictationApp settings set judgeModel <id>`.
+    @Setting("judgeModel", default: LearnController.teacherModel) var judgeModel: String
     /// A term fixed in this many different dictations is learned (`VocabularyIntake`). No Settings
     /// row: `DictationApp settings set vocabularyLearnAfter 5`. Below 1 counts as 1.
     @Setting("vocabularyLearnAfter", default: 3) var vocabularyLearnAfter: Int

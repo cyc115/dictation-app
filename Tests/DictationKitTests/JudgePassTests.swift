@@ -1,0 +1,300 @@
+import Foundation
+import XCTest
+@testable import DictationKit
+
+/// The judge in the idle pass (`VocabularyIntake` + `FixJudge`), with a fake judge, a fake clock, the
+/// pass's work run inline and its requests held until the test runs them.
+final class JudgePassTests: XCTestCase {
+    private var services: AppServices!
+    private var history: HistoryStore { services.history }
+    private var intake: VocabularyIntake { services.intake }
+    private var settings: AppSettings { services.settings }
+    private let judge = FakeJudge()
+    private var timers: [(delay: TimeInterval, fire: () -> Void)] = []
+    private var busy = false
+    private var clock = Date(timeIntervalSince1970: 2_000_000_000)
+    /// Requests sent, not yet answered.
+    private var requests: [() async -> Void] = []
+    /// What a request hands back to the main thread, run once it has finished.
+    private var landed: [() -> Void] = []
+    private let lock = NSLock()
+
+    override func setUp() {
+        super.setUp()
+        services = makeServices(self)
+        settings.judgeFixes = true
+        intake.judgeBackend = { [unowned self] in judge }
+        intake.isBusy = { [unowned self] in busy }
+        intake.after = { [unowned self] delay, fire in timers.append((delay, fire)) }
+        intake.now = { [unowned self] in clock }
+        intake.background = { $0() }
+        intake.toMain = { [unowned self] work in
+            if Thread.isMainThread { work() } else { lock.withLock { landed.append(work) } }
+        }
+        intake.send = { [unowned self] work in requests.append(work) }
+    }
+
+    /// Answers every request sent so far (and any the answers send).
+    private func answer(all: Bool = true) {
+        repeat {
+            let now = requests
+            requests = []
+            for request in now {
+                let done = expectation(description: "request")
+                Task.detached { await request(); done.fulfill() }
+                wait(for: [done], timeout: 5)
+                let back = lock.withLock { defer { landed = [] }; return landed }
+                back.forEach { $0() }
+            }
+        } while all && !requests.isEmpty
+    }
+
+    /// Corrected dictations, oldest first.
+    @discardableResult
+    private func correct(_ fixes: [(String, String)]) -> [UUID] {
+        fixes.map { text, correction in
+            let id = history.add(text: text, duration: 1)!
+            history.setCorrection(correction, for: id)
+            return id
+        }
+    }
+
+    private func five() -> [(String, String)] {
+        (1...5).map { ("ask cloud about item \($0)", "ask Claude about item \($0)") }
+    }
+
+    func testNothingWithTheSettingOff() {
+        settings.judgeFixes = false
+        correct(five())
+        intake.tabShown()
+        XCTAssertEqual(intake.batches, 0)
+        XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"], "the rules, as before")
+        XCTAssertTrue(timers.isEmpty)
+    }
+
+    /// No judge for the setup (no key, no Apple Intelligence): the rules count, nothing is sent.
+    func testNothingWithoutAJudge() {
+        intake.judgeBackend = { nil }
+        correct(five())
+        intake.tabShown()
+        XCTAssertEqual(intake.batches, 0)
+        XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"])
+    }
+
+    func testABatchGoesOnceFiveFixesWait() {
+        correct(Array(five().prefix(4)))
+        intake.runIfIdle()
+        XCTAssertEqual(intake.batches, 0, "4 waiting, none for 10 minutes")
+        XCTAssertTrue(services.vocabulary.candidates.isEmpty, "unjudged changes wait for verdicts")
+        XCTAssertEqual(timers.map(\.delay), [600], "woken when the oldest has waited 10 minutes")
+        correct([five()[4]])
+        intake.runIfIdle()
+        XCTAssertEqual(intake.batches, 1)
+        XCTAssertEqual(requests.count, 1)
+        answer()
+        XCTAssertEqual(judge.asked.map(\.count), [5])
+        XCTAssertEqual(Set(judge.asked[0].map(\.wrote)), Set(five().map(\.0)))
+    }
+
+    func testTheOldestWaitingTenMinutesSendsABatch() {
+        correct(Array(five().prefix(2)))
+        intake.runIfIdle()
+        XCTAssertEqual(intake.batches, 0)
+        clock += 300
+        correct([five()[2]])
+        intake.runIfIdle()
+        XCTAssertEqual(timers.last?.delay, 300, "still from the oldest")
+        clock += 300
+        timers.last?.fire()
+        XCTAssertEqual(intake.batches, 1)
+        answer()
+        XCTAssertEqual(judge.asked.first?.count, 3)
+        XCTAssertEqual(judge.asked.first?.first?.wrote, five()[0].0, "longest waiting first")
+    }
+
+    func testShowingTheTabSendsAtOnce() {
+        correct([five()[0]])
+        intake.tabShown()
+        XCTAssertEqual(intake.batches, 1)
+        answer()
+        XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard)
+    }
+
+    func testNeverWhileADictationIsInProgress() {
+        correct(five())
+        busy = true
+        intake.tabShown()
+        intake.runIfIdle()
+        XCTAssertEqual(intake.batches, 0)
+        busy = false
+        intake.tabShown()
+        XCTAssertEqual(intake.batches, 1)
+        busy = true  // a dictation started while the judge was asked
+        answer()
+        XCTAssertNil(history.entries[0].intake?.changes.first?.verdict, "nothing written during a dictation")
+        busy = false
+        intake.runIfIdle()
+        XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard, "the paid answer is kept for the next pass")
+        XCTAssertEqual(intake.batches, 1, "not asked again")
+    }
+
+    /// Up to 10 fixes a request (1 for Apple Intelligence), one request at a time; each answer runs
+    /// the pass again, which sends the next batch while 5 or more wait.
+    func testBatchesOfTenOneAtATime() {
+        correct((1...23).map { ("ask cloud about \($0)", "ask Claude about \($0)") })
+        intake.tabShown()
+        intake.tabShown()
+        XCTAssertEqual(requests.count, 1, "one in flight")
+        answer()
+        XCTAssertEqual(judge.asked.map(\.count), [10, 10, 3], "the last 3 too: the tab was shown")
+        XCTAssertTrue(FixJudge.pending(history.entries).isEmpty)
+
+        let onDevice = FakeJudge()
+        onDevice.batchSize = 1
+        intake.judgeBackend = { onDevice }
+        correct(Array(five().prefix(2)))
+        intake.tabShown()
+        answer()
+        XCTAssertEqual(onDevice.asked.map(\.count), [1, 1], "one fix a call")
+        correct(Array(five().prefix(2)))
+        intake.runIfIdle()
+        XCTAssertTrue(requests.isEmpty, "fewer than 5 wait for their 10 minutes")
+    }
+
+    /// Verdicts count at once: a misheard term is learned without waiting for another dictation; a
+    /// judged fix isn't asked about again.
+    func testVerdictsCountAtOnceAndAreNotAskedAgain() {
+        judge.verdict = ["Thursday": .changedMind]
+        correct([("I use cloud", "I use Claude"), ("ask Coloule now", "ask Claude now"), ("Klod said no", "Claude said no"),
+                 ("see you Tuesday", "see you Thursday"), ("meet Tuesday", "meet Thursday")])
+        intake.runIfIdle()
+        answer()
+        XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"])
+        XCTAssertFalse(services.vocabulary.candidates.contains { $0.term == "Thursday" }, "a change of mind never counts")
+        intake.runIfIdle()
+        intake.tabShown()
+        XCTAssertEqual(intake.batches, 1)
+    }
+
+    /// An answer that leaves a fix out: it's asked again (after a wait, or with the tab), at most 3
+    /// times; then the rules count it.
+    func testAMalformedAnswerIsRetriedThenLeft() {
+        judge.answer = { items in JudgeAnswer(verdicts: items.map { _ in nil }, usage: OpenRouter.Usage(calls: 1, cost: 0.001)) }
+        correct(five())
+        intake.runIfIdle()
+        answer()
+        XCTAssertEqual(intake.batches, 1, "no second request straight away")
+        XCTAssertEqual(history.entries[0].intake?.tries, 1)
+        XCTAssertEqual(timers.last?.delay, 600, "backs off 10 minutes")
+        intake.runIfIdle()
+        XCTAssertEqual(intake.batches, 1)
+        clock += 600
+        timers.last?.fire()
+        answer()
+        intake.tabShown()
+        answer()
+        XCTAssertEqual(intake.batches, 3)
+        XCTAssertEqual(history.entries[0].intake?.tries, FixJudge.maxTries)
+        intake.tabShown()
+        XCTAssertEqual(intake.batches, 3, "given up: it never costs again")
+        XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"], "the rules count it")
+        XCTAssertEqual(intake.judgeUsage.total().calls, 3, "what each request cost is added up")
+    }
+
+    /// A partial answer judges what it covers; the rest waits.
+    func testAPartialAnswerJudgesWhatItCovers() {
+        judge.answer = { items in JudgeAnswer(verdicts: items.indices.map { $0 == 0 ? [.misheard] : nil }, usage: nil) }
+        correct(five())
+        intake.runIfIdle()
+        answer(all: false)
+        XCTAssertEqual(history.entries.filter { $0.intake?.changes.first?.verdict == .misheard }.count, 1)
+        XCTAssertEqual(history.entries.filter { $0.intake?.tries == 1 }.count, 4)
+    }
+
+    /// A failed request (offline, an HTTP error) costs no try and waits 10 minutes.
+    func testAFailedRequestCostsNoTry() {
+        judge.answer = { _ in throw PolishError.failed("offline") }
+        correct(five())
+        intake.runIfIdle()
+        answer()
+        XCTAssertNil(history.entries[0].intake?.tries)
+        XCTAssertEqual(timers.last?.delay, 600)
+        XCTAssertEqual(intake.batches, 1)
+        judge.answer = nil
+        clock += 600
+        timers.last?.fire()
+        answer()
+        XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard)
+    }
+
+    /// A clear capture read back from the text box trains Learn unreviewed (`auto`); dismissing it
+    /// stops that; it isn't kept past "Keep history".
+    func testAClearCaptureBecomesAutoAndIsPruned() throws {
+        let id = try XCTUnwrap(history.add(text: "ask open router", duration: 1, date: Date().addingTimeInterval(-10 * 86_400)))
+        history.setCapture(Capture(edited: "ask OpenRouter", mode: .readback, app: "Slack"), for: id)
+        intake.tabShown()
+        answer()
+        XCTAssertEqual(history.entries[0].capture?.state, .auto)
+        XCTAssertEqual(history.corrections.map(\.id), [id], "trains Learn")
+        XCTAssertEqual(LearnController.tuneFixes(history.corrections).map(\.id), [id])
+        history.retention = .days7
+        XCTAssertTrue(history.entries.isEmpty, "an auto one isn't kept past Keep history")
+    }
+
+    func testDismissingAnAutoCaptureStopsItTraining() throws {
+        let id = try XCTUnwrap(history.add(text: "ask open router", duration: 1))
+        history.setCapture(Capture(edited: "ask OpenRouter", mode: .readback, app: "Slack"), for: id)
+        intake.tabShown()
+        answer()
+        history.dismiss(id)
+        XCTAssertNil(history.entries[0].correction)
+        XCTAssertNil(history.entries[0].fixTarget)
+    }
+
+    /// A captured edit with nothing worth keeping is dismissed: it feeds nothing.
+    func testACaptureWithNothingKeptIsDismissed() throws {
+        judge.verdict = ["Thursday": .changedMind]
+        let id = try XCTUnwrap(history.add(text: "see you Tuesday", duration: 1))
+        history.setCapture(Capture(edited: "see you Thursday", mode: .readback, app: "Slack"), for: id)
+        intake.tabShown()
+        answer()
+        XCTAssertEqual(history.entries[0].capture?.state, .dismissed)
+        XCTAssertTrue(history.waiting.isEmpty)
+        intake.runIfIdle()
+        XCTAssertNil(history.entries[0].intake)
+    }
+
+    /// Your edit while the judge was asked wins: the answer is for a fix that's gone.
+    func testAFixEditedMeanwhileIsJudgedAgain() throws {
+        let id = correct([five()[0]])[0]
+        intake.tabShown()
+        history.setCorrection("ask Claude Code about item 1", for: id)
+        answer(all: false)
+        XCTAssertNil(history.entries[0].intake?.changes.first?.verdict)
+        intake.tabShown()
+        answer()
+        XCTAssertEqual(history.entries[0].intake?.of, "ask Claude Code about item 1")
+        XCTAssertNotNil(history.entries[0].intake?.changes.first?.verdict)
+    }
+
+    /// The terms the judge is told are your vocabulary's.
+    func testTheJudgeIsToldYourTerms() {
+        var told: [String] = []
+        final class Spy: FixJudgeBackend {
+            var batchSize = 10
+            var terms: (([String]) -> Void)?
+            func judge(_ items: [JudgeItem], terms: [String]) async throws -> JudgeAnswer {
+                self.terms?(terms)
+                return JudgeAnswer(verdicts: items.map { _ in nil }, usage: nil)
+            }
+        }
+        let spy = Spy()
+        spy.terms = { told = $0 }
+        intake.judgeBackend = { spy }
+        services.vocabulary.add(term: "DeepSeek", heardAs: ["deep sea"])
+        correct([five()[0]])
+        intake.tabShown()
+        answer()
+        XCTAssertEqual(told, ["DeepSeek"])
+    }
+}

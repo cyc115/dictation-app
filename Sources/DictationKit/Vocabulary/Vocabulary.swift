@@ -296,6 +296,9 @@ struct Vocabulary {
         return prompt + "\n\n" + block
     }
 
+    /// The terms alone, most used first, as many as polish is told: what the judge is told (`FixJudge`).
+    var promptTerms: [String] { ranked.prefix(Self.maxPromptTerms).map(\.term) }
+
     /// Terms for the on-device speech models (`SpeechContext`), most used first.
     var speechWords: [String] { ranked.prefix(Self.maxSpeechWords).map(\.term) }
 

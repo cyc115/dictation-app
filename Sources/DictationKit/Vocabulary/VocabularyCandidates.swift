@@ -75,22 +75,25 @@ enum CandidateTally {
 
     /// Candidates from History's current intake, newest first (`entries` is History, newest first).
     /// A change counts when judged *misheard*, or, not judged, when both sides are at most 4 words
-    /// with no sentence punctuation inside, and its heard isn't an ordinary word. Only the flags it counts are set: `dismissed`, `added`
+    /// with no sentence punctuation inside, and its heard isn't an ordinary word. `judging` (the judge
+    /// is on and can run): a change not yet judged waits instead, unless the judge gave up on its fix
+    /// (`FixJudge.maxTries`). Only the flags it counts are set: `dismissed`, `added`
     /// and `addedHeard` are the store's (`VocabularyStore.updateCandidates`).
-    static func support(in entries: [HistoryEntry]) -> [VocabularyCandidate] {
-        var fixes: [(id: UUID, change: WordChange)] = []
+    static func support(in entries: [HistoryEntry], judging: Bool = false) -> [VocabularyCandidate] {
+        var fixes: [(id: UUID, change: WordChange, rules: Bool)] = []
         for entry in entries {
             guard let intake = entry.intake, let target = entry.fixTarget, intake.of == target else { continue }
-            for change in intake.changes where counts(change, ordinary: false) { fixes.append((entry.id, change)) }
+            let rules = !judging || (intake.tries ?? 0) >= FixJudge.maxTries
+            for change in intake.changes where counts(change, ordinary: false, rules: rules) { fixes.append((entry.id, change, rules)) }
         }
         guard !fixes.isEmpty else { return [] }
         let ordinary = OrdinaryWords(heard: fixes.map(\.change.old), in: entries)
 
         var candidates: [VocabularyCandidate] = []
         var at: [String: Int] = [:]
-        for (id, change) in fixes {
+        for (id, change, rules) in fixes {
             let isOrdinary = ordinary.isOrdinary(change.old, term: change.new)
-            guard counts(change, ordinary: isOrdinary) else { continue }
+            guard counts(change, ordinary: isOrdinary, rules: rules) else { continue }
             let key = change.new.lowercased()
             let c: Int
             if let i = at[key] { c = i } else {
@@ -112,12 +115,12 @@ enum CandidateTally {
         return candidates
     }
 
-    /// Phase 4 sets verdicts; this is the whole rule.
-    private static func counts(_ change: WordChange, ordinary: Bool) -> Bool {
+    /// The whole rule: a verdict decides; without one, the rules do (`rules`), or it waits for one.
+    private static func counts(_ change: WordChange, ordinary: Bool, rules: Bool) -> Bool {
         switch change.verdict {
         case .misheard: return true
         case nil:
-            return !ordinary && FixIntake.wordCount(change.old) <= maxWords && FixIntake.wordCount(change.new) <= maxWords
+            return rules && !ordinary && FixIntake.wordCount(change.old) <= maxWords && FixIntake.wordCount(change.new) <= maxWords
                 && !FixIntake.hasPunctuationInside(change.old) && !FixIntake.hasPunctuationInside(change.new)
         default: return false
         }

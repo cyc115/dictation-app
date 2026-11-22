@@ -311,6 +311,54 @@ delays typing.
   Batching stays only if accuracy matches one at a time; then the cheapest model that ties the
   best is the default.
 
+### Phase 4 as built
+
+Decisions the draft didn't make; where it was silent, the choice sends less, trains less, or never
+delays a dictation.
+
+- **Where it runs:** `FixJudge` (`Vocabulary/FixJudge.swift`) is the logic and two backends; phase
+  2's idle pass (`VocabularyIntake`) sends the batches after each pass. No second scheduler, no new
+  shared object. `AppServices.live()` hands in the real backend; tests (`makeServices`) get none.
+- **Send rules:** after a pass (30 s idle, launch, a wake-up), when 5 fixes wait or the oldest has
+  waited 10 minutes; at once when Vocabulary or Corrections is shown; never while busy, never with
+  the setting off. "Waited" counts from when a pass first saw the fix waiting, in memory, so a
+  launch restarts the 10 minutes; a timer wakes the pass at the 10-minute mark. Turning the setting
+  on sends the backlog (28 corrections: 3 requests).
+- **One request at a time.** When it lands the pass runs again, so the verdicts count at once and
+  the next batch goes if one is due; a batch sent for a tab shown goes on until nothing waits. An
+  answer that lands during a dictation is held for the next pass (it was paid for). Each fix's
+  verdicts are saved only if its target and word changes are still the ones judged.
+- **Retries:** `Intake.tries` (saved): a paid answer that leaves a fix out, or can't be read, adds
+  one; at 3 it's asked no more and the rules count it. A failed request adds none. A failure, or an
+  answer that covers nothing, waits 10 minutes before the next request (a tab shown still asks).
+- **Counting:** with the judge on and able to run, a change with no verdict waits instead of
+  counting by the rules (phase 2's "with `judgeFixes` off"). Unable to run (no key on a cloud setup,
+  no Apple Intelligence on-device), the rules count as before. Verdicts already saved still count
+  after the setting is turned off.
+- **What verdicts do, beyond the draft:** the kept target is built by `WordDiff` position (a word
+  can repeat). What isn't a word change (a period added, a filler taken out) stays as you made it:
+  putting it back would teach Learn the opposite of your edit. `unclear` changes are put back, as
+  the draft says. A capture with **words only added** (no verdict covers them: maybe a change of
+  mind) waits for Accept instead of `auto`. A kept target equal to what the app wrote dismisses it.
+  The rewritten capture's intake keeps the verdicts with `of` = the new target, so it isn't judged again.
+- **Which judge:** where polish goes, by the setup's polish model (`polishesOnDevice`), not its speech
+  model, like the terms block. `judgeModel` blank is the default; thinking off (or lowest),
+  temperature 0, no `response_format` (not every model takes it).
+- **Message:** the instructions are `Vocabulary/JudgeFixes.txt`, a package resource the bench sends
+  too; then the terms (up to 100, most used first; none with *Use vocabulary* off), then the fixes,
+  numbered. `bench/judge_message_fixture.json` pins the message and how answers are read for both.
+  Verdict spelling is read loosely ("Changed mind"); a fix number given twice counts once.
+- **Caching:** instructions and terms come first, with a cache breakpoint for Anthropic models.
+  Whether a batch ever hits the cache is unmeasured: batches are minutes apart and the shared part
+  is short.
+- **Cost:** each request's usage is added up in memory (`VocabularyIntake.judgeUsage`); the app keeps
+  no record of spend, so it isn't saved.
+- **On-device:** a fresh session per fix, as on-device polish. Its accuracy is **not measured**: the
+  edits suite calls OpenRouter only. Until it is, the On-device setup uses the Apple judge, not the
+  rules (the draft's fallback is still to decide).
+- **Settings:** no row for `judgeModel` (as `correctionModel`). *Learn from my edits*' text now says
+  nothing is sent unless the judge is on.
+
 ## Privacy
 
 - Vocabulary stays on the Mac. Its terms go where polish already goes (OpenRouter on cloud setups,

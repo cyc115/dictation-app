@@ -18,14 +18,16 @@ final class AppServices {
     let updates: Updates
     /// Your terms: applied to every dictation, told to polish, used by Learn.
     let vocabulary: VocabularyStore
-    /// The idle pass that learns vocabulary from your corrections.
+    /// The idle pass that learns vocabulary from your corrections, and asks the judge about them
+    /// (`judge`: the real one only in `live()`, so no test can reach a model).
     let intake: VocabularyIntake
     /// *Learn from my edits*: captures how you edit a dictation after it's pasted.
     let editWatcher: EditWatcher
 
     init(settings: AppSettings, history: HistoryStore, insights: Insights, archive: RecordingArchive,
          commands: CommandMode, vocabulary: VocabularyStore, editStats: EditWatchStats,
-         updates: Updates = Updates(backend: nil), general: [GeneralCase] = GeneralCase.app ?? []) {
+         updates: Updates = Updates(backend: nil), general: [GeneralCase] = GeneralCase.app ?? [],
+         judge: @escaping (AppSettings) -> FixJudgeBackend? = { _ in nil }) {
         self.settings = settings
         self.vocabulary = vocabulary
         self.updates = updates
@@ -34,6 +36,7 @@ final class AppServices {
         self.archive = archive
         self.commands = commands
         intake = VocabularyIntake(history: history, vocabulary: vocabulary, settings: settings)
+        intake.judgeBackend = { [weak settings] in settings.flatMap(judge) }
         editWatcher = EditWatcher(settings: settings, history: history, stats: editStats)
         suggester = CorrectionSuggester(backend: { [weak settings] in
             settings.flatMap { s in
@@ -55,6 +58,6 @@ final class AppServices {
         let history = HistoryStore()
         return AppServices(settings: AppSettings(learned: LearnedPromptStore()), history: history, insights: Insights(),
                            archive: RecordingArchive(), commands: CommandMode(history: history), vocabulary: VocabularyStore(),
-                           editStats: EditWatchStats(), updates: .live())
+                           editStats: EditWatchStats(), updates: .live(), judge: { FixJudge.backend(settings: $0) })
     }
 }

@@ -23,8 +23,9 @@ let package = Package(
                 .product(name: "HuggingFace", package: "swift-huggingface"),
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
-            // Command mode's instructions for writing a new command ("create") and fixing one ("fix").
-            resources: [.copy("Commands/WriteCommand.txt"), .copy("Commands/FixCommand.txt")],
+            // Command mode's instructions for writing a new command ("create") and fixing one ("fix");
+            // the judge's for labelling your fixes (bench/suite.py edits reads the same file).
+            resources: [.copy("Commands/WriteCommand.txt"), .copy("Commands/FixCommand.txt"), .copy("Vocabulary/JudgeFixes.txt")],
             swiftSettings: [.swiftLanguageMode(.v5)],
             linkerSettings: [
                 // Apple Intelligence is optional at runtime (AI polish falls back to raw text).

@@ -21,7 +21,7 @@ final class LearnController: ObservableObject {
     /// (bench/results/polish/README.md) it tuned as well as any teacher tried (+7 points on the
     /// corrections, general set held) in 45 s, against 94 s for GPT-6.1 Sol and 6–7 minutes for Qwen3.8
     /// Max; same list price as the Sol Pro that Corrections' suggestions use, a fraction of its reasoning spend.
-    static let teacherModel = "anthropic/claude-sonnet-5.5"
+    nonisolated static let teacherModel = "anthropic/claude-sonnet-5.5"
 
     enum Gate: Equatable {
         case cloudOnly

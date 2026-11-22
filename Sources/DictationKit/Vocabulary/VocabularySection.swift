@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Settings › Vocabulary: vocabulary on or off, the on-device speech hint, Learn from my edits (and
-/// how the edit watcher has fared in each app); the terms themselves are managed in the Vocabulary
+/// how the edit watcher has fared in each app), Ask a model about my fixes; the terms themselves are managed in the Vocabulary
 /// tab (`VocabularyView`).
 struct VocabularySection: View {
     @ObservedObject var settings: AppSettings
@@ -17,11 +17,14 @@ struct VocabularySection: View {
                        available: settings.vocabularyEnabled) {
                 Toggle("Hint the on-device speech model", isOn: $settings.vocabularySpeechHint)
             }
-            SettingRow("Learn from my edits", "Keeps how you edit a dictation right after it's pasted (only the pasted text, as you left it), for you to accept in Corrections. Reads the text box you typed into, or follows your keys where the app doesn't say; never in password fields or paused apps. Nothing is sent anywhere.") {
+            SettingRow("Learn from my edits", "Keeps how you edit a dictation right after it's pasted (only the pasted text, as you left it), for you to accept in Corrections. Reads the text box you typed into, or follows your keys where the app doesn't say; never in password fields or paused apps. Nothing is sent anywhere, unless you also turn on Ask a model about my fixes.") {
                 Toggle("Learn from my edits", isOn: $settings.learnFromEdits)
             }
             if settings.learnFromEdits && !editStats.apps.isEmpty {
                 EditWatchStatsView(stats: editStats)
+            }
+            SettingRow("Ask a model about my fixes", "When the app is idle, asks a model whether each word you changed was misheard, style, or a change of mind: only misheard words go into vocabulary, and an edit it's sure of (read back from the text box) trains Learn without waiting for Accept. Sends what the app wrote and what you changed it to where polish goes: a cloud model on the cloud setups (with your API key), Apple Intelligence on-device.") {
+                Toggle("Ask a model about my fixes", isOn: $settings.judgeFixes)
             }
             SettingRow("Vocabulary", "Add, edit, turn off and delete your terms in the Vocabulary tab.") {
                 Button("Manage Vocabulary…") { onShowVocabulary?() }

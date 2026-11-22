@@ -23,7 +23,8 @@ Exit status: 0 done, 1 unknown setting or value (the error lists what it takes),
 | `excludedApps` | bundle IDs, comma-separated (`com.valvesoftware.steam,com.apple.Chess`); `""` for none |
 | `openRouterKey` | `-` reads the key from stdin (a key in the arguments shows up in `ps`); `""` removes it. `get` says only `set` or `not set` |
 | `launchAtLogin` | `on`, `off` |
-| everything else | named by its UserDefaults key: `on`/`off` (also `true`/`false`, `yes`/`no`, `1`/`0`; e.g. `learnFromEdits`, Settings › Vocabulary › *Learn from my edits*), a number (`vocabularyLearnAfter`), or one of the values `settings` lists |
+| `judgeModel` | an OpenRouter model id for *Ask a model about my fixes* on the cloud setups (no Settings row); `""` is the default, `anthropic/claude-sonnet-5.5` |
+| everything else | named by its UserDefaults key: `on`/`off` (also `true`/`false`, `yes`/`no`, `1`/`0`; e.g. `learnFromEdits`, Settings › Vocabulary › *Learn from my edits*; `judgeFixes`, *Ask a model about my fixes*), a number (`vocabularyLearnAfter`), or one of the values `settings` lists |
 
 New settings show up here on their own: the list is every `@Setting` in `AppSettings`
 (`SettingsCommandTests` checks).

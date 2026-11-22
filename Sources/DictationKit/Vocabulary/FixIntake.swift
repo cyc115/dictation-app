@@ -2,7 +2,7 @@ import Foundation
 
 /// One word change in a fix: words the app wrote (`old`) replaced by what you wanted (`new`).
 struct WordChange: Codable, Equatable {
-    /// What a model made of the change (phase 4). Nothing sets it yet.
+    /// What a model made of the change (`FixJudge`, *Ask a model about my fixes*); nil until judged.
     enum Verdict: String, Codable {
         /// The speech model got a word wrong: counts toward vocabulary.
         case misheard
@@ -39,6 +39,15 @@ struct WordChange: Codable, Equatable {
 struct Intake: Codable, Equatable {
     var of: String
     var changes: [WordChange]
+    /// Answers from the judge that didn't cover this fix (malformed, or it was left out). At
+    /// `FixJudge.maxTries` it's asked no more, and the rules count its changes. Nil: none.
+    var tries: Int?
+
+    init(of: String, changes: [WordChange], tries: Int? = nil) {
+        self.of = of
+        self.changes = changes
+        self.tries = tries
+    }
 }
 
 /// Turns a fix into word changes, locally: `WordDiff`'s words, diffed; each run of words replaced by
@@ -54,12 +63,45 @@ enum FixIntake {
     }
 
     static func changes(from text: String, to target: String) -> [WordChange] {
-        WordDiff.hunks(from: text, to: target).compactMap { hunk in
-            guard let removed = span(hunk.removed, in: text), let inserted = span(hunk.inserted, in: target) else { return nil }
-            let old = removed.trimmingCharacters(in: edges), new = inserted.trimmingCharacters(in: edges)
-            guard !old.isEmpty, !new.isEmpty, old != new else { return nil }
-            return WordChange(old: old, new: new)
+        edits(from: text, to: target).compactMap(\.change)
+    }
+
+    /// Every place the texts differ, with the change it makes (nil: punctuation only, or words only
+    /// added or only removed).
+    private static func edits(from text: String, to target: String) -> [(hunk: WordDiff.Hunk, change: WordChange?)] {
+        WordDiff.hunks(from: text, to: target).map { hunk in
+            let old = span(hunk.removed, in: text)?.trimmingCharacters(in: edges) ?? ""
+            let new = span(hunk.inserted, in: target)?.trimmingCharacters(in: edges) ?? ""
+            return (hunk, old.isEmpty || new.isEmpty || old == new ? nil : WordChange(old: old, new: new))
         }
+    }
+
+    /// `target` with each change `keep` says no to put back as `text` had it (the judge's verdicts,
+    /// in the order of `changes`); the rest of `target` stays as written, including what isn't a
+    /// change (a period added, a filler taken out). By position, not by search: a word can repeat.
+    static func keeping(_ keep: [Bool], text: String, target: String) -> String {
+        var out = "", at = target.startIndex, n = -1
+        for (hunk, change) in edits(from: text, to: target) where change != nil {
+            n += 1
+            guard n < keep.count, !keep[n], let removed = range(hunk.removed), let inserted = range(hunk.inserted) else { continue }
+            out += target[at..<inserted.lowerBound] + text[removed]
+            at = inserted.upperBound
+        }
+        return out + target[at...]
+    }
+
+    /// Words put in where none were taken out ("send it" → "send it to Bob"): not a change, so no
+    /// verdict says whether you changed your mind.
+    static func wordsOnlyAdded(from text: String, to target: String) -> Bool {
+        edits(from: text, to: target).contains { hunk, change in
+            change == nil && !(span(hunk.inserted, in: target)?.trimmingCharacters(in: edges) ?? "").isEmpty
+                && (span(hunk.removed, in: text)?.trimmingCharacters(in: edges) ?? "").isEmpty
+        }
+    }
+
+    private static func range(_ words: [Range<String.Index>]) -> Range<String.Index>? {
+        guard let first = words.first, let last = words.last else { return nil }
+        return first.lowerBound..<last.upperBound
     }
 
     /// Sentence punctuation or a line break inside a side ("file. Two", "mode, for example"): the fix
@@ -74,7 +116,6 @@ enum FixIntake {
 
     /// The text from the first word to the last, as written (Chinese gets no spaces added).
     private static func span(_ words: [Range<String.Index>], in text: String) -> String? {
-        guard let first = words.first, let last = words.last else { return nil }
-        return String(text[first.lowerBound..<last.upperBound])
+        range(words).map { String(text[$0]) }
     }
 }

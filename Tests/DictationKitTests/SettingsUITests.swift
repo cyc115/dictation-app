@@ -51,7 +51,8 @@ final class SettingsUITests: XCTestCase {
                               ("AI polish", { settings.polishEnabled }),
                               ("Keep recordings", { settings.keepRecordings }),
                               ("Show detailed analytics", { settings.showDetailedAnalytics }),
-                              ("Paste where you dictated", { settings.pasteWhereDictated })] as [(String, () -> Bool)] {
+                              ("Paste where you dictated", { settings.pasteWhereDictated }),
+                              ("Ask a model about my fixes", { settings.judgeFixes })] as [(String, () -> Bool)] {
             let before = read()
             guard let toggle = hosted.element(id: "setting." + title) else { XCTFail("no \(title)"); continue }
             XCTAssertTrue(hosted.click(toggle), "\(title) not clickable")
@@ -65,6 +66,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(reloaded.keepRecordings)
         XCTAssertTrue(reloaded.showDetailedAnalytics)
         XCTAssertFalse(reloaded.pasteWhereDictated, "on by default")
+        XCTAssertTrue(reloaded.judgeFixes, "off by default")
     }
 
     /// Turning on "Decide commands on this Mac" shows whether Decider is ready, and the way to get it.

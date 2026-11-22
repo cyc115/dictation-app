@@ -65,7 +65,8 @@ off for every model, or at the lowest effort for one that can't turn it off.
 dictation right after it's pasted, the pasted text as you left it waits in Corrections under
 *Waiting for you*. **Accept** makes it a correction (with a "captured" badge; the Learn tile counts
 "28 yours · 12 captured"), **Dismiss** drops it. Until you accept it, it trains nothing; its word
-changes do count toward vocabulary, as a correction's would. The app reads the text box back where
+changes do count toward vocabulary, as a correction's would (with *Ask a model about my fixes* on, a
+clear one trains on its own; see below). The app reads the text box back where
 the app says what's in it, and otherwise follows your keys, giving up at anything it can't follow
 (a click, a shortcut, an input method). It stops at Return, when you switch box or app, at your
 next dictation, after 30 s without a key, or after 2 minutes. Nothing waits on it: the paste and your keys go
@@ -88,6 +89,20 @@ replaced where you meant it; once a term is in, a new way of mishearing it is ad
 dictations. The tab's **Seen in your edits** shows terms on their way in ("2 of
 3"), with **Add now** and dismiss; a dismissed term never comes back. With vocabulary off, nothing
 is added. The count is a setting with no row: `DictationApp settings set vocabularyLearnAfter 5`.
+
+**Ask a model about my fixes** (Settings › Vocabulary, off by default) tells a misheard word from a
+change of style or of mind. When the app is idle and 5 fixes wait (or one has waited 10 minutes, or
+you open Vocabulary or Corrections), it asks a model about each word change: Claude Sonnet 5.5 on
+the cloud setups, 10 fixes a request (`DictationApp settings set judgeModel <model id>` picks
+another), Apple Intelligence on-device, one at a time. Nothing in a dictation waits on it.
+
+- Only changes it calls misheard go into vocabulary; while it's on, a change waits for its verdict.
+  A fix it can't answer about after 3 tries is counted by the rules above.
+- A captured edit keeps only its misheard and style changes; with none, it's dismissed. One read
+  back from the text box with nothing unclear and no words only added trains Learn without waiting
+  for Accept (it keeps its "captured" badge; Dismiss takes it back out). Edits followed by keys
+  always wait for you.
+- A correction you typed is labelled, never changed.
 
 ### Detailed analytics: where the wait went
 
@@ -246,14 +261,19 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
 - *Learn from my edits* (off by default) keeps only the pasted text and how you left it, on its
   History entry; never your keys or anything else in the text box. It doesn't watch password
   fields, apps where secure input is on, or the apps in *Pause in these apps*, and sends nothing
-  anywhere. Per-app counts (no text) are in `edit-watch.json`.
+  anywhere unless *Ask a model about my fixes* is on. Per-app counts (no text) are in `edit-watch.json`.
+- *Ask a model about my fixes* (off by default) sends each fix (what the app wrote and what you
+  changed it to: your corrections and captured edits) and your vocabulary's terms where polish goes:
+  OpenRouter on the cloud setups, Apple Intelligence on-device. Text you type by hand never left
+  the Mac before this, which is why it's off. The verdicts are kept with the fix in your history.
 - Your vocabulary stays on this Mac, in `vocabulary.json`, with the terms seen in your corrections
   (each with what the app wrote and the ids of the dictations it was in). The word changes worked
   out from each correction are kept with it in your history. Its terms go where polish already goes:
   OpenRouter on the cloud setups, Apple Intelligence on-device. With an API key, Corrections'
   suggested text and Learn also send them to OpenRouter, as they do your corrections.
-- Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted)
-  to the cloud models, like any cloud dictation. Learned prompts stay in
+- Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted),
+  including captured edits you accepted and those the judge let train unreviewed, to the cloud
+  models, like any cloud dictation. Learned prompts stay in
   `~/Library/Application Support/DictationApp/learned-prompts.json`.
 
 ## Troubleshooting
