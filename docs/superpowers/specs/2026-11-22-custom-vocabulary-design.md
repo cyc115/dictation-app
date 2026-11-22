@@ -36,7 +36,7 @@ downstream of it has been proven on manual corrections.
 | 1 | Vocabulary store, page, Settings section, command line; applied to dictations; Learn runs with it | none new |
 | 2 | Intake: word changes from manual corrections, candidates, the 3-dictation auto-add, backfill | none |
 | 3 | Edit watcher: captured fixes, waiting for Accept in Corrections | none |
-| 4 | Judge: per-change verdicts, batched when idle; high-confidence captured fixes train unreviewed | when idle |
+| 4 | Judge: per-change verdicts, batched when idle; captured fixes keep only misheard and style changes, and still wait for Accept | when idle |
 
 ## Phase 1: vocabulary
 
@@ -108,7 +108,7 @@ change reaches the running app.
 - `PromptMeasurement` gains a vocabulary fingerprint (hash of the enabled entries); a stored
   measurement with another fingerprint is stale and re-measured.
 - A tune takes **at most 60 fixes**: manual and accepted first, newest first, then unreviewed
-  captured ones (phase 4). A tune makes 10 teacher calls (3 folds × 3 lenses, then the final
+  captured ones (phase 4; only with `trainOnUnreviewedCaptures` on, or saved before it existed). A tune makes 10 teacher calls (3 folds × 3 lenses, then the final
   prompt) that each carry about two thirds of the unlearned fixes, and about 8 student calls per fix.
 - **Teacher wording** changes in its own commit, after phase 1 lands. `teacherSystem` says a
   repeatedly misheard term "may be listed by name", which now competes with vocabulary; that
@@ -211,7 +211,7 @@ with fakes.
 | `capture.state` | Meaning | Trains Learn | Kept past "Keep history" |
 |---|---|---|---|
 | `waiting` | Needs your Accept | no | no |
-| `auto` | High confidence, unreviewed (phase 4) | yes | no |
+| `auto` | High confidence, unreviewed (phase 4; only with `trainOnUnreviewedCaptures`, off) | yes | no |
 | `accepted` | You accepted it | yes | yes |
 | `dismissed` | You dismissed it | no | no |
 
@@ -298,15 +298,16 @@ delays typing.
   bench picks one. Through `OpenRouter.chat`, so it names the app like every other call.
 - **On-device setup:** Apple Intelligence, one fix a call. If it scores poorly on the suite, the
   On-device setup uses phase 2's rule instead. **It did (Nov 22): the On-device setup uses the
-  rules** and sends nothing (see "Phase 4 as built").
+  rules** and sends nothing, unless you allow the cloud judge there (`judgeUsesCloud`, see "Phase 4
+  as built").
 - **What verdicts do:**
   - *misheard* changes count toward candidates;
   - a captured fix's target becomes `text` with only its *misheard* and *style* changes applied;
   - none kept: the capture is dismissed;
-  - **readback + at least one kept change + no *unclear*: `auto`** (trains without review).
-    Keystroke-mode captures always wait for Accept. (Mike was asked whether every capture should
-    wait instead and didn't choose; this is the recommended default. Removing this rule makes
-    every capture wait.)
+  - **every capture waits for Accept (Mike, Nov 22).** The draft's rule (readback + at least one
+    kept change + no *unclear*: `auto`, trains without review) runs only with
+    `trainOnUnreviewedCaptures` on, off by default with no Settings row. Keystroke-mode captures
+    always wait.
 - **Bench:** `bench/edit_cases.json` (about 40 labelled fixes, all written for the bench: see
   "Phase 4 as built") and `bench/suite.py edits run`, comparing models and batch sizes 1 and 10.
   Batching stays only if accuracy matches one at a time; then the cheapest model that ties the
@@ -325,7 +326,8 @@ delays a dictation.
   the setting off. "Waited" counts from when a pass first saw the fix waiting, in memory, so a
   launch restarts the 10 minutes; a timer wakes the pass at the 10-minute mark. Turning the setting
   on sends the backlog at the next pass (after a dictation, or a tab shown; 28 corrections: 3
-  requests). An answer that lands after it's turned off is dropped, held or not.
+  requests). An answer that lands after it's turned off is dropped, held or not. One that lands
+  after `judgeUsesCloud` is turned off is used: the fixes were already sent, and nothing more is.
 - **One request at a time.** When it lands the pass runs again, so the verdicts count at once and
   the next batch goes if one is due; a batch sent for a tab shown goes on until nothing waits. An
   answer that lands during a dictation is held for the next pass (it was paid for). Each fix's
@@ -338,20 +340,27 @@ delays a dictation.
   waits 10 minutes before the next request (a tab shown still asks).
 - **Counting:** with the judge on and able to run, a change with no verdict waits instead of
   counting by the rules (phase 2's "with `judgeFixes` off"). Unable to run (no key, or the On-device
-  setup), the rules count as before and every capture waits for Accept. Verdicts already saved
-  still count after the setting is turned off.
+  setup without `judgeUsesCloud`), the rules count as before. Every capture waits for Accept either
+  way. Verdicts already saved still count after the setting is turned off.
 - **What verdicts do, beyond the draft:** the kept target is built by `WordDiff` position (a word
   can repeat). What isn't a word change (a period added, a filler taken out) stays as you made it:
   putting it back would teach Learn the opposite of your edit. `unclear` changes are put back, as
-  the draft says. A capture with **words only added** (no verdict covers them: maybe a change of
-  mind) waits for Accept instead of `auto`. A kept target equal to what the app wrote dismisses it.
-  The rewritten capture's intake keeps the verdicts with `of` = the new target, so it isn't judged again.
+  the draft says. The rewritten capture stays `waiting` (`entry.correction` unset) unless
+  `trainOnUnreviewedCaptures` is on (`FixJudge.judged` takes it as a Bool, threaded from
+  `VocabularyIntake` through `HistoryStore.applyVerdicts`); with it on, a capture with **words only
+  added** (no verdict covers them: maybe a change of mind) still waits instead of `auto`. A kept
+  target equal to what the app wrote dismisses it. The rewritten capture's intake keeps the verdicts
+  with `of` = the new target, so it isn't judged again. Captures already `auto` before the setting
+  existed are left alone (they train, and can be dismissed); no migration.
 - **Which setups:** decided by the current setup's polish model (`polishesOnDevice`), not its speech
   model, like the terms block: a cloud polish model gets the cloud judge, whether or not AI polish
   is switched on, and for every fix, including ones dictated on another setup; one that polishes on
-  this Mac gets none. `judgeModel` blank is the default; thinking off (or lowest), temperature 0, no
-  `response_format` (not every model takes it). Settings › Vocabulary shows the row as unavailable
-  on the On-device setup, saying nothing is sent and the rules count.
+  this Mac gets none unless `judgeUsesCloud` is on (Mike, Nov 22; off by default), and then the same
+  OpenRouter judge (still none without a key). `judgeModel` blank is the default; thinking off (or
+  lowest), temperature 0, no `response_format` (not every model takes it). On a setup that polishes
+  on this Mac, Settings › Vocabulary shows *Send my fixes to the cloud for this* under *Ask a model
+  about my fixes*, which is available there only when `FixJudge.backend` exists (the opt-in and a
+  key); until then it says nothing is sent and the rules count. Cloud setups show no such row.
 - **Message:** the instructions are `Vocabulary/JudgeFixes.txt`, a package resource the bench sends
   too; then the terms (up to 100, most used first; none with *Use vocabulary* off), then the fixes,
   numbered. `bench/judge_message_fixture.json` pins the message and how answers are read for both.
@@ -374,11 +383,11 @@ delays a dictation.
   without them the order is the same (Sonnet 98% in batches of 10, 92% one at a time; DeepSeek 90%;
   Gemini 85%). Batching held accuracy, so the defaults stay: Sonnet 5.5, batches of
   10. The live batch (`./test.sh --live`) passed ($0.0025, 1.3 s).
-- **Taking an `auto` capture back:** Corrections shows it among your corrections with the
+- **Taking an `auto` capture back** (one saved before `trainOnUnreviewedCaptures`, or with it on): Corrections shows it among your corrections with the
   "captured" badge; its trash button dismisses it (clears the correction), editing it makes it
   `accepted`. No Dismiss button was added for it.
-- **Settings:** no row for `judgeModel` (as `correctionModel`). *Learn from my edits*' text now says
-  nothing is sent unless the judge is on.
+- **Settings:** no row for `judgeModel` (as `correctionModel`) or `trainOnUnreviewedCaptures`.
+  *Learn from my edits*' text now says nothing is sent unless the judge is on.
 - **Bench cases are all written (Mike, Nov 22),** not his corrections: 45 fixes in English, Chinese
   and mixed, every verdict, no real dictation in the repo. Each case's changes are what `FixIntake`
   produces (a Swift test keeps them equal), and the bench reads the app's instructions file and
@@ -393,13 +402,14 @@ delays a dictation.
 ## Privacy
 
 - Vocabulary stays on the Mac. Its terms go where polish already goes (OpenRouter on cloud setups,
-  Apple Intelligence on-device; the judge only on cloud setups).
+  Apple Intelligence on-device; the judge only on cloud setups, or on-device with `judgeUsesCloud`).
 - The watcher keeps only the pasted text and its edited version, and only with *Learn from my
   edits* on. It doesn't run in excluded apps or password fields.
 - The judge sends each fix (what the app wrote, what you changed it to) to OpenRouter on cloud
-  setups, and nothing on the On-device setup. Hand-typed text has never left the Mac before, so
-  `judgeFixes` is off by default.
-- Learn now also sends accepted and `auto` captured fixes to the teacher and student models.
+  setups, and nothing on the On-device setup unless `judgeUsesCloud` is on (off). Hand-typed text
+  has never left the Mac before, so `judgeFixes` is off by default.
+- Learn now also sends accepted captured fixes to the teacher and student models, and `auto` ones
+  (only with `trainOnUnreviewedCaptures`, off).
 - README's Privacy section changes in the same commit as each phase.
 
 ## Tests

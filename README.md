@@ -65,8 +65,8 @@ off for every model, or at the lowest effort for one that can't turn it off.
 dictation right after it's pasted, the pasted text as you left it waits in Corrections under
 *Waiting for you*. **Accept** makes it a correction (with a "captured" badge; the Learn tile counts
 "28 yours · 12 captured"), **Dismiss** drops it. Until you accept it, it trains nothing; its word
-changes do count toward vocabulary, as a correction's would (with *Ask a model about my fixes* on, a
-clear one trains on its own; see below). The app reads the text box back where
+changes do count toward vocabulary, as a correction's would. Every captured edit waits for your
+Accept, with or without *Ask a model about my fixes*. The app reads the text box back where
 the app says what's in it, and otherwise follows your keys, giving up at anything it can't follow
 (a click, a shortcut, an input method). It stops at Return, when you switch box or app, at your
 next dictation, after 30 s without a key, or after 2 minutes. Nothing waits on it: the paste and your keys go
@@ -94,17 +94,19 @@ is added. The count is a setting with no row: `DictationApp settings set vocabul
 change of style or of mind. When the app is idle and 5 fixes wait (or one has waited 10 minutes, or
 you open Vocabulary or Corrections), it asks a cloud model about each word change: Claude Sonnet
 5.5, 10 fixes a request (`DictationApp settings set judgeModel <model id>` picks another). Nothing
-in a dictation waits on it. It needs a cloud setup: on the On-device setup nothing is sent and the
-rules above count your fixes (Apple Intelligence got 37% of the bench's changes right, so it isn't
-used).
+in a dictation waits on it. On the On-device setup it sends nothing and the rules above count your
+fixes (Apple Intelligence got 37% of the bench's changes right, so it isn't used), unless you turn
+on **Send my fixes to the cloud for this** under it: then it sends your fixes to the same cloud
+model, and your dictations are still polished on this Mac.
 
 - Only changes it calls misheard go into vocabulary; while it's on, a change waits for its verdict.
   A fix it can't answer about after 3 tries is counted by the rules above.
-- A captured edit keeps only its misheard and style changes; with none, it's dismissed. One read
-  back from the text box with nothing unclear and no words only added trains Learn without waiting
-  for Accept (it shows with a "captured" badge among your corrections; its trash button takes it
-  back out, and editing it makes it yours). Edits followed by keys
-  always wait for you.
+- A captured edit keeps only its misheard and style changes and still waits for your Accept; with
+  none kept, it's dismissed. (`DictationApp settings set trainOnUnreviewedCaptures on`, off by
+  default and with no Settings row, lets one read back from the text box with nothing unclear and no
+  words only added train Learn without your Accept; it then shows with a "captured" badge among your
+  corrections, its trash button takes it back out, and editing it makes it yours. Ones that trained
+  this way before the setting existed stay as they are.)
 - A correction you typed is labelled, never changed.
 
 ### Detailed analytics: where the wait went
@@ -269,7 +271,8 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
 - *Ask a model about my fixes* (off by default) sends each fix (what the app wrote and what you
   changed it to: your corrections and captured edits) and your vocabulary's terms to OpenRouter on
   the cloud setups (whether or not AI polish is on). On the On-device setup it sends nothing, and
-  isn't asked of Apple Intelligence either. Text you type by hand never left
+  isn't asked of Apple Intelligence either, unless you turn on *Send my fixes to the cloud for this*
+  (off by default); then it sends the same to OpenRouter. Text you type by hand never left
   the Mac before this, which is why it's off. The verdicts are kept with the fix in your history.
 - Your vocabulary stays on this Mac, in `vocabulary.json`, with the terms seen in your corrections
   (each with what the app wrote and the ids of the dictations it was in). The word changes worked
@@ -277,7 +280,8 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
   OpenRouter on the cloud setups, Apple Intelligence on-device. With an API key, Corrections'
   suggested text and Learn also send them to OpenRouter, as they do your corrections.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted),
-  including captured edits you accepted and those the judge let train unreviewed, to the cloud
+  including captured edits you accepted (and any the judge let train unreviewed: only with
+  `trainOnUnreviewedCaptures` on, off by default), to the cloud
   models, like any cloud dictation. Learned prompts stay in
   `~/Library/Application Support/DictationApp/learned-prompts.json`.
 

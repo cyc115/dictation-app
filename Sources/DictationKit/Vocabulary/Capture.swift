@@ -14,9 +14,11 @@ struct Capture: Codable, Equatable {
 
     /// Where it stands. Only `accepted` and `auto` train Learn (they set the entry's `correction`).
     enum State: String, Codable {
-        /// Waits in Corrections for your Accept. Every capture starts here (phase 4's judge may make it `auto`).
+        /// Waits in Corrections for your Accept. Every capture starts here and stays until you act on
+        /// it (the judge makes it `auto` only with `trainOnUnreviewedCaptures`, off by default).
         case waiting
-        /// Judged clear enough to train without review (phase 4). Not kept past "Keep history".
+        /// Judged clear enough to train without review (phase 4), only with `trainOnUnreviewedCaptures`
+        /// on. Ones already saved stay so (they train, and can be dismissed). Not kept past "Keep history".
         case auto
         /// You accepted it, or typed a correction on it: yours, kept like any correction.
         case accepted

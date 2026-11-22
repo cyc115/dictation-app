@@ -108,7 +108,8 @@ final class LearnController: ObservableObject {
     /// The vocabulary a tune would run with now (from memory; `learn()` re-reads the file first).
     private var terms: Vocabulary { vocabulary.vocabulary(enabled: settings.vocabularyEnabled) }
 
-    /// The fixes a tune takes: `maxFixes` corrections, yours newest first, then unreviewed `auto` ones.
+    /// The fixes a tune takes: `maxFixes` corrections, yours newest first, then unreviewed `auto` ones
+    /// (only with `trainOnUnreviewedCaptures`, off by default, or saved before it existed).
     /// The gate asks whether these are learned, so past the cap it reaches "all learned" rather than
     /// offering a tune with nothing to learn.
     private var tuneFixes: [HistoryEntry] { Self.tuneFixes(corrections) }
