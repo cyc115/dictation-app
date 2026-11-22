@@ -88,10 +88,12 @@ final class VocabularyCandidateTests: XCTestCase {
         XCTAssertEqual(support([style]).count, 0, "judged anything else: doesn't count")
     }
 
-    /// Only the first letter's case: a sentence start, not a term. A case fix inside the word is one.
-    func testCapitalizingAWordIsNotATerm() {
-        XCTAssertEqual(support([dictation("the end", "The end"), dictation("the cat", "The cat"), dictation("the dog", "The dog")]).count, 0)
-        XCTAssertEqual(support([dictation("my iphone", "my iPhone")]).map(\.term), ["iPhone"])
+    /// A capitalized sentence start ("the" → "The") is caught by the ordinary-word guard; a name
+    /// fixed by case ("claude" → "Claude", "iphone" → "iPhone") is a term.
+    func testCaseFixes() {
+        let plain = [dictation("the cat sat"), dictation("on the mat"), dictation("all the time")]
+        XCTAssertEqual(support([dictation("the end", "The end"), dictation("the cat", "The cat"), dictation("the dog", "The dog")] + plain).count, 0)
+        XCTAssertEqual(support([dictation("ask claude", "ask Claude"), dictation("my iphone", "my iPhone")]).map(\.term), ["iPhone", "Claude"])
     }
 
     func testOnlyCurrentIntakeCounts() {

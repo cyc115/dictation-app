@@ -117,18 +117,11 @@ enum CandidateTally {
         switch change.verdict {
         case .misheard: return true
         case nil:
-            return !ordinary && !isCapitalization(change) && FixIntake.wordCount(change.old) <= maxWords && FixIntake.wordCount(change.new) <= maxWords
+            return !ordinary && FixIntake.wordCount(change.old) <= maxWords && FixIntake.wordCount(change.new) <= maxWords
         default: return false
         }
     }
 
-    /// Only the first letter's case changed ("the" → "The" starting a sentence, "Cloud" → "cloud"):
-    /// not a term. A case fix inside the word ("iphone" → "iPhone", "remarkable" → "reMarkable") is.
-    static func isCapitalization(_ change: WordChange) -> Bool {
-        guard change.old != change.new, change.old.lowercased() == change.new.lowercased(),
-              change.old.dropFirst() == change.new.dropFirst() else { return false }
-        return true
-    }
 
     /// Where each heard stands in the dictations you didn't correct, matched as replacement would
     /// match it. One read of each dictation.
