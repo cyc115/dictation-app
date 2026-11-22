@@ -34,6 +34,8 @@ struct RecentLatency {
         let polishing: TimeInterval?
         let transcribedByBackup: Bool
         let polishedByBackup: Bool
+        /// What went wrong, one line per failed request, for the red dot's hover; nil: nothing did.
+        var errors: String?
 
         /// Stop → text: what you waited for.
         var wait: TimeInterval { transcribing + (polishing ?? 0) }
@@ -67,6 +69,8 @@ struct RecentLatency {
         let asked: Int
         /// The times its answer was used.
         let answered: Int
+        /// The times its request failed (an error, or out of time).
+        var failed = 0
         /// Of the answers used.
         let typical: TimeInterval?
         let slowest: TimeInterval?
@@ -79,6 +83,21 @@ struct RecentLatency {
             let percent = Int((Double(answered) / Double(max(asked, 1)) * 100).rounded())
             return "\(answered) of \(asked) (\(percent)%)"
         }
+        /// "2 failed"; nil when none did.
+        var failedLabel: String? { failed > 0 ? "\(failed) failed" : nil }
+    }
+
+    /// A dictation's failed requests, one line each: "Speech · voxtral-mini-transcribe: No endpoints
+    /// found …"; with polish that gave up, a line saying the raw text was pasted. nil: none.
+    static func errors(speech: ModelAnswer?, polish: ModelAnswer?) -> String? {
+        var lines: [String] = []
+        for (phase, answer) in [(Phase.speech, speech), (.polish, polish)] {
+            for failure in answer?.failures ?? [] {
+                lines.append("\(phase.rawValue) · \(ModelAnswer.displayName(failure.model)): \(failure.message)")
+            }
+        }
+        if polish?.failed == true { lines.append("Polish gave up: your words were pasted unpolished.") }
+        return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
 
     /// Newest first.
@@ -93,7 +112,8 @@ struct RecentLatency {
         rows = picked.map {
             Row(id: $0.id, date: $0.date, speaking: $0.duration, transcribing: $0.transcribeSeconds ?? 0,
                 polishing: $0.polishSeconds, transcribedByBackup: $0.transcribedBy?.byBackup == true,
-                polishedByBackup: $0.polishedBy?.byBackup == true)
+                polishedByBackup: $0.polishedBy?.byBackup == true,
+                errors: Self.errors(speech: $0.transcribedBy, polish: $0.polishedBy))
         }
         models = Self.stats(.speech, picked.compactMap { e in e.transcribedBy.map { ($0, e.transcribeSeconds ?? 0) } })
             + Self.stats(.polish, picked.compactMap { e in e.polishedBy.flatMap { by in e.polishSeconds.map { (by, $0) } } })
@@ -112,9 +132,10 @@ struct RecentLatency {
             let key: (ModelAnswer) -> String? = { backup ? $0.backup : $0.main }
             return Dictionary(grouping: answers.filter { key($0.by) != nil }, by: { key($0.by)! })
                 .map { model, list in
-                    let used = list.filter { $0.by.byBackup == backup }.map(\.seconds)
+                    let used = list.filter { $0.by.byBackup == backup && $0.by.failed != true }.map(\.seconds)
+                    let failed = list.filter { $0.by.failures?.contains { $0.model == model } == true }.count
                     return ModelStats(phase: phase, model: model, isBackup: backup, asked: list.count, answered: used.count,
-                                      typical: TimeBreakdown.median(used), slowest: used.max())
+                                      failed: failed, typical: TimeBreakdown.median(used), slowest: used.max())
                 }
                 .sorted { $0.asked != $1.asked ? $0.asked > $1.asked : $0.model < $1.model }
         }
@@ -227,7 +248,7 @@ struct RecentLatencyView: View {
                 }
                 Divider()
             }
-            legend
+            legend(errors: latency.rows.contains { $0.errors != nil })
             HStack(spacing: 10) {
                 Text("Stopped").frame(width: 64, alignment: .leading)
                 Text("Spoke").frame(width: 44, alignment: .leading)
@@ -262,7 +283,7 @@ struct RecentLatencyView: View {
         .accessibilityIdentifier("recent.compare." + part)
     }
 
-    private var legend: some View {
+    private func legend(errors: Bool) -> some View {
         HStack(spacing: 16) {
             swatch(Self.transcribing, "Transcribing")
             swatch(Self.polishing, "Polishing")
@@ -275,6 +296,13 @@ struct RecentLatencyView: View {
                 HStack(spacing: 6) {
                     DashedLine().stroke(Color.secondary, style: StrokeStyle(lineWidth: 1, dash: [2, 2])).frame(width: 1, height: 12)
                     Text("\(TimeBreakdownView.number(backupWait)) s: speech backup asked")
+                }
+            }
+            // Only when there's one to explain: most windows have none.
+            if errors {
+                HStack(spacing: 6) {
+                    ErrorDot()
+                    Text("Error: hover the line for details")
                 }
             }
         }
@@ -302,14 +330,20 @@ struct RecentLatencyView: View {
                 .fontWeight(.bold)
                 .foregroundStyle(Self.color(severity))
                 .frame(width: 52, alignment: .trailing)
-            Text(row.backupLabel).foregroundStyle(.secondary).frame(width: 92, alignment: .leading)
+            HStack(spacing: 6) {
+                if row.errors != nil { ErrorDot().accessibilityLabel("error") }
+                Text(row.backupLabel).foregroundStyle(.secondary)
+            }
+            .frame(width: 92, alignment: .leading)
         }
         .font(.callout.monospacedDigit())
         .frame(height: 26)
         .padding(.horizontal, 6)
         .background(severity == .verySlow ? Color.red.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 6))
         .padding(.horizontal, -6)
+        .contentShape(Rectangle())  // the whole line hovers, gaps included
         .accessibilityElement(children: .combine)
+        .help(row.errors ?? "")  // after combining: once for the line, not once per cell
         .accessibilityIdentifier("recent.row")
     }
 
@@ -374,7 +408,11 @@ struct RecentLatencyView: View {
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("recent.model")  // on one cell: a GridRow's modifiers go to each
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(model.answeredLabel).font(.callout)
+                            HStack(spacing: 4) {
+                                Text(model.answeredLabel)
+                                if let failed = model.failedLabel { Text("· " + failed).foregroundStyle(.red) }
+                            }
+                            .font(.callout)
                             GeometryReader { geo in
                                 ZStack(alignment: .leading) {
                                     Capsule().fill(Color.primary.opacity(0.1))
@@ -399,6 +437,11 @@ struct RecentLatencyView: View {
         .tileBackground()
     }
 
+}
+
+/// A dictation with a failed request (`RecentLatency.Row.errors`): small, so a clean window stays clean.
+private struct ErrorDot: View {
+    var body: some View { Circle().fill(Color.red).frame(width: 6, height: 6) }
 }
 
 /// Diagonal stripes over a bar segment the backup model answered.

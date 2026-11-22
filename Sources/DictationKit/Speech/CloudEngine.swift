@@ -48,7 +48,8 @@ final class CloudEngine: RecordingEngine, DictationEngine {
             case .text(let text, let model):
                 heard.transcript = text
                 heard.model = ModelSpec.openRouter(id: model, providers: nil).description
-                self?.lastAnswer = ModelAnswer(main: main, backup: report.backupAsked ? backupModel : nil, byBackup: model != main)
+                self?.lastAnswer = ModelAnswer(main: main, backup: report.backupAsked ? backupModel : nil, byBackup: model != main,
+                                               failures: report.failures.isEmpty ? nil : report.failures)
                 completion(text)
             case .failed(let message):
                 heard.error = message
@@ -140,6 +141,8 @@ final class UploadRace {
         let seconds: TimeInterval
         /// The backup was asked too (the main model was late or failed).
         var backupAsked = false
+        /// The requests that failed before the outcome (a backup's 404 while the main model ran on).
+        var failures: [ModelAnswer.Failure] = []
     }
 
     private let wav: URL
@@ -158,6 +161,7 @@ final class UploadRace {
     private var pending = 0
     private var backupAsked = false
     private var firstError: String?
+    private var failures: [ModelAnswer.Failure] = []
     private var finished = false
     private var judged = false
     private var timer: DispatchWorkItem?
@@ -212,6 +216,7 @@ final class UploadRace {
                 finish(.text(text, model: model))
             case .failure(let error):
                 firstError = firstError ?? error.localizedDescription
+                failures.append(.init(model: model, message: error.localizedDescription))
                 if backup != nil && !backupAsked {
                     askBackup(because: "\(model) failed: \(error.localizedDescription)")  // don't wait out the delay
                 } else if pending == 0 {
@@ -256,6 +261,6 @@ final class UploadRace {
         timer?.cancel()
         // Stops the other request (a finished task ignores it); a main request still being judged runs on.
         for (model, task) in tasks where model != main || judged { task.cancel() }
-        onDone(Report(outcome: outcome, seconds: clock() - startedAt, backupAsked: backupAsked))
+        onDone(Report(outcome: outcome, seconds: clock() - startedAt, backupAsked: backupAsked, failures: failures))
     }
 }

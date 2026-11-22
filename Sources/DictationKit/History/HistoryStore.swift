@@ -16,8 +16,9 @@ struct HistoryEntry: Codable, Identifiable, Equatable {
     /// Stop → transcript, and transcript → polished text (nil: not polished, or before these were saved).
     var transcribeSeconds: Double?
     var polishSeconds: Double?
-    /// Which speech and polish model answered, main or backup (nil: on-device speech, not polished,
-    /// polish failed, or before these were saved). Settings → Show detailed analytics shows them.
+    /// Which speech and polish model answered, main or backup, and which requests failed (nil:
+    /// on-device speech, not polished, or before these were saved). Settings → Show detailed
+    /// analytics shows them; a failure is a red dot on the dictation's line.
     var transcribedBy: ModelAnswer?
     var polishedBy: ModelAnswer?
     /// The fix as word changes (`FixIntake`), worked out when the app is idle (`VocabularyIntake`);
@@ -51,6 +52,17 @@ struct ModelAnswer: Codable, Equatable {
     var backup: String?
     /// The backup answered first, and its answer was used.
     var byBackup = false
+    /// Requests that failed while this one was answered (a backup's 404, a host's 500), or that
+    /// ran out of time; nil: none.
+    var failures: [Failure]?
+    /// No answer was used: every model failed or ran out of time (polish: the raw text was pasted).
+    var failed: Bool?
+
+    /// A request that failed: the model ("mistralai/voxtral-mini-transcribe") and what went wrong.
+    struct Failure: Codable, Equatable {
+        var model: String
+        var message: String
+    }
 
     /// The model whose answer was used.
     var model: String { byBackup ? backup ?? main : main }

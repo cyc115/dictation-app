@@ -63,11 +63,13 @@ class PolishService {
 
     /// The polished text and which model gave it, or the raw text if polishing fails or runs out of
     /// time (you always get your words), and why.
+    /// `by` is set when polish failed too (`failed`, with each model's failure), so History shows it.
     func polishReporting(_ text: String) async -> (text: String, error: String?, by: ModelAnswer?) {
-        do {
-            let answer = try await answer(text)
-            return (answer.text, nil, answer.by)
-        } catch { return (text, error.localizedDescription, nil) }
+        let (result, by) = await run(text)
+        switch result {
+        case .success(let polished): return (polished, nil, by)
+        case .failure(let error): return (text, error.localizedDescription, by)
+        }
     }
 
     /// The transcript as the model sees it. `wrap` (every backend's default) marks it as data, not a
@@ -81,13 +83,29 @@ class PolishService {
 
     /// The polished text and which model gave it (`by.model`: the backup's, if it answered first).
     func answer(_ text: String) async throws -> (text: String, by: ModelAnswer) {
-        let backend = backend, backup = backup, log = log, started = Date()
+        let (result, by) = await run(text)
+        return (try result.get(), by)
+    }
+
+    /// Each model's failure, kept for `ModelAnswer.failures` (the models run concurrently).
+    private final class Failures: @unchecked Sendable {
+        private let lock = NSLock()
+        private var items: [ModelAnswer.Failure] = []
+        func add(_ failure: ModelAnswer.Failure) { lock.withLock { items.append(failure) } }
+        var all: [ModelAnswer.Failure] { lock.withLock { items } }
+    }
+
+    /// The race: the polished text (the transcript if it came back empty) or why it failed, and who
+    /// answered and which requests failed.
+    private func run(_ text: String) async -> (Result<String, Error>, ModelAnswer) {
+        let backend = backend, backup = backup, log = log, started = Date(), failures = Failures()
         let took = { CloudLog.seconds(Date().timeIntervalSince(started)) }
         // A failure is logged even when the other model goes on to answer: that's how a dead backup shows.
         let logged = { (model: PolishBackend) -> @Sendable () async throws -> String in
             { do { return try await model.polish(text) } catch {
                 if !(error is CancellationError) && (error as? URLError)?.code != .cancelled {
                     log.error("\(model.name) failed after \(took()): \(error.localizedDescription)")
+                    failures.add(.init(model: model.name, message: error.localizedDescription))
                 }
                 throw error
             } }
@@ -98,7 +116,10 @@ class PolishService {
                 main: logged(backend), backup: backup.map(logged), backupAfter: backupAfter, deadline: deadline)
         } catch {
             log.error("polish gave up after \(took()), the raw text is used: \(error.localizedDescription)")
-            throw error
+            // Out of time: the main model is the one that didn't answer.
+            if error is FirstAnswer.TimedOut { failures.add(.init(model: backend.name, message: error.localizedDescription)) }
+            let all = failures.all
+            return (.failure(error), ModelAnswer(main: backend.name, backup: backup?.name, failures: all.isEmpty ? nil : all, failed: true))
         }
         if backupAsked {
             log.notice("polish from \(byBackup ? backup?.name ?? "" : backend.name) in \(took())"
@@ -106,9 +127,10 @@ class PolishService {
         } else {
             log.info("polish from \(backend.name) in \(took())")
         }
-        let cleaned = reply.trimmingCharacters(in: .whitespacesAndNewlines)
-        let by = ModelAnswer(main: backend.name, backup: backupAsked ? backup?.name : nil, byBackup: byBackup)
-        return (cleaned.isEmpty ? text : cleaned, by)
+        let cleaned = reply.trimmingCharacters(in: .whitespacesAndNewlines), all = failures.all
+        let by = ModelAnswer(main: backend.name, backup: backupAsked ? backup?.name : nil, byBackup: byBackup,
+                             failures: all.isEmpty ? nil : all)
+        return (.success(cleaned.isEmpty ? text : cleaned), by)
     }
 }
 

@@ -54,6 +54,8 @@ final class CloudLogTests: XCTestCase {
         XCTAssertEqual(lines.at(.notice).first, "asking backup backup: main hasn't answered in 0.05 s")
         XCTAssertTrue(lines.at(.notice).last?.hasPrefix("transcript from main in 0.") == true, "\(lines.all)")
         XCTAssertTrue(lines.at(.notice).last?.hasSuffix("; backup backup was slower or failed") == true)
+        // Kept on the dictation too: Insights shows it as a red dot.
+        XCTAssertEqual(report?.failures, [.init(model: "backup", message: "No endpoints found for backup.")])
     }
 
     func testAnAllFailedTranscriptionIsAnError() {
@@ -81,6 +83,8 @@ final class CloudLogTests: XCTestCase {
         XCTAssertTrue(lines.at(.error).first?.hasPrefix("backup failed after ") == true, "\(lines.all)")
         XCTAssertTrue(lines.at(.error).first?.hasSuffix(": No endpoints found") == true)
         XCTAssertTrue(lines.at(.notice).first?.hasSuffix("; backup backup was slower or failed") == true, "\(lines.all)")
+        XCTAssertEqual(answer.by.failures, [.init(model: "backup", message: "No endpoints found")])
+        XCTAssertNil(answer.by.failed)
     }
 
     func testPolishGivingUpIsAnError() async {
@@ -89,5 +93,25 @@ final class CloudLogTests: XCTestCase {
         let result = await service.polishReporting("raw")
         XCTAssertEqual(result.text, "raw")
         XCTAssertTrue(lines.at(.error).first?.hasPrefix("polish gave up after ") == true, "\(lines.all)")
+        // Saved on the dictation, so History shows the polish that gave up.
+        XCTAssertEqual(result.by?.failed, true)
+        XCTAssertEqual(result.by?.failures, [.init(model: "FakePolish", message: "No answer within 0.05 s.")])
+    }
+
+    /// The real engine path: CloudEngine.stop() hands the failures to `lastAnswer`, which History saves.
+    func testCloudEngineKeepsTheFailuresOnItsAnswer() {
+        let client = FakeTranscriptionClient()
+        client.scripts["main"] = .init(delay: 0.2, result: FakeTranscriptionClient.text("ok"))
+        client.scripts["backup"] = .init(delay: 0, result: FakeTranscriptionClient.error("404"))
+        let engine = CloudEngine()
+        engine.client = client
+        engine.modelID = "main"
+        engine.backupModelID = "backup"
+        engine.backupWait = 0.05
+        XCTAssertTrue(engine.beginRecording())
+        feedSpeech(engine)
+        XCTAssertEqual(stopAndWait(engine, timeout: 3).text, "ok")
+        XCTAssertEqual(engine.lastAnswer?.failures, [.init(model: "backup", message: "404")])
+        XCTAssertEqual(engine.lastAnswer?.byBackup, false)
     }
 }

@@ -178,6 +178,62 @@ final class RecentLatencyTests: XCTestCase {
         XCTAssertNil(hosted.element(id: "recent.typical"))
     }
 
+    // MARK: Errors
+
+    /// Nov 22: the speech backup 404'd while Qwen ran on; polish's backup failed once and polish gave up once.
+    static var withErrors: [HistoryEntry] {
+        var dead = entry(1, 43.9, 0.2, speech: "asked")
+        dead.transcribedBy?.failures = [.init(model: small, message: "No endpoints found for qwen/qwen3-asr-0.6b.")]
+        var gaveUp = entry(2, 0.5, 6.0)
+        gaveUp.polishedBy = ModelAnswer(main: together, backup: deepInfra,
+                                        failures: [.init(model: together, message: "No answer within 6 s.")], failed: true)
+        return [dead, gaveUp, entry(3, 0.6, 0.2)]
+    }
+
+    func testFailedRequestsBecomeTheLinesErrorDetail() throws {
+        let latency = RecentLatency(Self.withErrors, window: .last25, now: Self.now)
+        XCTAssertEqual(latency.rows[0].errors, "Speech · qwen3-asr-0.6b: No endpoints found for qwen/qwen3-asr-0.6b.")
+        XCTAssertEqual(latency.rows[1].errors, "Polish · deepseek-v4.1-flash · Together, DeepInfra: No answer within 6 s.\n"
+            + "Polish gave up: your words were pasted unpolished.")
+        XCTAssertNil(latency.rows[2].errors, "a clean dictation has no dot")
+        let backup = try XCTUnwrap(latency.models.first { $0.model == Self.small && $0.isBackup })
+        XCTAssertEqual(backup.failedLabel, "1 failed")
+        XCTAssertEqual(backup.answeredLabel, "Asked 1, first 0")
+        let polish = try XCTUnwrap(latency.models.first { $0.model == Self.together && !$0.isBackup })
+        XCTAssertEqual(polish.answered, 2, "polish that gave up isn't an answer")
+        XCTAssertEqual(polish.failedLabel, "1 failed")
+        XCTAssertNil(latency.models.first { $0.model == Self.flash }?.failedLabel)
+    }
+
+    func testAnErrorIsADotWithItsDetailOnHover() throws {
+        let hosted = host(RecentLatencyView(entries: Self.withErrors, now: Self.now), size: NSSize(width: 680, height: 900))
+        let rows = hosted.elements(id: "recent.row")
+        XCTAssertEqual(rows.count, 3)
+        XCTAssertTrue(rows[0].text.contains("error"), rows[0].text)
+        XCTAssertEqual(rows[0].help, "Speech · qwen3-asr-0.6b: No endpoints found for qwen/qwen3-asr-0.6b.")
+        XCTAssertFalse(rows[2].text.contains("error"), rows[2].text)
+        XCTAssertTrue(rows[2].help?.isEmpty ?? true)
+        XCTAssertTrue(hosted.allText.contains("Error: hover the line for details"))
+        XCTAssertTrue(hosted.allText.contains("1 failed"))
+    }
+
+    func testNoErrorsNoErrorLegend() {
+        let hosted = host(RecentLatencyView(entries: Self.tonight, now: Self.now), size: NSSize(width: 680, height: 1400))
+        XCTAssertFalse(hosted.allText.contains("Error: hover"), "nothing to explain")
+        XCTAssertFalse(hosted.allText.contains("failed"))
+    }
+
+    func testFailuresSurviveSavingAndOldEntriesLoad() throws {
+        let url = makeTempURL(self)
+        let store = HistoryStore(fileURL: url, defaults: makeDefaults(self))
+        let answer = ModelAnswer(main: "m", backup: "b", failures: [.init(model: "b", message: "404")], failed: true)
+        store.add(text: "x", duration: 1, transcribeSeconds: 0.5, polishSeconds: 6, polishedBy: answer)
+        XCTAssertEqual(HistoryStore(fileURL: url, defaults: makeDefaults(self)).entries.first?.polishedBy, answer)
+        let old = try JSONDecoder().decode(ModelAnswer.self, from: Data(#"{"main":"m","byBackup":false}"#.utf8))
+        XCTAssertNil(old.failures)
+        XCTAssertNil(old.failed)
+    }
+
     func testStatsAndComparisonsOnScreen() {
         let usual = TimeBreakdown(speaking: 13.9, transcribing: 1.3, polishing: 0.3, count: 100)
         let hosted = host(RecentLatencyView(entries: Self.tonight, usual: usual, now: Self.now), size: NSSize(width: 680, height: 1400))

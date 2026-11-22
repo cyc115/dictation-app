@@ -116,7 +116,9 @@ model, and your dictations are still polished on this Mac.
 
 Home shows words dictated, time saved and where a typical dictation's time goes. Settings → *Show
 detailed analytics* adds your recent dictations one by one: transcribing and polishing time,
-which model answered (main or backup), and how often the backup was needed.
+which model answered (main or backup), and how often the backup was needed. A dictation where a
+request failed (a backup that's gone, a host error, polish that ran out of time) gets a small red
+dot; hover its line for what failed, and the Models table counts each model's failures.
 
 ![Detailed analytics: recent dictations' waits, and each model's typical and slowest times](docs/images/analytics.gif)
 

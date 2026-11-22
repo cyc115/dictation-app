@@ -210,6 +210,14 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "recent-latency")
     }
 
+    /// Failed requests: a small red dot on the line (details on hover), a legend entry, "1 failed" in Models.
+    func testRecentLatencyWithErrors() {
+        let entries = RecentLatencyTests.withErrors + RecentLatencyTests.tonight.filter { $0.date < RecentLatencyTests.now.addingTimeInterval(-4 * 60) }
+        let view = RecentLatencyView(entries: entries, backupWait: 2, now: RecentLatencyTests.now)
+        let hosted = host(ScrollView { view.padding(20) }, size: NSSize(width: 720, height: 1000))
+        assertSnapshot(of: hosted.hostingView, named: "recent-latency-errors")
+    }
+
     func testHistory() {
         let url = makeTempURL(self)
         var entries = [

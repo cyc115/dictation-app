@@ -460,6 +460,8 @@ struct AXNode {
     var role: String? { (attr("accessibilityRole") as? NSAccessibility.Role)?.rawValue ?? attr("accessibilityRole") as? String }
     var label: String? { attr("accessibilityLabel") as? String }
     var value: String? { attr("accessibilityValue").map { "\($0)" } }
+    /// The hover tooltip (`.help`), as VoiceOver reads it.
+    var help: String? { attr("accessibilityHelp") as? String }
     var frame: NSRect? { (attr("accessibilityFrame") as? NSValue)?.rectValue }
     /// Whether the control takes input; nil when the node isn't a control.
     var isEnabled: Bool? { object.value(forKey: "accessibilityEnabled") as? Bool }
