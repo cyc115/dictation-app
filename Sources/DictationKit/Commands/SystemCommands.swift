@@ -29,6 +29,9 @@ enum SystemCommands {
 enum Volume {
     @MainActor
     static func set(_ choice: String?) -> CommandResult {
+        // Before asking the Mac anything: with an output whose volume can't be read (a digital
+        // output), "no volume given" came back as "can't be set", and the test failed on this Mac's setup.
+        guard let choice else { return CommandResult(ok: false, message: "No volume given") }
         if choice == "mute" || choice == "unmute" {
             if let error = run("set volume output muted \(choice == "mute")").error { return failed(error) }
             return CommandResult(ok: true, message: choice == "mute" ? "Muted" : "Unmuted")
