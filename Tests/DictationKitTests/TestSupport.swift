@@ -144,7 +144,8 @@ func makeHistory(_ test: XCTestCase) -> HistoryStore {
 
 /// The app's shared objects with nothing of yours in them: `settings` (else `makeSettings`), a
 /// throwaway History, Insights and recordings folder, and an empty commands folder.
-func makeServices(_ test: XCTestCase, settings: AppSettings? = nil, history: HistoryStore? = nil) -> AppServices {
+func makeServices(_ test: XCTestCase, settings: AppSettings? = nil, history: HistoryStore? = nil,
+                  suggestionCloud: @escaping CorrectionSuggester.Cloud = CorrectionSuggester.cloud) -> AppServices {
     let history = history ?? makeHistory(test)
     let commands = CommandMode(folder: makeTempURL(test, "Commands"), history: history)
     fakeSystem(commands)
@@ -152,7 +153,8 @@ func makeServices(_ test: XCTestCase, settings: AppSettings? = nil, history: His
     return AppServices(settings: settings ?? makeSettings(test), history: history, insights: Insights(defaults: makeDefaults(test)),
                        archive: RecordingArchive(directory: makeTempURL(test, "Recordings")), commands: commands,
                        vocabulary: makeVocabulary(test), editStats: EditWatchStats(fileURL: makeTempURL(test, "edit-watch.json")),
-                       updates: Updates(backend: FakeUpdater()), general: [])  // as in the installed app
+                       updates: Updates(backend: FakeUpdater()), general: [],  // as in the installed app
+                       suggestionCloud: suggestionCloud)
 }
 
 /// A settings store with throwaway defaults, no saved key, no custom setups and no learned prompts.

@@ -88,7 +88,7 @@ final class ReadmeFrames: XCTestCase {
         }
         runtime.finish()
         waitUntil { if case .ready = model.state { return true } else { return false } }
-        try frame(2200, caption: "Ready: nothing leaves your Mac")
+        try frame(2200, caption: "Ready: your dictations stay on your Mac")
         try JSONSerialization.data(withJSONObject: ["frames": frames, "scale": snapshotScale], options: [.prettyPrinted])
             .write(to: out.appendingPathComponent("frames.json"))
     }

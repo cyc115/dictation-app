@@ -187,6 +187,49 @@ final class CorrectionsUITests: XCTestCase {
         XCTAssertNil(CorrectionSuggester.backend(apiKey: "", setup: .cloudFlash, vocabulary: .none), "no key, no suggestion")
     }
 
+    /// Your dictations go to the cloud only when you picked a cloud model: on a setup that polishes on
+    /// this Mac there's no suggestion, even with a key; a cloud setup gets one.
+    func testNoSuggestionOnASetupThatPolishesOnThisMac() throws {
+        XCTAssertNil(CorrectionSuggester.backend(apiKey: "k", setup: .onDevice, vocabulary: .none))
+        let cloudSpeechApplePolish = try JSONDecoder().decode(DictationSetup.self, from: Data(
+            #"{"id": "a", "title": "A", "speech": "openrouter:qwen/qwen3-asr-1.7b", "polish": "apple", "prompt": "v3"}"#.utf8))
+        XCTAssertNil(CorrectionSuggester.backend(apiKey: "k", setup: cloudSpeechApplePolish, vocabulary: .none), "polish decides, not speech")
+        XCTAssertNotNil(CorrectionSuggester.backend(apiKey: "k", setup: .cloudFlash, vocabulary: .none))
+    }
+
+    /// The pencil on the On-device setup, with a key saved: the correction starts as the app wrote it,
+    /// no cloud polish is even made, and Corrections shows no suggestion state. The same wiring on a
+    /// cloud setup does ask (so the check below can fail).
+    func testThePencilSendsNothingOnTheOnDeviceSetup() throws {
+        var made = 0
+        let settings = makeSettings(self)
+        settings.setOpenRouterKey("sk-test")
+        settings.setup = .onDevice
+        let services = makeServices(self, settings: settings, suggestionCloud: { _, _, _, _ in
+            made += 1
+            return FakePolish(delay: 0.1, output: "Can you install Claude Code?")
+        })
+        services.history.add(text: "Can you install Cloud Code?", duration: 2, raw: "can you install cloud code", setup: "on-device", prompt: "v3")
+        let hosted = host(HistoryView(store: services.history, suggester: services.suggester), size: NSSize(width: 760, height: 400))
+        hosted.click(try XCTUnwrap(hosted.element(id: "history.correct")))
+        spinRunLoop(0.3)
+        XCTAssertEqual(made, 0, "nothing sent on a setup that polishes on this Mac")
+        XCTAssertTrue(services.suggester.pending.isEmpty)
+        XCTAssertNil(services.suggester.failed[services.history.entries[0].id])
+        XCTAssertEqual(services.history.entries[0].correction, "Can you install Cloud Code?", "as the app wrote it")
+        let corrections = host(CorrectionsView(store: services.history, suggester: services.suggester), size: NSSize(width: 760, height: 600))
+        XCTAssertNil(corrections.element(id: "corrections.suggesting"))
+        XCTAssertNil(corrections.element(id: "corrections.suggestionError"))
+        XCTAssertFalse(corrections.allText.contains("polishing a suggestion"), corrections.allText)
+
+        settings.setup = .cloudFlash
+        services.history.add(text: "Ask cloud.", duration: 1, raw: "ask cloud", setup: "cloud-flash", prompt: "v7")
+        hosted.settle()
+        hosted.click(try XCTUnwrap(hosted.elements(id: "history.correct").first))
+        waitUntil { services.suggester.pending.isEmpty }
+        XCTAssertEqual(made, 1, "a cloud setup asks")
+    }
+
     func testSuggestionModelIsASettingWithThinkingOff() throws {
         let settings = makeServices(self).settings
         XCTAssertEqual(settings.correctionModel, "openai/gpt-6.1-sol-pro", "the default")

@@ -10,7 +10,7 @@ final class AppServices {
     let insights: Insights
     let archive: RecordingArchive
     let commands: CommandMode
-    /// Corrections' suggested text, from a cloud model with your API key.
+    /// Corrections' suggested text, from a cloud model with your API key, on a cloud setup only.
     let suggester: CorrectionSuggester
     /// Corrections' Learn tile.
     let learn: LearnController
@@ -27,7 +27,8 @@ final class AppServices {
     init(settings: AppSettings, history: HistoryStore, insights: Insights, archive: RecordingArchive,
          commands: CommandMode, vocabulary: VocabularyStore, editStats: EditWatchStats,
          updates: Updates = Updates(backend: nil), general: [GeneralCase] = GeneralCase.app ?? [],
-         judge: @escaping (AppSettings) -> FixJudgeBackend? = { _ in nil }) {
+         judge: @escaping (AppSettings) -> FixJudgeBackend? = { _ in nil },
+         suggestionCloud: @escaping CorrectionSuggester.Cloud = CorrectionSuggester.cloud) {
         self.settings = settings
         self.vocabulary = vocabulary
         self.updates = updates
@@ -43,7 +44,7 @@ final class AppServices {
                 s.openRouterKey.flatMap { key in
                     vocabulary.reloadIfChanged()
                     return CorrectionSuggester.backend(apiKey: key, setup: s.setup, model: s.correctionModel,
-                                                       vocabulary: vocabulary.vocabulary(enabled: s.vocabularyEnabled))
+                                                       vocabulary: vocabulary.vocabulary(enabled: s.vocabularyEnabled), cloud: suggestionCloud)
                 }
             }
         }, modelName: { [weak settings] in CorrectionSuggester.modelID(settings?.correctionModel ?? "") })

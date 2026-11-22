@@ -31,11 +31,12 @@ command isn't misheard; press it twice to just press Return.
 
 ![Command mode: "声音小一点" runs volume −10; "open the pod bay doors" fits no command, so nothing runs](docs/images/commands.gif)
 
-### On-device: nothing leaves your Mac
+### On-device: your dictations stay on your Mac
 
 The *On-device* setup runs Qwen3-ASR on your Mac's GPU: text about a second after you stop, no
 network stalls, English, Chinese and both mixed. The model (2.5 GB) downloads once from Hugging
-Face, with progress in Settings. Prefer the cloud? *Cloud Flash* is about 0.5 s
+Face, with progress in Settings. Nothing you dictate is sent anywhere; the one thing that can go
+online is command mode, when its model is a cloud one ([Privacy](#privacy)). Prefer the cloud? *Cloud Flash* is about 0.5 s
 ([setups](#usage)), and you can add [your own](docs/custom-setups.md).
 
 ![Settings: picking On-device downloads the speech model, then it's ready](docs/images/on-device.gif)
@@ -55,7 +56,8 @@ corrections, one click tunes the cloud setups' polish prompt from them: a strong
 three ways, your own polish model runs each, and the best becomes the next version. You see its
 score on your corrections (cross-validated) and on a general test set before you keep it.
 
-Starting a correction also asks a cloud model for a first draft (GPT-6.1 Sol Pro by default). Pick
+On a cloud setup, starting a correction also asks a cloud model for a first draft (GPT-6.1 Sol Pro
+by default); on a setup that polishes on this Mac it starts as the app wrote it and sends nothing. Pick
 another OpenRouter model with `DictationApp settings set correctionModel <model id>`. Thinking is
 off for every model, or at the lowest effort for one that can't turn it off.
 
@@ -192,7 +194,7 @@ In **Settings → Model**, pick a setup:
 
 | Setup | Speech | Polish | Notes |
 |---|---|---|---|
-| **On-device** | Qwen3-ASR 1.7B, on your Mac | Apple Intelligence | Nothing leaves your Mac. Text in about 1 s. Handles mixed English/Chinese. |
+| **On-device** | Qwen3-ASR 1.7B, on your Mac | Apple Intelligence | Your dictations stay on your Mac. Text in about 1 s. Handles mixed English/Chinese. |
 | **Cloud Flash** | Qwen3-ASR 1.7B | DeepSeek V4.1 Flash | Text in about 0.5 s. Handles mixed English/Chinese. |
 
 Cloud setups send audio to OpenRouter when you stop recording. Your API key is stored in
@@ -263,7 +265,10 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
 ## Privacy
 
 - The mic is on **only** while you're dictating, never in the background.
-- With the On-device setup, audio and text never leave your Mac.
+- With the On-device setup, your audio and dictations never leave your Mac: no polish, Corrections
+  suggestion, Learn or judge call goes to the cloud. The exception is command mode, which you set up
+  yourself: it sends what you say as a command to its model when that is a cloud one (unless
+  *Decide commands on this Mac* is on; `create` and `fix` always go online).
 - Checking for updates (once a day; Settings › Updates turns it off) fetches the latest release's
   appcast from GitHub, which sends nothing about you but your IP address and the app's version.
 - Audio is thrown away once it's transcribed, unless you turn on *Keep recordings* (commands'
@@ -286,8 +291,8 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
 - Your vocabulary stays on this Mac, in `vocabulary.json`, with the terms seen in your corrections
   (each with what the app wrote and the ids of the dictations it was in). The word changes worked
   out from each correction are kept with it in your history. Its terms go where polish already goes:
-  OpenRouter on the cloud setups, Apple Intelligence on-device. With an API key, Corrections'
-  suggested text and Learn also send them to OpenRouter, as they do your corrections.
+  OpenRouter on the cloud setups, Apple Intelligence on-device. On a cloud setup with an API key,
+  Corrections' suggested text and Learn also send them to OpenRouter, as they do your corrections.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted),
   including captured edits you accepted (and any the judge let train unreviewed: only with
   `trainOnUnreviewedCaptures` on, off by default), to the cloud

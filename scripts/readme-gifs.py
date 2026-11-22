@@ -226,10 +226,10 @@ def scene_on_device(directory: Path) -> None:
     folder, index = frames(directory, "on-device")
     W, H = 2000, 900
     base = background(W, H)
-    title(base, "On-device: download once, nothing leaves your Mac", (80, 60))
+    title(base, "On-device: download once, your dictations stay on your Mac", (80, 60))
     images, durations = [], []
     for f in index:
-        panel = Image.open(folder / f["file"]).convert("RGBA").crop((0, 0, 1280, 390))
+        panel = Image.open(folder / f["file"]).convert("RGBA").crop((0, 0, 1280, 418))
         canvas = base.copy()
         place(canvas, window(panel), ((W - panel.width) // 2, 190))
         caption(canvas, f["caption"], W // 2, 720)

@@ -408,7 +408,8 @@ delays a dictation.
 ## Privacy
 
 - Vocabulary stays on the Mac. Its terms go where polish already goes (OpenRouter on cloud setups,
-  Apple Intelligence on-device; the judge only on cloud setups).
+  Apple Intelligence on-device; the judge, Corrections' suggestion and Learn only on cloud setups:
+  since Nov 22 a setup that polishes on this Mac gets no suggestion, so nothing is sent).
 - The watcher keeps only the pasted text and its edited version, and only with *Learn from my
   edits* on. It doesn't run in excluded apps or password fields.
 - The judge sends each fix (what the app wrote, what you changed it to) to OpenRouter on cloud
