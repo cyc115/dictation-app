@@ -12,12 +12,13 @@ call; nothing is added to the paste or to a keystroke.
 - `TypedEdit` (keystroke mode): the pasted text plus what's typed after it, a cursor and a
   selection, in memory. Applies `EditKey`s (text, ⌫, ⌦, ←/→, ⌥←/⌥→, ⌥⌫, ⇧-selections); anything it
   can't follow (another shortcut, a move into text it never saw, a word move over Chinese) gives
-  up. Text typed at the span's end belongs to it up to the first space or sentence mark.
+  up. Text typed at the span's end belongs to it up to the first space (or a Chinese sentence mark).
 - `SpanTracker` (readback mode): the box's value and the span's UTF-16 range. Each read is diffed
   against the last (common prefix and suffix): a change before the span shifts it, one inside it
   grows or shrinks it, one after it is outside (an insertion at its end, past the first space or
-  sentence mark). A change that crosses the span's edge, takes all of it, or leaves fewer than half
-  the paste's words (unless the keys agree) can't be told apart: the watch ends on the last good read.
+  Chinese sentence mark). A change that crosses the span's edge, takes all of it, leaves fewer than
+  half the paste's words, or brings in more than one new word beyond those it took out (unless the
+  keys agree) can't be told apart: the watch ends on the last good read.
 - `EditWatcher` (made once in `AppServices`, handed to `DictationController.editWatcher`):
   `arm(spot, pasted, text, entry)`, `endNow()`; every step that touches the Mac is a closure (`read`,
   `isSecureField`, `secureInput`, `inputMethodActive`, `bundleID`, `listen` for keys, `watchClicks`,

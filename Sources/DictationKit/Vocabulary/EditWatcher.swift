@@ -254,7 +254,7 @@ final class EditWatcher {
     /// Reads the box off the main thread and takes the read in (one at a time); a watch that's
     /// `ending` finishes once it's in.
     private func readInBackground(_ watch: Watch) {
-        guard case .readback = watch.mode, !watch.reading else { return }
+        guard watch === self.watch, case .readback = watch.mode, !watch.reading else { return }
         watch.reading = true
         let keys = watch.keys, spot = watch.spot, read = self.read, toMain = self.toMain
         background { [weak self] in

@@ -150,12 +150,12 @@ struct TypedEdit {
 
     /// Replaces `range` with `text`, keeping the span's end in place: an edit inside the span (or
     /// one going on past its end) is the span's; one after it isn't; text typed right at its end
-    /// carries on its last word up to the first space or sentence mark (`SpanTracker.endsRun`).
+    /// carries on its last word up to a space (`SpanTracker.run`).
     private mutating func replace(_ range: Range<Int>, with text: [Character]) -> Bool {
         if range.lowerBound < spanEnd {
             spanEnd = range.upperBound <= spanEnd ? spanEnd - range.count + text.count : range.lowerBound + text.count
         } else if range.lowerBound == spanEnd, range.isEmpty {
-            spanEnd += text.prefix { !SpanTracker.endsRun($0) }.count
+            spanEnd += SpanTracker.run(of: text, after: spanEnd > 0 ? chars[spanEnd - 1] : nil)
         }
         chars.replaceSubrange(range, with: text)
         cursor = range.lowerBound + text.count

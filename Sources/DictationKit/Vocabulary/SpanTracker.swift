@@ -22,7 +22,7 @@ struct SpanTracker {
               Array(units[(cursor - pasted.count)..<cursor]) == pasted else { return nil }
         self.value = units
         range = (cursor - pasted.count)..<cursor
-        gluedStart = Unicode.Scalar(pasted[0]).map { !Self.endsRun(Character($0)) } ?? false
+        gluedStart = Unicode.Scalar(pasted[0]).map { !$0.properties.isWhitespace } ?? false
         pastedWords = Self.words(String(decoding: pasted, as: UTF16.self))
     }
 
@@ -30,18 +30,33 @@ struct SpanTracker {
         Set(WordDiff.words(text).map { text[$0].lowercased().trimmingCharacters(in: .punctuationCharacters) }.filter { !$0.isEmpty })
     }
 
-    /// At least half the paste's words are still in the span. When they aren't ("I use cloud for the
-    /// project" became "I think the plan is fine": sent, and a new message typed), only your keys can
-    /// say it's still an edit of it.
+    /// Still an edit of the paste: at least half its words are in the span, and at most one more new
+    /// word came in than went out ("cloud" → "Claude Code"). When not ("I use cloud for the project"
+    /// became "I think the plan is fine", "Sounds good" became "Sounds great, see you at 5": sent, and a
+    /// new message typed), only your keys can say it's an edit of it.
     var keepsThePaste: Bool {
-        pastedWords.intersection(Self.words(span)).count * 2 >= pastedWords.count && !pastedWords.isEmpty
+        let now = Self.words(span)
+        let kept = pastedWords.intersection(now).count
+        let removed = pastedWords.count - kept, added = now.count - kept
+        return !pastedWords.isEmpty && kept * 2 >= pastedWords.count && added <= removed + 1
     }
 
-    /// Where text typed at the span's edge stops belonging to it: a space, a line break or a
-    /// sentence mark.
-    static func endsRun(_ c: Character) -> Bool {
-        c.isWhitespace || ".,;:!?…。，、；：！？".contains(c)
+    /// Text typed onto the span's last word belongs to it up to a space or line break, or up to and
+    /// including a Chinese sentence mark (Chinese has no spaces): "cloud" → "Claude." keeps its period,
+    /// "克劳的" → "克劳德。明天见" stops after the "。". Once the span ends in such a mark, text typed
+    /// right after it is text of its own.
+    static func run(of text: some Collection<Character>, after last: Character?) -> Int {
+        if let last, isChineseMark(last) { return 0 }
+        var n = 0
+        for c in text {
+            if c.isWhitespace { break }
+            n += 1
+            if isChineseMark(c) { break }
+        }
+        return n
     }
+
+    static func isChineseMark(_ c: Character) -> Bool { "。，、；：！？…".contains(c) }
 
     private static func character(_ unit: UInt16) -> Character { Unicode.Scalar(unit).map(Character.init) ?? " " }
 
@@ -71,17 +86,21 @@ struct SpanTracker {
         let newEnd = new.count - q
         if !range.isEmpty, p <= s, oldEnd >= e {
             return false  // all of it replaced: nothing left to say which text is the paste's
-        } else if oldEnd == s, p == s, gluedStart, !range.isEmpty,
-                  newEnd > p, !Self.endsRun(Self.character(new[newEnd - 1])) {
-            range = s..<(e + delta)  // typed onto the first word
+        } else if oldEnd == s, p == s, gluedStart, !range.isEmpty, newEnd > p, !Self.character(new[newEnd - 1]).isWhitespace,
+                  !Self.isChineseMark(Self.character(new[newEnd - 1])) {
+            // Typed onto the first word: only the run touching it (back to a space) is the span's.
+            var run = 0
+            while newEnd - run > p, !Self.character(new[newEnd - run - 1]).isWhitespace { run += 1 }
+            range = (s + delta - run)..<(e + delta)
         } else if oldEnd <= s {
             range = (s + delta)..<(e + delta)  // before the span
         } else if p > e || (p == e && oldEnd > e) {
             // after it
         } else if p == e {
-            // Typed at its end: up to the first space or sentence mark it carries on the last word.
-            var run = 0
-            while p + run < newEnd, !Self.endsRun(Self.character(new[p + run])) { run += 1 }
+            // Typed at its end: it carries on the last word up to a space (`run`).
+            let typed = String(decoding: new[p..<newEnd], as: UTF16.self)
+            let last = e > s ? Self.character(old[e - 1]) : nil
+            let run = String(typed.prefix(Self.run(of: typed, after: last))).utf16.count
             range = s..<(e + run)
         } else if p >= s, oldEnd <= e {
             range = s..<(e + delta)

@@ -51,6 +51,12 @@ final class TypedEditTests: XCTestCase {
 
     func testEditsInChineseByCharacter() {
         XCTAssertEqual(typed("我用克劳的", [.backspace, .text("德")]), "我用克劳德")
+        XCTAssertEqual(typed("我用克劳的", [.backspace] + type("德。明天见")), "我用克劳德。", "up to and including a sentence mark")
+    }
+
+    func testARetypedLastWordKeepsItsPeriod() {
+        XCTAssertEqual(typed(" I use cloud.", times(6, .backspace) + type("Claude.")), " I use Claude.")
+        XCTAssertEqual(typed(" I use cloud.", times(6, .backspace) + type("Claude. Next")), " I use Claude.")
     }
 
     /// Wherever it can't be sure what the box holds now, it gives up.
@@ -159,16 +165,31 @@ final class SpanTrackerTests: XCTestCase {
         var v = tracker("I use cloud for the project", pasted: "I use cloud for the project")!
         XCTAssertTrue(v.update("I think the plan is fine"))
         XCTAssertFalse(v.keepsThePaste, "two common words of six")
+        var w = tracker("Sounds good", pasted: "Sounds good")!
+        XCTAssertTrue(w.update("Sounds great, see you at 5"))
+        XCTAssertFalse(w.keepsThePaste, "half the words kept, but five came in for one")
+        var c = tracker("我用克劳的", pasted: "我用克劳的")!
+        XCTAssertTrue(c.update("我用克劳德明天见"))
+        XCTAssertFalse(c.keepsThePaste, "Chinese typed on with no mark: four characters in for one")
+        var fix = tracker("I use cloud", pasted: "I use cloud")!
+        XCTAssertTrue(fix.update("I use Claude Code"))
+        XCTAssertTrue(fix.keepsThePaste, "one word for two is still a fix")
     }
 
     /// Typed onto its last word, only up to the first space or sentence mark is the span's.
     func testTextTypedOntoTheEndStopsAtASpaceOrSentenceMark() {
         var t = tracker("I use cloud", pasted: "I use cloud")!
         XCTAssertTrue(t.update("I use clouds, and my address is 1 Main St"))
-        XCTAssertEqual(t.span, "I use clouds")
+        XCTAssertEqual(t.span, "I use clouds,")
         var u = tracker("我用克劳的", pasted: "我用克劳的")!
         XCTAssertTrue(u.update("我用克劳的。好的"))
-        XCTAssertEqual(u.span, "我用克劳的")
+        XCTAssertEqual(u.span, "我用克劳的。", "up to and including a Chinese sentence mark")
+        XCTAssertTrue(u.update("我用克劳的。好的呀"))
+        XCTAssertEqual(u.span, "我用克劳的。", "and nothing after it")
+        var w = tracker("I use cloud.", pasted: "I use cloud.")!
+        XCTAssertTrue(w.update("I use "))
+        XCTAssertTrue(w.update("I use Claude."))
+        XCTAssertEqual(w.span, "I use Claude.", "a retyped last word keeps its period")
     }
 
     /// A paste with nothing put in front: text typed at its start is its first word. With a space put
@@ -181,6 +202,9 @@ final class SpanTrackerTests: XCTestCase {
         var u = tracker("Hi is great", pasted: " is great")!
         XCTAssertTrue(u.update("Hi there is great"))
         XCTAssertEqual(u.span, " is great")
+        var g = tracker("is great", pasted: "is great")!
+        XCTAssertTrue(g.update("lol, This great"))  // "lol, Th" typed right onto "is"
+        XCTAssertEqual(g.span, "This great", "only the run touching it")
         var v = tracker("Hi there", pasted: "there")!
         XCTAssertTrue(v.update("Hi so there"), "typed before it, ending in a space")
         XCTAssertEqual(v.span, "there")

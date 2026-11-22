@@ -251,12 +251,14 @@ delays typing.
   exists only while a keystroke-mode watch runs, so clicks never go through the tap. Return means
   ↩, ⇧↩, ⌘↩ and keypad Enter alike.
 - **The span's edges:** text typed right at the end of the pasted text belongs to it up to the
-  first space or sentence mark; the rest, and anything typed after it, isn't part of the edit.
-  Text typed right at its start is the dictation's only when nothing was put in front of the paste
+  first space, or up to and including a Chinese sentence mark (so a retyped "Claude." keeps its
+  period); the rest, and anything typed after it, isn't part of the edit. Text typed right at its
+  start is the dictation's (only the run touching it) when nothing was put in front of the paste
   (an empty box, or after a space). In readback, a read whose change crosses the span's edge or
   takes all of it (the box cleared by a send button, a selection reaching past it) ends the watch
-  on the last good read, and so does one that leaves fewer than half the paste's words in the span
-  unless your keys say that's what you typed (sent, then a new message typed by hand, is not an
+  on the last good read, and so does one that leaves fewer than half the paste's words in the span,
+  or brings in more than one new word beyond those it took out, unless your keys say that's what
+  you typed (sent, then a new message typed by hand, is not an
   edit; a one-word dictation retyped after selecting it with the mouse is lost to this). A click
   reads the box at once (a send button acts on mouse-up, so that's the box before it) and again
   0.3 s later (an emptied box ends the watch). Readback keeps a `TypedEdit` alongside: when your keys agree with the box,
