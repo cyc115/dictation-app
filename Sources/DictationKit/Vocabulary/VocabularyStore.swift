@@ -87,17 +87,21 @@ final class VocabularyStore: ObservableObject {
                 file.entries[i].heardAs += heard.filter { !have.contains($0.lowercased()) }
                 return file.entries[i]
             }
-            let entry = VocabularyEntry(term: term, heardAs: heard, source: source, added: now())
-            file.entries.append(entry)
-            return entry
+            file.entries.append(VocabularyEntry(term: term, heardAs: heard, source: source, added: now()))
+            Self.countCorrected(in: &file)
+            return file.entries[file.entries.count - 1]
         }
     }
 
-    /// Saves an edited entry (its term, variants or switch).
+    /// Saves an edited entry (its term, variants or switch). Its counts stay the store's: a
+    /// replacement or a pass while the editor was open isn't undone, and a renamed term is recounted.
     func update(_ entry: VocabularyEntry) {
         change { file in
             guard let i = file.entries.firstIndex(where: { $0.id == entry.id }) else { return }
+            var entry = entry
+            entry.uses = file.entries[i].uses
             file.entries[i] = entry
+            Self.countCorrected(in: &file)
         }
     }
 
@@ -138,7 +142,7 @@ final class VocabularyStore: ObservableObject {
     /// with `learnAfter` nil (Use vocabulary off), only collects them. A dismissed or handed-over term
     /// is remembered with nothing left to count; any other is dropped. Writes nothing when nothing
     /// changed, and nothing while vocabulary.json can't be read (that's moved aside only for
-    /// something you do).
+    /// something you do). Also keeps each entry's `corrected` in step with the candidates.
     func updateCandidates(_ support: [VocabularyCandidate], learnAfter: Int?) {
         change(byYou: false) { file in
             var kept = Dictionary(file.candidates.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -171,7 +175,7 @@ final class VocabularyStore: ObservableObject {
     private static func countCorrected(in file: inout File) {
         let seen = Dictionary(file.candidates.map { ($0.id, $0.seen) }, uniquingKeysWith: max)
         for i in file.entries.indices {
-            let n = seen[file.entries[i].term.lowercased()] ?? 0
+            let n = seen[file.entries[i].term.trimmingCharacters(in: .whitespaces).lowercased()] ?? 0
             if file.entries[i].corrected != n { file.entries[i].corrected = n }
         }
     }

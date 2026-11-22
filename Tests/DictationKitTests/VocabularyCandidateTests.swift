@@ -306,9 +306,18 @@ final class VocabularyCandidateTests: XCTestCase {
         store.updateCandidates(support(Array(three.prefix(1))), learnAfter: 3)
         XCTAssertEqual(store.entries.first { $0.term == "Claude" }?.corrected, 1, "follows History")
         store.updateCandidates(support([dictation("ask code x", "ask Codex")]), learnAfter: 3)
+        XCTAssertEqual(store.entries.first { $0.term == "Claude" }?.corrected, 0, "no longer in History")
         store.learn("codex")
         XCTAssertEqual(store.entries.first { $0.term == "Codex" }?.corrected, 1, "Add now")
-        XCTAssertEqual(store.entries.first { $0.term == "Claude" }?.corrected, 0, "no longer in History")
+        store.updateCandidates(support([dictation("ask code x", "ask Codex"), dictation("use jim and eye", "use Gemini")]), learnAfter: 3)
+        store.add(term: "Gemini")
+        XCTAssertEqual(store.entries.first { $0.term == "Gemini" }?.corrected, 1, "typed in with a candidate: counted at once")
+        var edited = store.entries.first { $0.term == "Gemini" }!
+        edited.uses = 99
+        edited.corrected = 99
+        store.update(edited)
+        XCTAssertEqual(store.entries.first { $0.term == "Gemini" }?.uses, 0, "the editor's copy doesn't set counts")
+        XCTAssertEqual(store.entries.first { $0.term == "Gemini" }?.corrected, 1)
     }
 
     func testAPhaseOneFileStillLoads() throws {
