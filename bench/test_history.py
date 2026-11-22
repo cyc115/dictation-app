@@ -1,6 +1,7 @@
 """Tests for the history bench (suites/history.py), on the written fixture only: never real data, no network.
 Run: uv run --with pytest --with opencc-python-reimplemented==0.1.7 pytest bench"""
 import json
+import os
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -16,7 +17,8 @@ D = lambda n: f"DDDDDDDD-0000-4000-8000-00000000000{n}"
 
 
 def run_args(*extra: str, out: Path):
-    return h.parser().parse_args(["run", "--data", str(FIXTURE), "--out", str(out), *extra])
+    # --data as typed: relative to where you are, as people run it
+    return h.parser().parse_args(["run", "--data", os.path.relpath(FIXTURE), "--out", str(out), *extra])
 
 
 # ---------------------------------------------------------------- words and scoring
@@ -189,6 +191,9 @@ def fake_harness(job_path: Path, out_path: Path, key, log: Path, stop_after: int
     history = {e["id"].upper(): e for e in json.loads(Path(job["history"]).read_text())}
     vocab = json.loads(Path(job["vocabulary"]).read_text())
     held = {d["id"]: d["heldOut"] for d in job["dictations"]}
+    for d in job["dictations"]:  # the harness runs elsewhere: every path it's given must stand on its own
+        assert d["recording"] is None or (Path(d["recording"]).is_absolute() and Path(d["recording"]).exists())
+    assert Path(job["history"]).is_absolute() and Path(job["history"]).parent == folder / "data"
     rows = [{"part": 0, "kind": "setup", "setup": job["setup"], "prompt": "v7", "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
              "fellBack": False}]
     for d in job["dictations"]:

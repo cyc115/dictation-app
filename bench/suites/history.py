@@ -713,8 +713,9 @@ def prepare(args, folder: Path) -> tuple[dict, dict, dict, dict]:
     history = load(folder / "history.json", [])
     chosen = test_set(history, args.limit)
     parts = parse_parts(args.parts)
-    kept = match_recordings(chosen, recordings(Path(args.data).expanduser() / "Recordings")) if 2 in parts else {}
-    setup = resolve_setup(args.setup or current_setup(Path(args.data).expanduser()), folder)
+    data = Path(args.data).expanduser().resolve()  # the job's paths are absolute: the harness reads them from elsewhere
+    kept = match_recordings(chosen, recordings(data / "Recordings")) if 2 in parts else {}
+    setup = resolve_setup(args.setup or current_setup(data), folder)
     job = build_job(folder, chosen, kept, parts, args.rounds, args.seed, setup["id"], args.max_cost, args.learn_after)
     plan = estimate(job, history, load(folder / "vocabulary.json", {}), setup, read_prices(args.price))
     counts = {"entries": len(history), "fixed": len(chosen), "mishearings": sum(len(mishearings(e)) for e in chosen),
@@ -735,7 +736,7 @@ def read_prices(values: list[str] | None) -> dict:
 
 
 def cmd_run(args, harness_run=run_harness) -> int:
-    data = Path(args.data).expanduser()
+    data = Path(args.data).expanduser().resolve()
     tmp = Path(tempfile.mkdtemp(prefix="history-bench-"))
     try:
         folder = snapshot(data, tmp / "data")
