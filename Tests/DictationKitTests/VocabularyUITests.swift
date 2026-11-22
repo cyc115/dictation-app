@@ -87,6 +87,51 @@ final class VocabularyUITests: XCTestCase {
         XCTAssertNotNil(hosted.element(id: "vocabulary.row.Codex"))
     }
 
+    /// Candidates as the idle pass leaves them: Claude seen in 2 dictations, HRV and GeForce Now in one.
+    private func storeWithCandidates() -> VocabularyStore {
+        let store = makeVocabulary(self)
+        let d = (0..<4).map { _ in UUID() }
+        store.updateCandidates([
+            VocabularyCandidate(term: "HRV", heard: [.init(text: "而差v", dictations: [d[0]])]),
+            VocabularyCandidate(term: "Claude", heard: [.init(text: "Coloule", dictations: [d[1]]),
+                                                        .init(text: "cloud", dictations: [d[2]], ordinary: true)]),
+            VocabularyCandidate(term: "GeForce Now", heard: [.init(text: "G Four Snow", dictations: [d[3]])]),
+        ], learnAfter: 3)
+        return store
+    }
+
+    func testSeenInYourEditsListsTermsSeenTwiceAndTheRestBehindShowAll() throws {
+        let store = storeWithCandidates()
+        let hosted = tab(store)
+        XCTAssertNotNil(hosted.element(id: "vocabulary.candidate.Claude"))
+        XCTAssertEqual(hosted.element(id: "vocabulary.candidate.seen.Claude")?.text.contains("2 of 3"), true)
+        XCTAssertNotNil(hosted.element(id: "vocabulary.candidate.heard.cloud"))
+        XCTAssertNil(hosted.element(id: "vocabulary.candidate.HRV"), "seen once: behind Show all")
+        let showAll = try XCTUnwrap(hosted.element(id: "vocabulary.candidates.showAll"))
+        XCTAssertTrue(showAll.text.contains("Show all (3)"))
+        XCTAssertTrue(hosted.click(showAll))
+        XCTAssertNotNil(hosted.element(id: "vocabulary.candidate.HRV"))
+        XCTAssertEqual(hosted.element(id: "vocabulary.candidate.seen.HRV")?.text.contains("1 of 3"), true)
+    }
+
+    func testAddNowAndDismiss() throws {
+        let store = storeWithCandidates()
+        let hosted = tab(store)
+        XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "vocabulary.addNow.Claude"))))
+        XCTAssertEqual(store.entries.map(\.term), ["Claude"])
+        XCTAssertEqual(store.entries.first?.heardAs, ["Coloule"], "not the ordinary word")
+        XCTAssertNil(hosted.element(id: "vocabulary.candidate.Claude"), "now in Your terms")
+        XCTAssertNotNil(hosted.element(id: "vocabulary.row.Claude"))
+
+        XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "vocabulary.candidates.showAll"))))
+        XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "vocabulary.dismiss.HRV"))))
+        XCTAssertEqual(store.candidates.first { $0.term == "HRV" }?.dismissed, true)
+        XCTAssertNil(hosted.element(id: "vocabulary.candidate.HRV"))
+        XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "vocabulary.dismiss.GeForce Now"))))
+        XCTAssertNil(hosted.element(id: "vocabulary.candidates.showAll"), "none left: the group is gone")
+        XCTAssertFalse(hosted.allText.contains("Seen in your edits"))
+    }
+
     func testSettingsSectionTurnsItOffAndSendsYouToTheTab() throws {
         let services = makeServices(self)
         var shown = 0

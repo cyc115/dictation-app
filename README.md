@@ -69,6 +69,14 @@ hears is replaced with your term (in microseconds, so no wait), and AI polish is
 Learn tunes with them too. Settings › Vocabulary turns it off, and can also hint the terms to the
 On-device speech model (off by default).
 
+It also learns them from your corrections, with no model call. When the app is idle, each
+correction is broken into word changes ("cloud" → "Claude"); a term you fixed in 3 different
+dictations is added on its own, with what the app wrote as its "heard as" variants. A variant
+that's an ordinary word in your other dictations ("two", "cloud") isn't added, so it's never
+replaced where you meant it. The tab's **Seen in your edits** shows terms on their way in ("2 of
+3"), with **Add now** and dismiss; a dismissed term never comes back. With vocabulary off, nothing
+is added. The count is a setting with no row: `DictationApp settings set vocabularyLearnAfter 5`.
+
 ### Detailed analytics: where the wait went
 
 Home shows words dictated, time saved and where a typical dictation's time goes. Settings → *Show
@@ -223,7 +231,9 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
   installed apps' names, for `open`, and the open ones', for `switch-app`), to OpenRouter to pick one; `create` also sends it to
   DeepSeek to write the script. `fix` runs Claude Code on this Mac, which sends what you said, the
   command's runs and errors, and the code it reads to Anthropic. Commands are saved beside your history, in `history-commands.json`.
-- Your vocabulary stays on this Mac, in `vocabulary.json`. Its terms go where polish already goes:
+- Your vocabulary stays on this Mac, in `vocabulary.json`, with the terms seen in your corrections
+  (each with what the app wrote and the ids of the dictations it was in). The word changes worked
+  out from each correction are kept with it in your history. Its terms go where polish already goes:
   OpenRouter on the cloud setups, Apple Intelligence on-device. With an API key, Corrections'
   suggested text and Learn also send them to OpenRouter, as they do your corrections.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted)

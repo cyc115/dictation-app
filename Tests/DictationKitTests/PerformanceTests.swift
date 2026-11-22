@@ -261,6 +261,33 @@ final class PerformanceTests: XCTestCase {
         XCTAssertTrue(out.contains("Claude about the GeForce Now setup and Term42 again, 我的HRV一般"))
     }
 
+    /// The idle pass's work (intake for every correction, candidates, the ordinary-word scan of every
+    /// uncorrected dictation) runs off the main thread when the app is idle; it still has to stay
+    /// cheap as History grows. 2,000 dictations, 100 terms fixed in 200 of them, first pass (backfill).
+    func testVocabularyIntakePassOnALargeHistory() {
+        let sentence = "so I asked the cloud about the setup again and we moved on to the next thing, 我们明天再说"
+        var entries: [HistoryEntry] = []
+        for n in 0..<2_000 {
+            let fixed = n % 10 == 0, term = (n / 10) % 100
+            // Uncorrected ones have the heard words inside longer ones: found by the scan, not whole words.
+            var entry = HistoryEntry(date: fixedDate(2026, 11, 1, 9, 0).addingTimeInterval(Double(-n * 60)),
+                                     text: "\(sentence) number \(n % 50) \(fixed ? "heard\(term)" : "heard\(n % 100)s") here", duration: 6)
+            if fixed { entry.correction = "\(sentence) number \(n % 50) Term\(term) here" }
+            entries.append(entry)
+        }
+        var support: [VocabularyCandidate] = []
+        assertFaster(than: 0.3, iterations: 3, "vocabulary intake pass: 2k history, 100 terms") {
+            support = VocabularyIntake.work(entries).support
+        }
+        XCTAssertEqual(support.count, 100)
+        // Every later pass: intake is already there, so only the counting and the scan.
+        let intakes = VocabularyIntake.work(entries).intakes
+        for i in entries.indices { if let intake = intakes[entries[i].id] { entries[i].intake = intake } }
+        assertFaster(than: 0.15, iterations: 3, "vocabulary intake pass, intake already worked out: 2k history, 100 terms") {
+            XCTAssertTrue(VocabularyIntake.work(entries).intakes.isEmpty)
+        }
+    }
+
     /// Also report XCTest's own metrics (visible in the test log; no pass/fail outside Xcode).
     func testMicLevelMetrics() {
         let buffer = makeBuffer(amplitude: 0.2)

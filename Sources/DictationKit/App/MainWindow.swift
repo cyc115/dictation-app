@@ -157,7 +157,10 @@ struct MainView: View {
         case .corrections: CorrectionsView(store: history, suggester: services.suggester, learn: services.learn,
                                            editing: selection.editing, search: searches[.corrections, default: ""])
             .onTabHidden { selection.editing = nil }
-        case .vocabulary: VocabularyView(store: services.vocabulary, search: searches[.vocabulary, default: ""])
+            .onTabShown { services.intake.tabShown() }
+        case .vocabulary: VocabularyView(store: services.vocabulary, learnAfter: settings.vocabularyLearnAfter,
+                                         search: searches[.vocabulary, default: ""])
+            .onTabShown { services.intake.tabShown() }
         case .commands: CommandsView(mode: services.commands, settings: settings, history: history,
                                      search: searches[.commands, default: ""], onOpenSettings: { selection.tab = .settings })
         case .settings: SettingsView(services: services, onShowCommands: { selection.tab = .commands },

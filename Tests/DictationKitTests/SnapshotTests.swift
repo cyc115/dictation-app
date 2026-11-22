@@ -171,6 +171,22 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "vocabulary-tab")
     }
 
+    /// Seen in your edits, above Your terms: terms seen twice, an ordinary word struck through.
+    func testVocabularyCandidates() {
+        let url = makeTempURL(self, "vocabulary.json")
+        let ids = (0..<6).map { UUID(uuidString: String(format: "00000000-0000-4000-8000-%012d", $0))! }
+        JSONFile.save(["entries": [VocabularyEntry(term: "reMarkable", added: fixedDate(2026, 11, 2, 9, 0), uses: 3)]], to: url)
+        let store = VocabularyStore(fileURL: url)
+        store.updateCandidates([
+            VocabularyCandidate(term: "Claude", heard: [.init(text: "Coloule", dictations: [ids[0]]),
+                                                        .init(text: "cloud", dictations: [ids[1]], ordinary: true)]),
+            VocabularyCandidate(term: "HRV", heard: [.init(text: "而差v", dictations: [ids[2], ids[3]])]),
+            VocabularyCandidate(term: "GeForce Now", heard: [.init(text: "G Four Snow", dictations: [ids[4]])]),
+        ], learnAfter: 3)
+        let hosted = host(VocabularyView(store: store), size: NSSize(width: 760, height: 560))
+        assertSnapshot(of: hosted.hostingView, named: "vocabulary-candidates")
+    }
+
     func testInsights() {
         let insights = Insights(defaults: makeDefaults(self))
         insights.record(text: Array(repeating: "w", count: 19_400).joined(separator: " "), duration: 3 * 3600 + 31 * 60)

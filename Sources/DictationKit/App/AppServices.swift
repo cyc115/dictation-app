@@ -18,6 +18,8 @@ final class AppServices {
     let updates: Updates
     /// Your terms: applied to every dictation, told to polish, used by Learn.
     let vocabulary: VocabularyStore
+    /// The idle pass that learns vocabulary from your corrections.
+    let intake: VocabularyIntake
 
     init(settings: AppSettings, history: HistoryStore, insights: Insights, archive: RecordingArchive,
          commands: CommandMode, vocabulary: VocabularyStore, updates: Updates = Updates(backend: nil),
@@ -29,6 +31,7 @@ final class AppServices {
         self.insights = insights
         self.archive = archive
         self.commands = commands
+        intake = VocabularyIntake(history: history, vocabulary: vocabulary, settings: settings)
         suggester = CorrectionSuggester(backend: { [weak settings] in
             settings.flatMap { s in
                 s.openRouterKey.flatMap { key in

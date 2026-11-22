@@ -65,7 +65,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         overlay.onCancel = { [weak self] in self?.dictation.cancel() }
         overlay.onConfirm = { [weak self] in self?.dictation.stop() }
         dictation.onDictatingChanged = { [weak self] in self?.updateStatusIcon() }
-        dictation.onIdle = { [weak self] in self?.relaunch.relaunchIfIdle(); self?.services.updates.relaunchIfIdle() }
+        dictation.onIdle = { [weak self] in
+            self?.relaunch.relaunchIfIdle()
+            self?.services.updates.relaunchIfIdle()
+            self?.services.intake.scheduleAfterIdle()
+        }
         dictation.onMissingKey = { [weak self] _ in self?.mainWindow.show(.settings) }
         settings.onChange = { [weak self] in self?.settingsChanged() }
         settingsCommands = SettingsCommand.observe(settings)
@@ -73,6 +77,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         exclusion.start()
         preloadLocalModel()
         services.updates.relaunch.isBusy = { [weak self] in self?.dictation.isBusy ?? false }
+        services.intake.isBusy = { [weak self] in self?.dictation.isBusy ?? false }
+        services.intake.scheduleAfterIdle()  // the first pass: every correction you already have
         services.updates.onChange = { [weak self] in self?.updateMenu() }
         services.updates.start()
         Permissions.requestAll { [weak self] granted in
