@@ -306,8 +306,8 @@ delays typing.
     Keystroke-mode captures always wait for Accept. (Mike was asked whether every capture should
     wait instead and didn't choose; this is the recommended default. Removing this rule makes
     every capture wait.)
-- **Bench:** `bench/edit_cases.json` (about 40 labelled fixes: Mike's corrections plus written
-  changed-mind cases) and `bench/suite.py edits run`, comparing models and batch sizes 1 and 10.
+- **Bench:** `bench/edit_cases.json` (about 40 labelled fixes, all written for the bench: see
+  "Phase 4 as built") and `bench/suite.py edits run`, comparing models and batch sizes 1 and 10.
   Batching stays only if accuracy matches one at a time; then the cheapest model that ties the
   best is the default.
 
@@ -358,6 +358,15 @@ delays a dictation.
   rules (the draft's fallback is still to decide).
 - **Settings:** no row for `judgeModel` (as `correctionModel`). *Learn from my edits*' text now says
   nothing is sent unless the judge is on.
+- **Bench cases are all written (Mike, Nov 22),** not his corrections: 45 fixes in English, Chinese
+  and mixed, every verdict, no real dictation in the repo. Each case's changes are what `FixIntake`
+  produces (a Swift test keeps them equal), and the bench reads the app's instructions file and
+  renders the same message (`bench/judge_message_fixture.json`). Batches are cut from one seeded
+  shuffle, so sizes 1 and 10 see the same fixes. An uncovered change scores as wrong; coverage and
+  misheard precision are reported too. `--dry-run` estimates tokens (a Chinese character a token,
+  else 4 characters) and prices them only from saved results (Claude Sonnet 5.5: $2 / $10 per
+  million, from the teacher bake-off) or `--price`; the default run (Sonnet, sizes 1 and 10, 50
+  requests) is estimated at about 6¢.
 
 ## Privacy
 

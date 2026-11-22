@@ -50,7 +50,10 @@ def _option(p: argparse.ArgumentParser, word: str) -> argparse.Action | None:
 
 
 def _models(suite: str, dest: str) -> list[tuple[str, str]]:
-    from suites import commands, latency, polish
+    from suites import commands, edits, latency, polish
+    if suite == "edits":
+        return [(edits.DEFAULT_MODEL, "the app's judge model (judgeModel's default)")] + \
+            [(s["polish"], f"{s['title']} polish model") for s in polish.setups().values() if s["polish"].startswith("openrouter:")]
     if suite == "commands":
         return ([(m, "decision model" + (" (the app's default)" if m == "jev" else "")) for m in commands.DEFAULT_MODELS]
                 + [(f"local:{k}", f"{v['about']}, on this Mac") for k, v in commands.LOCAL.items()])
@@ -74,6 +77,9 @@ def _values(suite: str, a: argparse.Action) -> tuple[str, list[tuple[str, str]]]
     dest = a.dest
     if dest in ("model", "polish", "stt"):
         return "values", _models(suite, dest)
+    if dest == "case" and suite == "edits":
+        from suites import edits
+        return "values", [(c["id"], c["wrote"][:60]) for c in edits.load()[1]]
     if dest == "case":
         from suites import polish
         cases = [c for f in sorted(harness.ROOT.glob("polish_cases*.json")) for c in polish.load_cases(f)]
@@ -83,6 +89,8 @@ def _values(suite: str, a: argparse.Action) -> tuple[str, list[tuple[str, str]]]
                           if (harness.AUDIO / f"{c['id']}.wav").exists()]
     if dest == "prompt_file":
         return "values+files", [(_rel(f), "") for f in sorted((harness.ROOT / "polish_prompts").glob("*.txt"))]
+    if dest == "cases_file" and suite == "edits":
+        return "values+files", [(_rel(harness.ROOT / "edit_cases.json"), f"{len(_cases(harness.ROOT / 'edit_cases.json'))} cases")]
     if dest == "cases_file":
         return "values+files", [(_rel(f), f"{len(_cases(f))} cases") for f in sorted(harness.ROOT.glob("polish_cases*.json"))]
     if dest == "file":

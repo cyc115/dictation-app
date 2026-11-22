@@ -181,6 +181,31 @@ Oct 20, 2026, DeepSeek V4.1 Flash, reasoning off, 2 rounds: every case right, an
 scripts ran (the other reported, correctly, that this Mac wasn't on Wi-Fi); 0.7 s, $0.23 per 1000.
 Reasoning on scored the same, twice as slow and dear.
 
+## Judging your fixes (`suite.py edits`)
+
+Does a model tell a misheard word from style and a change of mind, and does batching cost it
+accuracy? `edit_cases.json` has 45 fixes written for the bench (English, Chinese and mixed; none is
+a real dictation), with each word change exactly as the app works it out (a Swift test checks) and
+the verdict it should get. The model is asked as the app's `FixJudge` asks
+(`Sources/DictationKit/Vocabulary/JudgeFixes.txt`, then the sample terms, then the numbered fixes;
+`judge_message_fixture.json` pins the format for both). Each model runs batch sizes 1 and 10 on the
+same seeded shuffle. A change scores when its verdict matches; one the answer didn't cover scores as
+wrong (coverage is shown apart). The report adds misheard precision: a change wrongly called
+misheard would teach vocabulary a bad variant.
+
+```sh
+bench/suite.py edits run --dry-run                # plan and estimated cost; reads no key, sends nothing
+bench/suite.py edits run -m openrouter:<cheap model> --price <id>=IN,OUT -b 10   # cheap ones first
+bench/suite.py edits run                          # the app's model, Claude Sonnet 5.5, batches of 1 and 10
+bench/suite.py edits report --failures anthropic/claude-sonnet-5.5@10
+```
+
+Each request's cost is recorded and the run's total printed. The estimate prices tokens from
+`PRICES` in `suites/edits.py` (only models a saved result gives a price for: Claude Sonnet 5.5, $2 /
+$10 per million) or `--price`; the default run is estimated at about 6¢. Batching stays in the app
+only if batches of 10 score as well as one at a time; then the cheapest model that ties the best
+becomes `judgeModel`'s default. Apple Intelligence (the On-device setup's judge) isn't in this suite.
+
 ## Speech-to-text accuracy (`suite.py accuracy` = `bench.py`)
 
 Compares dictation models on the same audio: **Chinese with English mixed in**, **Chinese only**,
