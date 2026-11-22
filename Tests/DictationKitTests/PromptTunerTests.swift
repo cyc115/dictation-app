@@ -343,12 +343,14 @@ final class PromptTunerTests: XCTestCase {
     let examples = [(input: "can you install cloud code", wrote: "Can you install Cloud Code?", wanted: "Can you install Claude Code?"),
                     (input: "um send it", wrote: "Um, send it.", wanted: "Send it.")]
 
-    /// Vocabulary fixes misheard terms now; a teacher that also lists them writes a second, competing list.
-    func testTheTeacherLeavesTermsToVocabulary() {
+    /// The teacher may list a term misheard more than once (bf628c8's "add no term by name" reverted):
+    /// on real dictations the learned prompt's term list fixed more than vocabulary, and the two don't
+    /// compete (bench/results/history/README.md).
+    func testTheTeacherMayListAMisheardTerm() {
         let system = PromptTuner.teacherSystem
-        XCTAssertTrue(system.contains("handled by a separate vocabulary list"))
-        XCTAssertTrue(system.contains("add no term by name"))
-        XCTAssertFalse(system.contains("listed by name"))
+        XCTAssertTrue(system.contains("Rules must be general, not fixes for one dictation; a term the recognizer mishears more than once may be listed by name."), system)
+        XCTAssertFalse(system.contains("vocabulary list"))
+        XCTAssertFalse(system.contains("add no term by name"))
     }
 
     func testTheTeachersMessageIsTodaysSplitBeforeTheTask() {

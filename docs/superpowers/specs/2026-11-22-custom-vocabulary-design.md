@@ -111,12 +111,13 @@ change reaches the running app.
 - A tune takes **at most 60 fixes**: manual and accepted first, newest first, then unreviewed
   captured ones (phase 4; only with `trainOnUnreviewedCaptures` on, or saved before it existed). A tune makes 10 teacher calls (3 folds × 3 lenses, then the final
   prompt) that each carry about two thirds of the unlearned fixes, and about 8 student calls per fix.
-- **Teacher wording** changes in its own commit, after phase 1 lands. `teacherSystem` says a
-  repeatedly misheard term "may be listed by name", which now competes with vocabulary; that
-  sentence becomes "terms are handled by a vocabulary list; don't list terms". No paid before and
-  after tune (Mike, Nov 22): one pair can't resolve a difference inside the tuner's ±1.5 noise, and
-  every real tune is already gated by its cross-validated score, the general set and Keep. A unit
-  test checks the wording; the next real Learn is checked by eye for a prompt with no term list.
+- **Teacher wording:** `teacherSystem` keeps "a term the recognizer mishears more than once may be
+  listed by name". It was changed to "add no term by name" (bf628c8, Nov 22) on the guess that a
+  term list in the prompt competes with vocabulary, then restored the same day: the history bench
+  (`bench/results/history/README.md`) found the learned prompt's term list fixes more real
+  mishearings than vocabulary (15.7 vs 10.3 of 33) and vocabulary on top of it changes nothing, so
+  the two don't compete. A tune's inputs already have replacement applied, so the teacher sees only
+  terms still misheard after vocabulary. No paid tune for either change. A unit test pins the wording.
 - v7's baked-in terms stay in v7. The backfill does **not** bring them into vocabulary: a dry run
   on Mike's History (Nov 22) found 39 candidates, each seen once, and added no entry. Vocabulary
   starts empty; terms come in by hand, by **Add now**, or after 3 dictations.
