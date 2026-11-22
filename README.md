@@ -70,7 +70,8 @@ Learn tunes with them too. Settings › Vocabulary turns it off, and can also hi
 On-device speech model (off by default).
 
 It also learns them from your corrections, with no model call. When the app is idle, each
-correction is broken into word changes ("cloud" → "Claude"); a term you fixed in 3 different
+correction is broken into word changes ("cloud" → "Claude"; a change with sentence punctuation
+inside, like "file two" → "file. Two", is formatting and isn't counted); a term you fixed in 3 different
 dictations is added on its own, with what the app wrote as its "heard as" variants. A variant
 that's an ordinary word in your other dictations ("two", "cloud") isn't added, so it's never
 replaced where you meant it; once a term is in, a new way of mishearing it is added after 2

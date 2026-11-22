@@ -116,8 +116,9 @@ change reaches the running app.
   after tune (Mike, Nov 22): one pair can't resolve a difference inside the tuner's ±1.5 noise, and
   every real tune is already gated by its cross-validated score, the general set and Keep. A unit
   test checks the wording; the next real Learn is checked by eye for a prompt with no term list.
-- v7's baked-in terms stay in v7. Phase 2's backfill brings them into vocabulary from the
-  corrections they were learned from.
+- v7's baked-in terms stay in v7. The backfill does **not** bring them into vocabulary: a dry run
+  on Mike's History (Nov 22) found 39 candidates, each seen once, and added no entry. Vocabulary
+  starts empty; terms come in by hand, by **Add now**, or after 3 dictations.
 
 ### What you see
 
@@ -161,10 +162,22 @@ change reaches the running app.
     that variant, so polish and the speech hint can pick it by context.
   - The page lists candidates seen twice or more, or judged *misheard*; the rest sit behind
     "Show all".
-- **Backfill:** the first idle pass covers every existing correction. On Mike's Mac today (28
-  corrections, 91 distinct short swaps) that gives candidates but no term at 3: 25 of the 91 fail
-  the ordinary-word guard, and the only swaps seen twice are "two → 2" and "three → 3". Rules alone
-  learn slowly; the judge (phase 4) is what tells a misheard term from a style change.
+- **As built** (rules the first draft of this spec didn't have):
+  - Sentence punctuation, quotes and brackets are trimmed from a change's edges ("cloud." →
+    "Claude." is cloud → Claude); "C++" keeps its symbols. `heard` variants merge regardless of
+    case, and a `heard` written exactly as its term isn't counted by the ordinary-word guard, so
+    a case fix ("remarkable" → "reMarkable") can be learned.
+  - **After a term is learned,** a new variant needs 2 dictations of its own or a *misheard*
+    verdict: one change of mind ("GPT" → "Claude") mustn't replace "GPT" everywhere. At the
+    first learn, variants seen once still go in.
+  - Candidates remember `added` and `addedHeard`, and dismissed or added ones stay in the file
+    with nothing left to count, so a learned term or variant you delete doesn't come back.
+  - A pass whose corrections changed while it worked is dropped and retried 30 s later (a learn
+    can't be undone). The first pass runs 30 s after launch. The pass never moves an unreadable
+    `vocabulary.json` aside; only something you do does.
+- **Backfill:** the first idle pass covers every existing correction. On Mike's Mac (28
+  corrections, dry run on a copy, Nov 22) that gives 39 candidates, each seen once, and no entry.
+  Rules alone learn slowly; the judge (phase 4) is what tells a misheard term from a style change.
 
 ## Phase 3: the edit watcher
 
