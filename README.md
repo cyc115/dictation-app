@@ -115,12 +115,13 @@ model, and your dictations are still polished on this Mac.
 ### Detailed analytics: where the wait went
 
 Home shows words dictated, time saved and where a typical dictation's time goes. Settings → *Show
-detailed analytics* adds your recent dictations one by one: transcribing and polishing time,
-which model answered (main or backup), and how often the backup was needed. A dictation where a
-request failed (a backup that's gone, a host error, polish that ran out of time) gets a small red
-dot; hover its line for what failed, and the Models table counts each model's failures. A
-dictation that never became text (every speech model failed, or the mic sent only silence) shows
-too, as "no text"; it's kept in `history-failed.json`, not in History, and isn't counted in the waits.
+detailed analytics* adds your recent dictations one by one: each line is the time, a bar of the
+wait split into transcribing and polishing, and the wait. Hover a line for a card with the rest: how
+long you spoke, each part's model, what the backup did, and any error. A line where a request failed
+(a backup that's gone, a host error, polish that ran out of time) has a small red dot, and the Models
+table counts each model's failures. A dictation that never became text (every speech model failed,
+or the mic sent only silence) shows too; it's kept in `history-failed.json`, not in History, and
+isn't counted in the waits.
 
 ![Detailed analytics: recent dictations' waits, and each model's typical and slowest times](docs/images/analytics.gif)
 

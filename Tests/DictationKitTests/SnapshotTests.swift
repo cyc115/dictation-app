@@ -219,6 +219,19 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "recent-latency-errors")
     }
 
+    /// A line's hover card: a slow one the backup was asked for, whose backup failed; and one with no text.
+    func testRecentLatencyHoverCards() {
+        let rows = RecentLatency(RecentLatencyTests.withErrors, failed: RecentLatencyTests.failedDictations, window: .last25,
+                                 now: RecentLatencyTests.now).rows
+        let cards = VStack(alignment: .leading, spacing: 16) {
+            LineCard(row: rows[0], time: "9:16 PM").background(.background, in: RoundedRectangle(cornerRadius: 10))
+            LineCard(row: rows[1], time: "9:15 PM").background(.background, in: RoundedRectangle(cornerRadius: 10))
+            LineCard(row: rows[3], time: "9:14 PM").background(.background, in: RoundedRectangle(cornerRadius: 10))
+        }
+        let hosted = host(cards.padding(20).background(Color.gray.opacity(0.2)), size: NSSize(width: 400, height: 640))
+        assertSnapshot(of: hosted.hostingView, named: "recent-latency-cards")
+    }
+
     func testHistory() {
         let url = makeTempURL(self)
         var entries = [

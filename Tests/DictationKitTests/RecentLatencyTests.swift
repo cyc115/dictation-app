@@ -106,7 +106,13 @@ final class RecentLatencyTests: XCTestCase {
         XCTAssertEqual(ModelAnswer.displayName(Self.together), "deepseek-v4.1-flash · Together, DeepInfra")
         XCTAssertEqual(ModelAnswer.displayName("apple:on-device"), "Apple on-device")
         let rows = RecentLatency(Self.tonight, window: .thirtyMinutes, now: Self.now).rows
-        XCTAssertEqual(rows.map(\.backupLabel).prefix(5), ["speech, polish", "", "", "", "speech"])
+        XCTAssertEqual(rows.prefix(5).map { $0.parts.map(\.note) }, [
+            ["the backup; qwen3-asr-1.7b was late", "the backup; deepseek-v4.1-flash · Together, DeepInfra was late"],
+            ["backup qwen3-asr-0.6b asked too", nil], [nil, nil], ["backup qwen3-asr-0.6b asked too", nil],
+            ["the backup; qwen3-asr-1.7b was late", "backup deepseek-v4.1-flash · DeepInfra, Together asked too"]])
+        XCTAssertEqual(rows[0].parts.map(\.model), ["qwen3-asr-0.6b", "deepseek-v4.1-flash · DeepInfra, Together"], "who answered")
+        XCTAssertEqual(rows[2].details, "Spoke 8 s, waited 1.2 s\nTranscribing 1.0 s, qwen3-asr-1.7b\n"
+            + "Polishing 0.2 s, deepseek-v4.1-flash · Together, DeepInfra")
         XCTAssertEqual(ModelAnswer(main: "a", backup: "b", byBackup: true).model, "b")
         XCTAssertEqual(ModelAnswer(main: "a", backup: "b").model, "a")
     }
@@ -217,7 +223,11 @@ final class RecentLatencyTests: XCTestCase {
 
     func testFailedDictationsAreLinesWithNoText() throws {
         let latency = RecentLatency(Self.withErrors, failed: Self.failedDictations, window: .last25, now: Self.now)
-        XCTAssertEqual(latency.rows.map(\.backupLabel), ["", "no text", "", "", "no text"], "newest first, merged")
+        XCTAssertEqual(latency.rows.map(\.noText), [false, true, false, false, true], "newest first, merged")
+        XCTAssertEqual(latency.rows[1].parts, [RecentLatency.Part(phase: .speech, seconds: 2.4, answer: nil, noText: true)])
+        XCTAssertEqual(latency.rows[1].parts.first?.note, "no text")
+        XCTAssertEqual(latency.rows[0].parts.first?.note, "backup qwen3-asr-0.6b asked too, failed")
+        XCTAssertEqual(latency.rows[2].parts.last?.note, "gave up, pasted unpolished")
         XCTAssertEqual(latency.rows[1].errors, "Speech · qwen3-asr-1.7b: Transcription failed (HTTP 500).\n"
             + "Speech · qwen3-asr-0.6b: No endpoints found for qwen/qwen3-asr-0.6b.\nNothing was typed.")
         XCTAssertEqual(latency.rows[4].errors, "The microphone sent only silence.\nNothing was typed.", "no model asked: what you were told")
@@ -271,16 +281,18 @@ final class RecentLatencyTests: XCTestCase {
         let rows = hosted.elements(id: "recent.row")
         XCTAssertEqual(rows.count, 3)
         XCTAssertTrue(rows[0].text.contains("error"), rows[0].text)
-        XCTAssertEqual(rows[0].help, "Speech · qwen3-asr-0.6b: No endpoints found for qwen/qwen3-asr-0.6b.")
         XCTAssertFalse(rows[2].text.contains("error"), rows[2].text)
-        XCTAssertTrue(rows[2].help?.isEmpty ?? true)
-        XCTAssertTrue(hosted.allText.contains("Error: hover the line for details"))
+        // The line says only when, the wait and the dot; the rest is the hover card's.
+        XCTAssertFalse(hosted.allText.contains("No endpoints found"), "the error itself waits for the hover")
+        XCTAssertFalse(hosted.allText.contains("Backup") || hosted.allText.contains("Spoke"), "no extra columns")
+        XCTAssertTrue(rows[0].help?.contains("Speech · qwen3-asr-0.6b: No endpoints found for qwen/qwen3-asr-0.6b.") == true,
+                      rows[0].help ?? "no help")
         XCTAssertTrue(hosted.allText.contains("1 failed"))
     }
 
     func testNoErrorsNoErrorLegend() {
         let hosted = host(RecentLatencyView(entries: Self.tonight, now: Self.now), size: NSSize(width: 680, height: 1400))
-        XCTAssertFalse(hosted.allText.contains("Error: hover"), "nothing to explain")
+        XCTAssertFalse(hosted.allText.contains(" Error"), "nothing to explain")
         XCTAssertFalse(hosted.allText.contains("failed"))
     }
 

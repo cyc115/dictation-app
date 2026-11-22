@@ -180,7 +180,9 @@ final class LocalSpeechTests: XCTestCase {
         let result = stopAndWait(engine, timeout: 3)
         XCTAssertNil(result.text)
         XCTAssertEqual(result.error, "The on-device model isn't loaded.")
-        XCTAssertNil(engine.lastAnswer)
+        // Which model failed and why, for History's failed dictations (Insights › Recent dictations).
+        XCTAssertEqual(engine.lastAnswer, ModelAnswer(main: "local:test/qwen", failures: [
+            .init(model: "local:test/qwen", message: "The on-device model isn't loaded.")], failed: true))
     }
 
     /// The real model on this Mac's GPU, through the app's own LocalEngine.stop(), on the bench's

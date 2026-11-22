@@ -32,20 +32,70 @@ struct RecentLatency {
         let speaking: TimeInterval
         let transcribing: TimeInterval
         let polishing: TimeInterval?
-        let transcribedByBackup: Bool
-        let polishedByBackup: Bool
-        /// What went wrong, one line per failed request, for the red dot's hover; nil: nothing did.
+        var transcribedBy: ModelAnswer?
+        var polishedBy: ModelAnswer?
+        /// What went wrong, one line per failed request (the hover card's red lines); nil: nothing did.
         var errors: String?
         /// It never became text (`FailedDictation`).
         var noText = false
 
+        var transcribedByBackup: Bool { transcribedBy?.byBackup == true }
+        var polishedByBackup: Bool { polishedBy?.byBackup == true }
         /// Stop → text: what you waited for.
         var wait: TimeInterval { transcribing + (polishing ?? 0) }
-        /// Which parts the backup answered: "speech", "polish", "speech, polish" or ""; "no text" for
-        /// a dictation that failed.
-        var backupLabel: String {
-            if noText { return "no text" }
-            return [transcribedByBackup ? "speech" : nil, polishedByBackup ? "polish" : nil].compactMap { $0 }.joined(separator: ", ")
+
+        /// The wait's parts for the hover card: how long, which model, and what the backup did.
+        var parts: [Part] {
+            var parts = [Part(phase: .speech, seconds: transcribing, answer: transcribedBy, noText: noText)]
+            if let polishing { parts.append(Part(phase: .polish, seconds: polishing, answer: polishedBy, noText: false)) }
+            return parts
+        }
+
+        /// Everything the hover card says, as text (VoiceOver reads it; tests check it).
+        var details: String {
+            var lines = ["Spoke \(spoke), waited \(Self.seconds(wait))" + (noText ? ", no text" : "")]
+            for part in parts {
+                lines.append("\(part.title) \(Self.seconds(part.seconds))" + (part.model.map { ", " + $0 } ?? "")
+                    + (part.note.map { " (\($0))" } ?? ""))
+            }
+            if let errors { lines.append(errors) }
+            return lines.joined(separator: "\n")
+        }
+
+        static func seconds(_ value: TimeInterval) -> String { TimeBreakdownView.number(value) + " s" }
+        /// How long you spoke: whole seconds under a minute ("8 s"), else "1:05".
+        var spoke: String { speaking < 59.5 ? "\(Int(speaking.rounded())) s" : TimeBreakdownView.number(speaking) }
+    }
+
+    /// One part of a dictation's wait, as the hover card shows it.
+    struct Part: Equatable {
+        let phase: Phase
+        let seconds: TimeInterval
+        /// The model whose answer was used, for display; nil when none was recorded or none answered.
+        let model: String?
+        /// What the backup did, or that no answer came; nil when the main model just answered.
+        let note: String?
+
+        var title: String { phase == .speech ? "Transcribing" : "Polishing" }
+
+        init(phase: Phase, seconds: TimeInterval, answer: ModelAnswer?, noText: Bool) {
+            self.phase = phase
+            self.seconds = seconds
+            let name = { (id: String?) in id.map(ModelAnswer.displayName) }
+            if answer?.failed == true || noText {
+                model = nil
+                note = phase == .speech ? "no text" : "gave up, pasted unpolished"
+            } else if let answer, answer.byBackup {
+                model = name(answer.model)
+                note = "the backup; \(name(answer.main) ?? "the main model") was late"
+            } else if let answer, let backup = answer.backup {
+                model = name(answer.main)
+                let failed = answer.failures?.contains { $0.model == backup } == true
+                note = "backup \(name(backup) ?? "") asked too" + (failed ? ", failed" : "")
+            } else {
+                model = name(answer?.main)
+                note = nil
+            }
         }
     }
 
@@ -113,7 +163,7 @@ struct RecentLatency {
         let timed = entries.filter { $0.transcribeSeconds != nil }.map(Self.row)
             + failed.map { f in
                 Row(id: f.id, date: f.date, speaking: f.duration, transcribing: f.seconds, polishing: nil,
-                    transcribedByBackup: false, polishedByBackup: false, errors: Self.errors(failed: f), noText: true)
+                    transcribedBy: f.transcribedBy, errors: Self.errors(failed: f), noText: true)
             }
         let all = timed.sorted { $0.date > $1.date }
         rows = window.seconds.map { seconds in all.filter { now.timeIntervalSince($0.date) <= seconds } } ?? Array(all.prefix(25))
@@ -126,8 +176,8 @@ struct RecentLatency {
 
     private static func row(_ e: HistoryEntry) -> Row {
         Row(id: e.id, date: e.date, speaking: e.duration, transcribing: e.transcribeSeconds ?? 0,
-            polishing: e.polishSeconds, transcribedByBackup: e.transcribedBy?.byBackup == true,
-            polishedByBackup: e.polishedBy?.byBackup == true, errors: errors(speech: e.transcribedBy, polish: e.polishedBy))
+            polishing: e.polishSeconds, transcribedBy: e.transcribedBy, polishedBy: e.polishedBy,
+            errors: errors(speech: e.transcribedBy, polish: e.polishedBy))
     }
 
     /// A failed dictation's hover: each model's failure (or what you were told, when no model was
@@ -184,7 +234,7 @@ struct RecentLatencyView: View {
     @Environment(\.dateContext) private var dates
 
     /// Slow waits in orange, very slow in red (`RecentLatency.Severity`).
-    private static func color(_ severity: RecentLatency.Severity) -> Color {
+    fileprivate static func color(_ severity: RecentLatency.Severity) -> Color {
         switch severity {
         case .normal: .primary
         case .slow: .orange
@@ -194,8 +244,8 @@ struct RecentLatencyView: View {
     /// A bar's full width; longer waits are cut off there (their number still shows).
     static let scale: TimeInterval = 10
 
-    private static let transcribing = Color(nsColor: .systemPurple)
-    private static let polishing = Color(nsColor: .systemOrange)
+    fileprivate static let transcribing = Color(nsColor: .systemPurple)
+    fileprivate static let polishing = Color(nsColor: .systemOrange)
 
     var body: some View {
         if let now { content(now) } else { TimelineView(.everyMinute) { content($0.date) } }
@@ -272,19 +322,18 @@ struct RecentLatencyView: View {
             legend(errors: latency.rows.contains { $0.errors != nil })
             HStack(spacing: 10) {
                 Text("Stopped").frame(width: 64, alignment: .leading)
-                Text("Spoke").frame(width: 44, alignment: .leading)
                 HStack {
                     Text("0"); Spacer(); Text("5 s"); Spacer(); Text("\(Int(Self.scale)) s+")
                 }
                 Text("Wait").frame(width: 52, alignment: .trailing)
-                Text("Backup").frame(width: 92, alignment: .leading)
+                Color.clear.frame(width: Self.dotSlot)
             }
             .font(.caption)
             .foregroundStyle(.secondary)
             VStack(spacing: 2) {
                 ForEach(latency.rows) { row(_: $0) }
             }
-            Text("Each line is one dictation: the wait after you stopped, split into its parts. Speaking time isn't drawn, so a long dictation doesn't hide a slow model.")
+            Text("Each line is one dictation: the wait after you stopped, split into its parts. Hover a line for how long you spoke, which models answered, the backup and any error.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -323,7 +372,7 @@ struct RecentLatencyView: View {
             if errors {
                 HStack(spacing: 6) {
                     ErrorDot()
-                    Text("Error: hover the line for details")
+                    Text("Error")
                 }
             }
         }
@@ -341,21 +390,17 @@ struct RecentLatencyView: View {
     private func row(_ row: RecentLatency.Row) -> some View {
         let wait = row.wait
         let severity = RecentLatency.Severity(wait)
+        let time = dates.string(row.date, .dateTime.hour().minute())
         return HStack(spacing: 10) {
-            Text(dates.string(row.date, .dateTime.hour().minute())).frame(width: 64, alignment: .leading)
-            Text(row.speaking < 59.5 ? "\(Int(row.speaking.rounded())) s" : TimeBreakdownView.number(row.speaking))
-                .foregroundStyle(.secondary)
-                .frame(width: 44, alignment: .leading)
+            Text(time).frame(width: 64, alignment: .leading)
             bar(row)
             Text(TimeBreakdownView.number(wait) + " s")
                 .fontWeight(.bold)
                 .foregroundStyle(Self.color(severity))
                 .frame(width: 52, alignment: .trailing)
-            HStack(spacing: 6) {
-                if row.errors != nil { ErrorDot().accessibilityLabel("error") }
-                Text(row.backupLabel).foregroundStyle(.secondary)
-            }
-            .frame(width: 92, alignment: .leading)
+            // The rest (spoke, models, backup, the error itself) is in the hover card.
+            Group { if row.errors != nil { ErrorDot().accessibilityLabel("error") } else { Color.clear } }
+                .frame(width: Self.dotSlot)
         }
         .font(.callout.monospacedDigit())
         .frame(height: 26)
@@ -363,10 +408,14 @@ struct RecentLatencyView: View {
         .background(severity == .verySlow ? Color.red.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 6))
         .padding(.horizontal, -6)
         .contentShape(Rectangle())  // the whole line hovers, gaps included
+        .modifier(HoverCard { LineCard(row: row, time: time) })
         .accessibilityElement(children: .combine)
-        .help(row.errors ?? "")  // after combining: once for the line, not once per cell
+        .accessibilityHint(row.details)  // after combining: once for the line, not once per cell
         .accessibilityIdentifier("recent.row")
     }
+
+    /// Room after the wait for a line's red dot, kept on every line so the waits line up.
+    static let dotSlot: CGFloat = 8
 
     private func bar(_ row: RecentLatency.Row) -> some View {
         GeometryReader { geo in
@@ -458,6 +507,83 @@ struct RecentLatencyView: View {
         .tileBackground()
     }
 
+}
+
+/// Shows `card` in a popover while the pointer rests on the view: after a moment, so sweeping
+/// across the lines doesn't flash a card for each; gone as soon as the pointer leaves.
+private struct HoverCard<Card: View>: ViewModifier {
+    @ViewBuilder let card: () -> Card
+    @State private var shown = false
+    @State private var pending: Task<Void, Never>?
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { inside in
+                pending?.cancel()
+                guard inside else { shown = false; return }
+                pending = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(350))
+                    if !Task.isCancelled { shown = true }
+                }
+            }
+            .popover(isPresented: $shown, attachmentAnchor: .point(.trailing), arrowEdge: .trailing) { card() }
+    }
+}
+
+/// A line's details: when, how long you spoke, each part of the wait with its model and what the
+/// backup did, and any error. The line itself shows only the bar and the wait.
+struct LineCard: View {
+    let row: RecentLatency.Row
+    let time: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(time).font(.headline)
+                Spacer()
+                Text("spoke \(row.spoke)").foregroundStyle(.secondary)
+            }
+            ForEach(row.parts, id: \.phase) { part in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Circle().fill(part.phase == .speech ? RecentLatencyView.transcribing : RecentLatencyView.polishing)
+                            .frame(width: 8, height: 8)
+                        Text(part.title)
+                        Spacer()
+                        Text(RecentLatency.Row.seconds(part.seconds)).fontWeight(.semibold)
+                    }
+                    Group {
+                        if let model = part.model { Text(model).foregroundStyle(.secondary) }
+                        if let note = part.note { Text(note).font(.caption).foregroundStyle(.secondary) }
+                    }
+                    .padding(.leading, 16)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Divider()
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Wait").fontWeight(.semibold)
+                Text(row.noText ? "nothing was typed" : "stop to text").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Text(RecentLatency.Row.seconds(row.wait)).fontWeight(.bold)
+                    .foregroundStyle(RecentLatencyView.color(RecentLatency.Severity(row.wait)))
+            }
+            if let errors = row.errors {
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(errors.components(separatedBy: "\n").filter { $0 != "Nothing was typed." }, id: \.self) { line in
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            ErrorDot()
+                            Text(line).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+        }
+        .font(.callout.monospacedDigit())
+        .padding(14)
+        .frame(width: 360, alignment: .leading)
+    }
 }
 
 /// A dictation with a failed request (`RecentLatency.Row.errors`): small, so a clean window stays clean.
