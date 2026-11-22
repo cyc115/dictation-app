@@ -107,15 +107,18 @@ final class JudgePassTests: XCTestCase {
         settings.setup = .onDevice
         settings.judgeUsesCloud = true
         intake.judgeBackend = { [unowned self] in FixJudge.backend(settings: settings) != nil ? judge : nil }
-        correct(five())
+        let ids = correct((1...11).map { ("ask cloud about item \($0)", "ask Claude about item \($0)") })
         intake.tabShown()
         XCTAssertEqual(intake.batches, 1)
         XCTAssertTrue(services.vocabulary.entries.isEmpty, "changes wait for the verdicts")
         settings.judgeUsesCloud = false
         answer()
-        XCTAssertEqual(judge.asked.count, 1)
-        XCTAssertEqual(history.entries.first?.intake?.changes.first?.verdict, .misheard, "the answer is used")
-        XCTAssertEqual(intake.batches, 1, "nothing more is sent")
+        XCTAssertEqual(judge.asked.map(\.count), [10])
+        let judged = history.entries.filter { $0.intake?.changes.first?.verdict == .misheard }
+        XCTAssertEqual(judged.count, 10, "the answer is used")
+        XCTAssertEqual(intake.batches, 1, "the 11th isn't sent once it's off")
+        XCTAssertTrue(FixJudge.pending(history.entries).map(\.id).allSatisfy(ids.contains))
+        XCTAssertEqual(FixJudge.pending(history.entries).count, 1)
     }
 
     func testABatchGoesOnceFiveFixesWait() {

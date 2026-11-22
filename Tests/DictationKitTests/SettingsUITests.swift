@@ -73,7 +73,7 @@ final class SettingsUITests: XCTestCase {
         let hosted = host(settings)
         let optIn = try XCTUnwrap(hosted.element(id: "setting.Send my fixes to the cloud for this"))
         XCTAssertFalse(settings.judgeUsesCloud, "off by default")
-        XCTAssertTrue(hosted.allText.contains("sends each fix (what the app wrote and what you wanted) to a cloud model"), hosted.allText)
+        XCTAssertTrue(hosted.allText.contains("sends each fix (what the app wrote and what you wanted) and your vocabulary's terms to a cloud model"), hosted.allText)
 
         XCTAssertTrue(hosted.click(optIn))
         XCTAssertTrue(makeSettings(self, defaults: defaults).judgeUsesCloud, "saved")

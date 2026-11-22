@@ -256,7 +256,7 @@ final class SnapshotTests: XCTestCase {
         settings.setOpenRouterKey("sk-test")
         let view = Form { VocabularySection(settings: settings, editStats: EditWatchStats(fileURL: makeTempURL(self, "edit-watch.json"))) }
             .formStyle(.grouped)
-        let hosted = host(view, size: NSSize(width: 760, height: 560))
+        let hosted = host(view, size: NSSize(width: 760, height: 600))
         assertSnapshot(of: hosted.hostingView, named: "settings-vocabulary-on-device-cloud-judge")
     }
 

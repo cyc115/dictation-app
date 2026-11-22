@@ -106,7 +106,8 @@ model, and your dictations are still polished on this Mac.
   default and with no Settings row, lets one read back from the text box with nothing unclear and no
   words only added train Learn without your Accept; it then shows with a "captured" badge among your
   corrections, its trash button takes it back out, and editing it makes it yours. Ones that trained
-  this way before the setting existed stay as they are.)
+  this way before the setting existed stay as they are; turning it on doesn't change captures
+  already judged.)
 - A correction you typed is labelled, never changed.
 
 ### Detailed analytics: where the wait went

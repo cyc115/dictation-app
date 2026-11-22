@@ -209,7 +209,8 @@ final class AppSettings: ObservableObject {
     @Setting("judgeUsesCloud", default: false) var judgeUsesCloud: Bool
     /// Let the judge make a clear captured edit `auto`, so it trains Learn without your Accept
     /// (`FixJudge.judged`). Off by default: every captured edit waits for Accept. No Settings row:
-    /// `DictationApp settings set trainOnUnreviewedCaptures on`. Captures already `auto` stay so.
+    /// `DictationApp settings set trainOnUnreviewedCaptures on`. Captures already `auto` stay so; it
+    /// applies to captures judged after it's turned on (ones already judged keep waiting).
     @Setting("trainOnUnreviewedCaptures", default: false) var trainOnUnreviewedCaptures: Bool
     /// A term fixed in this many different dictations is learned (`VocabularyIntake`). No Settings
     /// row: `DictationApp settings set vocabularyLearnAfter 5`. Below 1 counts as 1.
