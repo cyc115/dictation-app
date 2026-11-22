@@ -330,6 +330,26 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// Return in readback mode: the last read (instant here) is compared with the one before, a whole
+    /// 50k-character box, after the Return has gone on (`toMain`); this bounds that work.
+    func testReturnInABigBox() throws {
+        let services = makeServices(self)
+        services.settings.learnFromEdits = true
+        let desk = FakeEditDesk()
+        desk.attach(services.editWatcher)
+        let before = String(repeating: "Earlier text in a long document. ", count: 1_500)
+        let text = String(repeating: "I use cloud code every day. ", count: 36)
+        let id = try XCTUnwrap(services.history.add(text: text, duration: 1))
+        assertFaster(than: 0.05, iterations: 20, "edit watch: arm, a key and Return in a 50k-character box") {
+            desk.show(before + " " + text)
+            services.editWatcher.arm(spot: FakeDesk.slack, pasted: " " + text, text: text, entry: id)
+            desk.clock.advance(EditWatcher.probeDelay)
+            desk.type("x")
+            desk.show(before + " " + text.replacingOccurrences(of: "cloud", with: "Claude"))
+            desk.press([.returnKey])
+        }
+    }
+
     /// Keystroke mode applies each key to the pasted text in memory.
     func testTypedEditPerKey() {
         let text = String(repeating: "I use cloud code every day. ", count: 40)

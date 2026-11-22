@@ -12,20 +12,22 @@ call; nothing is added to the paste or to a keystroke.
 - `TypedEdit` (keystroke mode): the pasted text plus what's typed after it, a cursor and a
   selection, in memory. Applies `EditKey`s (text, ⌫, ⌦, ←/→, ⌥←/⌥→, ⌥⌫, ⇧-selections); anything it
   can't follow (another shortcut, a move into text it never saw, a word move over Chinese) gives
-  up. Text typed at the span's end starting with a space, or after text already typed there, is
-  outside the span.
+  up. Text typed at the span's end belongs to it up to the first space or sentence mark.
 - `SpanTracker` (readback mode): the box's value and the span's UTF-16 range. Each read is diffed
   against the last (common prefix and suffix): a change before the span shifts it, one inside it
-  grows or shrinks it, one after it (or an insertion at its end starting with a space) is outside.
-  A change that crosses the span's edge can't be told apart: the watch ends on the last good read.
-- `EditWatcher` (one per `DictationController`, like `GoBack`): `arm(spot, pasted, text, entry)`;
-  every step that touches the Mac is a closure (`read`, `isSecureField`, `secureInput`,
-  `inputMethodActive`, `listen` for keys, `watchClicks`, `watchApps`, `after`, `background`,
-  `toMain`, `syncRead`). Arming costs nothing on the main thread: the probe runs 0.15 s later
+  grows or shrinks it, one after it is outside (an insertion at its end, past the first space or
+  sentence mark). A change that crosses the span's edge, takes all of it, or leaves fewer than half
+  the paste's words (unless the keys agree) can't be told apart: the watch ends on the last good read.
+- `EditWatcher` (made once in `AppServices`, handed to `DictationController.editWatcher`):
+  `arm(spot, pasted, text, entry)`, `endNow()`; every step that touches the Mac is a closure (`read`,
+  `isSecureField`, `secureInput`, `inputMethodActive`, `bundleID`, `listen` for keys, `watchClicks`,
+  `watchApps`, `now`, `after`, `background`, `toMain`). Arming costs nothing on the main thread: the probe runs 0.15 s later
   (the app has taken the ⌘V by then) on a background queue; keys typed meanwhile go into a
   `TypedEdit` so nothing is lost if the probe fails. Pause reads (0.7 s after the last key) run in
   the background too. Only the read before a Return blocks the key, capped at 50 ms (a background
-  read waited on with a timeout); the capture is stored after the Return has been passed on.
+  read waited on with a timeout); comparing that read and storing the capture wait until the Return
+  has been passed on. Readback mode also keeps a `TypedEdit`, to trim text typed right after the span
+  when the keys agree with the box, and reads the box on a click and 0.3 s after it.
 - Keys: `HotkeyManager.handleTap` (the existing tap, which sees every key-down before the app does)
   calls `onKey` when it's set, skipping this app's own keys (`syntheticMarker`: the paste's ⌘V
   reaches the tap after the watch is armed). Nil when no watch is armed: one check. Not fed from

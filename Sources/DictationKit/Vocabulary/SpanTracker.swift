@@ -30,9 +30,12 @@ struct SpanTracker {
         Set(WordDiff.words(text).map { text[$0].lowercased().trimmingCharacters(in: .punctuationCharacters) }.filter { !$0.isEmpty })
     }
 
-    /// The span still has a word of the paste in it. When it hasn't ("I use cloud" became "ok sounds
-    /// good": sent, and a new message typed), only your keys can say it's still an edit of it.
-    var sharesAWordWithThePaste: Bool { !pastedWords.isDisjoint(with: Self.words(span)) }
+    /// At least half the paste's words are still in the span. When they aren't ("I use cloud for the
+    /// project" became "I think the plan is fine": sent, and a new message typed), only your keys can
+    /// say it's still an edit of it.
+    var keepsThePaste: Bool {
+        pastedWords.intersection(Self.words(span)).count * 2 >= pastedWords.count && !pastedWords.isEmpty
+    }
 
     /// Where text typed at the span's edge stops belonging to it: a space, a line break or a
     /// sentence mark.

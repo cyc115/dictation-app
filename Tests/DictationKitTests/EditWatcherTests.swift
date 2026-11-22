@@ -152,10 +152,13 @@ final class SpanTrackerTests: XCTestCase {
         XCTAssertFalse(t.update(""), "the box cleared")
         XCTAssertEqual(t.span, "I use cloud")
         XCTAssertTrue(t.update("ok sounds good"), "the box's text changes…")
-        XCTAssertFalse(t.sharesAWordWithThePaste, "…but none of the paste is left: only keys can say it's an edit")
+        XCTAssertFalse(t.keepsThePaste, "…but none of the paste is left: only keys can say it's an edit")
         var u = tracker("Hi I use cloud", pasted: " I use cloud")!
         XCTAssertTrue(u.update("Hi I use Claude"))
-        XCTAssertTrue(u.sharesAWordWithThePaste)
+        XCTAssertTrue(u.keepsThePaste)
+        var v = tracker("I use cloud for the project", pasted: "I use cloud for the project")!
+        XCTAssertTrue(v.update("I think the plan is fine"))
+        XCTAssertFalse(v.keepsThePaste, "two common words of six")
     }
 
     /// Typed onto its last word, only up to the first space or sentence mark is the span's.
@@ -392,6 +395,46 @@ final class EditWatcherTests: XCTestCase {
         desk.type("ok sounds good"); desk.show("ok sounds good")
         desk.press([.returnKey])
         XCTAssertNil(capture)
+    }
+
+    /// The same with common words in both, and in Chinese, after a click on Send (read on the
+    /// mouse-down, before the box empties).
+    func testANewMessageSharingCommonWordsIsNotAnEdit() {
+        for (dictated, next) in [("I use cloud for the project", "I think the plan is fine"), ("我用克劳的做项目", "我觉得可以")] {
+            let id = history.add(text: dictated, duration: 1)!
+            desk.show(dictated)
+            watcher.arm(spot: FakeDesk.slack, pasted: dictated, text: dictated, entry: id)
+            desk.clock.advance(EditWatcher.probeDelay)
+            desk.clicks?()
+            desk.type(next); desk.show(next)
+            desk.press([.returnKey])
+            XCTAssertNil(capture, next)
+        }
+    }
+
+    /// After a click the box is read again a moment later: a send that emptied it ends the watch.
+    func testTheBoxIsReadAgainAfterAClick() {
+        paste("I use cloud")
+        desk.type("x"); desk.show("Hi I use Claude")
+        desk.clicks?()
+        desk.show("Hi ")
+        desk.clock.advance(EditWatcher.afterClick)
+        XCTAssertFalse(watcher.isWatching)
+        XCTAssertEqual(capture?.edited, "I use Claude")
+    }
+
+    /// A one-word dictation retyped after selecting it with the mouse leaves no word of the paste,
+    /// and the keys don't know the selection: nothing is kept (keep less). Selected with ⇧⌥← it is.
+    func testAOneWordFixNeedsTheKeysToAgree() {
+        paste("cloud")
+        desk.clicks?()
+        desk.type("Claude"); desk.show("Hi Claude")
+        desk.press([.returnKey])
+        XCTAssertNil(capture)
+        paste("cloud")
+        desk.press([EditKey.wordLeft.shifted]); desk.type("Claude"); desk.show("Hi Claude")
+        desk.press([.returnKey])
+        XCTAssertEqual(capture?.edited, "Claude")
     }
 
     func testTheProbeFailsWhenThePasteIsntWhereTheCursorIs() {

@@ -59,7 +59,8 @@ struct CorrectionsView: View {
                     .onTabShown {
                         guard let editing else { return }
                         proxy.scrollTo(editing, anchor: .center)
-                        focused = editing
+                        // A waiting edit opens as it is, for Accept or Dismiss: no editor to put the cursor in.
+                        if store.entries.first(where: { $0.id == editing })?.isWaiting != true { focused = editing }
                     }
                 }
             }

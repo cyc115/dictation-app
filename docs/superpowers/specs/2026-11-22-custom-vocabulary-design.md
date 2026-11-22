@@ -242,8 +242,8 @@ delays typing.
 - **Timing:** arming does no Accessibility call; the probe runs 0.15 s after the paste (the app
   takes the ⌘V asynchronously) on a background queue, and keys typed before it has an answer go
   into a `TypedEdit`, so none is lost if it fails. Pause and final reads are off the main thread
-  too. The read before a Return is a background read waited on for at most 50 ms; the capture is
-  saved after the Return has gone on. A new dictation ends the watch from what it has, with no read
+  too. The read before a Return is a background read waited on for at most 50 ms; comparing it
+  with the last read and saving the capture wait until the Return has gone on. A new dictation ends the watch from what it has, with no read
   in `start()`; an app change and the time limits do one last background read.
 - **Keys** come from the event tap only (it sees each key before the app; the global monitor would
   apply each twice), skipping the app's own `syntheticMarker` keys: the paste's ⌘V reaches the tap
@@ -255,9 +255,11 @@ delays typing.
   Text typed right at its start is the dictation's only when nothing was put in front of the paste
   (an empty box, or after a space). In readback, a read whose change crosses the span's edge or
   takes all of it (the box cleared by a send button, a selection reaching past it) ends the watch
-  on the last good read, and so does one that leaves no word of the paste in the span unless your
-  keys say that's what you typed (sent, then a new message typed by hand, is not an edit). A click
-  reads the box at once. Readback keeps a `TypedEdit` alongside: when your keys agree with the box,
+  on the last good read, and so does one that leaves fewer than half the paste's words in the span
+  unless your keys say that's what you typed (sent, then a new message typed by hand, is not an
+  edit; a one-word dictation retyped after selecting it with the mouse is lost to this). A click
+  reads the box at once (a send button acts on mouse-up, so that's the box before it) and again
+  0.3 s later (an emptied box ends the watch). Readback keeps a `TypedEdit` alongside: when your keys agree with the box,
   they trim text typed after the span in the same burst ("cloud." → "Claude. and more" with no
   pause); when they don't (autocorrect, an app's own completion), the read stands, which can keep
   text typed onto the last word without a space (Chinese has none).

@@ -95,6 +95,23 @@ final class CorrectionsUITests: XCTestCase {
         XCTAssertEqual(store.corrections.count, 1)
     }
 
+    /// Opened from History's pencil, a waiting edit stays a waiting card (no editor started from what
+    /// the app wrote).
+    func testAWaitingEditOpenedFromHistoryStaysWaiting() throws {
+        let services = makeServices(self)
+        let store = services.history
+        let id = try XCTUnwrap(store.add(text: "I use cloud.", duration: 1))
+        store.setCapture(Capture(edited: "I use Claude.", mode: .keystrokes, app: "Notes"), for: id)
+        let selection = TabSelection()
+        let hosted = host(MainView(selection: selection, services: services), size: NSSize(width: 860, height: 620))
+        selection.editing = id  // as History's pencil does
+        selection.tab = .corrections
+        hosted.settle()
+        XCTAssertNotNil(hosted.element(id: "corrections.waitingCard"))
+        XCTAssertNil(hosted.element(id: "corrections.card"))
+        XCTAssertNil(store.entries[0].correction)
+    }
+
     /// The pencil on a dictation whose edit is waiting opens it as it is, instead of starting over
     /// from what the app wrote.
     func testThePencilOnAWaitingEditOpensIt() throws {

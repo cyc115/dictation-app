@@ -40,6 +40,8 @@ final class EditWatcher {
     static let timeLimit: TimeInterval = 120
     /// The longest a Return is held back for the last read.
     static let returnReadLimit: TimeInterval = 0.05
+    /// A click is read again this long after (the app has acted on it by then).
+    static let afterClick: TimeInterval = 0.3
     /// A timer this close to its time counts as on time (not re-armed for a sliver).
     private static let slack: TimeInterval = 0.01
 
@@ -164,8 +166,12 @@ final class EditWatcher {
             watch.mode = .readback(tracker)
             // Keys typed before this read may not be in it: read again once typing pauses.
             if watch.keys > 0 { schedulePause(watch) }
-            // A click may have moved the cursor or sent the text: read now, before anything else changes.
-            watchClicks { [weak self] in self?.readInBackground(watch) }
+            // A click may have moved the cursor or sent the text: read now (a send button acts on the
+            // mouse-up, so this is the box before it), and again shortly (an emptied box ends the watch).
+            watchClicks { [weak self] in
+                self?.readInBackground(watch)
+                self?.after(Self.afterClick) { [weak self] in self?.readInBackground(watch) }
+            }
             return
         }
         record { $0.probeFailed(in: app) }
@@ -195,10 +201,15 @@ final class EditWatcher {
     /// The last read (only if keys were pressed since the one before), held to `returnReadLimit`,
     /// then the watch ends; what's saved is saved once the Return has gone on.
     private func returnPressed(_ watch: Watch) {
-        if case .readback = watch.mode, watch.keys - 1 > watch.keysRead, let box = readWithin(watch.spot, Self.returnReadLimit) {
-            take(box, into: watch)
+        listen(nil)
+        var box: Read?
+        if case .readback = watch.mode, watch.keys - 1 > watch.keysRead { box = readWithin(watch.spot, Self.returnReadLimit) }
+        // Comparing the read with the last one (the whole box) waits until the Return has gone on.
+        toMain { [weak self] in
+            guard let self, watch === self.watch else { return }
+            if let box { self.take(box, into: watch) }
+            self.end(watch, read: false)
         }
-        if watch === self.watch { end(watch, read: false) }
     }
 
     /// Reads on a background thread and waits at most `limit` for it.
@@ -266,7 +277,7 @@ final class EditWatcher {
         guard !secureInput() else { return stop() }
         // Followed, and either still an edit of the paste or your keys say it is.
         let followed = tracker.update(box.value)
-            && (tracker.sharesAWordWithThePaste || watch.typed?.span == tracker.span)
+            && (tracker.keepsThePaste || watch.typed?.span == tracker.span)
         if followed { watch.mode = .readback(tracker) }
         watch.keysRead = keys ?? watch.keys
         if !followed || !box.focused { end(watch, read: false) }
