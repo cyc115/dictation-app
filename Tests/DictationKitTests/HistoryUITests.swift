@@ -187,8 +187,8 @@ final class CorrectionsUITests: XCTestCase {
         XCTAssertNil(CorrectionSuggester.backend(apiKey: "", setup: .cloudFlash, vocabulary: .none), "no key, no suggestion")
     }
 
-    /// Your dictations go to the cloud only when you picked a cloud model: on a setup that polishes on
-    /// this Mac there's no suggestion, even with a key; a cloud setup gets one.
+    /// The suggestion follows polish: on a setup that polishes on this Mac there's none, even with a
+    /// key (and even with cloud speech); a cloud setup gets one.
     func testNoSuggestionOnASetupThatPolishesOnThisMac() throws {
         XCTAssertNil(CorrectionSuggester.backend(apiKey: "k", setup: .onDevice, vocabulary: .none))
         let cloudSpeechApplePolish = try JSONDecoder().decode(DictationSetup.self, from: Data(

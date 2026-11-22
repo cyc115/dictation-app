@@ -305,7 +305,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     static let builtInJSON = """
         [
           {"id": "on-device", "title": "On-device",
-           "summary": "Runs on this Mac: your dictations stay on it (command mode goes online only if its model is a cloud one). Hears English and Chinese, mixed too. Text in about a second.",
+           "summary": "Runs on this Mac: your dictations stay on it; only command mode can send what you say online. Hears English and Chinese, mixed too. Text in about a second.",
            "speech": "local:mlx-community/Qwen3-ASR-1.7B-8bit", "polish": "apple", "prompt": "v3", "wrap": true},
           {"id": "cloud-flash", "title": "Cloud Flash",
            "summary": "Fastest cloud model — text in about half a second. Handles English mixed into Chinese. Audio is sent to the cloud when you stop.",

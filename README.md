@@ -35,8 +35,8 @@ command isn't misheard; press it twice to just press Return.
 
 The *On-device* setup runs Qwen3-ASR on your Mac's GPU: text about a second after you stop, no
 network stalls, English, Chinese and both mixed. The model (2.5 GB) downloads once from Hugging
-Face, with progress in Settings. Nothing you dictate is sent anywhere; the one thing that can go
-online is command mode, when its model is a cloud one ([Privacy](#privacy)). Prefer the cloud? *Cloud Flash* is about 0.5 s
+Face, with progress in Settings. Nothing you dictate is sent anywhere; the one thing that can send
+what you say is command mode ([Privacy](#privacy)). Prefer the cloud? *Cloud Flash* is about 0.5 s
 ([setups](#usage)), and you can add [your own](docs/custom-setups.md).
 
 ![Settings: picking On-device downloads the speech model, then it's ready](docs/images/on-device.gif)
@@ -56,8 +56,8 @@ corrections, one click tunes the cloud setups' polish prompt from them: a strong
 three ways, your own polish model runs each, and the best becomes the next version. You see its
 score on your corrections (cross-validated) and on a general test set before you keep it.
 
-On a cloud setup, starting a correction also asks a cloud model for a first draft (GPT-6.1 Sol Pro
-by default); on a setup that polishes on this Mac it starts as the app wrote it and sends nothing. Pick
+With cloud polish, starting a correction also asks a cloud model for a first draft (GPT-6.1 Sol Pro
+by default); with polish on this Mac it starts as the app wrote it and sends nothing. Pick
 another OpenRouter model with `DictationApp settings set correctionModel <model id>`. Thinking is
 off for every model, or at the lowest effort for one that can't turn it off.
 
@@ -268,7 +268,8 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
 - With the On-device setup, your audio and dictations never leave your Mac: no polish, Corrections
   suggestion, Learn or judge call goes to the cloud. The exception is command mode, which you set up
   yourself: it sends what you say as a command to its model when that is a cloud one (unless
-  *Decide commands on this Mac* is on; `create` and `fix` always go online).
+  *Decide commands on this Mac* is on; `create` always goes online, and `fix` opens a Claude Code
+  session).
 - Checking for updates (once a day; Settings › Updates turns it off) fetches the latest release's
   appcast from GitHub, which sends nothing about you but your IP address and the app's version.
 - Audio is thrown away once it's transcribed, unless you turn on *Keep recordings* (commands'
@@ -291,7 +292,7 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
 - Your vocabulary stays on this Mac, in `vocabulary.json`, with the terms seen in your corrections
   (each with what the app wrote and the ids of the dictations it was in). The word changes worked
   out from each correction are kept with it in your history. Its terms go where polish already goes:
-  OpenRouter on the cloud setups, Apple Intelligence on-device. On a cloud setup with an API key,
+  OpenRouter on the cloud setups, Apple Intelligence on-device. With cloud polish and an API key,
   Corrections' suggested text and Learn also send them to OpenRouter, as they do your corrections.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted),
   including captured edits you accepted (and any the judge let train unreviewed: only with

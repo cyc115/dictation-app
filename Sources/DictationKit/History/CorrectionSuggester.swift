@@ -9,8 +9,8 @@ import SwiftUI
 /// an occasional correction. Thinking is always off, or the lowest effort for a model that can't
 /// turn it off (`OpenRouter.reasoning(for:)`). Asks once, when the pencil makes the correction; the
 /// answer replaces the app's text only if you haven't typed yet. Without a cloud API key, or on a
-/// setup that polishes on this Mac (your dictations go to the cloud only when you picked a cloud
-/// model), the correction stays as the app wrote it and nothing is sent.
+/// setup that polishes on this Mac (the suggestion follows polish: polish on this Mac, nothing
+/// sent), the correction stays as the app wrote it.
 final class CorrectionSuggester: ObservableObject {
     static let defaultModel = "openai/gpt-6.1-sol-pro"
     /// Suggests nothing (no model): the default where no suggester is handed in.
