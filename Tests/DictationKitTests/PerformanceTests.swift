@@ -242,6 +242,25 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// Vocabulary replacement runs twice between stop and paste (before and after polish): it's the
+    /// only wait vocabulary adds. A long dictation (~1,500 words, English and Chinese) with 200 terms.
+    func testVocabularyApplyOnALongDictation() {
+        let added = fixedDate(2026, 11, 1, 9, 0)
+        var entries = (0..<190).map { VocabularyEntry(term: "Term\($0)", heardAs: ["turn \($0)", "term number \($0)"], added: added) }
+        entries += [VocabularyEntry(term: "Claude", heardAs: ["cloud", "Coloule"], added: added),
+                    VocabularyEntry(term: "GeForce Now", heardAs: ["G Four Snow"], added: added),
+                    VocabularyEntry(term: "HRV", heardAs: ["而差v"], added: added)]
+        entries += (0..<7).map { VocabularyEntry(term: "术语\($0)", heardAs: ["树雨\($0)"], added: added) }
+        let vocabulary = Vocabulary(entries)
+        let sentence = "so I asked cloud about the G Four Snow setup and turn 42 again, 我的而差v一般 then we moved on. "
+        let text = String(repeating: sentence, count: 80)
+        var out = ""
+        assertFaster(than: 0.03, iterations: 10, "vocabulary apply: 200 terms, a long dictation") {
+            out = vocabulary.apply(text).text
+        }
+        XCTAssertTrue(out.contains("Claude about the GeForce Now setup and Term42 again, 我的HRV一般"))
+    }
+
     /// Also report XCTest's own metrics (visible in the test log; no pass/fail outside Xcode).
     func testMicLevelMetrics() {
         let buffer = makeBuffer(amplitude: 0.2)
