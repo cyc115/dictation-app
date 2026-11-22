@@ -7,6 +7,7 @@
  "setup": "cloud-flash",
  "maxCost": 0.5,
  "learnAfter": 3,
+ "learnedWithoutSource": 1,
  "parts": [
   1,
   2,
@@ -17,6 +18,80 @@
  ],
  "dictations": [
   {
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "heldOut": [
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000001",
+     "term": "notes",
+     "heardAs": [
+      "nodes"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-11-02T00:00:00Z",
+     "uses": 2
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000002",
+     "term": "Claude",
+     "heardAs": [
+      "克劳的",
+      "cloud"
+     ],
+     "enabled": true,
+     "source": "manual",
+     "added": "2026-10-20T00:00:00Z",
+     "uses": 5
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000003",
+     "term": "reMarkable",
+     "heardAs": [
+      "remarkable"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-11-04T00:00:00Z",
+     "uses": 1
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000004",
+     "term": "Hammerspoon",
+     "heardAs": [
+      "hammer spoon",
+      "hammers poon"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-11-05T00:00:00Z",
+     "uses": 0
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000005",
+     "term": "Kubernetes",
+     "heardAs": [
+      "cooper netties"
+     ],
+     "enabled": false,
+     "source": "manual",
+     "added": "2026-10-01T00:00:00Z",
+     "uses": 0
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000007",
+     "term": "Zettlr",
+     "heardAs": [
+      "zettler"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-10-15T00:00:00Z",
+     "uses": 0
+    }
+   ],
+   "recording": null
+  },
+  {
    "id": "DDDDDDDD-0000-4000-8000-000000000004",
    "heldOut": [
     {
@@ -73,6 +148,28 @@
      "enabled": false,
      "source": "manual",
      "added": "2026-10-01T00:00:00Z",
+     "uses": 0
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000006",
+     "term": "Neovim",
+     "heardAs": [
+      "neo vim"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-11-05T00:00:00Z",
+     "uses": 0
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000007",
+     "term": "Zettlr",
+     "heardAs": [
+      "zettler"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-10-15T00:00:00Z",
      "uses": 0
     }
    ],
@@ -137,6 +234,28 @@
      "source": "manual",
      "added": "2026-10-01T00:00:00Z",
      "uses": 0
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000006",
+     "term": "Neovim",
+     "heardAs": [
+      "neo vim"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-11-05T00:00:00Z",
+     "uses": 0
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000007",
+     "term": "Zettlr",
+     "heardAs": [
+      "zettler"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-10-15T00:00:00Z",
+     "uses": 0
     }
    ],
    "recording": null
@@ -199,6 +318,28 @@
      "source": "manual",
      "added": "2026-10-01T00:00:00Z",
      "uses": 0
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000006",
+     "term": "Neovim",
+     "heardAs": [
+      "neo vim"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-11-05T00:00:00Z",
+     "uses": 0
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000007",
+     "term": "Zettlr",
+     "heardAs": [
+      "zettler"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-10-15T00:00:00Z",
+     "uses": 0
     }
    ],
    "recording": null
@@ -250,6 +391,28 @@
      "enabled": false,
      "source": "manual",
      "added": "2026-10-01T00:00:00Z",
+     "uses": 0
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000006",
+     "term": "Neovim",
+     "heardAs": [
+      "neo vim"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-11-05T00:00:00Z",
+     "uses": 0
+    },
+    {
+     "id": "AAAAAAAA-0000-4000-8000-000000000007",
+     "term": "Zettlr",
+     "heardAs": [
+      "zettler"
+     ],
+     "enabled": true,
+     "source": "learned",
+     "added": "2026-10-15T00:00:00Z",
      "uses": 0
     }
    ],
@@ -259,6 +422,26 @@
  "polish": [
   {
    "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "arm": "held-out"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "arm": "terms-only"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "arm": "off"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "arm": "again"
+  },
+  {
+   "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000004",
    "arm": "held-out"
   },
@@ -335,6 +518,26 @@
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "arm": "off"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "arm": "held-out"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "arm": "again"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "arm": "terms-only"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
    "arm": "off"
   },
   {

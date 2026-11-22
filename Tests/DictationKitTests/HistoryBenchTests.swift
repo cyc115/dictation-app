@@ -453,7 +453,7 @@ final class HistoryBenchTests: XCTestCase {
         let setup = try XCTUnwrap(part(0).first { $0["kind"] as? String == "setup" })
         XCTAssertEqual(setup["setup"] as? String, "cloud-flash")
         XCTAssertEqual(setup["prompt"] as? String, "v7")
-        XCTAssertEqual(part(0).filter { $0["kind"] as? String == "dictation" && $0["error"] == nil }.count, 4)
+        XCTAssertEqual(part(0).filter { $0["kind"] as? String == "dictation" && $0["error"] == nil }.count, 5)
 
         // Part 1: the real request per arm; the stub echoes the transcript, so only replacement fixes a word.
         let polish = part(1)
@@ -469,6 +469,8 @@ final class HistoryBenchTests: XCTestCase {
         XCTAssertFalse(output("held-out", 4).contains("Hammerspoon"))
         XCTAssertTrue(output("again", 2).contains("Claude"))
         XCTAssertFalse(output("held-out", 2).contains("Claude"), "its variant came from this dictation alone")
+        XCTAssertTrue(output("again", 9).contains("Neovim"))
+        XCTAssertFalse(output("held-out", 9).contains("Neovim"), "a learned entry whose candidate says nothing: History names its source")
         let systems = StubURLProtocol.sent.compactMap { (StubURLProtocol.body($0)?["messages"] as? [[String: Any]])?.first?["content"] as? String }
         XCTAssertEqual(systems.count, job.polish.count)
         XCTAssertEqual(systems.filter { $0.contains(Vocabulary.promptHeader) }.count, job.polish.filter { $0.arm != "off" }.count,
@@ -489,14 +491,14 @@ final class HistoryBenchTests: XCTestCase {
         XCTAssertEqual(Set(hits.compactMap { $0["id"] as? String }).count, hits.count)
         XCTAssertTrue(hits.contains { $0["id"] as? String == "EEEEEEEE-0000-4000-8000-000000000003" }, "an unfixed dictation with an ordinary word")
         let entries = part(3).filter { $0["kind"] as? String == "entry" }
-        XCTAssertEqual(entries.count, 4, "enabled entries")
+        XCTAssertEqual(entries.count, 6, "enabled entries")
         func flags(_ term: String) -> [String: Any] { (entries.first { $0["term"] as? String == term }?["variants"] as? [[String: Any]])?.first ?? [:] }
         XCTAssertEqual(flags("notes")["ordinary"] as? Bool, true)
         XCTAssertEqual(flags("reMarkable")["caseOnly"] as? Bool, true)
         XCTAssertEqual(flags("Hammerspoon")["ordinary"] as? Bool, false)
 
         // Part 4: a time per dictation with a raw transcript.
-        XCTAssertEqual((part(4).first?["seconds"] as? [Double])?.count, 8)
+        XCTAssertEqual((part(4).first?["seconds"] as? [Double])?.count, 9)
 
         // Part 5: the rules count a change of mind; the judge doesn't.
         func terms(_ method: String) -> Set<String> {
@@ -508,8 +510,8 @@ final class HistoryBenchTests: XCTestCase {
 
         // Part 6: every fix rebuilt by both trackers; Chinese flagged as needing an input method.
         let replays = part(6)
-        XCTAssertEqual(replays.count, 8)
-        XCTAssertEqual(replays.filter { $0["exact"] as? Bool == true }.count, 8)
+        XCTAssertEqual(replays.count, 10)
+        XCTAssertEqual(replays.filter { $0["exact"] as? Bool == true }.count, 10)
         XCTAssertEqual(Set(replays.filter { $0["needsInputMethod"] as? Bool == true }.compactMap { $0["id"] as? String }), [id(2)])
 
         let done = try XCTUnwrap(rows.last)

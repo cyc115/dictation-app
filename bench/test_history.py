@@ -72,9 +72,9 @@ def test_word_errors_are_the_benchs():
 def test_the_test_set_is_your_judged_fixes():
     """Corrections and accepted captures whose word changes have verdicts; not a waiting or auto capture,
     not an unjudged fix, not one whose word changes are from an older version of it."""
-    assert [e["id"] for e in h.test_set(HISTORY)] == [D(4), D(3), D(2), D(1)]
-    assert [e["id"] for e in h.test_set(HISTORY, limit=2)] == [D(4), D(3)], "--limit: the newest N"
-    assert sum(len(h.mishearings(e)) for e in h.test_set(HISTORY)) == 5
+    assert [e["id"] for e in h.test_set(HISTORY)] == [D(9), D(4), D(3), D(2), D(1)]
+    assert [e["id"] for e in h.test_set(HISTORY, limit=2)] == [D(9), D(4)], "--limit: the newest N"
+    assert sum(len(h.mishearings(e)) for e in h.test_set(HISTORY)) == 6
 
 
 def test_recordings_match_by_time_and_text():
@@ -96,14 +96,29 @@ def test_the_fixtures_recordings():
 
 
 def test_held_out_drops_only_what_this_dictation_taught():
-    terms = lambda d: {e["term"]: e["heardAs"] for e in h.held_out(VOCABULARY, d)}
+    terms = lambda d: {e["term"]: e["heardAs"] for e in h.held_out(VOCABULARY, d, HISTORY)}
     assert "notes" not in terms(D(1)), "a learned entry from this dictation alone"
     assert terms(D(2))["Claude"] == ["cloud"], "a variant from it alone goes; the entry you typed stays (any-case id)"
     assert terms(D(3))["reMarkable"] == ["remarkable"], "seen in two dictations: stays"
     assert terms(D(4))["Hammerspoon"] == ["hammers poon"], "its other variant and the entry stay"
     assert terms(D(1))["Kubernetes"] == ["cooper netties"]
     orphan = {"entries": [{"term": "X", "heardAs": ["ex"], "source": "learned"}], "candidates": []}
-    assert h.held_out(orphan, D(1)) == orphan["entries"], "nothing says where it came from: it stays"
+    assert h.held_out(orphan, D(1), HISTORY) == orphan["entries"], "nothing says where it came from: it stays"
+
+
+def test_held_out_finds_sources_in_history_too():
+    """A candidate that stopped counting is kept with `heard: []`: History still says which dictation taught the entry."""
+    neovim = next(c for c in VOCABULARY["candidates"] if c["term"] == "Neovim")
+    assert neovim["heard"] == []
+    assert "Neovim" not in {e["term"] for e in h.held_out(VOCABULARY, D(9), HISTORY)}, "its one source, found in History"
+    assert "Neovim" in {e["term"] for e in h.held_out(VOCABULARY, D(4), HISTORY)}
+    assert "Zettlr" in {e["term"] for e in h.held_out(VOCABULARY, D(9), HISTORY)}, "no known source: kept"
+    assert h.unsourced(VOCABULARY, HISTORY) == 1
+    cased = [{**e, "intake": {**e["intake"], "changes": [{"old": "Neo Vim.", "new": "neovim", "verdict": "misheard"}]}}
+             if e["id"] == D(9) else e for e in HISTORY]
+    assert "Neovim" not in {e["term"] for e in h.held_out(VOCABULARY, D(9), cased)}, "edges trimmed, any case"
+    plain = {**VOCABULARY, "candidates": []}
+    assert {e["term"]: e["heardAs"] for e in h.held_out(plain, D(2), HISTORY)}["Claude"] == ["cloud"], "History alone is enough"
 
 
 def test_arms_are_interleaved_per_dictation():
@@ -147,7 +162,8 @@ def test_dry_run_sends_nothing(monkeypatch, capsys, tmp_path):
     refuse = no_network(monkeypatch)
     assert h.cmd_run(run_args("--dry-run", out=tmp_path), harness_run=refuse) == 0
     out = capsys.readouterr().out
-    assert "48 polish calls (4 × 4 arms × 3 rounds)" in out
+    assert "60 polish calls (5 × 4 arms × 3 rounds)" in out
+    assert "1 learned entries with no known source (kept in held out)" in out
     assert "3 on-device transcriptions (1 clips × 3 arms)" in out
     assert "dry run: nothing sent" in out
     assert not list(tmp_path.iterdir()), "no result file"
@@ -177,7 +193,7 @@ def test_the_estimate_counts_every_arm():
     job = h.build_job(folder, chosen, {}, [1], 3, 1, "cloud-flash", 0.5, 3)
     setup = h.resolve_setup("cloud-flash", folder)
     plan = h.estimate(job, HISTORY, VOCABULARY, setup, h.PRICES)
-    assert plan["polish_calls"] == 4 * 4 * 3
+    assert plan["polish_calls"] == 5 * 4 * 3
     off = h.estimate({**job, "polish": [t for t in job["polish"] if t["arm"] == "off"]}, HISTORY, VOCABULARY, setup, h.PRICES)
     told = h.estimate({**job, "polish": [t for t in job["polish"] if t["arm"] == "terms-only"]}, HISTORY, VOCABULARY, setup, h.PRICES)
     assert told["tokens_in"] > off["tokens_in"], "the terms block costs tokens"
@@ -281,13 +297,14 @@ def test_the_report_has_totals_only(monkeypatch, capsys, tmp_path):
         assert not found.search(summary), f"{text!r} in the summary"
     assert "Claude" in h.details_text(result), "the local details do have text"
     s = result["summary"]["parts"]
-    assert s["1"]["of"] == 5 and s["1"]["arms"]["off"]["fixed"]["mean"] == 0
-    assert s["1"]["arms"]["again"]["fixed"]["mean"] == 4, "every mishearing with a variant (茶 has none)"
+    assert s["1"]["of"] == 6 and s["1"]["arms"]["off"]["fixed"]["mean"] == 0
+    assert s["1"]["arms"]["again"]["fixed"]["mean"] == 5, "every mishearing with a variant (茶 has none)"
     assert s["1"]["arms"]["held-out"]["fixed"]["mean"] == 1, "only reMarkable, seen in another dictation too"
+    assert "1 learned entries with no known source: kept in held out" in report
     assert s["4"]["polish"]["terms-only"]["p50_change"] == pytest.approx(0.1)
-    assert s["6"]["keystrokes"] == {"exact": 3, "of": 3, "captured": 3, "missesPastTheEdge": 0, "inputMethod": 1, "inputMethodExact": 1}
+    assert s["6"]["keystrokes"] == {"exact": 4, "of": 4, "captured": 4, "missesPastTheEdge": 0, "inputMethod": 1, "inputMethodExact": 1}
     assert s["6"]["app"] == {"apps": 2, "armed": 8, "probesFailed": 4, "gaveUp": 2}
-    assert s["5"]["added"] == 4 and s["5"]["dismissed"] == 1
+    assert s["5"]["added"] == 5 and s["5"]["dismissed"] == 1
     assert s["5"]["methods"]["rules"]["dismissed"]["proposed"] == 1 and s["5"]["methods"]["judge"]["dismissed"]["proposed"] == 0
     assert "has your text" in printed
 

@@ -32,6 +32,17 @@
     "intake": {"of": "Push it to the main branch on GitHub.", "changes": [{"old": "get hub", "new": "GitHub", "verdict": "misheard"}]}
   },
   {
+    "id": "DDDDDDDD-0000-4000-8000-000000000009",
+    "date": "2026-11-04T13:00:00Z",
+    "text": "Open neo vim and the terminal.",
+    "raw": "open neo vim and the terminal",
+    "duration": 2.0,
+    "setup": "cloud-flash",
+    "prompt": "v7",
+    "correction": "Open Neovim and the terminal.",
+    "intake": {"of": "Open Neovim and the terminal.", "changes": [{"old": "neo vim", "new": "Neovim", "verdict": "misheard"}]}
+  },
+  {
     "id": "DDDDDDDD-0000-4000-8000-000000000004",
     "date": "2026-11-04T12:00:00Z",
     "text": "Open the hammer spoon config.",

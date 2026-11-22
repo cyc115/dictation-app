@@ -47,7 +47,10 @@ place. Nothing is written there.
 - **again:** your vocabulary as it is. "If I said the same thing again." Circular on purpose: a term
   learned from a dictation is tested on that dictation.
 - **held out:** your vocabulary without the variants and learned entries whose only source is the
-  dictation under test (`candidates[].heard[].dictations`; entries you typed in stay). The honest
+  dictation under test (sources: the fixed dictations whose word changes have that heard and term,
+  edges trimmed, any case, with `candidates[].heard[].dictations`, since a candidate that stops
+  counting is kept with `heard: []`; entries you typed in stay; a learned entry with no known source
+  stays and the report counts it). The honest
   number for "does it help on other dictations". Expect it near zero until terms repeat.
 
 ### Scoring

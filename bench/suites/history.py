@@ -264,25 +264,65 @@ def match_recordings(entries: list[dict], kept: list[dict], window: float = WIND
 
 # ---------------------------------------------------------------- vocabularies per arm
 
-def held_out(vocabulary: dict, dictation: str) -> list[dict]:
-    """Your vocabulary without what only `dictation` taught it: every variant whose candidate saw it in
-    that dictation alone (on any entry: one handed to an entry you typed came from a candidate too), and
-    every learned entry whose candidate saw it in that dictation alone. Entries you typed stay; an entry
-    or variant with no candidate (nothing says where it came from) stays."""
+def fix_target(entry: dict) -> str | None:
+    """HistoryEntry.fixTarget: your correction, else a captured edit you haven't dismissed."""
+    if isinstance(entry.get("correction"), str):
+        return entry["correction"]
+    capture = entry.get("capture") or {}
+    return capture.get("edited") if capture.get("edited") and capture.get("state") != "dismissed" else None
+
+
+class Sources:
+    """Where each vocabulary term and variant came from: the fixed dictations whose word changes (worked out
+    from their current fix) have that heard and that term, compared as the app does (edges trimmed, any
+    case), together with the candidates' `dictations`. History is needed too: a candidate that stops
+    counting (say, under the shape rule) is kept in vocabulary.json with `heard: []`, and says nothing."""
+
+    def __init__(self, vocabulary: dict, history: list[dict]):
+        self.pairs: dict[tuple[str, str], set[str]] = {}  # (heard, term), lowered → dictations
+        self.terms: dict[str, set[str]] = {}  # term, lowered → dictations
+        for entry in history:
+            target, intake = fix_target(entry), entry.get("intake") or {}
+            if target is None or intake.get("of") != target:
+                continue
+            for c in intake.get("changes") or []:
+                self._add(trim(str(c.get("old", ""))), trim(str(c.get("new", ""))), [entry["id"]])
+        for c in vocabulary.get("candidates") or []:
+            for heard in c.get("heard") or []:
+                self._add(str(heard.get("text", "")), str(c.get("term", "")), heard.get("dictations") or [])
+
+    def _add(self, heard: str, term: str, dictations: list[str]) -> None:
+        ids = {uid(d) for d in dictations}
+        self.pairs.setdefault((heard.lower(), term.lower()), set()).update(ids)
+        self.terms.setdefault(term.lower(), set()).update(ids)
+
+    def of_variant(self, heard: str, term: str) -> set[str]:
+        return self.pairs.get((heard.lower(), term.lower()), set())
+
+    def of_entry(self, entry: dict) -> set[str]:
+        """Every dictation that fixed something to this term, by any heard."""
+        return self.terms.get(str(entry.get("term", "")).lower(), set())
+
+
+def unsourced(vocabulary: dict, history: list[dict]) -> int:
+    """Learned entries with no known source anywhere: held out keeps them (nothing says which dictation taught them)."""
+    sources = Sources(vocabulary, history)
+    return sum(1 for e in vocabulary.get("entries") or [] if e.get("source") == "learned" and not sources.of_entry(e))
+
+
+def held_out(vocabulary: dict, dictation: str, history: list[dict], sources: Sources | None = None) -> list[dict]:
+    """Your vocabulary without what only `dictation` taught it: every variant whose only source is that
+    dictation (on any entry: a variant handed to an entry you typed was learned too), and every learned
+    entry whose only source is that dictation. Entries you typed stay, and so does a learned entry or
+    variant with no known source (`unsourced` counts those)."""
     me = uid(dictation)
-    by_term: dict[str, dict] = {}
-    for c in vocabulary.get("candidates") or []:
-        by_term.setdefault(str(c.get("term", "")).lower(), c)
+    sources = sources or Sources(vocabulary, history)
     out = []
     for entry in vocabulary.get("entries") or []:
-        candidate = by_term.get(str(entry.get("term", "")).lower())
-        heard = (candidate or {}).get("heard") or []
-        sources = {uid(d) for h in heard for d in h.get("dictations") or []}
-        if entry.get("source") == "learned" and sources == {me}:
+        if entry.get("source") == "learned" and sources.of_entry(entry) == {me}:
             continue
-        only_here = {str(h.get("text", "")).lower() for h in heard if {uid(d) for d in h.get("dictations") or []} == {me}}
         kept = dict(entry)
-        kept["heardAs"] = [v for v in entry.get("heardAs") or [] if v.lower() not in only_here]
+        kept["heardAs"] = [v for v in entry.get("heardAs") or [] if sources.of_variant(v, entry.get("term", "")) != {me}]
         out.append(kept)
     return out
 
@@ -319,6 +359,8 @@ def build_job(folder: Path, chosen: list[dict], kept: dict[str, Path], parts: li
         return os.path.relpath(p, relative_to) if relative_to else str(p)
 
     vocabulary = load(folder / "vocabulary.json", {})
+    history = load(folder / "history.json", [])
+    sources = Sources(vocabulary, history)
     ids = [uid(e["id"]) for e in chosen]
     with_raw = [uid(e["id"]) for e in chosen]
     speech_ids = [d for d in ids if d in kept]
@@ -331,8 +373,9 @@ def build_job(folder: Path, chosen: list[dict], kept: dict[str, Path], parts: li
         "setup": setup,
         "maxCost": max_cost,
         "learnAfter": learn_after,
+        "learnedWithoutSource": unsourced(vocabulary, history),
         "parts": sorted(parts),
-        "dictations": [{"id": d, "heldOut": held_out(vocabulary, d), "recording": path(kept.get(d))} for d in ids],
+        "dictations": [{"id": d, "heldOut": held_out(vocabulary, d, history, sources), "recording": path(kept.get(d))} for d in ids],
         "polish": schedule_polish(with_raw, rounds, seed) if 1 in parts else [],
         "speech": schedule_speech(speech_ids, seed) if 2 in parts else [],
     }
@@ -411,7 +454,8 @@ def plan_text(job: dict, plan: dict, setup: dict, counts: dict, rounds: int) -> 
     """The dry run: counts only, no text."""
     n = len(job["dictations"])
     lines = [f"==> {counts['entries']:,} dictations, {counts['fixed']} fixed (the test set), {counts['mishearings']} mishearings; "
-             f"{counts['recorded']} with a kept recording"]
+             f"{counts['recorded']} with a kept recording; {job.get('learnedWithoutSource', 0)} learned entries with no known source "
+             "(kept in held out)"]
     parts = job["parts"]
     if 1 in parts:
         cost = "price unknown: pass --price MODEL=IN,OUT ($ per million tokens)" if plan["cost"] is None else f"≈ ${plan['cost']:.4f}"
@@ -625,6 +669,11 @@ def _delta(x) -> str:
     return "—" if x is None else f"{x:+.2f}"
 
 
+def _unsourced_note(cfg: dict) -> list[str]:
+    n = cfg.get("learnedWithoutSource") or 0
+    return [f"  {n} learned entries with no known source: kept in held out"] if n else []
+
+
 def _edge_note(tracker: dict) -> str:
     n = tracker.get("missesPastTheEdge", 0)
     return f" ({n} of the misses add text before or after the paste: never the span's, by design)" if n else ""
@@ -649,6 +698,7 @@ def report_text(result: dict, markdown: bool = False) -> str:
                   f"{'; yours polishes on this Mac' if setup.get('fellBack') or cfg.get('setupFellBack') else ''}): of {v['of']} in {v['dictations']} dictations"]
         if v.get("skipped"):
             lines.append(f"  skipped: {v['skipped']}")
+        lines += _unsourced_note(cfg)
         rows = [[arm, _range(a["fixed"]), _range(a["word_errors"], pct=True), a["rounds"], a["errors"] or "",
                  _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])] for arm, a in v["arms"].items()]
         lines.append(harness.table(["arm", "fixed (mean, range)", "word errors vs fix", "rounds", "errors", "polish p50 s", "p95 s"], rows, markdown))
@@ -658,6 +708,7 @@ def report_text(result: dict, markdown: bool = False) -> str:
         if v.get("skipped"):
             lines.append(f"  skipped: {v['skipped']}")
         else:
+            lines += _unsourced_note(cfg)
             rows = [[arm, a["transcript"], a["replaced"], a["errors"] or "", _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])] for arm, a in v["arms"].items()]
             lines.append(harness.table(["arm", "right in transcript", "after replacement", "errors", "p50 s", "p95 s"], rows, markdown))
     if 3 in p or "3" in p:

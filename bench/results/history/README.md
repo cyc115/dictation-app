@@ -23,7 +23,10 @@ text and are git-ignored; never `git add -f` one.
 - **Arms.** *off*: no vocabulary. *terms only* (part 1): the terms block in polish, no replacement
   before or after. *again*: your vocabulary as it is (circular: a term learned from a dictation is
   tested on it). *held out*: without the variants and learned entries whose only source is the
-  dictation under test (entries you typed stay; a variant with no candidate stays). It keeps an
+  dictation under test. A source is a fixed dictation whose word changes have that heard and term
+  (edges trimmed, any case), together with the candidates' `dictations`: a candidate that stops
+  counting is kept with `heard: []`, so History is read too. Entries you typed stay; a learned
+  entry with no known source stays, and the report counts those on their own line. It keeps an
   entry or variant this dictation helped teach along with others, even one it tipped over the
   3-dictation line, so it leans toward *again*: read it as an upper bound for "helps on other
   dictations".
