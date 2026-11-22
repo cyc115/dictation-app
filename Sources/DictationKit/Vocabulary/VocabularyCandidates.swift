@@ -75,7 +75,7 @@ enum CandidateTally {
 
     /// Candidates from History's current intake, newest first (`entries` is History, newest first).
     /// A change counts when judged *misheard*, or, not judged, when both sides are at most 4 words
-    /// and its heard isn't an ordinary word. Only the flags it counts are set: `dismissed`, `added`
+    /// with no sentence punctuation inside, and its heard isn't an ordinary word. Only the flags it counts are set: `dismissed`, `added`
     /// and `addedHeard` are the store's (`VocabularyStore.updateCandidates`).
     static func support(in entries: [HistoryEntry]) -> [VocabularyCandidate] {
         var fixes: [(id: UUID, change: WordChange)] = []
@@ -118,6 +118,7 @@ enum CandidateTally {
         case .misheard: return true
         case nil:
             return !ordinary && FixIntake.wordCount(change.old) <= maxWords && FixIntake.wordCount(change.new) <= maxWords
+                && !FixIntake.hasPunctuationInside(change.old) && !FixIntake.hasPunctuationInside(change.new)
         default: return false
         }
     }

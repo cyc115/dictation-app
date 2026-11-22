@@ -151,7 +151,8 @@ change reaches the running app.
   `heard` variant and the ids of the dictations it was seen in, and `dismissed`. Counting is by
   term because the same term is misheard differently each time ("Cloud", "Coloule" → Claude).
   - A change counts when its verdict is *misheard* (phase 4), or, with `judgeFixes` off, when both
-    sides are at most 4 words and `heard` isn't an ordinary word (below).
+    sides are at most 4 words with no sentence punctuation inside ("file two" → "file. Two" is
+    formatting; 34 of 72 changes in Mike's History were) and `heard` isn't an ordinary word (below).
   - A term seen in **3 different dictations** (`vocabularyLearnAfter`, no Settings row) becomes a
     learned entry. **Add now** does it at once. A dismissed term never comes back.
   - **Ordinary-word guard:** a `heard` that also stands in 3 or more dictations you didn't correct

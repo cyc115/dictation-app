@@ -61,6 +61,13 @@ enum FixIntake {
         }
     }
 
+    /// Sentence punctuation or a line break inside a side ("file. Two", "mode, for example"): the fix
+    /// is formatting or rewording, not a term. An ASCII mark counts only before a space, so
+    /// "Node.js", "C++" and "3:30" have none. In a copy of real History, 34 of 72 changes were these.
+    static func hasPunctuationInside(_ text: String) -> Bool {
+        text.contains(#/[.,;:!?…"”’)\]]\s|\s["“‘(\[]|[\n—–。，、；：！？（）「」《》]/#)
+    }
+
     /// Words in a change ("GeForce Now": 2, "克劳德": 3), as `WordDiff` counts them.
     static func wordCount(_ text: String) -> Int { WordDiff.words(text).count }
 

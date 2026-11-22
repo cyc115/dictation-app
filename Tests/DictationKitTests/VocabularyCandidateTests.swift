@@ -194,11 +194,24 @@ final class VocabularyCandidateTests: XCTestCase {
         XCTAssertEqual(store.entries.first?.source, .learned)
     }
 
-    /// A heard with a comma in it is one variant, not two ("well" would be replaced everywhere).
+    /// A heard with a comma in it (it takes a *misheard* verdict to count) is one variant, not two
+    /// ("well" would be replaced everywhere).
     func testAHeardWithACommaStaysOneVariant() {
         let store = makeStore()
-        store.updateCandidates(support([dictation("ok well, cloud is", "ok Claude is")]), learnAfter: 1)
+        var entry = dictation("ok well, cloud is", "ok Claude is")
+        entry.intake?.changes[0].verdict = .misheard
+        store.updateCandidates(support([entry]), learnAfter: 1)
         XCTAssertEqual(store.entries.first?.heardAs, ["well, cloud"])
+    }
+
+    /// Punctuation inside either side means formatting or rewording, not a term.
+    func testFormattingFixesDontCount() {
+        XCTAssertEqual(support([dictation("save the file two more", "save the file. Two more")]).count, 0)
+        XCTAssertEqual(support([dictation("dark mode, for example on", "dark mode on")]).count, 0)
+        XCTAssertEqual(support([dictation("我说 OK，然后 走", "我说 OK 走")]).count, 0)
+        XCTAssertEqual(support([dictation("then things so first we", "then things.\n\nFirst we")]).count, 0)
+        XCTAssertEqual(support([dictation("use no JS and see plus plus", "use Node.js and C++")]).map(\.term), ["Node.js", "C++"],
+                       "a mark with no space after it is part of the term")
     }
 
     /// Deleting a correction lowers its term's count: candidates are counted again from History each time.
