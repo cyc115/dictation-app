@@ -68,34 +68,57 @@ text and are git-ignored; never `git add -f` one.
 
 | date | commit | setup, prompt | fixed dictations | mishearings | cost |
 |:--|:--|:--|--:|--:|--:|
-| | | | | | |
+| Nov 22 | `3c3d8f3` | cloud-flash, learned (v8); all six parts | 27 | 33 | $0.0557 |
+| Nov 22 | `23f1bed` | cloud-flash, v4 (built-in); part 1 | 27 | 33 | $0.0569 |
 
-Part 1, mishearings fixed (mean over rounds, range):
+Part 1, mishearings fixed of 33 (mean over 3 rounds, range). The first run predates the any-case
+score. When these were dictated, 0–1 of the 33 came out right (they are the ones that were fixed).
 
 | prompt | arm | fixed | fixed, any case | word errors vs fix | polish p50 | polish p95 |
 |:--|:--|--:|--:|--:|--:|--:|
-| learned | off | | | | | |
-| learned | terms only | | | | | |
-| learned | again | | | | | |
-| learned | held out | | | | | |
-| base | off | | | | | |
-| base | terms only | | | | | |
-| base | again | | | | | |
-| base | held out | | | | | |
+| learned (v8) | off | 15.7 (15–16) | — | 20.3% | 0.25 s | 0.97 s |
+| learned (v8) | terms only | 15 | — | 20.8% | 0.26 s | 0.87 s |
+| learned (v8) | again | 15 | — | 20.6% | 0.26 s | 0.88 s |
+| learned (v8) | held out | 15.3 (14–16) | — | 20.6% | 0.26 s | 0.86 s |
+| v4 (built-in) | off | 4 | 5 | 28.4% | 0.28 s | 0.95 s |
+| v4 (built-in) | terms only | 10.3 (10–11) | 14.3 (14–15) | 26.9% | 0.25 s | 0.99 s |
+| v4 (built-in) | again | 10.3 (10–11) | 14.3 (14–15) | 26.4% | 0.27 s | 0.94 s |
+| v4 (built-in) | held out | 4.7 (4–5) | 7.7 (7–8) | 29.4% | 0.29 s | 1.10 s |
 
-Part 2, speech with terms (on-device):
+- **On its own, vocabulary more than doubles the mishearings fixed** (4 → 10.3 of 33; 5 → 14.3 in
+  any case), under a prompt that names none of the terms. All of it comes from the terms told to
+  polish: *terms only* equals *again*, so replacement added nothing here (polish wrote the term
+  before a variant could match).
+- **On top of the learned prompt it adds nothing** (15.7 → 15, inside the range). The learned prompt
+  was tuned on these fixes and names most of the terms itself; so does the built-in v7 (not run:
+  it is that learned prompt promoted). Learn's prompt alone beats vocabulary alone (15.7 vs 10.3):
+  it carries terms the vocabulary doesn't hold, some of which are ordinary words when misheard and
+  can't be replacement variants.
+- **Held out is close to off** under v4 (4.7 vs 4; any case 7.7 vs 5): the gain on other
+  dictations is the few terms that recur.
+- **The wait doesn't move** under either prompt (p50 within 0.03 s, no direction).
+- Not run: the base prompt (v7). One vocabulary (12 entries), one model, 27 dictations.
+- Bearing on the tuner: its teacher was told on Nov 22 to leave misheard terms to the vocabulary
+  (`bf628c8`). These runs say the prompt's own term list is what fixes most of them today, so a
+  tune under that wording may lose fixes unless those terms are in the vocabulary first.
+
+Part 2, speech with terms (on-device, 25 recordings, 32 mishearings; one pass):
 
 | arm | right in transcript | after replacement | p50 | p95 |
 |:--|--:|--:|--:|--:|
-| off | | | | |
-| again | | | | |
-| held out | | | | |
+| off | 5 | 5 | 3.12 s | 15.75 s |
+| again | 11 | 11 | 3.37 s | 13.54 s |
+| held out | 5 | 5 | 3.02 s | 13.44 s |
 
-Parts 3–6:
+The hint fixes 6 more of 32 on the dictations its terms came from, none on the others, for about
++0.25 s typical on recordings with a median of 44 s of speech (one pass; held out measured −0.10 s,
+so the noise is of that size). Replacement added nothing to any arm.
+
+Parts 3–6 (first run):
 
 | part | number |
 |:--|:--|
-| 3 reach | dictations changed: · hits: · moved away from a fix: · flagged entries: |
-| 4 wait | replacement p50/p95: · polish change vs off, per prompt (terms only, again): · speech change: |
-| 5 what learns | added proposed, rules / judge: · dismissed proposed, rules / judge: |
-| 6 edit replay | readback exact: · keystrokes exact: · input method apart: · app counts: |
+| 3 reach | dictations changed: 15 of 1,346 (11 raw of 1,002, 12 pasted text) · hits: 16 from 8 of 12 entries · fixed dictations changed: 10, toward the fix 10, away 0 · flagged entries: 2 case-only (1 hit), 0 ordinary-word |
+| 4 wait | replacement p50/p95: 45 µs / 197 µs (debug build, n=1,002) · polish change vs off, learned prompt: +0.01 s p50 (terms only and again) · speech change with the hint: +0.25 s p50 |
+| 5 what learns | of 13 terms added, proposed by rules / judge: 10 / 7 · of 29 dismissed, proposed by rules / judge: 29 / 8 · neither learns any at 3 dictations |
+| 6 edit replay | readback exact: 27 of 27 · keystrokes exact: 12 of 12 · input method apart: 15 · app counts: 13 armed, 4 probes failed, 1 keystroke give-up, 0 captures |
