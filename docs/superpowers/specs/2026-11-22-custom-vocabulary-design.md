@@ -86,18 +86,23 @@ change reaches the running app.
   reMarkable
   ```
   With no enabled terms nothing is appended, so the request is identical to today's.
-- **One code path:** `VocabularyPolish`, a `PolishBackend` that wraps another: replace, polish with
-  instructions + block, replace. `DictationSetup.polishService`, `CorrectionSuggester` and Learn's
-  student all use it. `PolishPrompt` versions and `promptText` are never edited (they must match
-  `bench/polish_prompts/`).
+- **Live path, in `DictationController.deliver`:** replace the transcript first, polish that, then
+  replace the result. Because the first replacement happens before `polishReporting`, a polish
+  that fails, comes back empty or runs out of time still pastes replaced text.
+- **Instructions:** one helper gives a setup's `promptText` + block. Every backend built from a
+  setup uses it: main, backup (`polishBackup`), on-device, `CorrectionSuggester`, Learn's student.
+  `PolishPrompt` versions and `promptText` are never edited (they must match `bench/polish_prompts/`).
+- A test checks that with no enabled terms the request and the pasted text are identical to today's.
 - **With polish off**, only known `heardAs` variants get fixed.
 - `uses` is saved after the paste, never before it.
 
 ### Learn runs with vocabulary
 
-- The vocabulary goes into the **`Student` closure** in `LearnController.appTuner`
-  (`VocabularyPolish` around `OpenRouterPolish`), never into the `prompt` handed to `tune`: the
-  teacher would copy the list into the kept prompt.
+- The vocabulary goes into the **`Student` closure** in `LearnController.appTuner`, never into the
+  `prompt` handed to `tune`: the teacher would copy the list into the kept prompt. Each case's
+  input is the replaced transcript; the student's instructions get the block; its output is
+  replaced by a small wrapping `PolishBackend` that forwards `prepare()` and `name` (the protocol's
+  defaults would lose the prewarm and rename the model in History; a test checks both).
 - One vocabulary snapshot per tune, so an auto-add mid-run can't shift the baseline against the
   candidates. The general set runs with it too.
 - `PromptMeasurement` gains a vocabulary fingerprint (hash of the enabled entries); a stored
@@ -140,14 +145,23 @@ change reaches the running app.
   `of`, so typing a correction never triggers it.
 - **The idle pass** runs 30 s after the app was last busy (`!isBusy`), and when Vocabulary or
   Corrections is opened. Phase 4's judge uses the same pass.
-- **Candidates** (in `vocabulary.json`): a `(heard, term)` pair, case-folded, with the ids of the
-  dictations it was seen in, and `dismissed`.
-  - A change counts toward a candidate when its verdict is *misheard* (phase 4), or, with
-    `judgeFixes` off, when both sides are at most 4 words.
-  - Seen in **3 different dictations** (`vocabularyLearnAfter`, no Settings row), it becomes a
-    learned entry, or a new variant of an entry with that term. **Add now** does it at once.
-  - A dismissed pair never comes back.
-- **Backfill:** the first idle pass covers every existing correction.
+- **Candidates** (in `vocabulary.json`): one per **term** (the new side, case-folded), with each
+  `heard` variant and the ids of the dictations it was seen in, and `dismissed`. Counting is by
+  term because the same term is misheard differently each time ("Cloud", "Coloule" → Claude).
+  - A change counts when its verdict is *misheard* (phase 4), or, with `judgeFixes` off, when both
+    sides are at most 4 words and `heard` isn't an ordinary word (below).
+  - A term seen in **3 different dictations** (`vocabularyLearnAfter`, no Settings row) becomes a
+    learned entry. **Add now** does it at once. A dismissed term never comes back.
+  - **Ordinary-word guard:** a `heard` that also stands in 3 or more dictations you didn't correct
+    is an ordinary word ("two", "cloud"). It never becomes a `heardAs` variant: replacing it
+    everywhere would break the dictations where you meant it. The term is still learned, without
+    that variant, so polish and the speech hint can pick it by context.
+  - The page lists candidates seen twice or more, or judged *misheard*; the rest sit behind
+    "Show all".
+- **Backfill:** the first idle pass covers every existing correction. On Mike's Mac today (28
+  corrections, 91 distinct short swaps) that gives candidates but no term at 3: 25 of the 91 fail
+  the ordinary-word guard, and the only swaps seen twice are "two → 2" and "three → 3". Rules alone
+  learn slowly; the judge (phase 4) is what tells a misheard term from a style change.
 
 ## Phase 3: the edit watcher
 
@@ -261,3 +275,4 @@ Per `AGENTS.md`: everything injected, nothing touches the user's files.
 - Switching on Accessibility inside Electron apps so readback works there.
 - Applying vocabulary in the bench's `--corrections` run (it measures the prompt alone).
 - Tuning automatically: Learn stays a button.
+- Hiding fixes that vocabulary already solves from the teacher: it still sees them, as already right.
