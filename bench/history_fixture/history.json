@@ -1,0 +1,124 @@
+[
+  {
+    "id": "EEEEEEEE-0000-4000-8000-000000000001",
+    "date": "2026-11-05T10:00:00Z",
+    "text": "Restart the nodes one at a time.",
+    "raw": "restart the nodes one at a time",
+    "duration": 2.1,
+    "setup": "cloud-flash",
+    "prompt": "v7"
+  },
+  {
+    "id": "DDDDDDDD-0000-4000-8000-000000000005",
+    "date": "2026-11-04T16:00:00Z",
+    "text": "Ask cloud to review the pull request.",
+    "raw": "ask cloud to review the pull request",
+    "duration": 2.4,
+    "setup": "cloud-flash",
+    "prompt": "v7",
+    "capture": {"edited": "Ask Claude to review the pull request.", "mode": "readback", "app": "Slack", "state": "waiting"},
+    "intake": {"of": "Ask Claude to review the pull request.", "changes": [{"old": "cloud", "new": "Claude", "verdict": "misheard"}]}
+  },
+  {
+    "id": "DDDDDDDD-0000-4000-8000-000000000006",
+    "date": "2026-11-04T15:00:00Z",
+    "text": "Push it to the main branch on get hub.",
+    "raw": "push it to the main branch on get hub",
+    "duration": 2.6,
+    "setup": "cloud-flash",
+    "prompt": "v7",
+    "correction": "Push it to the main branch on GitHub.",
+    "capture": {"edited": "Push it to the main branch on GitHub.", "mode": "readback", "app": "Slack", "state": "auto"},
+    "intake": {"of": "Push it to the main branch on GitHub.", "changes": [{"old": "get hub", "new": "GitHub", "verdict": "misheard"}]}
+  },
+  {
+    "id": "DDDDDDDD-0000-4000-8000-000000000004",
+    "date": "2026-11-04T12:00:00Z",
+    "text": "Open the hammer spoon config.",
+    "raw": "open the hammer spoon config",
+    "duration": 1.9,
+    "setup": "cloud-flash",
+    "prompt": "v7",
+    "correction": "Open the Hammerspoon config.",
+    "capture": {"edited": "Open the Hammerspoon config.", "mode": "keystrokes", "app": "Notes", "state": "accepted"},
+    "intake": {"of": "Open the Hammerspoon config.", "changes": [{"old": "hammer spoon", "new": "Hammerspoon", "verdict": "misheard"}]}
+  },
+  {
+    "id": "EEEEEEEE-0000-4000-8000-000000000002",
+    "date": "2026-11-04T09:00:00Z",
+    "text": "Both nodes are healthy again.",
+    "duration": 1.8,
+    "setup": "cloud-flash",
+    "prompt": "v7"
+  },
+  {
+    "id": "DDDDDDDD-0000-4000-8000-000000000003",
+    "date": "2026-11-03T20:00:00Z",
+    "text": "My remarkable synced last night.",
+    "duration": 2.2,
+    "setup": "on-device",
+    "prompt": "v3",
+    "correction": "My reMarkable synced this morning.",
+    "intake": {"of": "My reMarkable synced this morning.", "changes": [{"old": "remarkable", "new": "reMarkable", "verdict": "misheard"}, {"old": "last night", "new": "this morning", "verdict": "changedMind"}]}
+  },
+  {
+    "id": "DDDDDDDD-0000-4000-8000-000000000008",
+    "date": "2026-11-03T12:00:00Z",
+    "text": "My remarkable needs charging.",
+    "duration": 1.5,
+    "setup": "cloud-flash",
+    "prompt": "v7",
+    "correction": "My reMarkable needs charging.",
+    "intake": {"of": "My reMarkable needs charge.", "changes": [{"old": "remarkable", "new": "reMarkable", "verdict": "misheard"}]}
+  },
+  {
+    "id": "DDDDDDDD-0000-4000-8000-000000000007",
+    "date": "2026-11-03T10:00:00Z",
+    "text": "Open get hub in the browser.",
+    "duration": 1.7,
+    "setup": "cloud-flash",
+    "prompt": "v7",
+    "correction": "Open GitHub in the browser.",
+    "intake": {"of": "Open GitHub in the browser.", "changes": [{"old": "get hub", "new": "GitHub"}]}
+  },
+  {
+    "id": "EEEEEEEE-0000-4000-8000-000000000003",
+    "date": "2026-11-02T18:00:00Z",
+    "text": "The graph has twelve nodes.",
+    "raw": "the graph has twelve nodes",
+    "duration": 1.6,
+    "setup": "cloud-flash",
+    "prompt": "v7"
+  },
+  {
+    "id": "DDDDDDDD-0000-4000-8000-000000000002",
+    "date": "2026-11-02T09:00:00Z",
+    "text": "我们用克劳的写代码，然后跑代码审茶。",
+    "raw": "我们用克劳的写代码然后跑代码审茶",
+    "duration": 3.2,
+    "setup": "cloud-flash",
+    "prompt": "v7",
+    "correction": "我们用 Claude 写代码，接着跑代码审查。",
+    "intake": {"of": "我们用 Claude 写代码，接着跑代码审查。", "changes": [{"old": "克劳的", "new": "Claude", "verdict": "misheard"}, {"old": "然后", "new": "接着", "verdict": "style"}, {"old": "茶", "new": "查", "verdict": "misheard"}]}
+  },
+  {
+    "id": "EEEEEEEE-0000-4000-8000-000000000004",
+    "date": "2026-11-01T12:00:00Z",
+    "text": "Upload the build to the cloud before lunch.",
+    "raw": "upload the build to the cloud before lunch",
+    "duration": 2.0,
+    "setup": "cloud-flash",
+    "prompt": "v7"
+  },
+  {
+    "id": "DDDDDDDD-0000-4000-8000-000000000001",
+    "date": "2026-11-01T09:00:30Z",
+    "text": "Can you send me the nodes from today's meeting?",
+    "raw": "can you send me the nodes from today's meeting",
+    "duration": 2.5,
+    "setup": "cloud-flash",
+    "prompt": "v7",
+    "correction": "Can you send me the notes from today's meeting?",
+    "intake": {"of": "Can you send me the notes from today's meeting?", "changes": [{"old": "nodes", "new": "notes", "verdict": "misheard"}]}
+  }
+]

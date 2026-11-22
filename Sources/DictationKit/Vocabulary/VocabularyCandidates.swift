@@ -117,6 +117,13 @@ enum CandidateTally {
         return candidates
     }
 
+    /// For each (heard, term), whether it's an ordinary word in History: the guard `support` applies
+    /// before a heard can become a variant. The history bench flags vocabulary variants with it.
+    static func ordinary(_ pairs: [(heard: String, term: String)], in entries: [HistoryEntry]) -> [Bool] {
+        let words = OrdinaryWords(heard: pairs.map(\.heard), in: entries)
+        return pairs.map { words.isOrdinary($0.heard, term: $0.term) }
+    }
+
     /// The whole rule: the shape first (at most `maxWords` words a side, no sentence punctuation
     /// inside), whatever the verdict; then a verdict decides (misheard counts, even an ordinary heard,
     /// which is flagged and never added as a variant); without one, the rules do (`rules`), or it

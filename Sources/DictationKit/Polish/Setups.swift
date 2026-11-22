@@ -251,11 +251,13 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     }
 
     /// What polishes a dictation. A cloud polish model needs the cloud API key; without one it's
-    /// on-device, with this setup's prompt. Told the vocabulary's terms (`instructions(_:)`).
-    func polishBackend(apiKey: String?, vocabulary: Vocabulary, onDevice: (String, Bool) -> PolishBackend) -> PolishBackend {
+    /// on-device, with this setup's prompt. Told the vocabulary's terms (`instructions(_:)`). `session`:
+    /// what the cloud model is called through (the history bench's no-network test passes a stub).
+    func polishBackend(apiKey: String?, vocabulary: Vocabulary, onDevice: (String, Bool) -> PolishBackend,
+                       session: URLSession = .shared) -> PolishBackend {
         let instructions = instructions(vocabulary)
         guard let key = cloudKey(apiKey),
-              let backend = Self.polishBackend(spec: polish, apiKey: key, instructions: instructions, wrap: wrap)
+              let backend = Self.polishBackend(spec: polish, apiKey: key, instructions: instructions, wrap: wrap, session: session)
         else { return onDevice(instructions, wrap) }
         return backend
     }
@@ -267,9 +269,10 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     }
 
     /// "openrouter:<id>[@Provider[,Provider…]]" as an `OpenRouterPolish`, as bench/suite.py polish runs it; nil otherwise.
-    static func polishBackend(spec: String, apiKey: String, instructions: String, wrap: Bool) -> PolishBackend? {
+    static func polishBackend(spec: String, apiKey: String, instructions: String, wrap: Bool,
+                              session: URLSession = .shared) -> PolishBackend? {
         guard case .openRouter(let id, let providers) = ModelSpec(spec) else { return nil }
-        return OpenRouterPolish(model: id, apiKey: apiKey, instructions: instructions, wrap: wrap, provider: providers)
+        return OpenRouterPolish(model: id, apiKey: apiKey, session: session, instructions: instructions, wrap: wrap, provider: providers)
     }
 
     /// Why this setup can't be used, if it can't.

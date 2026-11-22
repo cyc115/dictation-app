@@ -182,7 +182,8 @@ final class DictationController {
         let terms = kind.usesVocabulary ? vocabulary.vocabulary(enabled: settings.vocabularyEnabled) : .none
         // A command's words, so a short one isn't misheard; plain dictation gets your terms, if
         // that's on and the engine can take them.
-        engine.context = kind == .command ? commandMode.speechContext() : speechHint(terms, setup: setup)
+        engine.context = kind == .command ? commandMode.speechContext()
+            : Self.speechHint(terms, setup: setup, enabled: settings.vocabularySpeechHint)
         if kind == .command { commandMode.prepare(model: settings.commandDecider, apiKey: settings.openRouterKey ?? "") }
         // Load the polish model while you speak instead of after you stop.
         let polisher = settings.polishEnabled && kind.polishes ? makePolish(setup, terms) : nil
@@ -226,11 +227,36 @@ final class DictationController {
         DispatchQueue.main.asyncAfter(deadline: .now() + limit, execute: work)
     }
 
-    /// Your terms as the speech model's context words: only with Hint the on-device speech model on,
-    /// and only for an on-device engine (the cloud transcription endpoint takes no prompt).
-    private func speechHint(_ terms: Vocabulary, setup: DictationSetup) -> SpeechContext {
-        guard settings.vocabularySpeechHint, !setup.isCloud, !terms.isEmpty else { return .none }
+    /// Your terms as the speech model's context words: only with Hint the on-device speech model on
+    /// (`enabled`), and only for an on-device engine (the cloud transcription endpoint takes no prompt).
+    /// Static so the history bench gives `LocalEngine` exactly what a dictation would.
+    static func speechHint(_ terms: Vocabulary, setup: DictationSetup, enabled: Bool) -> SpeechContext {
+        guard enabled, !setup.isCloud, !terms.isEmpty else { return .none }
         return SpeechContext(words: terms.speechWords)
+    }
+
+    /// A transcript through polish as a dictation delivers it.
+    struct Refined {
+        var text: String
+        /// How many times each entry's replacement fired, before and after polish.
+        var uses: [UUID: Int]
+        /// How long polish took, which model answered, and why it failed (the replaced transcript is the text then).
+        var seconds: Double
+        var by: ModelAnswer?
+        var error: String?
+    }
+
+    /// Replaces your terms, polishes that, replaces again: `deliver`'s path with polish on, and the
+    /// history bench's. The first replacement comes before polish, so a polish that fails, comes back
+    /// empty or runs out of time still has them.
+    static func refine(_ raw: String, terms: Vocabulary, polisher: PolishService) async -> Refined {
+        let replaced = terms.apply(raw)
+        let started = ProcessInfo.processInfo.systemUptime
+        let (polished, error, by) = await polisher.polishReporting(replaced.text)
+        let seconds = ProcessInfo.processInfo.systemUptime - started
+        // Again after polish: variants are learned from polished text, and polish can write one back.
+        let final = terms.apply(polished)
+        return Refined(text: final.text, uses: replaced.uses.merging(final.uses, uniquingKeysWith: +), seconds: seconds, by: by, error: error)
     }
 
     /// The mic went live, went silent, or a better one took over: the pill shows it, and the start
@@ -377,8 +403,6 @@ final class DictationController {
                          transcribed: TimeInterval, transcribedBy: ModelAnswer?, target: TextSpot?, delivery: Delivery) {
         guard !raw.isEmpty else { return finished(delivery) }
         let setup = dictation.setup, note = dictation.note, terms = dictation.vocabulary
-        // Before polish, so a polish that fails, comes back empty or runs out of time still has them.
-        let replaced = terms.apply(raw)
         /// Pastes `text`, then saves it; `polish`: how long polish took and which model answered.
         func paste(_ text: String, uses: [UUID: Int], polish: (seconds: Double, by: ModelAnswer?, error: String?)?) {
             type(text, to: target, delivery: delivery) { [weak self] pasted in
@@ -398,17 +422,16 @@ final class DictationController {
                 self.finished(delivery)
             }
         }
-        guard let polisher = dictation.polisher else { return paste(replaced.text, uses: replaced.uses, polish: nil) }
+        guard let polisher = dictation.polisher else {
+            let replaced = terms.apply(raw)
+            return paste(replaced.text, uses: replaced.uses, polish: nil)
+        }
         overlay.showProcessing()
-        let started = ProcessInfo.processInfo.systemUptime
         Task { @MainActor [weak self] in
             guard let self = self else { return }
-            let (polished, error, polishedBy) = await polisher.polishReporting(replaced.text)
-            let seconds = ProcessInfo.processInfo.systemUptime - started
+            let refined = await Self.refine(raw, terms: terms, polisher: polisher)
             overlay.hide()
-            // Again after polish: variants are learned from polished text, and polish can write one back.
-            let final = terms.apply(polished)
-            paste(final.text, uses: replaced.uses.merging(final.uses, uniquingKeysWith: +), polish: (seconds, polishedBy, error))
+            paste(refined.text, uses: refined.uses, polish: (refined.seconds, refined.by, refined.error))
         }
     }
 }

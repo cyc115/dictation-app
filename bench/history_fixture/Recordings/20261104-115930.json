@@ -1,0 +1,1 @@
+{"date": "2026-11-04T11:59:30Z", "model": "openrouter:qwen/qwen3-asr-1.7b", "transcript": "open the hammer spoon config", "seconds": 1.9, "transcribeSeconds": 0.5, "polishEnabled": true, "polishModel": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra", "polished": "Open the hammer spoon config.", "polishSeconds": 0.6}

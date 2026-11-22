@@ -1,0 +1,20 @@
+{
+  "about": "How the history bench splits words and trims their edges, pinned for both sides: WordDiff.words and FixIntake.edges (HistoryBenchTests) and bench/suites/history.py (test_history.py).",
+  "words": [
+    {"text": "我们用 Claude 写代码，接着 push 到 GitHub。", "words": ["我", "们", "用", "Claude", "写", "代", "码", "，", "接", "着", "push", "到", "GitHub", "。"]},
+    {"text": "Hi·there、ok", "words": ["Hi", "·", "there", "、", "ok"]},
+    {"text": "(Claude Code) is great, isn't it?", "words": ["(Claude", "Code)", "is", "great,", "isn't", "it?"]},
+    {"text": "用Claude写C++代码", "words": ["用", "Claude", "写", "C++", "代", "码"]},
+    {"text": "  tabs\tand\nlines  ", "words": ["tabs", "and", "lines"]},
+    {"text": "〇々 x", "words": ["〇", "々", "x"]},
+    {"text": "「克劳德」说：好。", "words": ["「", "克", "劳", "德", "」", "说", "：", "好", "。"]}
+  ],
+  "edges": [
+    {"word": "(Claude).", "trimmed": "Claude"},
+    {"word": "“C++”", "trimmed": "C++"},
+    {"word": "「克劳德」。", "trimmed": "克劳德"},
+    {"word": "Claude's", "trimmed": "Claude's"},
+    {"word": "—Node.js…", "trimmed": "Node.js"},
+    {"word": "C#!", "trimmed": "C#"}
+  ]
+}

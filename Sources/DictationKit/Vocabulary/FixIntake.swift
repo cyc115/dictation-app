@@ -55,8 +55,9 @@ struct Intake: Codable, Equatable {
 /// the app mishears.
 enum FixIntake {
     /// Punctuation around a change isn't part of it ("cloud." → "Claude." is cloud → Claude). Only
-    /// sentence punctuation, quotes and brackets: "C++" and "C#" keep their symbols.
-    private static let edges = CharacterSet(charactersIn: ".,;:!?…。，、；：！？\"'“”‘’()[]{}（）「」《》—–").union(.whitespaces)
+    /// sentence punctuation, quotes and brackets: "C++" and "C#" keep their symbols. The history
+    /// bench trims the same (bench/history_fixture/words.json pins it for both).
+    static let edges = CharacterSet(charactersIn: ".,;:!?…。，、；：！？\"'“”‘’()[]{}（）「」《》—–").union(.whitespaces)
 
     static func intake(of text: String, target: String) -> Intake {
         Intake(of: target, changes: changes(from: text, to: target))

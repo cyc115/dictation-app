@@ -1,0 +1,1 @@
+{"date": "2026-11-01T09:00:10Z", "model": "openrouter:qwen/qwen3-asr-1.7b", "transcript": "can you send me the nodes from today's meeting", "seconds": 2.5, "transcribeSeconds": 0.6, "polishEnabled": true, "polishModel": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra", "polished": "Can you send me the nodes from today's meeting?", "polishSeconds": 0.7}
