@@ -2,24 +2,6 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// Which words of a dictation a correction changed, for highlighting.
-enum WordDiff {
-    /// Words: a Chinese character each, else a run of non-space characters.
-    static func words(_ text: String) -> [Range<String.Index>] {
-        text.ranges(of: #/\p{Han}|[^\s\p{Han}]+/#)
-    }
-
-    /// Ranges in `old` of the words `new` drops or replaces.
-    static func changed(from old: String, to new: String) -> [Range<String.Index>] {
-        let before = words(old)
-        let after = words(new).map { new[$0] }
-        return after.difference(from: before.map { old[$0] }).removals.map {
-            guard case let .remove(offset, _, _) = $0 else { fatalError("removals only") }
-            return before[offset]
-        }
-    }
-}
-
 /// Starts a new correction from a cloud model's polish of what you said (with your setup's prompt), so you fix less by hand.
 /// The model is the `correctionModel` setting (an OpenRouter model id, optionally "@Provider"); the
 /// default, GPT-6.1 Sol Pro, is the most accurate polish model benchmarked (100% on bench/suite.py
