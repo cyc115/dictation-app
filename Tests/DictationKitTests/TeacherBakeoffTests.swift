@@ -42,7 +42,7 @@ final class TeacherBakeoffTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(cases.count, 10, "LearnController.minimum")
 
         let prompt = try PolishPrompt.text(for: env["BAKEOFF_PROMPT"] ?? "v4")
-        let folds = env["BAKEOFF_FOLDS"].flatMap(Int.init)
+        let folds = try env["BAKEOFF_FOLDS"].map { try XCTUnwrap(Int($0), "BAKEOFF_FOLDS must be a number") }
         let setup = DictationSetup.cloudFlash
         guard case .openRouter(let id, let providers) = ModelSpec(setup.polish) else { return XCTFail("Cloud Flash polishes through OpenRouter") }
         let student: PromptTuner.Student = { OpenRouterPolish(model: id, apiKey: key, instructions: $0, wrap: setup.wrap, provider: providers) }
@@ -81,7 +81,7 @@ final class TeacherBakeoffTests: XCTestCase {
         // The tuner's meters: right even when the tune failed part way (the result has its own copy).
         let (teacherCost, studentCost) = (tuner.teacherUsage.total(), tuner.studentUsage.total())
         var json: [String: Any] = ["teacher": model, "student": id, "corrections": cases.count, "general": general.count,
-                                   "prompt": env["BAKEOFF_PROMPT"] ?? "v4", "folds": tuner.folds,
+                                   "prompt": env["BAKEOFF_PROMPT"] ?? "v4", "folds": min(tuner.folds, cases.count),
                                    "elapsed": elapsed, "teacherCalls": log.calls, "phases": log.phases,
                                    "cost": ["teacher": teacherCost.json, "student": studentCost.json,
                                             "total": teacherCost.cost + studentCost.cost] as [String: Any]]

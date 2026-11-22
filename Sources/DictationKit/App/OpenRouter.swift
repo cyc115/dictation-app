@@ -57,8 +57,8 @@ enum OpenRouter {
     }
 
     /// Anthropic's models cache a prompt only up to an explicit `cache_control` breakpoint; OpenAI's
-    /// and Gemini 2.5+ cache a repeated prefix of 1024+ tokens on their own, with nothing in the
-    /// request (openrouter.ai/docs/features/prompt-caching).
+    /// (1024+ tokens) and Gemini 2.5+ (1024–4096+, by model) cache a repeated prefix on their own,
+    /// with nothing in the request (openrouter.ai/docs/features/prompt-caching).
     static func needsCacheBreakpoint(_ model: String) -> Bool { model.hasPrefix("anthropic/") }
 
     /// A user message whose `prefix` repeats across calls: for a model that needs it, two text parts

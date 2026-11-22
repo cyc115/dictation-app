@@ -108,8 +108,8 @@ change reaches the running app.
 - `PromptMeasurement` gains a vocabulary fingerprint (hash of the enabled entries); a stored
   measurement with another fingerprint is stale and re-measured.
 - A tune takes **at most 60 fixes**: manual and accepted first, newest first, then unreviewed
-  captured ones (phase 4). A tune makes 16 teacher calls that each carry nearly every unlearned
-  fix, and about 8 student calls per fix.
+  captured ones (phase 4). A tune makes 10 teacher calls (3 folds × 3 lenses, then the final
+  prompt) that each carry about two thirds of the unlearned fixes, and about 8 student calls per fix.
 - **Teacher wording** changes in its own commit, after phase 1 lands. `teacherSystem` says a
   repeatedly misheard term "may be listed by name", which now competes with vocabulary; that
   sentence becomes "terms are handled by a vocabulary list; don't list terms". No paid before and
