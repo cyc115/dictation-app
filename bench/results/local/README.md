@@ -86,3 +86,29 @@ load on a Mac took 9 s more while macOS compiled MLX's GPU code, once.
   no network stalls. The 0.6B beats the cloud's typical wait at every length (0.43 s vs 1.49 s
   overall, p95 2.6 s vs 5.2 s) at Cloud Flash's backup's accuracy; the 1.7B matches Cloud Flash's
   accuracy and wins up to ~20 s dictations.
+
+## Vocabulary terms as context words — 2026-11-22
+
+Whether *Also give terms to the speech model* (`vocabularySpeechHint`) is safe to turn on: the
+app's own `LocalEngine` (Qwen3-ASR 1.7B 8-bit) on the 46 test clips and on 8 new clips that say
+vocabulary terms (macOS voices; 5 English, 3 mixed Chinese), each clip with no context words, with
+10 terms and with 50. One pass, the three conditions interleaved clip by clip. Errors are word
+errors (a Chinese character counts as a word). Rows: `vocabulary-hint-20261122.json`.
+
+| clips | no terms | 10 terms | 50 terms |
+|:--|--:|--:|--:|
+| 46 test clips: word errors | 5.3% | 5.2% | 5.1% |
+| 46 test clips: mixed Chinese translated into English | 1 | 1 | 1 |
+| 5 English clips saying terms: word errors | 22.7% | 6.8% | 6.8% |
+| 3 mixed clips saying terms: word errors | 23.5% | 5.9% | 2.9% |
+| stop to text, p50 (test clips) | 0.68 s | 0.72 s | 0.85 s |
+
+- **No harm on ordinary dictations.** The one translated clip (`mixed-noisy-02`) is translated with
+  no terms too. All the terms were English, the case the code's warning is about.
+- **Terms come out right.** "Amerspoon", "open router", "deep sea", "Telescale" and "glitch tip"
+  became Hammerspoon, OpenRouter, DeepSeek, Tailscale and GlitchTip. One miss the other way: with
+  10 terms a clip saying "Proxmox" came back "OpenRouter" (right with 50).
+- **It costs time, by the term:** about +0.04 s with 10 terms and +0.17 s with 50 (the cap,
+  `Vocabulary.maxSpeechWords`). The Mac was running other test suites, so read the differences,
+  not the absolute times.
+- Limits: clean synthetic voices, one pass, 8 term clips. The setting is still off by default.

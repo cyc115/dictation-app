@@ -1,0 +1,1301 @@
+{
+ "about": "On-device Qwen3-ASR 1.7B 8-bit through LocalEngine, each clip with no context words, 10 vocabulary terms and 50. 46 bench clips plus 8 macOS-voice clips that say the terms. One pass, Nov 22 2026, build c5fcd31.",
+ "rows": [
+  {
+   "id": "mixed-01",
+   "got": "帮我 build 一个，然后 push 到 repository 里。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.49663710594177246,
+   "want": "帮我 build 一个然后 push 到 repository 里。"
+  },
+  {
+   "id": "mixed-01",
+   "got": "帮我 build 一个，然后 push 到 repository 里。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.5519779920578003,
+   "want": "帮我 build 一个然后 push 到 repository 里。"
+  },
+  {
+   "id": "mixed-01",
+   "got": "帮我 build 一个，然后 push 到 repository 里。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.6365140676498413,
+   "want": "帮我 build 一个然后 push 到 repository 里。"
+  },
+  {
+   "id": "mixed-02",
+   "got": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.6582019329071045,
+   "want": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。"
+  },
+  {
+   "id": "mixed-02",
+   "got": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.7565540075302124,
+   "want": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。"
+  },
+  {
+   "id": "mixed-02",
+   "got": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.6710160970687866,
+   "want": "我觉得这个 feature 的 UI 太 ugly 了，你帮我 redesign 一下。"
+  },
+  {
+   "id": "mixed-03",
+   "got": "明天的 meeting，我们讨论一下 performance 和 latency 的问题。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.7576059103012085,
+   "want": "明天的 meeting 我们讨论一下 performance 和 latency 的问题。"
+  },
+  {
+   "id": "mixed-03",
+   "got": "明天的 meeting，我们讨论一下 performance 和 latency 的问题。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.5290559530258179,
+   "want": "明天的 meeting 我们讨论一下 performance 和 latency 的问题。"
+  },
+  {
+   "id": "mixed-03",
+   "got": "明天的 meeting，我们讨论一下 performance 和 latency 的问题。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.5374760627746582,
+   "want": "明天的 meeting 我们讨论一下 performance 和 latency 的问题。"
+  },
+  {
+   "id": "mixed-04",
+   "got": "这个 bug 在 production 环境里才会出现，你先看一下 log。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.5855109691619873,
+   "want": "这个 bug 在 production 环境里才会出现，你先看一下 log。"
+  },
+  {
+   "id": "mixed-04",
+   "got": "这个 bug 在 production 环境里才会出现。你先看一下 log。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.6190170049667358,
+   "want": "这个 bug 在 production 环境里才会出现，你先看一下 log。"
+  },
+  {
+   "id": "mixed-04",
+   "got": "这个 bug 在 production 环境里才会出现。你先看一下 log。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.7409939765930176,
+   "want": "这个 bug 在 production 环境里才会出现，你先看一下 log。"
+  },
+  {
+   "id": "mixed-05",
+   "got": "我们下周要 launch 新的 version，记得更新 README。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.528986930847168,
+   "want": "我们下周要 launch 新的 version，记得更新 README。"
+  },
+  {
+   "id": "mixed-05",
+   "got": "我们下周要 launch 新的 version，记得更新 README。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.624608039855957,
+   "want": "我们下周要 launch 新的 version，记得更新 README。"
+  },
+  {
+   "id": "mixed-05",
+   "got": "我们下周要 launch 新的 version，记得更新 README。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.4919840097427368,
+   "want": "我们下周要 launch 新的 version，记得更新 README。"
+  },
+  {
+   "id": "mixed-06",
+   "got": "你可以帮我 review 一下这个 Pro 吗？",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.5690860748291016,
+   "want": "你可以帮我 review 一下这个 pull request 吗？"
+  },
+  {
+   "id": "mixed-06",
+   "got": "你可以帮我 review 一下这个 plot 吗？",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.44267499446868896,
+   "want": "你可以帮我 review 一下这个 pull request 吗？"
+  },
+  {
+   "id": "mixed-06",
+   "got": "你可以帮我 review 一下这个 Pro 吗？",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.45156800746917725,
+   "want": "你可以帮我 review 一下这个 pull request 吗？"
+  },
+  {
+   "id": "mixed-07",
+   "got": "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.5718790292739868,
+   "want": "这个 API 的 response time 太慢了，我们需要加一个 cache。"
+  },
+  {
+   "id": "mixed-07",
+   "got": "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.5889710187911987,
+   "want": "这个 API 的 response time 太慢了，我们需要加一个 cache。"
+  },
+  {
+   "id": "mixed-07",
+   "got": "这个 API 的 response time 太慢了，我们需要加一个 cache。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.7152700424194336,
+   "want": "这个 API 的 response time 太慢了，我们需要加一个 cache。"
+  },
+  {
+   "id": "mixed-08",
+   "got": "我刚刚 deployed 到 staging，你帮我 test 一下 logging 的 flow。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.6050900220870972,
+   "want": "我刚刚 deploy 到 staging，你帮我 test 一下 login 的 flow。"
+  },
+  {
+   "id": "mixed-08",
+   "got": "我刚刚 deployed 到 staging，你帮我 test 一下 logging 的 flow。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.7135530710220337,
+   "want": "我刚刚 deploy 到 staging，你帮我 test 一下 login 的 flow。"
+  },
+  {
+   "id": "mixed-08",
+   "got": "我刚刚 deploy 到 staging，你帮我 test 一下 logging 的 flow。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.5892510414123535,
+   "want": "我刚刚 deploy 到 staging，你帮我 test 一下 login 的 flow。"
+  },
+  {
+   "id": "mixed-09",
+   "got": "把这个 function refactor 一下，然后写几个 unit test。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.8968119621276855,
+   "want": "把这个 function refactor 一下，然后写几个 unit test。"
+  },
+  {
+   "id": "mixed-09",
+   "got": "把这个 function refactor 一下，然后写几个 unit test。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.5134789943695068,
+   "want": "把这个 function refactor 一下，然后写几个 unit test。"
+  },
+  {
+   "id": "mixed-09",
+   "got": "把这个 function refactor 一下，然后写几个 unit test。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.6596579551696777,
+   "want": "把这个 function refactor 一下，然后写几个 unit test。"
+  },
+  {
+   "id": "mixed-10",
+   "got": "今天的 stand up 我会晚一点，先帮我跟 Jim 说一声。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.596903920173645,
+   "want": "今天的 standup 我会晚一点，先帮我跟 team 说一声。"
+  },
+  {
+   "id": "mixed-10",
+   "got": "今天的 Stand Up 我会晚一点，先帮我跟 Team 说一声。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.6797760725021362,
+   "want": "今天的 standup 我会晚一点，先帮我跟 team 说一声。"
+  },
+  {
+   "id": "mixed-10",
+   "got": "今天的 Stand Up 我会晚一点，先帮我跟 Team 说一声。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.7515859603881836,
+   "want": "今天的 standup 我会晚一点，先帮我跟 team 说一声。"
+  },
+  {
+   "id": "chinese-01",
+   "got": "今天天气很好，我们下午去公园散步吧。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.52348792552948,
+   "want": "今天天气很好，我们下午去公园散步吧。"
+  },
+  {
+   "id": "chinese-01",
+   "got": "今天天气很好，我们下午去公园散步吧。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.6000970602035522,
+   "want": "今天天气很好，我们下午去公园散步吧。"
+  },
+  {
+   "id": "chinese-01",
+   "got": "今天天气很好，我们下午去公园散步吧。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.48781299591064453,
+   "want": "今天天气很好，我们下午去公园散步吧。"
+  },
+  {
+   "id": "chinese-02",
+   "got": "请帮我把这份文件发给张经理，谢谢。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.6164010763168335,
+   "want": "请帮我把这份文件发给张经理，谢谢。"
+  },
+  {
+   "id": "chinese-02",
+   "got": "请帮我把这份文件发给张经理，谢谢。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.5045289993286133,
+   "want": "请帮我把这份文件发给张经理，谢谢。"
+  },
+  {
+   "id": "chinese-02",
+   "got": "请帮我把这份文件发给张经理，谢谢。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.5164120197296143,
+   "want": "请帮我把这份文件发给张经理，谢谢。"
+  },
+  {
+   "id": "chinese-03",
+   "got": "我觉得这个方案还需要再讨论一下。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.3949000835418701,
+   "want": "我觉得这个方案还需要再讨论一下。"
+  },
+  {
+   "id": "chinese-03",
+   "got": "我觉得这个方案还需要再讨论一下。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.4306619167327881,
+   "want": "我觉得这个方案还需要再讨论一下。"
+  },
+  {
+   "id": "chinese-03",
+   "got": "我觉得这个方案还需要再讨论一下。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.5600030422210693,
+   "want": "我觉得这个方案还需要再讨论一下。"
+  },
+  {
+   "id": "chinese-04",
+   "got": "明天早上九点开会，别忘了带电脑。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.4878910779953003,
+   "want": "明天早上九点开会，别忘了带电脑。"
+  },
+  {
+   "id": "chinese-04",
+   "got": "明天早上九点开会，别忘了带电脑。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.6027239561080933,
+   "want": "明天早上九点开会，别忘了带电脑。"
+  },
+  {
+   "id": "chinese-04",
+   "got": "明天早上九点开会，别忘了带电脑。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.6002410650253296,
+   "want": "明天早上九点开会，别忘了带电脑。"
+  },
+  {
+   "id": "chinese-05",
+   "got": "这家餐厅的菜很好吃，但是价格有点贵。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.6105060577392578,
+   "want": "这家餐厅的菜很好吃，但是价格有点贵。"
+  },
+  {
+   "id": "chinese-05",
+   "got": "这家餐厅的菜很好吃，但是价格有点贵。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.5853700637817383,
+   "want": "这家餐厅的菜很好吃，但是价格有点贵。"
+  },
+  {
+   "id": "chinese-05",
+   "got": "这家餐厅的菜很好吃，但是价格有点贵。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.5396499633789062,
+   "want": "这家餐厅的菜很好吃，但是价格有点贵。"
+  },
+  {
+   "id": "chinese-06",
+   "got": "你周末有空吗？我们一起去看电影。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.43144702911376953,
+   "want": "你周末有空吗？我们一起去看电影。"
+  },
+  {
+   "id": "chinese-06",
+   "got": "你周末有空吗？我们一起去看电影。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.4625130891799927,
+   "want": "你周末有空吗？我们一起去看电影。"
+  },
+  {
+   "id": "chinese-06",
+   "got": "你周末有空吗？我们一起去看电影。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.5994759798049927,
+   "want": "你周末有空吗？我们一起去看电影。"
+  },
+  {
+   "id": "english-01",
+   "got": "Can you send me the notes from today's meeting?",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 0.49444401264190674,
+   "want": "Can you send me the notes from today's meeting?"
+  },
+  {
+   "id": "english-01",
+   "got": "Can you send me the notes from today's meeting?",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 0.6153820753097534,
+   "want": "Can you send me the notes from today's meeting?"
+  },
+  {
+   "id": "english-01",
+   "got": "Can you send me the notes from today's meeting?",
+   "category": "english",
+   "context": "none",
+   "seconds": 0.4495340585708618,
+   "want": "Can you send me the notes from today's meeting?"
+  },
+  {
+   "id": "english-02",
+   "got": "Let's push the release to Thursday so we have time to fix the login bug.",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 0.740636944770813,
+   "want": "Let's push the release to Thursday so we have time to fix the login bug."
+  },
+  {
+   "id": "english-02",
+   "got": "Let's push the release to Thursday, so we have time to fix the login bug.",
+   "category": "english",
+   "context": "none",
+   "seconds": 0.6198259592056274,
+   "want": "Let's push the release to Thursday so we have time to fix the login bug."
+  },
+  {
+   "id": "english-02",
+   "got": "Let's push the release to Thursday so we have time to fix the login bug.",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 0.6257979869842529,
+   "want": "Let's push the release to Thursday so we have time to fix the login bug."
+  },
+  {
+   "id": "english-03",
+   "got": "I think the new settings page looks much cleaner than the old one.",
+   "category": "english",
+   "context": "none",
+   "seconds": 0.5006880760192871,
+   "want": "I think the new settings page looks much cleaner than the old one."
+  },
+  {
+   "id": "english-03",
+   "got": "I think the new settings page looks much cleaner than the old one.",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 0.5164400339126587,
+   "want": "I think the new settings page looks much cleaner than the old one."
+  },
+  {
+   "id": "english-03",
+   "got": "I think the new settings page looks much cleaner than the old one.",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 0.658424973487854,
+   "want": "I think the new settings page looks much cleaner than the old one."
+  },
+  {
+   "id": "english-04",
+   "got": "Please remind me to call the dentist tomorrow morning.",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 0.4659900665283203,
+   "want": "Please remind me to call the dentist tomorrow morning."
+  },
+  {
+   "id": "english-04",
+   "got": "Please remind me to call the dentist tomorrow morning.",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 0.6002579927444458,
+   "want": "Please remind me to call the dentist tomorrow morning."
+  },
+  {
+   "id": "english-04",
+   "got": "Please remind me to call the dentist tomorrow morning.",
+   "category": "english",
+   "context": "none",
+   "seconds": 0.43745291233062744,
+   "want": "Please remind me to call the dentist tomorrow morning."
+  },
+  {
+   "id": "mixed-hard-01",
+   "got": "我们把 Kubernetes the cluster 升级之后，PostgreSQL the connection pool 一直 timeout， latency 也涨了很多。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 1.16497802734375,
+   "want": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。"
+  },
+  {
+   "id": "mixed-hard-01",
+   "got": "我们把 Kubernetes the cluster 升级之后，PostgreSQL the connection pool 一直 timeout， latency 也涨了很多。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.8824269771575928,
+   "want": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。"
+  },
+  {
+   "id": "mixed-hard-01",
+   "got": "我们把 Kubernetes the cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout， latency 也涨了很多。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.9191800355911255,
+   "want": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。"
+  },
+  {
+   "id": "mixed-hard-02",
+   "got": "这个 per 改了 all of the callback URL，还有 TypeScript 的 type definition。你 merge 之前先跑一下词。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.8785459995269775,
+   "want": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。"
+  },
+  {
+   "id": "mixed-hard-02",
+   "got": "This per改了 all of the callback URL,还有 TypeScript 的 type definition.你 merge 之前先跑一下词。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.896649956703186,
+   "want": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。"
+  },
+  {
+   "id": "mixed-hard-02",
+   "got": "This per改了 all of the callback URL,还有 TypeScript 的 type definition.你 merge 之前先跑一下词。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.9973300695419312,
+   "want": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。"
+  },
+  {
+   "id": "mixed-hard-03",
+   "got": "我刚跟 Sarah 开了个 one on one。她说下个季度的 OKR 要 focus 在 retention 上。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.8289039134979248,
+   "want": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。"
+  },
+  {
+   "id": "mixed-hard-03",
+   "got": "我刚跟 Sarah 开了个 one on one。她说下个季度的 OKR 要 focus 在 retention 上。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.9424760341644287,
+   "want": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。"
+  },
+  {
+   "id": "mixed-hard-03",
+   "got": "我刚跟 Sarah 开了个 one-on-one。她说下个季度的 OKR 要 focus 在 retention 上。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.780398964881897,
+   "want": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。"
+  },
+  {
+   "id": "mixed-hard-04",
+   "got": "用 Redis 做 Rate Limiting 的话，Sliding Window 比 Fixed Window 更准，但是 memory 开销会大一点。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 1.0848809480667114,
+   "want": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。"
+  },
+  {
+   "id": "mixed-hard-04",
+   "got": "用 Redis 做 Rate Limiting 的话，Sliding Window 比 Fixed Window 更准，但是 Memory 开销会大一点。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.9166110754013062,
+   "want": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。"
+  },
+  {
+   "id": "mixed-hard-04",
+   "got": "用 Redis 做 Rate Limiting 的话，Sliding Window 比 Fixed Window 更准，但是 Memory 开销会大一点。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.9765549898147583,
+   "want": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。"
+  },
+  {
+   "id": "mixed-hard-05",
+   "got": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 insert 到 Dynamo DB。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.9247139692306519,
+   "want": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。"
+  },
+  {
+   "id": "mixed-hard-05",
+   "got": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 insert 到 Dynamo DB。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.8633010387420654,
+   "want": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。"
+  },
+  {
+   "id": "mixed-hard-05",
+   "got": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 insert 到 Dynamo DB。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 1.0565519332885742,
+   "want": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。"
+  },
+  {
+   "id": "chinese-hard-01",
+   "got": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.7341890335083008,
+   "want": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。"
+  },
+  {
+   "id": "chinese-hard-01",
+   "got": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.8597609996795654,
+   "want": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。"
+  },
+  {
+   "id": "chinese-hard-01",
+   "got": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.6908550262451172,
+   "want": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。"
+  },
+  {
+   "id": "chinese-hard-02",
+   "got": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.9904830455780029,
+   "want": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。"
+  },
+  {
+   "id": "chinese-hard-02",
+   "got": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.8099679946899414,
+   "want": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。"
+  },
+  {
+   "id": "chinese-hard-02",
+   "got": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.8303989171981812,
+   "want": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。"
+  },
+  {
+   "id": "chinese-hard-03",
+   "got": "他这个人做事一向雷厉风行，但是有时候考虑的不够周全，容易顾此失彼。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.7854909896850586,
+   "want": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。"
+  },
+  {
+   "id": "chinese-hard-03",
+   "got": "他这个人做事一向雷厉风行，但是有时候考虑的不够周全，容易顾此失彼。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.8082751035690308,
+   "want": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。"
+  },
+  {
+   "id": "chinese-hard-03",
+   "got": "他这个人做事一向雷厉风行，但是有时候考虑的不够周全，容易顾此失彼。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.9389829635620117,
+   "want": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。"
+  },
+  {
+   "id": "chinese-hard-04",
+   "got": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.8165119886398315,
+   "want": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。"
+  },
+  {
+   "id": "chinese-hard-04",
+   "got": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.9435709714889526,
+   "want": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。"
+  },
+  {
+   "id": "chinese-hard-04",
+   "got": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.7974768877029419,
+   "want": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。"
+  },
+  {
+   "id": "english-hard-01",
+   "got": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 0.8547199964523315,
+   "want": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?"
+  },
+  {
+   "id": "english-hard-01",
+   "got": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+   "category": "english",
+   "context": "none",
+   "seconds": 0.7231969833374023,
+   "want": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?"
+  },
+  {
+   "id": "english-hard-01",
+   "got": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 0.7585629224777222,
+   "want": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?"
+  },
+  {
+   "id": "english-hard-02",
+   "got": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+   "category": "english",
+   "context": "none",
+   "seconds": 0.7135969400405884,
+   "want": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+  },
+  {
+   "id": "english-hard-02",
+   "got": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 0.7439570426940918,
+   "want": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+  },
+  {
+   "id": "english-hard-02",
+   "got": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 0.8545299768447876,
+   "want": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+  },
+  {
+   "id": "english-hard-03",
+   "got": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 0.7761080265045166,
+   "want": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+  },
+  {
+   "id": "english-hard-03",
+   "got": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 0.9008840322494507,
+   "want": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+  },
+  {
+   "id": "english-hard-03",
+   "got": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+   "category": "english",
+   "context": "none",
+   "seconds": 0.7463970184326172,
+   "want": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+  },
+  {
+   "id": "mixed-noisy-01",
+   "got": "我们把 Kubernetes cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.9521620273590088,
+   "want": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。"
+  },
+  {
+   "id": "mixed-noisy-01",
+   "got": "我们把 Kubernetes cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.8241949081420898,
+   "want": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。"
+  },
+  {
+   "id": "mixed-noisy-01",
+   "got": "我们把 Kubernetes cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.8775589466094971,
+   "want": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。"
+  },
+  {
+   "id": "mixed-noisy-02",
+   "got": "This per color of the callback URL, and TypeScript the type definition emerge. Before, first run it.",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.7143830060958862,
+   "want": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。"
+  },
+  {
+   "id": "mixed-noisy-02",
+   "got": "This per shallow of the callback URL, and TypeScript the type definition emerge. Before, first run it.",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.7577160596847534,
+   "want": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。"
+  },
+  {
+   "id": "mixed-noisy-02",
+   "got": "This per color of the callback URL, and TypeScript the type definition. Merge. Before, first run it.",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.9207559823989868,
+   "want": "这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。"
+  },
+  {
+   "id": "mixed-noisy-03",
+   "got": "我刚跟 Sarah 开了个 one-on-one。她说下个季度的 OKR 要 focus 在 retention 上。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.8148070573806763,
+   "want": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。"
+  },
+  {
+   "id": "mixed-noisy-03",
+   "got": "我刚跟 Sarah 开了个 one on one。她说下个季度的 OKR 要 focus 在 retention 上。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.9295090436935425,
+   "want": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。"
+  },
+  {
+   "id": "mixed-noisy-03",
+   "got": "我刚跟 Sarah 开了个 one-on-one。她说下个季度的 OKR 要 focus 在 retention 上。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.791936993598938,
+   "want": "我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。"
+  },
+  {
+   "id": "mixed-noisy-04",
+   "got": "用 Redis 做 Rate Limiting 的话，Sliding Window 比 Fixed Window 更准，但是 Memory 开销会大一点。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 1.017994999885559,
+   "want": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。"
+  },
+  {
+   "id": "mixed-noisy-04",
+   "got": "用 Redis 做 Recently Matching 的话，Sliding Window 比 Fixed Window 更准，但是 Memory 花销会大一点。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.929839015007019,
+   "want": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。"
+  },
+  {
+   "id": "mixed-noisy-04",
+   "got": "用 Redis 做 Rate Limiting 的话，Sliding Window 比 Fixed Window 更准，但是 Memory 开销会大一点。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 1.1468170881271362,
+   "want": "用 Redis 做 rate limiting 的话，sliding window 比 fixed window 更准，但是 memory 开销会大一点。"
+  },
+  {
+   "id": "mixed-noisy-05",
+   "got": "帮我写一个 Distance Street 读 S 三 bucket 里的 JSON 文件，然后 observe 到 Dynamo DB。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 0.8028650283813477,
+   "want": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。"
+  },
+  {
+   "id": "mixed-noisy-05",
+   "got": "帮我写一个 Ticketmaster 独 S 三 bucket 里的 JSON 文件，然后 observe 到 Dynamo DB。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 0.8385370969772339,
+   "want": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。"
+  },
+  {
+   "id": "mixed-noisy-05",
+   "got": "帮我写一个 Ticketmaster Street 票 S3 Bucket 里的 JSON 文件，然后 upload 到 Dynamo DB。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 0.9658889770507812,
+   "want": "帮我写一个 Python script，读 S3 bucket 里的 JSON 文件，然后 upsert 到 DynamoDB。"
+  },
+  {
+   "id": "chinese-noisy-01",
+   "got": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.6833090782165527,
+   "want": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。"
+  },
+  {
+   "id": "chinese-noisy-01",
+   "got": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.8021959066390991,
+   "want": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。"
+  },
+  {
+   "id": "chinese-noisy-01",
+   "got": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.6618069410324097,
+   "want": "这件事情说来话长，我们还是先把眼前的问题解决了，再从长计议吧。"
+  },
+  {
+   "id": "chinese-noisy-02",
+   "got": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.9152529239654541,
+   "want": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。"
+  },
+  {
+   "id": "chinese-noisy-02",
+   "got": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.737866997718811,
+   "want": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。"
+  },
+  {
+   "id": "chinese-noisy-02",
+   "got": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.7724530696868896,
+   "want": "王经理昨天在会上说，下个季度的预算要压缩，所有的出差申请都要提前审批。"
+  },
+  {
+   "id": "chinese-noisy-03",
+   "got": "他这个人做事一向雷厉风行，但是有时候考虑的不够周全，容易顾此失彼。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.7195190191268921,
+   "want": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。"
+  },
+  {
+   "id": "chinese-noisy-03",
+   "got": "他这个人做事一向雷厉风行，但是有时候考虑的不够周全，容易顾此失彼。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.7539920806884766,
+   "want": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。"
+  },
+  {
+   "id": "chinese-noisy-03",
+   "got": "他这个人做事一向雷厉风行，但是有时候考虑的不够周全，容易顾此失彼。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.8699069023132324,
+   "want": "他这个人做事一向雷厉风行，但是有时候考虑得不够周全，容易顾此失彼。"
+  },
+  {
+   "id": "chinese-noisy-04",
+   "got": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+   "category": "chinese",
+   "context": "terms10",
+   "seconds": 0.7773799896240234,
+   "want": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。"
+  },
+  {
+   "id": "chinese-noisy-04",
+   "got": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+   "category": "chinese",
+   "context": "terms50",
+   "seconds": 0.9206070899963379,
+   "want": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。"
+  },
+  {
+   "id": "chinese-noisy-04",
+   "got": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。",
+   "category": "chinese",
+   "context": "none",
+   "seconds": 0.7363559007644653,
+   "want": "我们周末打算去杭州西湖附近转转，顺便尝尝那边的龙井虾仁和西湖醋鱼。"
+  },
+  {
+   "id": "english-noisy-01",
+   "got": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 0.853472113609314,
+   "want": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?"
+  },
+  {
+   "id": "english-noisy-01",
+   "got": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+   "category": "english",
+   "context": "none",
+   "seconds": 0.6772880554199219,
+   "want": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?"
+  },
+  {
+   "id": "english-noisy-01",
+   "got": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 0.7097669839859009,
+   "want": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes?"
+  },
+  {
+   "id": "english-noisy-02",
+   "got": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+   "category": "english",
+   "context": "none",
+   "seconds": 0.6581180095672607,
+   "want": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+  },
+  {
+   "id": "english-noisy-02",
+   "got": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 0.6970360279083252,
+   "want": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+  },
+  {
+   "id": "english-noisy-02",
+   "got": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard.",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 0.8314989805221558,
+   "want": "Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard."
+  },
+  {
+   "id": "english-noisy-03",
+   "got": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 0.768963098526001,
+   "want": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+  },
+  {
+   "id": "english-noisy-03",
+   "got": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 0.8531750440597534,
+   "want": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+  },
+  {
+   "id": "english-noisy-03",
+   "got": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+   "category": "english",
+   "context": "none",
+   "seconds": 0.8433510065078735,
+   "want": "I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+  },
+  {
+   "id": "long-mixed-01",
+   "got": "我们把 Kubernetes the cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition。你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one on one，她说下个季度的 OKR 要 focus 在 retention 上。",
+   "category": "mixed",
+   "context": "terms50",
+   "seconds": 2.3990650177001953,
+   "want": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。 这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。 我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。"
+  },
+  {
+   "id": "long-mixed-01",
+   "got": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition。你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。",
+   "category": "mixed",
+   "context": "none",
+   "seconds": 2.254681944847107,
+   "want": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。 这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。 我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。"
+  },
+  {
+   "id": "long-mixed-01",
+   "got": "我们把 Kubernetes the cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。这个 PR 改了 all of the callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下词。我刚跟 Sarah 开了个 one on one，她说下个季度的 OKR 要 focus 在 retention 上。",
+   "category": "mixed",
+   "context": "terms10",
+   "seconds": 2.2701820135116577,
+   "want": "我们把 Kubernetes 的 cluster 升级之后，PostgreSQL 的 connection pool 一直 timeout，latency 也涨了很多。 这个 PR 改了 OAuth 的 callback URL，还有 TypeScript 的 type definition，你 merge 之前先跑一下 CI。 我刚跟 Sarah 开了个 one-on-one，她说下个季度的 OKR 要 focus 在 retention 上。"
+  },
+  {
+   "id": "long-english-01",
+   "got": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+   "category": "english",
+   "context": "none",
+   "seconds": 1.8773269653320312,
+   "want": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+  },
+  {
+   "id": "long-english-01",
+   "got": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+   "category": "english",
+   "context": "terms10",
+   "seconds": 1.9945950508117676,
+   "want": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+  },
+  {
+   "id": "long-english-01",
+   "got": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight.",
+   "category": "english",
+   "context": "terms50",
+   "seconds": 2.0569369792938232,
+   "want": "Can you ask Priyanka whether the Kubernetes migration is blocked on the PostgreSQL upgrade or the OAuth changes? Let's circle back on the quarterly roadmap after we've reconciled the analytics discrepancies in the retention dashboard. I need the TypeScript definitions regenerated, the GraphQL schema validated, and the staging environment redeployed by tonight."
+  },
+  {
+   "id": "term-en-1",
+   "got": "I ask Claude to fix the Hammerspoon config.",
+   "category": "term-english",
+   "context": "terms10",
+   "seconds": 0.5231930017471313,
+   "want": "I asked Claude to fix the Hammerspoon config."
+  },
+  {
+   "id": "term-en-1",
+   "got": "I ask Claude to fix the Hammerspoon config.",
+   "category": "term-english",
+   "context": "terms50",
+   "seconds": 0.5830099582672119,
+   "want": "I asked Claude to fix the Hammerspoon config."
+  },
+  {
+   "id": "term-en-1",
+   "got": "I ask Claude to fix the Amerspoon config.",
+   "category": "term-english",
+   "context": "none",
+   "seconds": 0.45873701572418213,
+   "want": "I asked Claude to fix the Hammerspoon config."
+  },
+  {
+   "id": "term-en-2",
+   "got": "Buy the tickets on Ticketmaster before the Book of Mormon sells out.",
+   "category": "term-english",
+   "context": "terms50",
+   "seconds": 0.6955480575561523,
+   "want": "Buy the tickets on Ticketmaster before the Book of Mormon sells out."
+  },
+  {
+   "id": "term-en-2",
+   "got": "Buy the tickets on Ticketmaster before the Book of Mormon sells out.",
+   "category": "term-english",
+   "context": "none",
+   "seconds": 0.5291479825973511,
+   "want": "Buy the tickets on Ticketmaster before the Book of Mormon sells out."
+  },
+  {
+   "id": "term-en-2",
+   "got": "Buy the tickets on Ticketmaster before the Book of Mormon sells out.",
+   "category": "term-english",
+   "context": "terms10",
+   "seconds": 0.7133270502090454,
+   "want": "Buy the tickets on Ticketmaster before the Book of Mormon sells out."
+  },
+  {
+   "id": "term-en-3",
+   "got": "Ruth, the student, calls through open router to deep sea.",
+   "category": "term-english",
+   "context": "none",
+   "seconds": 0.4993119239807129,
+   "want": "Route the student calls through OpenRouter to DeepSeek."
+  },
+  {
+   "id": "term-en-3",
+   "got": "Rutha Student calls through OpenRouter to DeepSeek.",
+   "category": "term-english",
+   "context": "terms10",
+   "seconds": 0.5016859769821167,
+   "want": "Route the student calls through OpenRouter to DeepSeek."
+  },
+  {
+   "id": "term-en-3",
+   "got": "Rutha Student calls through OpenRouter to DeepSeek.",
+   "category": "term-english",
+   "context": "terms50",
+   "seconds": 0.6089990139007568,
+   "want": "Route the student calls through OpenRouter to DeepSeek."
+  },
+  {
+   "id": "term-en-4",
+   "got": "The Proxmox host advertises routes over Tailscale.",
+   "category": "term-english",
+   "context": "terms10",
+   "seconds": 0.5354880094528198,
+   "want": "The Proxmox host advertises routes over Tailscale."
+  },
+  {
+   "id": "term-en-4",
+   "got": "The Proxmox host advertises routes over Tailscale.",
+   "category": "term-english",
+   "context": "terms50",
+   "seconds": 0.6361409425735474,
+   "want": "The Proxmox host advertises routes over Tailscale."
+  },
+  {
+   "id": "term-en-4",
+   "got": "The Proxmox host advertises routes over Telescale.",
+   "category": "term-english",
+   "context": "none",
+   "seconds": 0.4799950122833252,
+   "want": "The Proxmox host advertises routes over Tailscale."
+  },
+  {
+   "id": "term-en-5",
+   "got": "Sync my remarkable notes and check GlitchTip for errors.",
+   "category": "term-english",
+   "context": "terms50",
+   "seconds": 0.7089139223098755,
+   "want": "Sync my reMarkable notes and check GlitchTip for errors."
+  },
+  {
+   "id": "term-en-5",
+   "got": "Sync my remarkable notes and check glitch tip for errors.",
+   "category": "term-english",
+   "context": "none",
+   "seconds": 0.4498840570449829,
+   "want": "Sync my reMarkable notes and check GlitchTip for errors."
+  },
+  {
+   "id": "term-en-5",
+   "got": "Sync my remarkable notes and check GlitchTip for errors.",
+   "category": "term-english",
+   "context": "terms10",
+   "seconds": 0.518333911895752,
+   "want": "Sync my reMarkable notes and check GlitchTip for errors."
+  },
+  {
+   "id": "term-mixed-1",
+   "got": "帮我用 Slaved 改一下 Hummer Pro 的配置。",
+   "category": "term-mixed",
+   "context": "none",
+   "seconds": 0.4829061031341553,
+   "want": "帮我用 Claude 改一下 Hammerspoon 的配置。"
+  },
+  {
+   "id": "term-mixed-1",
+   "got": "帮我用 Slaved 改一下 Hammerspoon 的配置。",
+   "category": "term-mixed",
+   "context": "terms10",
+   "seconds": 0.5378071069717407,
+   "want": "帮我用 Claude 改一下 Hammerspoon 的配置。"
+  },
+  {
+   "id": "term-mixed-1",
+   "got": "帮我用 Slaved 改一下 Hammerspoon 的配置。",
+   "category": "term-mixed",
+   "context": "terms50",
+   "seconds": 0.649103045463562,
+   "want": "帮我用 Claude 改一下 Hammerspoon 的配置。"
+  },
+  {
+   "id": "term-mixed-2",
+   "got": "把 OpenRouter 上的服务通过 Tailscale 暴露出来。",
+   "category": "term-mixed",
+   "context": "terms10",
+   "seconds": 0.5707359313964844,
+   "want": "把 Proxmox 上的服务通过 Tailscale 暴露出来。"
+  },
+  {
+   "id": "term-mixed-2",
+   "got": "把 Proxmox 上的服务通过 Tailscale 暴露出来。",
+   "category": "term-mixed",
+   "context": "terms50",
+   "seconds": 0.688040018081665,
+   "want": "把 Proxmox 上的服务通过 Tailscale 暴露出来。"
+  },
+  {
+   "id": "term-mixed-2",
+   "got": "把 Proxy 上的服务通过 TLS 漏洞暴露出来。",
+   "category": "term-mixed",
+   "context": "none",
+   "seconds": 0.5219089984893799,
+   "want": "把 Proxmox 上的服务通过 Tailscale 暴露出来。"
+  },
+  {
+   "id": "term-mixed-3",
+   "got": "明天提醒我在 Ticketmaster 上买票。",
+   "category": "term-mixed",
+   "context": "terms50",
+   "seconds": 0.5647779703140259,
+   "want": "明天提醒我在 Ticketmaster 上买票。"
+  },
+  {
+   "id": "term-mixed-3",
+   "got": "明天提醒我在TicketsPlus上买票。",
+   "category": "term-mixed",
+   "context": "none",
+   "seconds": 0.42028605937957764,
+   "want": "明天提醒我在 Ticketmaster 上买票。"
+  },
+  {
+   "id": "term-mixed-3",
+   "got": "明天提醒我在 Ticketmaster 上买票。",
+   "category": "term-mixed",
+   "context": "terms10",
+   "seconds": 0.48186004161834717,
+   "want": "明天提醒我在 Ticketmaster 上买票。"
+  }
+ ]
+}

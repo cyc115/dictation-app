@@ -285,7 +285,7 @@ for $0.0077; a default latency run is about $0.003 (`bench/README.md`); a tune i
 | Run | Decides | Cost |
 |---|---|---|
 | `bench/suite.py polish run`, one model, with a sample vocabulary: **done Nov 22**, the block was reworded and moved | Polish quality and wait with the terms block | 10¢ in all |
-| `./test.sh --local`, then the latency suite on the on-device model only, no polish | Whether `vocabularySpeechHint` can default on (the code notes English-first hint words made Qwen translate mixed Chinese) | $0 |
+| ~~`./test.sh --local`, then the latency suite on the on-device model only, no polish~~ **Done Nov 22**, as one run of `LocalEngine` on the 46 test clips and 8 term clips with 0, 10 and 50 terms (neither suite passes vocabulary terms). No harm on the test clips (5.3% → 5.1% word errors, no new translation), term clips 23% → 6% errors, +0.04 s with 10 terms and +0.17 s with 50. `bench/results/local/README.md`. The default stays off until Mike decides | Whether `vocabularySpeechHint` can default on (the code notes English-first hint words made Qwen translate mixed Chinese) | $0 |
 | `bench/suite.py edits run`: cheap models first, the strong one once as the reference, batches of 10 | The judge's model, and whether batching holds accuracy | est. under 15¢ |
 
 The edits suite records each request's cost (as the polish suite does), prints the run's total, and
