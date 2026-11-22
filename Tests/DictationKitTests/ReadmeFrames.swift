@@ -73,10 +73,17 @@ final class ReadmeFrames: XCTestCase {
                           size: NSSize(width: 640, height: 250))
         var frames: [[String: Any]] = []
         func frame(_ ms: Int, caption: String) throws {
-            spinRunLoop(0.05)
+            // The window draws active, so the progress bar animates to each new value: wait until
+            // it has arrived (two draws alike), or every render catches it somewhere else.
+            var png: Data?
+            for _ in 0..<40 {
+                spinRunLoop(0.05)
+                let next = snapshotBitmap(of: hosted.hostingView)?.representation(using: .png, properties: [:])
+                if next != nil, next == png { break }
+                png = next
+            }
             let name = String(format: "frame-%03d.png", frames.count)
-            try XCTUnwrap(snapshotBitmap(of: hosted.hostingView)?.representation(using: .png, properties: [:]))
-                .write(to: out.appendingPathComponent(name))
+            try XCTUnwrap(png).write(to: out.appendingPathComponent(name))
             frames.append(["file": name, "ms": ms, "caption": caption])
         }
         try frame(1400, caption: "Pick On-device: 2.5 GB, once")

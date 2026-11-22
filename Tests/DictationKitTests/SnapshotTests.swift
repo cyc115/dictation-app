@@ -6,6 +6,29 @@ import XCTest
 /// Visual regression: renders views with fixed data and compares to reference PNGs.
 /// After an intentional UI change: RECORD_SNAPSHOTS=1 swift test --filter SnapshotTests
 final class SnapshotTests: XCTestCase {
+    /// Test windows draw as the window in use (an "on" switch in colour, `controlActiveState` key),
+    /// in the pinned blue whatever the Mac's accent: `OffscreenWindow.hasKeyAppearance` and
+    /// `pinSystemColors`. If this fails after a macOS update, AppKit no longer asks
+    /// `hasKeyAppearance` for the active look and every snapshot's controls went grey.
+    func testHostedWindowsDrawActive() throws {
+        struct Probe: View {
+            @Environment(\.controlActiveState) var state
+            var body: some View {
+                HStack { Toggle("On", isOn: .constant(true)).toggleStyle(.switch).labelsHidden(); Text(state == .key ? "key" : "not key") }
+                    .padding(20)
+            }
+        }
+        let hosted = host(Probe(), size: NSSize(width: 240, height: 80))
+        XCTAssertTrue(hosted.allText.contains("key") && !hosted.allText.contains("not key"), hosted.allText)
+        let rep = try XCTUnwrap(snapshotBitmap(of: hosted.hostingView))
+        // The switch's filled track, left of its knob.
+        let track = try XCTUnwrap(rep.colorAt(x: 52, y: 80)?.usingColorSpace(.sRGB))
+        XCTAssertGreaterThan(track.blueComponent - track.redComponent, 0.5, "an on switch is blue, not grey: \(track)")
+        XCTAssertTrue(systemColorsArePinned(), "accent pinned to blue for this process: \(NSColor.controlAccentColor)")
+        XCTAssertEqual(UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)["AppleAccentColor"] as? Int, 4)
+        XCTAssertFalse(hosted.window.isKeyWindow, "only the look changes, not focus")
+    }
+
     func testOverlayListening() throws {
         let overlay = makeOverlay(fixedScale: true)
         overlay.showListening(micName: "MacBook Pro Microphone")

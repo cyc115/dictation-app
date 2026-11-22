@@ -343,6 +343,7 @@ final class HostedView<Content: View> {
         NSApplication.shared.accessibilitySetValue(
             true, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
         // The Mac's own settings stay out of what's drawn: date format, time zone, accent color.
+        pinSystemColors()
         hostingView = NSHostingView(rootView: AnyView(view
             .environment(\.dateContext, testDates)
             .environment(\.locale, testDates.locale)
@@ -433,6 +434,32 @@ extension XCTestCase {
     }
 }
 
+/// The accent and highlight colours AppKit draws with in this test process: blue, whatever this
+/// Mac's System Settings say. A switch, a selected segment or a default button takes the system
+/// accent, not SwiftUI's `accentColor` (and a `tint` would also recolour every plain button, which
+/// the app doesn't do). Set in the argument domain: this process only, never saved, so the Mac's own
+/// settings are untouched. AppKit reads the accent once, so this must run before anything draws
+/// one; `HostedView` calls it first, and `assertSnapshot` checks it took (`pinnedAccent`).
+func pinSystemColors() { _ = systemColorsPinned }
+
+private let systemColorsPinned: Void = {
+    var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+    arguments["AppleAccentColor"] = 4  // blue
+    arguments["AppleHighlightColor"] = "0.698039 0.843137 1.000000 Blue"
+    UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
+}()
+
+/// The system blue that pinned accent draws as (sRGB 0, 122, 255).
+let pinnedAccent = (red: 0.0, green: 0.478, blue: 1.0)
+
+/// Whether AppKit is drawing with the pinned accent; false if something read the accent before
+/// `pinSystemColors` (then this Mac's own accent would show in snapshots).
+func systemColorsArePinned() -> Bool {
+    guard let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) else { return false }
+    return abs(accent.redComponent - pinnedAccent.red) < 0.01 && abs(accent.greenComponent - pinnedAccent.green) < 0.01
+        && abs(accent.blueComponent - pinnedAccent.blue) < 0.01
+}
+
 /// A window whose drawing doesn't depend on the display it's on; `assertSnapshot` only takes these.
 protocol FixedScaleWindow: NSWindow {}
 
@@ -441,6 +468,13 @@ final class OffscreenWindow: NSWindow, FixedScaleWindow {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
     /// Snapshots draw text at this scale whatever display the window would be on (see assertSnapshot).
     override var backingScaleFactor: CGFloat { snapshotScale }
+    /// Draws as the window you're using, as the app's windows do when you look at them. The test
+    /// process is never the active app and this window is never key, so AppKit drew every control
+    /// in its inactive look (an "on" switch grey) and SwiftUI's `controlActiveState` was `.inactive`.
+    /// AppKit asks the window `hasKeyAppearance` (not public API) for that look; answering yes is the
+    /// one override that changes it. `isKeyWindow` stays false, so focus and the responder chain
+    /// are untouched. `testHostedWindowsDrawActive` fails if a macOS update stops asking this.
+    @objc func hasKeyAppearance() -> Bool { true }
 }
 
 /// The overlay pill's panel for snapshots: same as the app's, at `snapshotScale`.
@@ -529,6 +563,11 @@ func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.0
     guard view.window is FixedScaleWindow else {
         return XCTFail("\(name): snapshot a view in an OffscreenWindow/OffscreenPanel (HostedView does this), "
                        + "or it changes with the display it's on", file: file, line: line)
+    }
+    pinSystemColors()
+    guard systemColorsArePinned() else {
+        return XCTFail("\(name): AppKit read this Mac's accent colour before pinSystemColors() ran, so the snapshot "
+                       + "would follow System Settings; call pinSystemColors() before anything draws", file: file, line: line)
     }
     for _ in 0..<5 where fitOverlayScrollers(in: view) {
         view.display()
