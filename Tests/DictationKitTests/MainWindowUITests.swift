@@ -67,7 +67,7 @@ final class KeptPagesTests: XCTestCase {
                 + (window.toolbar?.items ?? []).compactMap { ($0 as? NSSearchToolbarItem)?.searchField }
         }
         for (tab, prompt) in [(MainTab.history, "Search history"), (.corrections, "Search corrections"),
-                              (.history, "Search history"), (.settings, nil), (.commands, "Search commands"),
+                              (.history, "Search history"), (.settings, nil), (.commands, "Search commands"), (.vocabulary, "Search vocabulary"),
                               (.corrections, "Search corrections")] {
             selection.tab = tab
             let fields = searchFields()

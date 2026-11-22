@@ -153,4 +153,13 @@ final class VocabularyTests: XCTestCase {
         XCTAssertNil(Vocabulary.none.fingerprint, "no terms: today's measurements still count")
         XCTAssertNil(Vocabulary([entry("Claude", enabled: false)]).fingerprint)
     }
+
+    /// The store's fingerprint (what the tile looks up) and a snapshot's (what a tune records) agree.
+    func testTheStoreAndASnapshotFingerprintAlike() throws {
+        let url = makeTempURL(self, "vocabulary.json")
+        try #"{"entries": [{"term": "Claude ", "heardAs": ["cloud"]}]}"#.write(to: url, atomically: true, encoding: .utf8)
+        let store = VocabularyStore(fileURL: url)
+        XCTAssertNotNil(store.fingerprint(enabled: true))
+        XCTAssertEqual(store.fingerprint(enabled: true), store.vocabulary(enabled: true).fingerprint)
+    }
 }

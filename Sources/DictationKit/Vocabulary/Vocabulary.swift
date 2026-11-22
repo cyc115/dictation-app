@@ -295,9 +295,10 @@ struct Vocabulary {
 
     /// The enabled ones of `entries`, fingerprinted.
     static func fingerprint(of entries: [VocabularyEntry]) -> String? {
-        let enabled = entries.filter { $0.enabled && !$0.term.trimmingCharacters(in: .whitespaces).isEmpty }
+        // Trimmed as `init` trims, so the store's fingerprint and a snapshot's always agree.
+        let enabled = entries.filter(\.enabled).map { ($0.term.trimmingCharacters(in: .whitespaces), $0.heardAs) }.filter { !$0.0.isEmpty }
         guard !enabled.isEmpty else { return nil }
-        let lines = enabled.map { ([$0.term] + $0.heardAs.sorted()).joined(separator: "\t") }.sorted()
+        let lines = enabled.map { ([$0.0] + $0.1.sorted()).joined(separator: "\t") }.sorted()
         let digest = SHA256.hash(data: Data(lines.joined(separator: "\n").utf8))
         return digest.prefix(8).map { String(format: "%02x", $0) }.joined()
     }

@@ -224,7 +224,8 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
   DeepSeek to write the script. `fix` runs Claude Code on this Mac, which sends what you said, the
   command's runs and errors, and the code it reads to Anthropic. Commands are saved beside your history, in `history-commands.json`.
 - Your vocabulary stays on this Mac, in `vocabulary.json`. Its terms go where polish already goes:
-  OpenRouter on the cloud setups, Apple Intelligence on-device; with polish off they go nowhere.
+  OpenRouter on the cloud setups, Apple Intelligence on-device. With an API key, Corrections'
+  suggested text and Learn also send them to OpenRouter, as they do your corrections.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted)
   to the cloud models, like any cloud dictation. Learned prompts stay in
   `~/Library/Application Support/DictationApp/learned-prompts.json`.

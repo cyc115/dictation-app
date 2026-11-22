@@ -107,16 +107,17 @@ final class LearnController: ObservableObject {
     /// The vocabulary a tune would run with now (from memory; `learn()` re-reads the file first).
     private var terms: Vocabulary { vocabulary.vocabulary(enabled: settings.vocabularyEnabled) }
 
-    /// What a tune is given: at most `maxFixes` corrections, the ones not yet learned first, newest
-    /// first within each (so one with something left to learn is never past the cap), each transcript
-    /// with the vocabulary replaced (what the student would be given in a dictation).
+    /// The fixes a tune takes: the newest `maxFixes` corrections. The gate asks whether these are
+    /// learned, so past the cap it reaches "all learned" rather than offering a tune with nothing to learn.
+    private var tuneFixes: [HistoryEntry] { Array(corrections.sorted { $0.date > $1.date }.prefix(Self.maxFixes)) }
+
+    /// What a tune is given: `tuneFixes`, each transcript with the vocabulary replaced (what the
+    /// student would be given in a dictation).
     private func tuneCases(_ terms: Vocabulary) -> [TuneCase] {
-        let cases = corrections.map {
-            (date: $0.date, case: TuneCase(id: $0.id, input: terms.apply($0.input).text, wanted: $0.correction ?? $0.text,
-                                           learned: store.isLearned($0.id, setup: setup.id)))
+        tuneFixes.map {
+            TuneCase(id: $0.id, input: terms.apply($0.input).text, wanted: $0.correction ?? $0.text,
+                     learned: store.isLearned($0.id, setup: setup.id))
         }
-        return cases.sorted { $0.case.learned != $1.case.learned ? !$0.case.learned : $0.date > $1.date }
-            .prefix(Self.maxFixes).map(\.case)
     }
 
     var setup: DictationSetup { settings.setup }
@@ -130,7 +131,7 @@ final class LearnController: ObservableObject {
         if !settings.hasOpenRouterKey { return .noKey }
         let count = corrections.count
         if count < Self.minimum { return .needMore(have: count) }
-        if corrections.allSatisfy({ store.isLearned($0.id, setup: setup.id) }) { return .allLearned(count: count) }
+        if tuneFixes.allSatisfy({ store.isLearned($0.id, setup: setup.id) }) { return .allLearned(count: count) }
         return .ready(count: count)
     }
 

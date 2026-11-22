@@ -156,24 +156,18 @@ final class VocabularyLearnControllerTests: XCTestCase {
     }
 }
 
-/// Past 60 corrections, the ones still to learn come first, so Learn never stalls on old ones.
+/// Past 60 corrections a tune takes the newest 60, and the gate asks about those same 60.
 @MainActor
 final class LearnCapTests: XCTestCase {
-    func testUnlearnedFixesComeFirstWithinTheCap() throws {
+    func testThe60NewestLearnedIsAllLearned() throws {
         let fx = LearnFixture(self, count: 70)
-        // The 60 newest learned by an earlier tune: only the 10 oldest have something left.
+        XCTAssertEqual(fx.controller.gate, .ready(count: 70))
         let newest = fx.history.corrections.sorted { $0.date > $1.date }.prefix(60)
         let errors = Dictionary(uniqueKeysWithValues: newest.map { ($0.id.uuidString, 0.0) })
         fx.store.keep(LearnedPrompt(version: "v8", setup: "cloud-flash", basedOn: "v7", date: fixedDate(2026, 11, 1, 9, 0), text: "P",
                                     lens: .both, corrections: 60, tokens: 1,
                                     score: .init(mine: 90, mineBefore: 80, general: 90, generalBefore: 90),
                                     errors: errors, errorsBefore: errors))
-        XCTAssertEqual(fx.controller.gate, .ready(count: 70))
-        fx.controller.learn()
-        waitUntil(timeout: 10) { fx.controller.gate == .done || fx.controller.error != nil }
-        XCTAssertNil(fx.controller.error, "not \"every correction is already learned\"")
-        let polished = Set(fx.log.events.filter { $0.hasPrefix("polish:current:can you") })
-        for n in 1...10 { XCTAssertTrue(polished.contains("polish:current:can you install cloud code \(n)"), "oldest \(n) is in") }
-        XCTAssertEqual(polished.count, 60)
+        XCTAssertEqual(fx.controller.gate, .allLearned(count: 70), "not a Learn button that can only fail")
     }
 }

@@ -44,7 +44,7 @@ on-device all get their instructions from `Vocabulary.instructions`.
    - `makeTuner(setup, key, vocabulary)`; one snapshot per tune; case inputs replaced; the student is
      `VocabularyPolish` over a backend with `instructions(candidate)`; the teacher's prompt untouched.
    - `PromptMeasurement.vocabulary` fingerprint; another one is stale (re-measured).
-   - At most 60 fixes: not yet learned first, newest first within each (else Learn stalls past 60).
+   - At most 60 fixes, newest first; the gate's "all learned" asks about the same 60.
 7. **UI** (`VocabularyView.swift`, `VocabularySection.swift`, `MainWindow.swift`, `SettingsView.swift`)
    - `MainTab.vocabulary` (toolbar search); add row; Your terms (chips, source, uses, switch,
      delete, click to edit); footer link to the file. Settings › Vocabulary with Manage Vocabulary….

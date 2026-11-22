@@ -8,7 +8,7 @@ struct VocabularySection: View {
 
     var body: some View {
         Section {
-            SettingRow("Use vocabulary", "Replaces what the speech model mishears with your terms, in every dictation, and tells AI polish the terms. Stays on this Mac; with polish on, the terms go where polish goes.") {
+            SettingRow("Use vocabulary", "Replaces what the speech model mishears with your terms, in every dictation, and tells AI polish the terms. The list stays on this Mac; the terms go where polish goes, and with an API key to the cloud models behind Corrections' suggestions and Learn.") {
                 Toggle("Use vocabulary", isOn: $settings.vocabularyEnabled)
             }
             SettingRow("Hint the on-device speech model", "Also gives your terms to the On-device speech model while you speak. Off until it's been measured: hint words have made it translate mixed Chinese into English.",
