@@ -205,7 +205,7 @@ final class SnapshotTests: XCTestCase {
         entries[1].correction = "Is GeForce Now down again?"
         for i in entries.indices { entries[i].intake = FixIntake.intake(of: entries[i].text, target: entries[i].correction!) }
         JSONFile.save(entries, to: historyURL)
-        JSONFile.save(["entries": [VocabularyEntry(term: "reMarkable", added: fixedDate(2026, 11, 2, 9, 0), uses: 3)]], to: vocabularyURL)
+        JSONFile.save(["entries": [VocabularyEntry(term: "reMarkable", added: fixedDate(2026, 1, 2, 9, 0), uses: 3)]], to: vocabularyURL)
         let history = HistoryStore(fileURL: historyURL, defaults: makeDefaults(self))
         let vocabulary = VocabularyStore(fileURL: vocabularyURL)
         vocabulary.now = { fixedDate(2026, 1, 14, 9, 30) }
