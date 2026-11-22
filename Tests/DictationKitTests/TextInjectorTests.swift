@@ -35,11 +35,13 @@ final class TextInjectorTests: XCTestCase {
         injector.canPaste = { true }
         var pasted: [String] = []
         injector.paste = { pasted.append(pasteboard.string(forType: .string) ?? "") }
+        var returned: [String?] = []
         for before: Character? in ["d", " ", nil] {
             injector.charBeforeCursor = { _ in before }
-            injector.inject("next")
+            returned.append(injector.inject("next"))
         }
         XCTAssertEqual(pasted, [" next", "next", "next"])
+        XCTAssertEqual(returned, [" next", "next", "next"], "what went in, for the edit watcher")
     }
 
     /// ⌘V's key-up comes 30 ms after its key-down (slow apps miss a shorter press); the main thread
@@ -93,7 +95,7 @@ final class TextInjectorTests: XCTestCase {
         injector.canPaste = { false }
         var pasted = false
         injector.paste = { pasted = true }
-        injector.inject("x")
+        XCTAssertNil(injector.inject("x"))
         XCTAssertFalse(pasted)
         XCTAssertEqual(pasteboard.string(forType: .string), "untouched")
     }

@@ -192,6 +192,9 @@ final class AppSettings: ObservableObject {
     /// Also give the terms to the on-device speech models as context words (`SpeechContext`). Off
     /// until measured: English hint words have made Qwen translate mixed Chinese (`SpeechContext.prompt`).
     @Setting("vocabularySpeechHint", default: false) var vocabularySpeechHint: Bool
+    /// Watch how you edit a dictation right after it's pasted (`EditWatcher`) and keep it as a captured
+    /// fix, waiting in Corrections for your Accept. Off by default: it reads the text box you typed into.
+    @Setting("learnFromEdits", default: false) var learnFromEdits: Bool
     /// A term fixed in this many different dictations is learned (`VocabularyIntake`). No Settings
     /// row: `DictationApp settings set vocabularyLearnAfter 5`. Below 1 counts as 1.
     @Setting("vocabularyLearnAfter", default: 3) var vocabularyLearnAfter: Int

@@ -113,6 +113,10 @@ class HotkeyManager {
     /// True while an excluded app (e.g. a game) is in front: the hotkey can't start dictation and
     /// the mouse buttons and Esc pass through to that app.
     var isPaused: () -> Bool = { false }
+    /// Every key-down you press, from the event tap, before the app gets it (the edit watcher, while
+    /// it watches; nil the rest of the time, so the tap does one nil check). Called on the tap's
+    /// thread, the main one, holding the key until it returns: keep it quick.
+    var onKey: ((CGEvent) -> Void)?
 
     private var eventTap: CFMachPort?
     private var monitors: [Any] = []
@@ -187,6 +191,10 @@ class HotkeyManager {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
+        }
+        // Not this app's own keys: the paste's ⌘V reaches the tap after the watch it starts.
+        if type == .keyDown, let onKey, event.getIntegerValueField(.eventSourceUserData) != TextInjector.syntheticMarker {
+            onKey(event)
         }
         if isPaused() { return Unmanaged.passUnretained(event) }
         if type == .keyDown {

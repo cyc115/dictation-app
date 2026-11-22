@@ -78,6 +78,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         preloadLocalModel()
         services.updates.relaunch.isBusy = { [weak self] in self?.dictation.isBusy ?? false }
         services.intake.isBusy = { [weak self] in self?.dictation.isBusy ?? false }
+        dictation.editWatcher = services.editWatcher
+        services.editWatcher.onCapture = { [weak self] in self?.services.intake.scheduleAfterIdle() }
         services.intake.scheduleAfterIdle()  // the first pass: every correction you already have
         services.updates.onChange = { [weak self] in self?.updateMenu() }
         services.updates.start()
@@ -95,6 +97,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             hotkey.onEscape = { [weak self] in self?.dictation.cancel() }
             hotkey.isRecording = { [weak self] in self?.dictation.dictating == true }
             hotkey.isPaused = { [weak self] in self?.exclusion.isPaused == true }
+            self.services.editWatcher.listen = { [weak hotkey] handler in
+                hotkey?.onKey = handler.map { handler in { event in handler(EditKey(event: event)) } }
+            }
             self.hotkey = hotkey
             hotkey.start()
             if !granted {

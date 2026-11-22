@@ -1,7 +1,7 @@
 import Foundation
 
 /// What the app's features share: your settings, History, Insights, kept recordings, learned
-/// prompts, vocabulary and commands, one of each. `live()` makes the real ones once, at launch; everything else
+/// prompts, vocabulary, the edit watcher and commands, one of each. `live()` makes the real ones once, at launch; everything else
 /// is handed what it needs from here, so nothing reaches for a global. Tests make their own with
 /// temporary files and defaults (`makeServices` in TestSupport), so they can't touch yours.
 final class AppServices {
@@ -20,10 +20,12 @@ final class AppServices {
     let vocabulary: VocabularyStore
     /// The idle pass that learns vocabulary from your corrections.
     let intake: VocabularyIntake
+    /// *Learn from my edits*: captures how you edit a dictation after it's pasted.
+    let editWatcher: EditWatcher
 
     init(settings: AppSettings, history: HistoryStore, insights: Insights, archive: RecordingArchive,
-         commands: CommandMode, vocabulary: VocabularyStore, updates: Updates = Updates(backend: nil),
-         general: [GeneralCase] = GeneralCase.app ?? []) {
+         commands: CommandMode, vocabulary: VocabularyStore, editStats: EditWatchStats,
+         updates: Updates = Updates(backend: nil), general: [GeneralCase] = GeneralCase.app ?? []) {
         self.settings = settings
         self.vocabulary = vocabulary
         self.updates = updates
@@ -32,6 +34,7 @@ final class AppServices {
         self.archive = archive
         self.commands = commands
         intake = VocabularyIntake(history: history, vocabulary: vocabulary, settings: settings)
+        editWatcher = EditWatcher(settings: settings, history: history, stats: editStats)
         suggester = CorrectionSuggester(backend: { [weak settings] in
             settings.flatMap { s in
                 s.openRouterKey.flatMap { key in
@@ -52,6 +55,6 @@ final class AppServices {
         let history = HistoryStore()
         return AppServices(settings: AppSettings(learned: LearnedPromptStore()), history: history, insights: Insights(),
                            archive: RecordingArchive(), commands: CommandMode(history: history), vocabulary: VocabularyStore(),
-                           updates: .live())
+                           editStats: EditWatchStats(), updates: .live())
     }
 }

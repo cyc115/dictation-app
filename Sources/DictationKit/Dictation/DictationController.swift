@@ -47,6 +47,8 @@ final class DictationController {
     var sendDelay: TimeInterval = 0.15
     /// Takes text back to the box it was dictated into, if you've moved on (Paste where you dictated).
     lazy var goBack = GoBack(injector: injector)
+    /// *Learn from my edits*: armed after a plain paste of a dictation that isn't sent (nil: none, as in most tests).
+    var editWatcher: EditWatcher?
     /// A second Enter this soon after the first started a command is a double-click: just Return.
     var doublePressWindow: TimeInterval = 0.35
 
@@ -166,6 +168,7 @@ final class DictationController {
 
     func start(_ kind: DictationKind = .text) {
         guard !dictating else { return }
+        editWatcher?.newDictation()  // the last dictation's watch ends on what it has; no read here
         let setup = settings.setup
         guard let engine = makeEngine(setup) else {
             overlay.show(.plain("Add your cloud API key in Settings to use \(setup.title)", seconds: 4))
@@ -341,14 +344,18 @@ final class DictationController {
         DispatchQueue.main.asyncAfter(deadline: .now() + sendDelay) { [injector] in injector.pressReturn() }
     }
 
+    /// A plain paste: where it went and what went in (the space put in front included).
+    private typealias Pasted = (spot: TextSpot, text: String)
+
     /// Pastes `text`, then presses Return if it's being sent. If you've moved on from `target`, `GoBack`
-    /// takes it there instead (nothing's pasted if it can't); `done` runs once it's all over.
-    private func type(_ text: String, to target: TextSpot?, delivery: Delivery, done: @escaping () -> Void) {
+    /// takes it there instead (nothing's pasted if it can't); `done` runs once it's all over, with the
+    /// plain paste (nil when it went through `GoBack` or didn't happen).
+    private func type(_ text: String, to target: TextSpot?, delivery: Delivery, done: @escaping (Pasted?) -> Void) {
         let here = goBack.current()  // asked once: for whether you moved on, and for the paste
         guard let target, !target.isSame(as: here) else {
-            injector.inject(text, in: here?.field)
+            let pasted = injector.inject(text, in: here?.field)
             if delivery.send { pressReturnSoon() }
-            return done()
+            return done(here.flatMap { spot in pasted.map { (spot, $0) } })
         }
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -356,12 +363,13 @@ final class DictationController {
             if case .lost(let app) = await self.goBack.deliver(text, to: target, send: { delivery.send }) {
                 self.overlay.show(.plain("Couldn't get back to \(app): the text is on the clipboard", seconds: 5))
             }
-            done()
+            done(nil)
         }
     }
 
     /// Replaces your terms, polishes (if on), replaces again, pastes, then saves: History, the kept
-    /// recording's note, and how often each term fired, all after the paste.
+    /// recording's note, and how often each term fired, all after the paste; then arms the edit
+    /// watcher (*Learn from my edits*) for a plain paste that isn't sent.
     private func deliver(_ raw: String, from dictation: Dictation, duration: TimeInterval,
                          transcribed: TimeInterval, transcribedBy: ModelAnswer?, target: TextSpot?, delivery: Delivery) {
         guard !raw.isEmpty else { return finished(delivery) }
@@ -370,14 +378,20 @@ final class DictationController {
         let replaced = terms.apply(raw)
         /// Pastes `text`, then saves it; `polish`: how long polish took and which model answered.
         func paste(_ text: String, uses: [UUID: Int], polish: (seconds: Double, by: ModelAnswer?, error: String?)?) {
-            type(text, to: target, delivery: delivery) { [weak self] in
+            type(text, to: target, delivery: delivery) { [weak self] pasted in
                 guard let self else { return }
                 // After typing it, so saving it (History rewrites its whole file) adds nothing to your wait.
-                self.history.add(text: text, duration: duration, raw: raw, setup: setup.id, prompt: polish == nil ? nil : setup.prompt,
-                                 transcribeSeconds: transcribed, polishSeconds: polish?.seconds,
-                                 transcribedBy: transcribedBy, polishedBy: polish?.by)
+                let entry = self.history.add(text: text, duration: duration, raw: raw, setup: setup.id,
+                                             prompt: polish == nil ? nil : setup.prompt,
+                                             transcribeSeconds: transcribed, polishSeconds: polish?.seconds,
+                                             transcribedBy: transcribedBy, polishedBy: polish?.by)
                 if let polish { note?.polished(text, seconds: polish.seconds, error: polish.error) }
                 self.vocabulary.recordUses(uses)
+                // Sent text is gone from the box; text taken back by GoBack isn't where you are; one not
+                // in History has nowhere to keep a capture.
+                if let pasted, let entry, !delivery.send {
+                    self.editWatcher?.arm(spot: pasted.spot, pasted: pasted.text, text: text, entry: entry)
+                }
                 self.finished(delivery)
             }
         }

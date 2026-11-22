@@ -65,6 +65,8 @@ final class DictationControllerTests: XCTestCase {
     private var ran: [String] = []
     /// Where you are while dictating (Paste where you dictated).
     private var desk = FakeDesk()
+    /// The edit watcher's fake Mac, while a test has one.
+    private var editDesk: FakeEditDesk?
     /// The text box each paste asked about the character before the cursor (nil: it had none to ask).
     private var askedFields: [AXUIElement?] = []
 
@@ -503,6 +505,89 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(keys, [])
         XCTAssertEqual(controller.overlay.mode, .message)
         XCTAssertEqual(controller.overlay.label.stringValue, "Couldn't get back to Slack: the text is on the clipboard")
+    }
+
+    // MARK: Learn from my edits
+
+    /// The edit watcher, on a fake Mac, handed to `controller`, with Learn from my edits on.
+    private func watchEdits(_ controller: DictationController) -> (EditWatcher, FakeEditDesk) {
+        settings.learnFromEdits = true
+        let watcher = EditWatcher(settings: settings, history: history, stats: EditWatchStats(fileURL: makeTempURL(self, "edit-watch.json")))
+        let editDesk = FakeEditDesk()
+        editDesk.attach(watcher)
+        self.editDesk = editDesk  // the watcher's fakes hold it unowned
+        controller.editWatcher = watcher
+        return (watcher, editDesk)
+    }
+
+    /// After a plain paste, with what actually went in and its History entry; the probe finds it.
+    func testAPasteIsWatchedAfterItsInHistory() {
+        let controller = makeController()
+        let (watcher, editDesk) = watchEdits(controller)
+        let saved = history.objectWillChange.sink { [unowned self] _ in keys.append(watcher.isWatching ? "history:watching" : "history") }
+        defer { saved.cancel() }
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(keys, ["paste:hello world", "history"], "armed after the paste and the save")
+        XCTAssertTrue(watcher.isWatching)
+        editDesk.show("hello world")
+        editDesk.clock.advance(EditWatcher.probeDelay)
+        XCTAssertEqual(watcher.stats.apps["Slack"], EditWatchStats.App(armed: 1, probesFailed: 0, gaveUp: 0), "found where the cursor is")
+        editDesk.type("x"); editDesk.show("hello there")
+        editDesk.press([.returnKey])
+        XCTAssertEqual(history.entries[0].capture?.edited, "hello there")
+    }
+
+    func testASentDictationIsntWatched() {
+        let controller = makeController()
+        let (watcher, _) = watchEdits(controller)
+        controller.start()
+        controller.enter()
+        waitUntil { !controller.isBusy && keys.count == 2 }
+        XCTAssertFalse(watcher.isWatching)
+    }
+
+    func testACommandIsntWatched() {
+        let controller = makeController()
+        let (watcher, _) = watchEdits(controller)
+        controller.start(.command)
+        controller.enter()
+        waitUntil { !controller.isBusy }
+        XCTAssertFalse(watcher.isWatching)
+    }
+
+    func testTextTakenBackIsntWatched() {
+        let controller = makeController()
+        let (watcher, _) = watchEdits(controller)
+        controller.start()
+        controller.stop()
+        desk.moveTo(FakeDesk.notes)
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(desk.log.first, "block", "it went through GoBack")
+        XCTAssertFalse(watcher.isWatching)
+    }
+
+    func testWithHistoryOffNothingIsWatched() {
+        let controller = makeController()
+        let (watcher, _) = watchEdits(controller)
+        history.retention = .off
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertFalse(watcher.isWatching)
+    }
+
+    func testANewDictationEndsTheWatch() {
+        let controller = makeController()
+        let (watcher, _) = watchEdits(controller)
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertTrue(watcher.isWatching)
+        controller.start()
+        XCTAssertFalse(watcher.isWatching)
+        controller.cancel()
     }
 
     // MARK: Enter button

@@ -31,9 +31,11 @@ class TextInjector {
     }
 
     /// `field`: the text box the paste goes into, when the caller has already found it (one
-    /// Accessibility round trip fewer); nil asks the front app.
-    func inject(_ text: String, in field: AXUIElement? = nil) {
-        guard canPaste() else { return }
+    /// Accessibility round trip fewer); nil asks the front app. Returns what was pasted (with the space
+    /// put in front, if any); nil when it couldn't paste.
+    @discardableResult
+    func inject(_ text: String, in field: AXUIElement? = nil) -> String? {
+        guard canPaste() else { return nil }
         let pasteboard = self.pasteboard
         let text = Self.needsSpace(after: charBeforeCursor(field), before: text) ? " " + text : text
 
@@ -59,6 +61,7 @@ class TextInjector {
             }
             if !items.isEmpty { pasteboard.writeObjects(items) }
         }
+        return text
     }
 
     /// A space between the text already there and the pasted text, except: after a space, a line

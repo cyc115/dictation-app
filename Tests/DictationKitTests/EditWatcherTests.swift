@@ -153,3 +153,369 @@ final class SpanTrackerTests: XCTestCase {
         XCTAssertEqual(t.span, " 我用克劳德")
     }
 }
+
+/// Timers on a clock the test moves.
+final class FakeClock {
+    private(set) var time: TimeInterval = 0
+    private var timers: [(at: TimeInterval, n: Int, fire: () -> Void)] = []
+    private var made = 0
+
+    func after(_ delay: TimeInterval, _ fire: @escaping () -> Void) {
+        made += 1
+        timers.append((time + delay, made, fire))
+    }
+
+    /// Moves on, firing each timer due on the way, in order.
+    func advance(_ seconds: TimeInterval) {
+        let end = time + seconds
+        while let next = timers.filter({ $0.at <= end + 1e-9 }).min(by: { ($0.at, $0.n) < ($1.at, $1.n) }) {
+            timers.removeAll { $0.n == next.n }
+            time = max(time, next.at)
+            next.fire()
+        }
+        time = end
+    }
+}
+
+/// The Mac as the edit watcher sees it, faked: the text box it reads, secure input, the input
+/// source, the keys, clicks and app switches it's sent. Reads and saves run inline.
+final class FakeEditDesk {
+    let clock = FakeClock()
+    /// What the box holds now.
+    var box: EditWatcher.Read?
+    /// The app says what's in its box (false: it doesn't, so keystroke mode).
+    var answers = true
+    var focused = true
+    private(set) var reads = 0
+    var secureField = false
+    var secureInput = false
+    var inputMethod = false
+    var bundleIDs: [pid_t: String] = [1: "com.tinyspeck.slackmacgap", 2: "com.apple.Notes"]
+    private(set) var keys: ((EditKey) -> Void)?
+    private(set) var clicks: (() -> Void)?
+    private(set) var apps: ((pid_t) -> Void)?
+
+    func attach(_ watcher: EditWatcher) {
+        watcher.read = { [unowned self] _ in reads += 1; return answers ? box : nil }
+        watcher.isSecureField = { [unowned self] _ in secureField }
+        watcher.secureInput = { [unowned self] in secureInput }
+        watcher.inputMethodActive = { [unowned self] in inputMethod }
+        watcher.bundleID = { [unowned self] in bundleIDs[$0] }
+        watcher.listen = { [unowned self] in keys = $0 }
+        watcher.watchClicks = { [unowned self] in clicks = $0 }
+        watcher.watchApps = { [unowned self] in apps = $0 }
+        watcher.now = { [unowned self] in clock.time }
+        watcher.after = { [unowned self] delay, fire in clock.after(delay, fire) }
+        watcher.background = { $0() }
+        watcher.toMain = { $0() }
+    }
+
+    /// Sets the box's text, the cursor at its end (or `cursor`).
+    func show(_ value: String, cursor: Int? = nil, focused: Bool? = nil) {
+        box = EditWatcher.Read(value: value, cursor: cursor ?? value.utf16.count, focused: focused ?? self.focused)
+    }
+
+    func press(_ keys: [EditKey]) { for key in keys { self.keys?(key) } }
+    func type(_ text: String) { press(text.map { .text(String($0)) }) }
+}
+
+/// The edit watcher with a fake Mac: when it watches, how it follows an edit, when it ends, and what
+/// it keeps.
+final class EditWatcherTests: XCTestCase {
+    private var services: AppServices!
+    private var desk: FakeEditDesk!
+    private var watcher: EditWatcher { services.editWatcher }
+    private var history: HistoryStore { services.history }
+    private var captures = 0
+
+    override func setUp() {
+        services = makeServices(self)
+        services.settings.learnFromEdits = true
+        desk = FakeEditDesk()
+        desk.attach(services.editWatcher)
+        services.editWatcher.onCapture = { [unowned self] in captures += 1 }
+    }
+
+    /// A dictation of `text` pasted (with a space in front) after `before` in Slack's box, followed by
+    /// `after`; the probe left to run unless `probe` is false. Its History id.
+    @discardableResult
+    private func paste(_ text: String, after before: String = "Hi", then rest: String = "", probe: Bool = true) -> UUID {
+        let id = history.add(text: text, duration: 1)!
+        let pasted = " " + text
+        desk.show(before + pasted + rest, cursor: (before + pasted).utf16.count)
+        watcher.arm(spot: FakeDesk.slack, pasted: pasted, text: text, entry: id)
+        if probe { desk.clock.advance(EditWatcher.probeDelay) }
+        return id
+    }
+
+    private var capture: Capture? { history.entries.first?.capture }
+    private var stats: EditWatchStats.App? { watcher.stats.apps["Slack"] }
+
+    // MARK: Readback
+
+    func testReadbackFollowsTheBoxAndKeepsTheEditOnReturn() {
+        paste("I use cloud code.")
+        XCTAssertEqual(desk.reads, 1, "the probe")
+        desk.press([.wordLeft, .wordLeft]); desk.type("Claude"); desk.show("Hi I use Claude cloud code.")
+        desk.clock.advance(EditWatcher.pause)
+        XCTAssertEqual(desk.reads, 2, "read once typing paused")
+        desk.press(Array(repeating: .forwardDelete, count: 6)); desk.show("Hi I use Claude code.")
+        desk.press([.returnKey])
+        XCTAssertEqual(desk.reads, 3, "and once more before the Return went on")
+        XCTAssertEqual(capture, Capture(edited: "I use Claude code.", mode: .readback, app: "Slack", state: .waiting))
+        XCTAssertEqual(history.waiting.count, 1)
+        XCTAssertEqual(captures, 1)
+        XCTAssertFalse(watcher.isWatching)
+        XCTAssertEqual(stats, EditWatchStats.App(armed: 1, probesFailed: 0, gaveUp: 0))
+    }
+
+    func testAPauseReadWaitsForTypingToStop() {
+        paste("cloud")
+        for _ in 0..<5 { desk.type("x"); desk.clock.advance(0.3) }
+        XCTAssertEqual(desk.reads, 1, "still typing")
+        desk.clock.advance(EditWatcher.pause)
+        XCTAssertEqual(desk.reads, 2)
+    }
+
+    func testNoKeysSinceTheLastReadNoReadBeforeReturn() {
+        paste("cloud")
+        desk.type("s"); desk.show("Hi clouds")
+        desk.clock.advance(EditWatcher.pause)
+        desk.press([.returnKey])
+        XCTAssertEqual(desk.reads, 2)
+        XCTAssertEqual(capture?.edited, "clouds")
+    }
+
+    /// The read before a Return holds that key back 50 ms at most; then the last read stands.
+    func testTheReadBeforeReturnIsCappedAt50ms() {
+        paste("I use cloud.")
+        desk.show("Hi I use Claude.")
+        desk.press([.text("x")])
+        desk.clock.advance(EditWatcher.pause)  // read: "I use Claude."
+        desk.press([.text("y")])
+        desk.show("Hi I use Claude Code.")
+        let slow = desk.box
+        watcher.read = { _ in Thread.sleep(forTimeInterval: 0.3); return slow }
+        watcher.background = { work in DispatchQueue.global().async(execute: work) }
+        let started = Date()
+        desk.press([.returnKey])
+        XCTAssertLessThan(Date().timeIntervalSince(started), 0.15, "the Return wasn't held for the slow read")
+        XCTAssertEqual(capture?.edited, "I use Claude.", "the last read in time")
+    }
+
+    // MARK: Keystroke mode
+
+    func testWithoutReadbackKeysAreFollowedInMemory() {
+        desk.answers = false
+        paste("I use cloud")
+        desk.press(Array(repeating: .backspace, count: 5)); desk.type("Claude"); desk.press([.returnKey])
+        XCTAssertEqual(capture, Capture(edited: "I use Claude", mode: .keystrokes, app: "Slack", state: .waiting))
+        XCTAssertEqual(stats, EditWatchStats.App(armed: 1, probesFailed: 1, gaveUp: 0))
+        XCTAssertEqual(desk.reads, 1, "keystroke mode reads nothing more")
+    }
+
+    /// Keys typed before the probe has an answer aren't lost when it fails.
+    func testKeysBeforeTheProbeAreKept() {
+        paste("I use cloud", probe: false)
+        desk.press(Array(repeating: .backspace, count: 5)); desk.type("Claude")
+        desk.show("Hi I use Claude")  // the paste isn't where it was any more
+        desk.clock.advance(EditWatcher.probeDelay)
+        desk.press([.returnKey])
+        XCTAssertEqual(capture?.edited, "I use Claude")
+        XCTAssertEqual(capture?.mode, .keystrokes)
+    }
+
+    func testTheProbeFailsWhenThePasteIsntWhereTheCursorIs() {
+        paste("I use cloud", probe: false)
+        desk.show("Hi I use cloud", cursor: 2)
+        desk.clock.advance(EditWatcher.probeDelay)
+        XCTAssertEqual(stats?.probesFailed, 1)
+        desk.focused = false
+        paste("again")  // the box isn't focused: no readback either
+        XCTAssertEqual(stats?.probesFailed, 2)
+    }
+
+    func testKeystrokeModeGivesUpOnAClickAShortcutOrAnInputMethod() {
+        for giveUp in [{ self.desk.clicks?() }, { self.desk.press([.other]) }, { self.desk.inputMethod = true; self.desk.type("a") },
+                       { self.desk.press([.right]) }] {
+            desk.inputMethod = false
+            desk.answers = false
+            paste("I use cloud")
+            desk.press([.backspace]); desk.type("d")
+            giveUp()
+            XCTAssertFalse(watcher.isWatching)
+            desk.press([.returnKey])
+            XCTAssertNil(capture, "nothing kept")
+        }
+        XCTAssertEqual(stats?.gaveUp, 4)
+        XCTAssertNil(desk.clicks, "the click monitor is gone with the watch")
+    }
+
+    func testAnInputMethodOnFromTheStartMeansNoKeystrokeMode() {
+        desk.inputMethod = true
+        desk.answers = false
+        paste("我用克劳的")
+        XCTAssertFalse(watcher.isWatching)
+        XCTAssertEqual(stats?.gaveUp, 1)
+    }
+
+    // MARK: Never armed
+
+    func testNeverArmed() {
+        services.settings.learnFromEdits = false
+        paste("one")
+        XCTAssertFalse(watcher.isWatching, "Learn from my edits off")
+        services.settings.learnFromEdits = true
+
+        services.settings.exclude(ExcludedApp(bundleID: "com.tinyspeck.slackmacgap", name: "Slack"))
+        paste("two")
+        XCTAssertFalse(watcher.isWatching, "an excluded app")
+        services.settings.include(ExcludedApp(bundleID: "com.tinyspeck.slackmacgap", name: "Slack"))
+
+        desk.secureInput = true
+        paste("three")
+        XCTAssertFalse(watcher.isWatching, "secure input on")
+        desk.secureInput = false
+
+        desk.secureField = true
+        paste("four")
+        XCTAssertFalse(watcher.isWatching, "a password field")
+        XCTAssertNil(desk.keys)
+        XCTAssertNil(stats, "none of them counts as armed")
+    }
+
+    // MARK: Ends on
+
+    func testEndsOnAFocusChangeWithWhatItHad() {
+        paste("I use cloud")
+        desk.type("x")
+        desk.show("Hi I use Claude", focused: false)
+        desk.clock.advance(EditWatcher.pause)
+        XCTAssertFalse(watcher.isWatching)
+        XCTAssertEqual(capture?.edited, "I use Claude")
+    }
+
+    func testEndsOnAnAppChangeAfterOneLastRead() {
+        paste("I use cloud")
+        desk.type("x")
+        desk.show("Hi I use Claude")
+        desk.apps?(1)
+        XCTAssertTrue(watcher.isWatching, "the same app coming forward again")
+        desk.apps?(2)
+        XCTAssertFalse(watcher.isWatching)
+        XCTAssertEqual(capture?.edited, "I use Claude")
+        XCTAssertNil(desk.apps)
+    }
+
+    func testANewDictationEndsItWithoutARead() {
+        paste("I use cloud")
+        desk.type("x")
+        desk.show("Hi I use Claude")
+        desk.clock.advance(EditWatcher.pause)
+        let reads = desk.reads
+        desk.type("y")
+        desk.show("Hi I use Claude Code")
+        watcher.newDictation()
+        XCTAssertEqual(desk.reads, reads, "start() waits on nothing")
+        XCTAssertFalse(watcher.isWatching)
+        XCTAssertEqual(capture?.edited, "I use Claude", "what it had")
+    }
+
+    func testEndsAfter30sWithoutAKey() {
+        paste("I use cloud")
+        desk.clock.advance(20)
+        desk.type("x"); desk.show("Hi I use Claude")
+        desk.clock.advance(29)
+        XCTAssertTrue(watcher.isWatching, "30 s from the last key, not from the paste")
+        desk.clock.advance(2)
+        XCTAssertFalse(watcher.isWatching)
+        XCTAssertEqual(capture?.edited, "I use Claude")
+    }
+
+    func testEndsAfterTwoMinutesWhateverYouType() {
+        paste("I use cloud")
+        for _ in 0..<130 { desk.type("x"); desk.clock.advance(1) }
+        XCTAssertFalse(watcher.isWatching)
+    }
+
+    func testSecureInputTurningOnDropsIt() {
+        paste("I use cloud")
+        desk.type("x"); desk.show("Hi I use Claude")
+        desk.secureInput = true
+        desk.clock.advance(EditWatcher.pause)
+        XCTAssertFalse(watcher.isWatching)
+        XCTAssertNil(capture)
+        desk.secureInput = false
+
+        desk.answers = false
+        paste("I use cloud")
+        desk.press(Array(repeating: .backspace, count: 5)); desk.type("Claude")
+        desk.secureInput = true
+        desk.press([.returnKey])
+        XCTAssertNil(history.entries.first?.capture, "keystroke mode too")
+    }
+
+    func testAChangeItCantFollowEndsItOnTheLastRead() {
+        paste("I use cloud")
+        desk.type("x"); desk.show("Hi I use Claude")
+        desk.clock.advance(EditWatcher.pause)
+        desk.type("y"); desk.show("")  // sent with a click: the box is empty
+        desk.clock.advance(EditWatcher.pause)
+        XCTAssertFalse(watcher.isWatching)
+        XCTAssertEqual(capture?.edited, "I use Claude")
+    }
+
+    // MARK: What's kept
+
+    func testAnEditThatChangesNoWordLeavesNothing() {
+        for (edit, why) in [("Hi I use cloud. And more", "text added after it"), ("Hi ", "all of it deleted"),
+                            ("Hi I use cloud.", "nothing changed"), ("Hi I use cloud", "punctuation only")] {
+            paste("I use cloud.")
+            desk.type("x"); desk.show(edit)
+            desk.press([.returnKey])
+            XCTAssertNil(capture, why)
+        }
+        XCTAssertEqual(captures, 0)
+    }
+
+    /// Only the pasted text as you left it is saved: not the rest of the box, not what you typed after it.
+    func testNothingButTheEditIsWrittenToDisk() throws {
+        paste("I use cloud.", after: "SECRET-BEFORE", then: " SECRET-AFTER")
+        // Fixed and typed on in one go, no pause: one read holds both, and the keys say where the paste ended.
+        desk.press([.wordLeft, EditKey.wordRight.shifted]); desk.type("Claude"); desk.press([.right]); desk.type(" SECRET-TYPED")
+        desk.show("SECRET-BEFORE I use Claude. SECRET-TYPED SECRET-AFTER")
+        desk.press([.returnKey])
+        desk.answers = false
+        paste("call cloud", after: "SECRET-BEFORE")
+        desk.press(Array(repeating: .backspace, count: 5)); desk.type("Claude SECRET-KEYS"); desk.press([.returnKey])
+        XCTAssertEqual(history.entries.compactMap(\.capture?.edited), ["call Claude", "I use Claude."])
+        for url in [history.fileURL, watcher.stats.fileURL] {
+            let saved = try String(contentsOf: url, encoding: .utf8)
+            XCTAssertFalse(saved.contains("SECRET"), url.lastPathComponent)
+        }
+    }
+
+    func testCountsArePerAppAndSaved() {
+        paste("one")
+        desk.press([.returnKey])
+        desk.answers = false
+        paste("two")
+        let reloaded = EditWatchStats(fileURL: watcher.stats.fileURL)
+        XCTAssertEqual(reloaded.apps, ["Slack": EditWatchStats.App(armed: 2, probesFailed: 1, gaveUp: 0)])
+    }
+
+    /// The tap hands the watcher your keys only: not this app's own ⌘V (which reaches the tap after
+    /// the watch it starts), and nothing at all while there's no watch.
+    func testTheTapPassesOnlyYourKeys() {
+        let hotkeys = HotkeyManager(hotkey: .fn, mode: .hold, mouseButton: .off)
+        var seen: [EditKey] = []
+        hotkeys.onKey = { seen.append(EditKey(event: $0)) }
+        let ours = CGEvent(keyboardEventSource: nil, virtualKey: 0x09, keyDown: true)!  // ⌘V, made and never posted
+        ours.flags = .maskCommand
+        ours.setIntegerValueField(.eventSourceUserData, value: TextInjector.syntheticMarker)
+        let yours = CGEvent(keyboardEventSource: nil, virtualKey: 0x33, keyDown: true)!  // Backspace
+        XCTAssertNotNil(hotkeys.handleTap(type: .keyDown, event: ours))
+        XCTAssertNotNil(hotkeys.handleTap(type: .keyDown, event: yours), "passed on to the app")
+        XCTAssertEqual(seen, [.backspace])
+    }
+}

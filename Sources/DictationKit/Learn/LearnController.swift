@@ -16,7 +16,7 @@ final class LearnController: ObservableObject {
     /// Fixes a tune takes at most: yours (typed or accepted) newest first, then captured ones nobody
     /// reviewed (`auto`, phase 4). It makes 10 teacher calls that each carry most unlearned fixes, and
     /// about 8 student calls per fix.
-    static let maxFixes = 60
+    nonisolated static let maxFixes = 60
     /// The teacher: Claude Sonnet 5.5, thinking at medium effort. In the Oct 14 bake-off
     /// (bench/results/polish/README.md) it tuned as well as any teacher tried (+7 points on the
     /// corrections, general set held) in 45 s, against 94 s for GPT-6.1 Sol and 6–7 minutes for Qwen3.8

@@ -290,6 +290,57 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// Every key you press goes through the event tap, which holds it until it returns: with no edit
+    /// watch on, the watcher's part is one nil check.
+    func testTheKeyPathWithNoWatch() {
+        let hotkeys = HotkeyManager(hotkey: .fn, mode: .hold, mouseButton: .off)
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: 0x00, keyDown: true)!  // "a", never posted
+        withExtendedLifetime(event) {
+            assertFaster(than: 0.000_005, iterations: 20_000, "key path, no edit watch") {
+                _ = hotkeys.handleTap(type: .keyDown, event: event)
+            }
+        }
+    }
+
+    /// With a watch on, each key is an in-memory update before the app gets it: readback mode (the
+    /// pause timer and the key model), keystroke mode (the key model and the input-source check).
+    func testTheKeyPathWithAWatch() throws {
+        let hotkeys = HotkeyManager(hotkey: .fn, mode: .hold, mouseButton: .off)
+        let services = makeServices(self)
+        services.settings.learnFromEdits = true
+        let desk = FakeEditDesk()
+        desk.attach(services.editWatcher)
+        services.editWatcher.listen = { handler in hotkeys.onKey = handler.map { h in { h(EditKey(event: $0)) } } }
+        let text = String(repeating: "I use cloud code every day. ", count: 20)
+        let id = try XCTUnwrap(services.history.add(text: text, duration: 1))
+        desk.show("Hi " + text)
+        services.editWatcher.arm(spot: FakeDesk.slack, pasted: " " + text, text: text, entry: id)
+        desk.clock.advance(EditWatcher.probeDelay)
+        let left = CGEvent(keyboardEventSource: nil, virtualKey: 0x7B, keyDown: true)!
+        let right = CGEvent(keyboardEventSource: nil, virtualKey: 0x7C, keyDown: true)!
+        withExtendedLifetime([left, right]) {
+            assertFaster(than: 0.000_03, iterations: 5_000, "key path, readback watch: two keys") {
+                _ = hotkeys.handleTap(type: .keyDown, event: left)
+                _ = hotkeys.handleTap(type: .keyDown, event: right)
+            }
+        }
+        XCTAssertTrue(services.editWatcher.isWatching)
+        assertFaster(than: 0.000_02, iterations: 2_000, "input source check (keystroke mode, per key)") {
+            _ = EditWatcher.inputMethodActive()
+        }
+    }
+
+    /// Keystroke mode applies each key to the pasted text in memory.
+    func testTypedEditPerKey() {
+        let text = String(repeating: "I use cloud code every day. ", count: 40)
+        var edit = TypedEdit(pasted: text)
+        for _ in 0..<500 { _ = edit.apply(.left) }
+        assertFaster(than: 0.000_02, iterations: 5_000, "TypedEdit: two keys, 1,100-character paste") {
+            _ = edit.apply(.text("x"))
+            _ = edit.apply(.backspace)
+        }
+    }
+
     /// Also report XCTest's own metrics (visible in the test log; no pass/fail outside Xcode).
     func testMicLevelMetrics() {
         let buffer = makeBuffer(amplitude: 0.2)
