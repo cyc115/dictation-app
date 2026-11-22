@@ -34,10 +34,10 @@ final class CloudEngine: RecordingEngine, DictationEngine {
     }
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
+        lastAnswer = nil  // before silence can fail it: never the last dictation's answer
         guard let recording = finishRecording(completion: completion, failure: failure) else { return }
         let url = recording.url
         let info = RecordingInfo(date: Date(), model: ModelSpec.openRouter(id: modelID, providers: nil).description, transcript: "", seconds: recording.duration)
-        lastAnswer = nil
         uploading = recording
         let main = modelID, wait = backupWait, policy = backup, backupModel = backupModelID
         race = UploadRace(wav: url, apiKey: apiKey, client: client, main: main,
@@ -53,6 +53,8 @@ final class CloudEngine: RecordingEngine, DictationEngine {
                 completion(text)
             case .failed(let message):
                 heard.error = message
+                self?.lastAnswer = ModelAnswer(main: main, backup: report.backupAsked ? backupModel : nil,
+                                               failures: report.failures, failed: true)
                 failure(message)
             }
             // After the text is delivered, so keeping it adds nothing to your wait. Failed uploads

@@ -98,6 +98,30 @@ final class CloudLogTests: XCTestCase {
         XCTAssertEqual(result.by?.failures, [.init(model: "FakePolish", message: "No answer within 0.05 s.")])
     }
 
+    /// Every model failed: `lastAnswer` still says which and why, for History's failed dictations.
+    func testCloudEngineFailingEveryModelKeepsTheFailures() {
+        let client = FakeTranscriptionClient()
+        client.scripts["main"] = .init(delay: 0, result: FakeTranscriptionClient.error("HTTP 500"))
+        client.scripts["backup"] = .init(delay: 0, result: FakeTranscriptionClient.error("404"))
+        let engine = CloudEngine()
+        engine.client = client
+        engine.modelID = "main"
+        engine.backupModelID = "backup"
+        XCTAssertTrue(engine.beginRecording())
+        feedSpeech(engine)
+        XCTAssertEqual(stopAndWait(engine, timeout: 3).error, "HTTP 500")
+        XCTAssertEqual(engine.lastAnswer, ModelAnswer(main: "main", backup: "backup",
+                                                      failures: [.init(model: "main", message: "HTTP 500"), .init(model: "backup", message: "404")],
+                                                      failed: true))
+        // The next dictation fails on silence, before any model: no leftover answer from this one.
+        XCTAssertTrue(engine.beginRecording())
+        engine.mic.stop()
+        _ = stopAndWait(engine, timeout: 2)
+        XCTAssertNotEqual(engine.lastAnswer, ModelAnswer(main: "main", backup: "backup",
+                                                         failures: [.init(model: "main", message: "HTTP 500"), .init(model: "backup", message: "404")],
+                                                         failed: true))
+    }
+
     /// The real engine path: CloudEngine.stop() hands the failures to `lastAnswer`, which History saves.
     func testCloudEngineKeepsTheFailuresOnItsAnswer() {
         let client = FakeTranscriptionClient()

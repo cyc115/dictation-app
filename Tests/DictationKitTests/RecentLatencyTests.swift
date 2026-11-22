@@ -205,6 +205,67 @@ final class RecentLatencyTests: XCTestCase {
         XCTAssertNil(latency.models.first { $0.model == Self.flash }?.failedLabel)
     }
 
+    /// Two dictations that never became text: every model failed at 9:15:30; the mic was silent at 9:10.
+    static var failedDictations: [FailedDictation] {
+        [FailedDictation(date: now.addingTimeInterval(-1.5 * 60), duration: 6, seconds: 2.4, setup: "cloud-flash",
+                         error: "Transcription failed (HTTP 500).",
+                         transcribedBy: ModelAnswer(main: flash, backup: small, failures: [
+                            .init(model: flash, message: "Transcription failed (HTTP 500)."),
+                            .init(model: small, message: "No endpoints found for qwen/qwen3-asr-0.6b.")], failed: true)),
+         FailedDictation(date: now.addingTimeInterval(-7 * 60), duration: 3, seconds: 0, error: "The microphone sent only silence.")]
+    }
+
+    func testFailedDictationsAreLinesWithNoText() throws {
+        let latency = RecentLatency(Self.withErrors, failed: Self.failedDictations, window: .last25, now: Self.now)
+        XCTAssertEqual(latency.rows.map(\.backupLabel), ["", "no text", "", "", "no text"], "newest first, merged")
+        XCTAssertEqual(latency.rows[1].errors, "Speech · qwen3-asr-1.7b: Transcription failed (HTTP 500).\n"
+            + "Speech · qwen3-asr-0.6b: No endpoints found for qwen/qwen3-asr-0.6b.\nNothing was typed.")
+        XCTAssertEqual(latency.rows[4].errors, "The microphone sent only silence.\nNothing was typed.", "no model asked: what you were told")
+        let withoutFailures = RecentLatency(Self.withErrors, window: .last25, now: Self.now)
+        XCTAssertEqual(latency.typicalWait, withoutFailures.typicalWait, "stop to text: a failure has no text")
+        XCTAssertEqual(latency.count(slowerThan: 3), withoutFailures.count(slowerThan: 3))
+        XCTAssertEqual(latency.texted.count, 3)
+        let main = try XCTUnwrap(latency.models.first { $0.model == Self.flash && !$0.isBackup })
+        XCTAssertEqual(main.asked, 4)
+        XCTAssertEqual(main.answered, 3, "a failed dictation isn't an answer")
+        XCTAssertEqual(main.failedLabel, "1 failed")
+        XCTAssertEqual(latency.models.first { $0.model == Self.small && $0.isBackup }?.failedLabel, "2 failed")
+        // 10 minutes back from 5 minutes on: the three dictations and the 9:15 failure, not the silent one at 9:10.
+        XCTAssertEqual(RecentLatency(Self.withErrors, failed: Self.failedDictations, window: .tenMinutes,
+                                     now: Self.now.addingTimeInterval(5 * 60)).rows.map(\.noText), [false, true, false, false],
+                       "windows apply to them too")
+    }
+
+    func testFailedDictationsAreKeptApartFromHistory() throws {
+        let url = makeTempURL(self)
+        let defaults = makeDefaults(self)
+        let store = HistoryStore(fileURL: url, defaults: defaults), failure = Self.failedDictations[0]
+        store.addFailed(failure)
+        XCTAssertEqual(store.entries, [])
+        XCTAssertEqual(HistoryStore(fileURL: url, defaults: defaults).failed, [failure], "saved in its own file")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.failedURL.path))
+        for i in 0..<(HistoryStore.failedLimit + 5) {
+            store.addFailed(FailedDictation(date: Date(), duration: 1, seconds: 0, error: "e\(i)"))
+        }
+        XCTAssertEqual(store.failed.count, HistoryStore.failedLimit)
+        XCTAssertEqual(store.failed.first?.error, "e\(HistoryStore.failedLimit + 4)", "newest kept")
+        store.clear()
+        XCTAssertEqual(store.failed, [])
+        store.retention = .off
+        store.addFailed(Self.failedDictations[0])
+        XCTAssertEqual(store.failed, [], "History off keeps nothing")
+    }
+
+    func testOldFailedDictationsArePrunedWithHistory() {
+        let url = makeTempURL(self)
+        let defaults = makeDefaults(self)
+        let store = HistoryStore(fileURL: url, defaults: defaults)
+        store.addFailed(FailedDictation(date: Date().addingTimeInterval(-40 * 86_400), duration: 1, seconds: 0, error: "old"))
+        store.addFailed(FailedDictation(date: Date(), duration: 1, seconds: 0, error: "new"))
+        store.retention = .days30
+        XCTAssertEqual(store.failed.map(\.error), ["new"])
+    }
+
     func testAnErrorIsADotWithItsDetailOnHover() throws {
         let hosted = host(RecentLatencyView(entries: Self.withErrors, now: Self.now), size: NSSize(width: 680, height: 900))
         let rows = hosted.elements(id: "recent.row")

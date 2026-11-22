@@ -36,12 +36,16 @@ struct RecentLatency {
         let polishedByBackup: Bool
         /// What went wrong, one line per failed request, for the red dot's hover; nil: nothing did.
         var errors: String?
+        /// It never became text (`FailedDictation`).
+        var noText = false
 
         /// Stop → text: what you waited for.
         var wait: TimeInterval { transcribing + (polishing ?? 0) }
-        /// Which parts the backup answered: "speech", "polish", "speech, polish" or "".
+        /// Which parts the backup answered: "speech", "polish", "speech, polish" or ""; "no text" for
+        /// a dictation that failed.
         var backupLabel: String {
-            [transcribedByBackup ? "speech" : nil, polishedByBackup ? "polish" : nil].compactMap { $0 }.joined(separator: ", ")
+            if noText { return "no text" }
+            return [transcribedByBackup ? "speech" : nil, polishedByBackup ? "polish" : nil].compactMap { $0 }.joined(separator: ", ")
         }
     }
 
@@ -104,27 +108,42 @@ struct RecentLatency {
     let rows: [Row]
     let models: [ModelStats]
 
-    /// Timed dictations only (History is newest first).
-    init(_ entries: [HistoryEntry], window: Window, now: Date) {
-        let timed = entries.filter { $0.transcribeSeconds != nil }
-        let picked = window.seconds.map { seconds in timed.filter { now.timeIntervalSince($0.date) <= seconds } }
-            ?? Array(timed.prefix(25))
-        rows = picked.map {
-            Row(id: $0.id, date: $0.date, speaking: $0.duration, transcribing: $0.transcribeSeconds ?? 0,
-                polishing: $0.polishSeconds, transcribedByBackup: $0.transcribedBy?.byBackup == true,
-                polishedByBackup: $0.polishedBy?.byBackup == true,
-                errors: Self.errors(speech: $0.transcribedBy, polish: $0.polishedBy))
-        }
-        models = Self.stats(.speech, picked.compactMap { e in e.transcribedBy.map { ($0, e.transcribeSeconds ?? 0) } })
-            + Self.stats(.polish, picked.compactMap { e in e.polishedBy.flatMap { by in e.polishSeconds.map { (by, $0) } } })
+    /// Timed dictations and those that never became text (`failed`), newest first.
+    init(_ entries: [HistoryEntry], failed: [FailedDictation] = [], window: Window, now: Date) {
+        let timed = entries.filter { $0.transcribeSeconds != nil }.map(Self.row)
+            + failed.map { f in
+                Row(id: f.id, date: f.date, speaking: f.duration, transcribing: f.seconds, polishing: nil,
+                    transcribedByBackup: false, polishedByBackup: false, errors: Self.errors(failed: f), noText: true)
+            }
+        let all = timed.sorted { $0.date > $1.date }
+        rows = window.seconds.map { seconds in all.filter { now.timeIntervalSince($0.date) <= seconds } } ?? Array(all.prefix(25))
+        let shown = Set(rows.map(\.id))
+        let answers = entries.filter { shown.contains($0.id) }
+        models = Self.stats(.speech, answers.compactMap { e in e.transcribedBy.map { ($0, e.transcribeSeconds ?? 0) } }
+                                + failed.filter { shown.contains($0.id) }.compactMap { f in f.transcribedBy.map { ($0, f.seconds) } })
+            + Self.stats(.polish, answers.compactMap { e in e.polishedBy.flatMap { by in e.polishSeconds.map { (by, $0) } } })
     }
 
-    var typicalWait: TimeInterval? { TimeBreakdown.median(rows.map(\.wait)) }
-    var slowestWait: TimeInterval? { rows.map(\.wait).max() }
-    var typicalTranscribing: TimeInterval? { TimeBreakdown.median(rows.map(\.transcribing)) }
-    var typicalPolishing: TimeInterval? { TimeBreakdown.median(rows.compactMap(\.polishing)) }
+    private static func row(_ e: HistoryEntry) -> Row {
+        Row(id: e.id, date: e.date, speaking: e.duration, transcribing: e.transcribeSeconds ?? 0,
+            polishing: e.polishSeconds, transcribedByBackup: e.transcribedBy?.byBackup == true,
+            polishedByBackup: e.polishedBy?.byBackup == true, errors: errors(speech: e.transcribedBy, polish: e.polishedBy))
+    }
 
-    func count(slowerThan seconds: TimeInterval) -> Int { rows.filter { $0.wait > seconds }.count }
+    /// A failed dictation's hover: each model's failure (or what you were told, when no model was
+    /// asked), then that nothing was typed.
+    static func errors(failed: FailedDictation) -> String {
+        (errors(speech: failed.transcribedBy, polish: nil) ?? failed.error) + "\nNothing was typed."
+    }
+
+    /// The lines that became text: the waits are "stop to text", so a failure isn't one.
+    var texted: [Row] { rows.filter { !$0.noText } }
+    var typicalWait: TimeInterval? { TimeBreakdown.median(texted.map(\.wait)) }
+    var slowestWait: TimeInterval? { texted.map(\.wait).max() }
+    var typicalTranscribing: TimeInterval? { TimeBreakdown.median(texted.map(\.transcribing)) }
+    var typicalPolishing: TimeInterval? { TimeBreakdown.median(texted.compactMap(\.polishing)) }
+
+    func count(slowerThan seconds: TimeInterval) -> Int { texted.filter { $0.wait > seconds }.count }
 
     /// A phase's main models, then its backups; the most asked first.
     static func stats(_ phase: Phase, _ answers: [(by: ModelAnswer, seconds: TimeInterval)]) -> [ModelStats] {
@@ -153,6 +172,8 @@ struct RecentLatency {
 
 struct RecentLatencyView: View {
     let entries: [HistoryEntry]
+    /// Dictations that never became text: lines with a red dot and "no text".
+    var failed: [FailedDictation] = []
     /// Your typical dictation over the last 100, to compare with.
     var usual: TimeBreakdown?
     /// Seconds before the speech backup is asked, marked on the bars; nil when there's no backup.
@@ -181,7 +202,7 @@ struct RecentLatencyView: View {
     }
 
     private func content(_ now: Date) -> some View {
-        let latency = RecentLatency(entries, window: window, now: now)
+        let latency = RecentLatency(entries, failed: failed, window: window, now: now)
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .bottom) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -209,7 +230,7 @@ struct RecentLatencyView: View {
                     GridRow {
                         stat(TimeBreakdownView.number(latency.typicalWait ?? 0), "sec", "Typical wait, stop to text", id: "typical")
                         stat(TimeBreakdownView.number(latency.slowestWait ?? 0), "sec", "Slowest wait", id: "slowest")
-                        stat(String(latency.count(slowerThan: RecentLatency.slow)), "of \(latency.rows.count)",
+                        stat(String(latency.count(slowerThan: RecentLatency.slow)), "of \(latency.texted.count)",
                              "Waited over \(Int(RecentLatency.slow)) seconds", id: "slow")
                     }
                 }

@@ -293,10 +293,10 @@ final class LocalEngine: RecordingEngine, DictationEngine {
     }
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
+        lastAnswer = nil  // before silence can fail it: never the last dictation's answer
         guard let recording = finishRecording(completion: completion, failure: failure) else { return }
         let model = self.model, prompt = context.prompt
         var info = RecordingInfo(date: Date(), model: MainActor.assumeIsolated { model.name }, transcript: "", seconds: recording.duration)
-        lastAnswer = nil
         Task { @MainActor [weak self] in
             do {
                 let text = try await model.transcribe(wav: recording.url, context: prompt)
@@ -305,6 +305,8 @@ final class LocalEngine: RecordingEngine, DictationEngine {
                 completion(text)
             } catch {
                 info.error = error.localizedDescription
+                self?.lastAnswer = ModelAnswer(main: model.name, failures: [.init(model: model.name, message: error.localizedDescription)],
+                                               failed: true)
                 failure(error.localizedDescription)
             }
             recording.done(info)  // after the text is delivered, as CloudEngine does

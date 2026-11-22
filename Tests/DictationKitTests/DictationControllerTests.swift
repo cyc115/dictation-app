@@ -703,6 +703,23 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(controller.overlay.label.stringValue, "The microphone sent only silence.")
         XCTAssertEqual(pasted, [])
         XCTAssertEqual(idle, 1)
+        // Kept for Recent dictations, apart from History's entries.
+        XCTAssertEqual(history.entries, [])
+        XCTAssertEqual(history.failed.map(\.error), ["The microphone sent only silence."])
+        XCTAssertNil(history.failed.first?.transcribedBy)
+    }
+
+    func testAFailedTranscriptionKeepsEachModelsFailure() {
+        let controller = makeController()
+        engine.error = "Transcription failed (HTTP 500)."
+        let answer = ModelAnswer(main: "main", backup: "backup", failures: [.init(model: "main", message: "Transcription failed (HTTP 500)."),
+                                                                            .init(model: "backup", message: "No endpoints found.")], failed: true)
+        engine.lastAnswer = answer
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(history.failed.first?.transcribedBy, answer)
+        XCTAssertEqual(history.failed.first?.setup, settings.setup.id)
     }
 
     func testCloudModelWithoutKeyAsksForItInsteadOfStarting() {

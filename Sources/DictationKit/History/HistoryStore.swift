@@ -43,6 +43,24 @@ struct HistoryEntry: Codable, Identifiable, Equatable {
     var isWaiting: Bool { capture?.state == .waiting && correction == nil }
 }
 
+/// A dictation that never became text: every speech model failed, or the mic sent only silence.
+/// Kept apart from `HistoryStore.entries`, so History, Insights, Corrections, Learn and "repeat the
+/// last dictation" never meet an empty dictation; Recent dictations shows it with a red dot.
+struct FailedDictation: Codable, Identifiable, Equatable {
+    var id = UUID()
+    var date: Date
+    /// How long you spoke.
+    var duration: TimeInterval
+    /// Stop → the failure: how long you waited for nothing.
+    var seconds: TimeInterval
+    var setup: String?
+    /// What you were told ("The cloud account is out of credits.").
+    var error: String
+    /// Each speech model's failure (`failed` set); nil when no model was asked (silence) or the
+    /// engine doesn't say (on-device).
+    var transcribedBy: ModelAnswer?
+}
+
 /// Which model gave a dictation's transcript or polish: the setup's main model, or the backup asked
 /// when the main one was late or failed ("Backup model when slow").
 struct ModelAnswer: Codable, Equatable {
@@ -114,6 +132,9 @@ final class HistoryStore: ObservableObject {
     private var typing = false
     private var unpublishedEdit = false
     @Published private(set) var commands: [CommandRun] = []
+    /// Dictations that never became text, newest first, at most `failedLimit` (`FailedDictation`).
+    @Published private(set) var failed: [FailedDictation] = []
+    static let failedLimit = 200
     @Published var retention: HistoryRetention {
         didSet {
             defaults.set(retention.rawValue, forKey: "historyRetention")
@@ -127,6 +148,11 @@ final class HistoryStore: ObservableObject {
         fileURL.deletingLastPathComponent()
             .appendingPathComponent(fileURL.deletingPathExtension().lastPathComponent + "-commands.json")
     }
+    /// history.json → history-failed.json.
+    var failedURL: URL {
+        fileURL.deletingLastPathComponent()
+            .appendingPathComponent(fileURL.deletingPathExtension().lastPathComponent + "-failed.json")
+    }
     private let defaults: UserDefaults
 
     static let defaultFileURL = AppPaths.file("history.json")
@@ -137,6 +163,7 @@ final class HistoryStore: ObservableObject {
         retention = HistoryRetention(rawValue: defaults.string(forKey: "historyRetention") ?? "") ?? .forever
         entries = JSONFile.read([HistoryEntry].self, from: fileURL) ?? []
         commands = JSONFile.read([CommandRun].self, from: commandsURL) ?? []
+        failed = JSONFile.read([FailedDictation].self, from: failedURL) ?? []
         prune()
     }
 
@@ -154,6 +181,14 @@ final class HistoryStore: ObservableObject {
     func clearCommands() {
         commands.removeAll()
         saveCommands()
+    }
+
+    /// Keeps a dictation that never became text (nothing kept with History off).
+    func addFailed(_ dictation: FailedDictation) {
+        guard retention != .off else { return }
+        failed.insert(dictation, at: 0)
+        if failed.count > Self.failedLimit { failed.removeLast(failed.count - Self.failedLimit) }
+        saveFailed()
     }
 
     /// The new entry's id; nil when nothing was kept (History off, or no text).
@@ -289,6 +324,8 @@ final class HistoryStore: ObservableObject {
     func clear() {
         entries.removeAll()
         save()
+        failed.removeAll()
+        saveFailed()
     }
 
     private func prune() {
@@ -305,9 +342,15 @@ final class HistoryStore: ObservableObject {
             commands = keptCommands
             saveCommands()
         }
+        let keptFailed = failed.filter { $0.date > cutoff }
+        if keptFailed.count != failed.count {
+            failed = keptFailed
+            saveFailed()
+        }
     }
 
     private func saveCommands() { JSONFile.save(commands, to: commandsURL) }
+    private func saveFailed() { JSONFile.save(failed, to: failedURL) }
 
     private func save() {
         pendingSave?.cancel()

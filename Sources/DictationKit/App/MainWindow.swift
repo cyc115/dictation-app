@@ -229,7 +229,7 @@ private struct HomeView: View {
                 let breakdown = TimeBreakdown(history.entries)
                 InsightsView(insights: insights, breakdown: breakdown)
                 if settings.showDetailedAnalytics {
-                    RecentLatencyView(entries: history.entries, usual: breakdown,
+                    RecentLatencyView(entries: history.entries, failed: history.failed, usual: breakdown,
                                       backupWait: settings.effectiveBackup ? settings.setup.backupWait : nil)
                 }
             }

@@ -328,9 +328,16 @@ final class DictationController {
                              target: target, delivery: delivery)
             }
         }, failure: { [weak self] message in
-            dictation.note?.transcribed(seconds: ProcessInfo.processInfo.systemUptime - stoppedAt)
-            self?.overlay.show(.plain(message, seconds: 5))
-            self?.finished(delivery)
+            let seconds = ProcessInfo.processInfo.systemUptime - stoppedAt
+            dictation.note?.transcribed(seconds: seconds)
+            guard let self else { return }
+            // Kept so Insights › Recent dictations shows it, red dot and all; commands have their own list.
+            if kind == .text {
+                self.history.addFailed(FailedDictation(date: Date(), duration: duration, seconds: seconds, setup: dictation.setup.id,
+                                                       error: message, transcribedBy: dictation.engine.lastAnswer))
+            }
+            self.overlay.show(.plain(message, seconds: 5))
+            self.finished(delivery)
         })
     }
 
