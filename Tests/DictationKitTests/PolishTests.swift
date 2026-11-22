@@ -89,6 +89,43 @@ final class OpenRouterPolishTests: XCTestCase {
         else { return XCTFail("expected failure") }
         XCTAssertTrue(e2.localizedDescription.contains("HTTP 500"))
     }
+
+    /// OpenRouter's usage block (always in the response; openrouter.ai/docs/use-cases/usage-accounting).
+    static let usageReply = #"""
+        {"choices":[{"message":{"role":"assistant","content":"Hi."}}],
+         "usage":{"prompt_tokens":9000,"completion_tokens":700,"total_tokens":9700,"cost":0.0123,
+                  "prompt_tokens_details":{"cached_tokens":8000,"cache_write_tokens":0,"audio_tokens":0},
+                  "completion_tokens_details":{"reasoning_tokens":500},
+                  "cost_details":{"upstream_inference_cost":null}}}
+        """#
+
+    func testParsesUsage() throws {
+        let usage = try XCTUnwrap(OpenRouter.Usage(OpenRouter.json(Data(Self.usageReply.utf8))))
+        XCTAssertEqual(usage, OpenRouter.Usage(calls: 1, prompt: 9000, cached: 8000, cacheWrite: 0, completion: 700, reasoning: 500, cost: 0.0123))
+        let bare = try XCTUnwrap(OpenRouter.Usage(["usage": ["prompt_tokens": 10, "completion_tokens": 2, "cost": 0]]))
+        XCTAssertEqual(bare, OpenRouter.Usage(calls: 1, prompt: 10, completion: 2), "details missing: zeros")
+        XCTAssertNil(OpenRouter.Usage(["choices": []]), "no usage block")
+        XCTAssertNil(OpenRouter.Usage(nil))
+        XCTAssertEqual(bare + usage, OpenRouter.Usage(calls: 2, prompt: 9010, cached: 8000, completion: 702, reasoning: 500, cost: 0.0123))
+    }
+
+    func testAMeterAddsUpEveryCallsUsage() async throws {
+        let session = StubURLProtocol.session()
+        StubURLProtocol.respond = { _ in .success((200, Self.usageReply)) }
+        let meter = UsageMeter()
+        let polish = try XCTUnwrap(OpenRouterPolish(model: "m", apiKey: "k", session: session).metered(by: meter) as? OpenRouterPolish)
+        _ = try await polish.polish("a")
+        _ = try await polish.polish("b")
+        XCTAssertEqual(meter.count, 2)
+        XCTAssertEqual(meter.total().cost, 0.0246, accuracy: 1e-9)
+        XCTAssertEqual(meter.total(from: 1).calls, 1, "the calls since a mark")
+        XCTAssertEqual(meter.total().cached, 16000)
+
+        StubURLProtocol.respond = { _ in .success((402, #"{"error":{"message":"No credits."}}"#)) }
+        do { _ = try await polish.polish("c"); XCTFail("failed call") } catch {}
+        XCTAssertEqual(meter.count, 2, "no usage block: nothing added")
+        XCTAssertTrue(FakePolish(output: "x").metered(by: meter) is FakePolish, "another backend is left as it is")
+    }
 }
 
 /// Cloud polish's fallback: a backup when the main model is late or fails, and a deadline after

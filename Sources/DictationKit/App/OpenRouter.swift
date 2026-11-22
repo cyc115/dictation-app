@@ -76,4 +76,61 @@ enum OpenRouter {
     static func problem(_ json: [String: Any]?, status: Int) -> String {
         errorMessage(json) ?? "HTTP \(status)"
     }
+
+    /// What calls used and cost, from the `usage` block OpenRouter puts in every response (no request
+    /// field needed: openrouter.ai/docs/use-cases/usage-accounting). Added up, a sum over `calls`.
+    struct Usage: Equatable {
+        var calls = 0
+        /// Prompt tokens, of them `cached` read from the provider's prompt cache and `cacheWrite` written to it.
+        var prompt = 0, cached = 0, cacheWrite = 0
+        /// Completion tokens, of them `reasoning` spent thinking.
+        var completion = 0, reasoning = 0
+        /// US dollars, as charged to the key.
+        var cost = 0.0
+
+        /// One call's usage; nil when the response has none (a failed call, a server that isn't OpenRouter).
+        init?(_ json: [String: Any]?) {
+            guard let usage = json?["usage"] as? [String: Any] else { return nil }
+            func number(_ object: Any?, _ key: String) -> NSNumber? { (object as? [String: Any])?[key] as? NSNumber }
+            calls = 1
+            prompt = number(usage, "prompt_tokens")?.intValue ?? 0
+            cached = number(usage["prompt_tokens_details"], "cached_tokens")?.intValue ?? 0
+            cacheWrite = number(usage["prompt_tokens_details"], "cache_write_tokens")?.intValue ?? 0
+            completion = number(usage, "completion_tokens")?.intValue ?? 0
+            reasoning = number(usage["completion_tokens_details"], "reasoning_tokens")?.intValue ?? 0
+            cost = number(usage, "cost")?.doubleValue ?? 0
+        }
+
+        init(calls: Int = 0, prompt: Int = 0, cached: Int = 0, cacheWrite: Int = 0, completion: Int = 0, reasoning: Int = 0, cost: Double = 0) {
+            self.calls = calls; self.prompt = prompt; self.cached = cached; self.cacheWrite = cacheWrite
+            self.completion = completion; self.reasoning = reasoning; self.cost = cost
+        }
+
+        static func + (a: Usage, b: Usage) -> Usage {
+            Usage(calls: a.calls + b.calls, prompt: a.prompt + b.prompt, cached: a.cached + b.cached, cacheWrite: a.cacheWrite + b.cacheWrite,
+                  completion: a.completion + b.completion, reasoning: a.reasoning + b.reasoning, cost: a.cost + b.cost)
+        }
+
+        /// For a JSON report (the teacher bake-off).
+        var json: [String: Any] {
+            ["calls": calls, "promptTokens": prompt, "cachedTokens": cached, "cacheWriteTokens": cacheWrite,
+             "completionTokens": completion, "reasoningTokens": reasoning, "cost": cost]
+        }
+    }
+}
+
+/// Adds up the usage of calls made from many tasks at once (a tune's student calls).
+final class UsageMeter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var usages: [OpenRouter.Usage] = []
+
+    func add(_ usage: OpenRouter.Usage) { lock.withLock { usages.append(usage) } }
+
+    /// Calls recorded so far: a mark for `total(from:)`.
+    var count: Int { lock.withLock { usages.count } }
+
+    /// The sum of the calls recorded since `mark`.
+    func total(from mark: Int = 0) -> OpenRouter.Usage {
+        lock.withLock { usages.dropFirst(mark).reduce(OpenRouter.Usage(), +) }
+    }
 }

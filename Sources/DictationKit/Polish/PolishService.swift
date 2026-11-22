@@ -9,10 +9,13 @@ protocol PolishBackend {
     func polish(_ text: String) async throws -> String
     /// Which model, for kept recordings: e.g. "openrouter:openai/gpt-oss-120b".
     var name: String { get }
+    /// The same backend, adding each call's usage to `meter` where it can tell (OpenRouter); else itself.
+    func metered(by meter: UsageMeter) -> PolishBackend
 }
 
 extension PolishBackend {
     func prepare() {}
+    func metered(by meter: UsageMeter) -> PolishBackend { self }
     var name: String { String(describing: Self.self) }
 }
 
@@ -140,8 +143,16 @@ struct OpenRouterPolish: PolishBackend {
     /// The request's "reasoning" field; nil is `OpenRouter.reasoning(for:)` (off, or minimal). The
     /// prompt tuner's teacher model sets it high.
     var reasoning: [String: Any]?
+    /// Adds up what each call used and cost (the prompt tuner's student calls); nil: nothing kept.
+    var meter: UsageMeter?
 
     var name: String { ModelSpec.openRouter(id: model, providers: provider).description }
+
+    func metered(by meter: UsageMeter) -> PolishBackend {
+        var metered = self
+        metered.meter = meter
+        return metered
+    }
 
     func polish(_ text: String) async throws -> String {
         let message = PolishService.userMessage(text, wrap: wrap)
@@ -149,6 +160,7 @@ struct OpenRouterPolish: PolishBackend {
             let request = Self.request(model: model, apiKey: apiKey, text: message, instructions: instructions,
                                        provider: provider, reasoning: reasoning)
             let (data, status) = try await OpenRouter.send(request, session: session)
+            if let meter, let usage = OpenRouter.Usage(OpenRouter.json(data)) { meter.add(usage) }
             return Self.parse(data: data, status: status)
         }
         let first = try await ask(reasoning)
