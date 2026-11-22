@@ -40,7 +40,6 @@ import re
 import shutil
 import statistics
 import subprocess
-import sys
 import tempfile
 import unicodedata
 from datetime import datetime, timezone
@@ -76,8 +75,7 @@ FALLBACK_SETUP = "cloud-flash"
 # $0.0001554 = exactly 0.30 and 1.20). Others need --price.
 PRICES = {"deepseek/deepseek-v4.1-flash": (0.30, 1.20)}
 TEST = "DictationKitTests.HistoryBenchTests/testRunsTheJobItIsGiven"
-# Vocabulary.promptHeader, for the estimate only (the harness sends the app's own).
-PROMPT_HEADER_TOKENS = 60
+VOCABULARY_SWIFT = REPO / "Sources/DictationKit/Vocabulary/Vocabulary.swift"
 
 
 # ---------------------------------------------------------------- words, as the app splits them
@@ -103,7 +101,8 @@ def words(text: str) -> list[str]:
 
 
 def _edge(c: str) -> bool:
-    return c in EDGES or c == "\t" or (c.isspace() and c not in "\n\r\x0b\x0c\x1c\x1d\x1e\x1f\x85  ")
+    """FixIntake.edges: the marks above, plus CharacterSet.whitespaces (tab and the space separators)."""
+    return c in EDGES or c == "\t" or unicodedata.category(c) == "Zs"
 
 
 def trim(word: str, left: bool = True, right: bool = True) -> str:
@@ -125,11 +124,13 @@ def count_term(text: str, term: str) -> int:
     k = len(want)
     if not k:
         return 0
-    if k == 1:
-        same = lambda got: trim(got[0]) == trim(want[0])
-    else:
-        same = lambda got: (trim(got[0], right=False) == trim(want[0], right=False) and got[1:-1] == want[1:-1]
-                            and trim(got[-1], left=False) == trim(want[-1], left=False))
+
+    def same(got: list[str]) -> bool:
+        if k == 1:
+            return trim(got[0]) == trim(want[0])
+        return (trim(got[0], right=False) == trim(want[0], right=False) and got[1:-1] == want[1:-1]
+                and trim(got[-1], left=False) == trim(want[-1], left=False))
+
     n = i = 0
     while i + k <= len(have):
         if same(have[i:i + k]):
@@ -359,10 +360,18 @@ def resolve_setup(setup_id: str, folder: Path) -> dict:
             "model": spec.split("@")[0], "polish": setup["polish"], "wrap": setup.get("wrap", True)}
 
 
+def prompt_header(swift: Path = VOCABULARY_SWIFT) -> str:
+    """Vocabulary.promptHeader, read from the app's source (the estimate's only use; the harness sends the app's own)."""
+    found = re.search(r'static let promptHeader = "((?:[^"\\]|\\.)*)"', swift.read_text())
+    if not found:
+        raise SystemExit(f"Vocabulary.promptHeader not found in {swift}: update history.prompt_header")
+    return found.group(1)
+
+
 def terms_tokens(entries: list[dict]) -> int:
     """Vocabulary.promptBlock's size, roughly: the header and the enabled terms (at most 100)."""
     terms = [e["term"] for e in entries if e.get("enabled", True) and str(e.get("term", "")).strip()][:100]
-    return PROMPT_HEADER_TOKENS + sum(edits.estimate_tokens(t) + 1 for t in terms) if terms else 0
+    return edits.estimate_tokens(prompt_header()) + sum(edits.estimate_tokens(t) + 1 for t in terms) if terms else 0
 
 
 def estimate(job: dict, history: list[dict], vocabulary: dict, setup: dict, prices: dict) -> dict:
@@ -646,7 +655,9 @@ def report_text(result: dict, markdown: bool = False) -> str:
         v = p.get(5) or p.get("5")
         lines += ["", f"Part 5, what learns: of the {v['added']} terms you added and {v['dismissed']} you dismissed, the share each "
                   f"method proposes (would learn: seen in {v['learnAfter']}+ dictations)"]
-        frac = lambda a, b: f"{a}/{b}" + (f" ({100 * a / b:.0f}%)" if b else "")
+        def frac(a: int, b: int) -> str:
+            return f"{a}/{b}" + (f" ({100 * a / b:.0f}%)" if b else "")
+
         rows = [[m, x["candidates"], frac(x["added"]["proposed"], v["added"]), frac(x["added"]["wouldLearn"], v["added"]),
                  frac(x["dismissed"]["proposed"], v["dismissed"]), frac(x["dismissed"]["wouldLearn"], v["dismissed"])] for m, x in v["methods"].items()]
         lines.append(harness.table(["method", "candidates", "added: proposed", "added: learns", "dismissed: proposed", "dismissed: learns"], rows, markdown))

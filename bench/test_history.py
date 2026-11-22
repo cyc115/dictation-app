@@ -159,6 +159,10 @@ def test_an_unpriced_model_refuses_to_start(monkeypatch, capsys, tmp_path):
     assert h.cmd_run(run_args("--parts", "3,5,6", out=tmp_path), harness_run=lambda *a: fake_harness(*a)) == 0, "free parts need no price"
 
 
+def test_the_estimate_reads_the_apps_terms_header():
+    assert h.prompt_header().startswith("Vocabulary: the speaker uses these terms.")
+
+
 def test_the_estimate_counts_every_arm():
     folder = FIXTURE
     chosen = h.test_set(HISTORY)
