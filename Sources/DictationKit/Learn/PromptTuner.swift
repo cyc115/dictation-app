@@ -275,7 +275,7 @@ final class PromptTuner {
                 }
                 group.addTask {
                     for lens in Lens.allCases { race.writing(lens, +1) }  // waiting for the cache counts as writing
-                    let first = Lens.allCases[0]
+                    let first = Lens.allCases.first!
                     let firstText = try await written(first)
                     return try await withThrowingTaskGroup(of: (Lens, [UUID: Double], TuneTrace).self) { lenses in
                         lenses.addTask { try await scored(first, firstText) }
@@ -462,11 +462,11 @@ final class PromptTuner {
     /// The teacher's call for `lens`: the current prompt and the corrections, then the lens's task.
     static func teacherRequest(prompt: String, lens: Lens, examples: [(input: String, wrote: String, wanted: String)],
                                cacheKey: String? = nil) -> TeacherRequest {
-        var shared = "Current prompt:\n<current>\n\(prompt)\n</current>\n\nCorrections:\n"
+        var prefix = "Current prompt:\n<current>\n\(prompt)\n</current>\n\nCorrections:\n"
         for (n, e) in examples.enumerated() {
-            shared += "\n### Correction \(n + 1)\nTranscript:\n\(e.input)\nModel wrote:\n\(e.wrote)\nWanted:\n\(e.wanted)\n"
+            prefix += "\n### Correction \(n + 1)\nTranscript:\n\(e.input)\nModel wrote:\n\(e.wrote)\nWanted:\n\(e.wanted)\n"
         }
-        return TeacherRequest(system: teacherSystem, prefix: shared, task: "\nYour task: \(lens.instruction)", cacheKey: cacheKey)
+        return TeacherRequest(system: teacherSystem, prefix: prefix, task: "\nYour task: \(lens.instruction)", cacheKey: cacheKey)
     }
 
     /// The prompt in the teacher's answer; nil if it gave none.
