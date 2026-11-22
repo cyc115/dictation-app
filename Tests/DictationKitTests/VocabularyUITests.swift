@@ -145,6 +145,6 @@ final class VocabularyUITests: XCTestCase {
         XCTAssertEqual(shown, 1)
         XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "setting.Use vocabulary"))))
         XCTAssertFalse(services.settings.vocabularyEnabled)
-        XCTAssertTrue(services.settings.vocabularySpeechHint, "on by default (measured Nov 22)")
+        XCTAssertFalse(services.settings.vocabularySpeechHint, "off by default (it once wrote the terms instead of the dictation)")
     }
 }

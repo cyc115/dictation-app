@@ -897,18 +897,17 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(vocabulary.entries.first?.uses, 0)
     }
 
-    /// The speech hint: on by default, plain dictation on an on-device engine gets the terms; off, none.
+    /// The speech hint: off by default (no terms); on, plain dictation on an on-device engine gets them.
     func testTheSpeechHintGivesOnDeviceModelsTheTerms() {
         let controller = makeController()
         vocabulary.add(term: "Claude", heardAs: ["cloud"])
         controller.start()
-        XCTAssertEqual(engine.context.words, ["Claude"], "on by default")
-        controller.cancel()
-        settings.vocabularySpeechHint = false
-        controller.start()
-        XCTAssertEqual(engine.context, .none, "turned off")
+        XCTAssertEqual(engine.context, .none, "off by default")
         controller.cancel()
         settings.vocabularySpeechHint = true
+        controller.start()
+        XCTAssertEqual(engine.context.words, ["Claude"], "turned on")
+        controller.cancel()
         settings.setup = .cloudFlash
         controller.start()
         XCTAssertEqual(engine.context, .none, "the cloud models can't take it")

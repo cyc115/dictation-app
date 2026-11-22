@@ -29,7 +29,7 @@ struct VocabularySection: View {
             SettingRow("Use vocabulary", "Replaces what the speech model mishears with your terms, in every dictation, and tells AI polish the terms. The list stays on this Mac; the terms go where polish goes, and with an API key to the cloud models behind Corrections' suggestions and Learn.") {
                 Toggle("Use vocabulary", isOn: $settings.vocabularyEnabled)
             }
-            SettingRow("Hint the on-device speech model", "Gives your 20 most used and most corrected terms to the on-device speech model while you speak, so it hears them right more often. Costs a little wait when you stop: about 0.04 s with 10 terms, 0.17 s with 50 when measured. Only for on-device speech.",
+            SettingRow("Hint the on-device speech model", "Gives your 20 most used and most corrected terms to the on-device speech model while you speak, so it hears them right more often. Off by default: it can make the model write your terms instead of what you said (seen on 1 of 25 real recordings), and it adds a little wait when you stop. Only for on-device speech.",
                        available: settings.vocabularyEnabled) {
                 Toggle("Hint the on-device speech model", isOn: $settings.vocabularySpeechHint)
             }

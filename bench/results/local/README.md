@@ -111,5 +111,8 @@ errors (a Chinese character counts as a word). Rows: `vocabulary-hint-20261122.j
 - **It costs time, by the term:** about +0.04 s with 10 terms and +0.17 s with 50 (the cap then;
   `Vocabulary.maxSpeechWords` is now 20). The Mac was running other test suites, so read the differences,
   not the absolute times.
-- Limits: clean synthetic voices, one pass, 8 term clips. From this, the setting is on by default
+- Limits: clean synthetic voices, one pass, 8 term clips. From this, the setting went on by default
   (Nov 22), giving the 20 most useful terms.
+- **2026-11-22, later:** this synthetic run showed no harm, but on real recordings the model echoed
+  the term list instead of the dictation once in 25 (`bench/results/history/README.md`). The default
+  is off again.

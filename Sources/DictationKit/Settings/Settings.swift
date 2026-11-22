@@ -190,10 +190,11 @@ final class AppSettings: ObservableObject {
     /// polish is told them. On by default; with no terms it changes nothing.
     @Setting("vocabularyEnabled", default: true) var vocabularyEnabled: Bool
     /// Also give the 20 most useful terms to the on-device speech models as context words
-    /// (`SpeechContext`, `Vocabulary.speechWords`). On by default since it was measured (Nov 22,
-    /// bench/results/local/README.md): no harm on ordinary clips, including mixed Chinese; term clips
-    /// 23% → 6% word errors; a little wait per term.
-    @Setting("vocabularySpeechHint", default: true) var vocabularySpeechHint: Bool
+    /// (`SpeechContext`, `Vocabulary.speechWords`). Off by default: on real recordings (Nov 22,
+    /// bench/results/history/README.md) the on-device model once wrote the term list instead of what
+    /// was said (1 of 25), though the synthetic run showed no harm (bench/results/local/README.md);
+    /// and each term adds a little wait.
+    @Setting("vocabularySpeechHint", default: false) var vocabularySpeechHint: Bool
     /// Watch how you edit a dictation right after it's pasted (`EditWatcher`) and keep it as a captured
     /// fix, waiting in Corrections for your Accept. Off by default: it reads the text box you typed into.
     @Setting("learnFromEdits", default: false) var learnFromEdits: Bool

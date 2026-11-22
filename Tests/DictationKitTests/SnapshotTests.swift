@@ -269,7 +269,7 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "shortcuts")
     }
 
-    /// Settings › Vocabulary on the On-device setup, defaults otherwise (the speech hint on), with Ask
+    /// Settings › Vocabulary on the On-device setup, defaults otherwise (the speech hint off), with Ask
     /// a model about my fixes left on from a cloud setup: unavailable, shown off, cloud setups only.
     func testVocabularySectionOnDevice() {
         let settings = makeSettings(self)
