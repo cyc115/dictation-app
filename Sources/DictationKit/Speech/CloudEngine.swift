@@ -121,6 +121,9 @@ final class AdaptiveBackup {
 /// (both were already sent, so it costs nothing). Runs on the main queue (clients call back there),
 /// and keeps itself alive until it's done.
 final class UploadRace {
+    /// An answer this late is logged as a notice, not info.
+    static let slow: TimeInterval = 2
+
     struct Backup: Equatable {
         let model: String
         let delay: TimeInterval
@@ -146,6 +149,9 @@ final class UploadRace {
     private let backup: Backup?
     private let judgeMain: (wait: TimeInterval, verdict: (Bool) -> Void)?
     private let onDone: (Report) -> Void
+    /// Why the backup was asked and whose answer was used (`CloudLog`; each request's own HTTP
+    /// outcome is the client's line).
+    private let log: CloudLog
     private let clock: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     private var startedAt: TimeInterval = 0
     private var tasks: [String: URLSessionTask] = [:]
@@ -158,8 +164,10 @@ final class UploadRace {
     private var judgeTimer: DispatchWorkItem?
 
     init(wav: URL, apiKey: String, client: TranscriptionClient, main: String, backup: Backup?,
-         judgeMain: (wait: TimeInterval, verdict: (Bool) -> Void)? = nil, onDone: @escaping (Report) -> Void) {
+         judgeMain: (wait: TimeInterval, verdict: (Bool) -> Void)? = nil, log: CloudLog = .speech,
+         onDone: @escaping (Report) -> Void) {
         self.wav = wav
+        self.log = log
         self.apiKey = apiKey
         self.client = client
         self.main = main
@@ -178,14 +186,15 @@ final class UploadRace {
             DispatchQueue.main.asyncAfter(deadline: .now() + judgeMain.wait, execute: late)
         }
         guard let backup = backup else { return }
-        guard backup.delay > 0 else { return askBackup() }
-        let timer = DispatchWorkItem { [self] in askBackup() }
+        guard backup.delay > 0 else { return askBackup(because: "at once: \(main) was late in the last few minutes") }
+        let timer = DispatchWorkItem { [self] in askBackup(because: "\(main) hasn't answered in \(CloudLog.seconds(backup.delay))") }
         self.timer = timer
         DispatchQueue.main.asyncAfter(deadline: .now() + backup.delay, execute: timer)
     }
 
-    private func askBackup() {
+    private func askBackup(because reason: String) {
         guard let backup = backup, !backupAsked, !finished else { return }
+        log.notice("asking backup \(backup.model): \(reason)")
         backupAsked = true
         timer?.cancel()
         ask(backup.model)
@@ -204,7 +213,7 @@ final class UploadRace {
             case .failure(let error):
                 firstError = firstError ?? error.localizedDescription
                 if backup != nil && !backupAsked {
-                    askBackup()  // don't wait out the delay after a failure
+                    askBackup(because: "\(model) failed: \(error.localizedDescription)")  // don't wait out the delay
                 } else if pending == 0 {
                     finish(.failed(firstError ?? "Transcription failed."))
                 }
@@ -233,6 +242,17 @@ final class UploadRace {
 
     private func finish(_ outcome: Outcome) {
         finished = true
+        let seconds = clock() - startedAt, took = CloudLog.seconds(seconds)
+        switch outcome {
+        case .text(_, let model) where model == main && !backupAsked:
+            // Slow without a backup to ask (setting off) is a notice too: kept long enough to find.
+            seconds < Self.slow ? log.info("transcript from \(model) in \(took)")
+                : log.notice("transcript from \(model) in \(took), slow; no backup asked")
+        case .text(_, let model):
+            log.notice("transcript from \(model) in \(took)" + (model == main ? "; backup \(backup?.model ?? "") was slower or failed" : " (backup)"))
+        case .failed(let message):
+            log.error("transcription failed after \(took), every model asked: \(message)")
+        }
         timer?.cancel()
         // Stops the other request (a finished task ignores it); a main request still being judged runs on.
         for (model, task) in tasks where model != main || judged { task.cancel() }

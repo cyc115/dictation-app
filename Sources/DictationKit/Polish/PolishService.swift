@@ -43,8 +43,12 @@ class PolishService {
     let backupAfter: TimeInterval
     /// Seconds before polishing gives up; nil waits (on-device: it's slow, but it's there).
     let deadline: TimeInterval?
+    /// Each model's failure, a backup asked, giving up (`CloudLog`).
+    let log: CloudLog
 
-    init(backend: PolishBackend, backup: PolishBackend? = nil, backupAfter: TimeInterval = 0, deadline: TimeInterval? = nil) {
+    init(backend: PolishBackend, backup: PolishBackend? = nil, backupAfter: TimeInterval = 0, deadline: TimeInterval? = nil,
+         log: CloudLog = .polish) {
+        self.log = log
         self.backend = backend
         self.backup = backup
         self.backupAfter = backupAfter
@@ -77,11 +81,31 @@ class PolishService {
 
     /// The polished text and which model gave it (`by.model`: the backup's, if it answered first).
     func answer(_ text: String) async throws -> (text: String, by: ModelAnswer) {
-        let backend = backend, backup = backup
-        let (reply, byBackup, backupAsked) = try await FirstAnswer.race(
-            main: { try await backend.polish(text) },
-            backup: backup.map { backup in { try await backup.polish(text) } },
-            backupAfter: backupAfter, deadline: deadline)
+        let backend = backend, backup = backup, log = log, started = Date()
+        let took = { CloudLog.seconds(Date().timeIntervalSince(started)) }
+        // A failure is logged even when the other model goes on to answer: that's how a dead backup shows.
+        let logged = { (model: PolishBackend) -> @Sendable () async throws -> String in
+            { do { return try await model.polish(text) } catch {
+                if !(error is CancellationError) && (error as? URLError)?.code != .cancelled {
+                    log.error("\(model.name) failed after \(took()): \(error.localizedDescription)")
+                }
+                throw error
+            } }
+        }
+        let reply: String, byBackup: Bool, backupAsked: Bool
+        do {
+            (reply, byBackup, backupAsked) = try await FirstAnswer.race(
+                main: logged(backend), backup: backup.map(logged), backupAfter: backupAfter, deadline: deadline)
+        } catch {
+            log.error("polish gave up after \(took()), the raw text is used: \(error.localizedDescription)")
+            throw error
+        }
+        if backupAsked {
+            log.notice("polish from \(byBackup ? backup?.name ?? "" : backend.name) in \(took())"
+                + (byBackup ? " (backup)" : "; backup \(backup?.name ?? "") was slower or failed"))
+        } else {
+            log.info("polish from \(backend.name) in \(took())")
+        }
         let cleaned = reply.trimmingCharacters(in: .whitespacesAndNewlines)
         let by = ModelAnswer(main: backend.name, backup: backupAsked ? backup?.name : nil, byBackup: byBackup)
         return (cleaned.isEmpty ? text : cleaned, by)

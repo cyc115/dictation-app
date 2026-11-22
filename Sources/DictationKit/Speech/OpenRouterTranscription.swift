@@ -12,8 +12,13 @@ protocol TranscriptionClient {
 final class OpenRouterClient: TranscriptionClient {
     static let endpoint = URL(string: "https://openrouter.ai/api/v1/audio/transcriptions")!
     private let session: URLSession
+    /// Every request's outcome: model, HTTP status, seconds, and the API's error (`CloudLog`).
+    private let log: CloudLog
 
-    init(session: URLSession = .shared) { self.session = session }
+    init(session: URLSession = URLSession.shared, log: CloudLog = .speech) {
+        self.session = session
+        self.log = log
+    }
 
     @discardableResult
     func transcribe(wav: URL, model: String, apiKey: String,
@@ -25,12 +30,24 @@ final class OpenRouterClient: TranscriptionClient {
         let (body, boundary) = Self.multipart(model: model, audio: audio, filename: wav.lastPathComponent)
         var request = OpenRouter.request(Self.endpoint, apiKey: apiKey)
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        let started = Date(), log = log
         let task = session.uploadTask(with: request, from: body) { data, response, error in
             let result: Result<String, Error>
+            let took = CloudLog.seconds(Date().timeIntervalSince(started))
             if let error = error {
                 result = .failure(TranscriptionError.message("Network error: \(error.localizedDescription)"))
+                if (error as? URLError)?.code == .cancelled {
+                    log.info("\(model): cancelled after \(took) (another model answered first)")
+                } else {
+                    log.error("\(model): network error after \(took): \(error.localizedDescription)")
+                }
             } else {
-                result = Self.parse(data: data ?? Data(), status: (response as? HTTPURLResponse)?.statusCode ?? 0)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                result = Self.parse(data: data ?? Data(), status: status)
+                switch result {
+                case .success: log.info("\(model): HTTP \(status) in \(took)")
+                case .failure(let failure): log.error("\(model): HTTP \(status) in \(took): \(failure.localizedDescription)")
+                }
             }
             DispatchQueue.main.async { completion(result) }
         }

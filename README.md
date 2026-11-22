@@ -301,6 +301,14 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
 - **AI polish does nothing.** On-device polish needs Apple Intelligence. Cloud polish needs a
   valid API key. If polish fails, the unpolished text is pasted.
 - **Text lands in the wrong app.** Click the text field you want first, then hold the hotkey.
+- **A cloud dictation was slow or failed.** Every cloud request is in the system log: model, HTTP
+  status, seconds, the API's error, when the backup was asked and why, and whose answer was used
+  (never your words). A failure shows even when the other model answered, so a dead backup is easy
+  to spot:
+
+  ```sh
+  log show --last 1d --info --predicate 'subsystem == "com.mikechen.DictationApp" AND category IN {"speech", "polish"}'
+  ```
 
 ## Development
 
