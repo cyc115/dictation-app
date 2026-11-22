@@ -8,12 +8,15 @@ struct SettingsView: View {
     let services: AppServices
     /// Opens the Commands tab (Settings › Commands › Manage Commands…).
     var onShowCommands: (() -> Void)?
+    /// Opens the Vocabulary tab (Settings › Vocabulary › Manage Vocabulary…).
+    var onShowVocabulary: (() -> Void)?
     @State private var microphones: [AudioInputDevice] = []
 
-    init(services: AppServices, onShowCommands: (() -> Void)? = nil) {
+    init(services: AppServices, onShowCommands: (() -> Void)? = nil, onShowVocabulary: (() -> Void)? = nil) {
         settings = services.settings
         self.services = services
         self.onShowCommands = onShowCommands
+        self.onShowVocabulary = onShowVocabulary
     }
 
     var body: some View {
@@ -24,6 +27,7 @@ struct SettingsView: View {
             ShortcutsSection(settings: settings)
             CommandsSection(settings: settings, onShowCommands: onShowCommands)
             PolishSection(settings: settings, vocabulary: services.vocabulary)
+            VocabularySection(settings: settings, onShowVocabulary: onShowVocabulary)
             HistorySection(settings: settings, history: services.history, archive: services.archive)
             UpdatesSection(updates: services.updates)
             ExperimentalSection(settings: settings)

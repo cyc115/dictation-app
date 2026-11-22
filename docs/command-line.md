@@ -28,6 +28,22 @@ Exit status: 0 done, 1 unknown setting or value (the error lists what it takes),
 New settings show up here on their own: the list is every `@Setting` in `AppSettings`
 (`SettingsCommandTests` checks).
 
+## Vocabulary
+
+Your terms (the Vocabulary tab) can be listed and changed the same way. A change is saved to
+`vocabulary.json`, which the running app re-reads at its next dictation.
+
+```sh
+$dictation vocabulary                                        # every term: variants, uses, on/off
+$dictation vocabulary list --json                            # the same, as JSON
+$dictation vocabulary add GeForce Now --heard "G Four Snow, g force now"
+$dictation vocabulary add reMarkable                         # a term with no variants: polish is told it
+$dictation vocabulary remove GeForce Now
+```
+
+A term can be several words, quoted or not. Adding a term you already have adds the new variants
+to it. Exit status: 0 done, 1 no such term, 2 bad usage.
+
 ## Hammerspoon: everything on this Mac when offline
 
 With no internet (airplane mode, Wi-Fi off), switch to the On-device setup (speech and polish) and

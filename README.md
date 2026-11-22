@@ -61,6 +61,14 @@ off for every model, or at the lowest effort for one that can't turn it off.
 
 ![Corrections: correct a few dictations, Learn writes a new polish prompt, and it's scored before you keep it](docs/images/learn.gif)
 
+### Vocabulary: names it keeps getting wrong
+
+Add a term in the Vocabulary tab (or `DictationApp vocabulary add`), with what the app writes
+instead: "GeForce Now", heard as "G Four Snow". From then on every dictation has it right: what it
+hears is replaced with your term (in microseconds, so no wait), and AI polish is told your terms.
+Learn tunes with them too. Settings › Vocabulary turns it off, and can also hint the terms to the
+On-device speech model (off by default).
+
 ### Detailed analytics: where the wait went
 
 Home shows words dictated, time saved and where a typical dictation's time goes. Settings → *Show
@@ -215,6 +223,8 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
   installed apps' names, for `open`, and the open ones', for `switch-app`), to OpenRouter to pick one; `create` also sends it to
   DeepSeek to write the script. `fix` runs Claude Code on this Mac, which sends what you said, the
   command's runs and errors, and the code it reads to Anthropic. Commands are saved beside your history, in `history-commands.json`.
+- Your vocabulary stays on this Mac, in `vocabulary.json`. Its terms go where polish already goes:
+  OpenRouter on the cloud setups, Apple Intelligence on-device; with polish off they go nowhere.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted)
   to the cloud models, like any cloud dictation. Learned prompts stay in
   `~/Library/Application Support/DictationApp/learned-prompts.json`.
@@ -246,7 +256,7 @@ bench/suite.py polish run    # polish quality on tricky dictations
 ```
 
 - `Sources/DictationKit`: all app code, one folder per feature (`Dictation`, `Speech`, `Polish`, `Pill`,
-  `History`, `Commands`, …). `Sources/DictationApp`: the entry point.
+  `History`, `Learn`, `Vocabulary`, `Commands`, …). `Sources/DictationApp`: the entry point.
   `Tests/DictationKitTests`: the tests.
 - **UI tests** host the real SwiftUI views in an offscreen window and click through them using
   their accessibility identifiers.

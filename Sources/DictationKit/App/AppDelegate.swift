@@ -10,7 +10,7 @@ public enum DictationAppMain {
 
     @MainActor
     public static func run() {
-        if let status = SettingsCommand.runIfRequested() { exit(status) }
+        if let status = SettingsCommand.runIfRequested() ?? VocabularyCommand.runIfRequested() { exit(status) }
         let app = NSApplication.shared
         let delegate = AppDelegate()
         self.delegate = delegate

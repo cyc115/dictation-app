@@ -157,6 +157,20 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "commands-tab")
     }
 
+    func testVocabularyTab() {
+        let url = makeTempURL(self, "vocabulary.json")
+        let entries = [
+            VocabularyEntry(term: "reMarkable", added: fixedDate(2026, 11, 2, 9, 0), uses: 0),
+            VocabularyEntry(term: "Claude", heardAs: ["cloud", "Coloule", "Cloud Code"], source: .learned, added: fixedDate(2026, 11, 18, 9, 0), uses: 12),
+            VocabularyEntry(term: "Codex", heardAs: ["code x"], enabled: false, added: fixedDate(2026, 11, 19, 9, 0)),
+            VocabularyEntry(term: "GeForce Now", heardAs: ["G Four Snow", "g force now"], added: fixedDate(2026, 11, 20, 9, 0), uses: 1),
+            VocabularyEntry(term: "HRV", heardAs: ["而差v"], added: fixedDate(2026, 11, 21, 9, 0), uses: 4),
+        ]
+        JSONFile.save(["entries": entries], to: url)
+        let hosted = host(VocabularyView(store: VocabularyStore(fileURL: url)), size: NSSize(width: 760, height: 620))
+        assertSnapshot(of: hosted.hostingView, named: "vocabulary-tab")
+    }
+
     func testInsights() {
         let insights = Insights(defaults: makeDefaults(self))
         insights.record(text: Array(repeating: "w", count: 19_400).joined(separator: " "), duration: 3 * 3600 + 31 * 60)

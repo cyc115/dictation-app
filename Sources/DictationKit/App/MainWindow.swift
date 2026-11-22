@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum MainTab: String, CaseIterable, Identifiable {
-    case home, history, corrections, commands, settings
+    case home, history, corrections, vocabulary, commands, settings
 
     var id: String { rawValue }
 
@@ -11,6 +11,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .home: return "Home"
         case .history: return "History"
         case .corrections: return "Corrections"
+        case .vocabulary: return "Vocabulary"
         case .commands: return "Commands"
         case .settings: return "Settings"
         }
@@ -21,6 +22,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         switch self {
         case .history: return "Search history"
         case .corrections: return "Search corrections"
+        case .vocabulary: return "Search vocabulary"
         case .commands: return "Search commands"
         case .home, .settings: return nil
         }
@@ -31,13 +33,14 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .home: return "house"
         case .history: return "clock.arrow.circlepath"
         case .corrections: return "pencil.line"
+        case .vocabulary: return "character.book.closed"
         case .commands: return "chevron.forward.square"
         case .settings: return "gearshape"
         }
     }
 }
 
-/// The app window: sidebar with Home (insights), History, Corrections, Commands and Settings.
+/// The app window: sidebar with Home (insights), History, Corrections, Vocabulary, Commands and Settings.
 final class MainWindowController {
     private var window: NSWindow?
     private let selection = TabSelection()
@@ -154,9 +157,11 @@ struct MainView: View {
         case .corrections: CorrectionsView(store: history, suggester: services.suggester, learn: services.learn,
                                            editing: selection.editing, search: searches[.corrections, default: ""])
             .onTabHidden { selection.editing = nil }
+        case .vocabulary: VocabularyView(store: services.vocabulary, search: searches[.vocabulary, default: ""])
         case .commands: CommandsView(mode: services.commands, settings: settings, history: history,
                                      search: searches[.commands, default: ""], onOpenSettings: { selection.tab = .settings })
-        case .settings: SettingsView(services: services, onShowCommands: { selection.tab = .commands })
+        case .settings: SettingsView(services: services, onShowCommands: { selection.tab = .commands },
+                                     onShowVocabulary: { selection.tab = .vocabulary })
         }
     }
 }
