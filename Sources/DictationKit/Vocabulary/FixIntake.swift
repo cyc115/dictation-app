@@ -34,7 +34,8 @@ struct WordChange: Codable, Equatable {
 }
 
 /// A dictation's fix as word changes, saved on its History entry. `of` is the target it was worked
-/// out from (today: the correction), so it's worked out again only once that changes, at idle.
+/// out from (`HistoryEntry.fixTarget`: the correction, else a captured edit you haven't dismissed),
+/// so it's worked out again only once that changes, at idle.
 struct Intake: Codable, Equatable {
     var of: String
     var changes: [WordChange]

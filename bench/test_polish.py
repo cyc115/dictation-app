@@ -226,6 +226,9 @@ def test_corrections_in_history_json_are_cases(tmp_path):
          "intake": {"of": "Can you install Claude Code?", "changes": [{"old": "Cloud", "new": "Claude"}]}},
         {"id": "AB12CD34-0000-4000-8000-000000000002", "date": "2026-10-07T03:18:00Z", "duration": 1,
          "text": "Not corrected."},
+        {"id": "AB12CD34-0000-4000-8000-000000000004", "date": "2026-10-07T03:17:00Z", "duration": 1,
+         "text": "Captured, waiting.", "capture": {"edited": "Captured, waiting!", "mode": "readback", "app": "Slack",
+                                                    "state": "waiting"}},
         {"id": "EF56AB78-0000-4000-8000-000000000003", "date": "2026-10-06T03:18:00Z", "duration": 1,
          "text": "Saved before raw was kept.", "correction": "Saved before raw was kept!"},
     ]))

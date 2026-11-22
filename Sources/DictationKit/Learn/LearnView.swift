@@ -14,6 +14,14 @@ struct LearnView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             scores
+            // Only once there are captured edits in the mix; until then every correction is yours.
+            if controller.counts.captured > 0 {
+                Text("\(controller.counts.yours) yours · \(controller.counts.captured) captured")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .accessibilityIdentifier("learn.counts")
+            }
             if let status = controller.status {
                 Text(status)
                     .font(.caption)

@@ -80,7 +80,7 @@ enum CandidateTally {
     static func support(in entries: [HistoryEntry]) -> [VocabularyCandidate] {
         var fixes: [(id: UUID, change: WordChange)] = []
         for entry in entries {
-            guard let intake = entry.intake, let correction = entry.correction, intake.of == correction else { continue }
+            guard let intake = entry.intake, let target = entry.fixTarget, intake.of == target else { continue }
             for change in intake.changes where counts(change, ordinary: false) { fixes.append((entry.id, change)) }
         }
         guard !fixes.isEmpty else { return [] }
@@ -124,7 +124,7 @@ enum CandidateTally {
     }
 
 
-    /// Where each heard stands in the dictations you didn't correct, matched as replacement would
+    /// Where each heard stands in the dictations you didn't fix (no correction, no capture you kept), matched as replacement would
     /// match it. One read of each dictation.
     private struct OrdinaryWords {
         private var index: [String: Int] = [:]
@@ -139,7 +139,7 @@ enum CandidateTally {
             }
             found = Array(repeating: [], count: phrases.count)
             let finder = Vocabulary.Finder(phrases)
-            for entry in entries where entry.correction == nil {
+            for entry in entries where entry.fixTarget == nil {
                 var here: [Int: Set<String>] = [:]
                 for match in finder.find(in: entry.text) { here[match.phrase, default: []].insert(match.text) }
                 for (phrase, texts) in here { found[phrase].append(texts) }

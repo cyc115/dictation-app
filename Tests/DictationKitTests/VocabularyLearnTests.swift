@@ -128,6 +128,36 @@ final class VocabularyLearnControllerTests: XCTestCase {
         XCTAssertEqual(fx.controller.measured?.corrections, 60)
     }
 
+    /// Yours first (typed or accepted, newest first), then captured fixes nobody reviewed (`auto`,
+    /// phase 4), up to 60; a waiting capture isn't a correction at all.
+    func testATuneTakesYourFixesBeforeUnreviewedOnes() {
+        let now = Date()
+        func entry(_ text: String, ago: TimeInterval, _ state: Capture.State?) -> HistoryEntry {
+            var e = HistoryEntry(date: now.addingTimeInterval(-ago), text: text, duration: 1)
+            e.correction = text + "!"
+            e.capture = state.map { Capture(edited: text + "!", mode: .readback, app: "Slack", state: $0) }
+            return e
+        }
+        let fixes = [entry("auto new", ago: 1, .auto), entry("typed old", ago: 300, nil), entry("accepted", ago: 100, .accepted)]
+            + (0..<60).map { entry("typed \($0)", ago: 200 + Double($0), nil) }
+        let taken = LearnController.tuneFixes(fixes)
+        XCTAssertEqual(taken.count, 60)
+        XCTAssertEqual(taken.first?.text, "accepted")
+        XCTAssertFalse(taken.contains { $0.text == "auto new" }, "unreviewed ones come last, so past the cap they're left out")
+    }
+
+    func testTheTileCountsCapturedFixesApart() throws {
+        let fx = LearnFixture(self, count: 12)
+        XCTAssertEqual(fx.controller.counts.yours, 12)
+        XCTAssertEqual(fx.controller.counts.captured, 0)
+        let id = try XCTUnwrap(fx.history.add(text: "cloud", duration: 1))
+        fx.history.setCapture(Capture(edited: "Claude", mode: .readback, app: "Slack"), for: id)
+        XCTAssertEqual(fx.controller.counts.captured, 0, "waiting: not training yet")
+        fx.history.accept(id)
+        XCTAssertEqual(fx.controller.counts.yours, 12)
+        XCTAssertEqual(fx.controller.counts.captured, 1)
+    }
+
     func testATuneGetsReplacedTranscriptsAndOneSnapshot() {
         let fx = LearnFixture(self, studentDelay: 0.02)
         fx.vocabulary.add(term: "Claude", heardAs: ["cloud"])

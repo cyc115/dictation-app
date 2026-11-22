@@ -20,12 +20,26 @@ struct HistoryEntry: Codable, Identifiable, Equatable {
     /// polish failed, or before these were saved). Settings → Show detailed analytics shows them.
     var transcribedBy: ModelAnswer?
     var polishedBy: ModelAnswer?
-    /// The correction as word changes (`FixIntake`), worked out when the app is idle
-    /// (`VocabularyIntake`); nil until then, and with no correction.
+    /// The fix as word changes (`FixIntake`), worked out when the app is idle (`VocabularyIntake`);
+    /// nil until then, and with no fix.
     var intake: Intake?
+    /// How you edited it right after it was pasted (*Learn from my edits*); nil when it wasn't watched
+    /// or the edit changed no word.
+    var capture: Capture?
 
     /// What polish was given: a test case's input.
     var input: String { raw ?? text }
+
+    /// What it should have been, for vocabulary: your correction, else your captured edit unless you
+    /// dismissed it. (Learn trains only on `correction`.)
+    var fixTarget: String? {
+        if let correction { return correction }
+        guard let capture, capture.state != .dismissed else { return nil }
+        return capture.edited
+    }
+
+    /// Waits in Corrections for your Accept or Dismiss.
+    var isWaiting: Bool { capture?.state == .waiting && correction == nil }
 }
 
 /// Which model gave a dictation's transcript or polish: the setup's main model, or the backup asked
@@ -130,19 +144,54 @@ final class HistoryStore: ObservableObject {
         saveCommands()
     }
 
+    /// The new entry's id; nil when nothing was kept (History off, or no text).
+    @discardableResult
     func add(text: String, duration: TimeInterval, raw: String? = nil, setup: String? = nil, prompt: String? = nil,
              transcribeSeconds: Double? = nil, polishSeconds: Double? = nil,
-             transcribedBy: ModelAnswer? = nil, polishedBy: ModelAnswer? = nil, date: Date = Date()) {
-        guard retention != .off, !text.isEmpty else { return }
-        entries.insert(HistoryEntry(date: date, text: text, duration: duration, raw: raw == text ? nil : raw,
-                                    setup: setup, prompt: prompt,
-                                    transcribeSeconds: transcribeSeconds, polishSeconds: polishSeconds,
-                                    transcribedBy: transcribedBy, polishedBy: polishedBy), at: 0)
+             transcribedBy: ModelAnswer? = nil, polishedBy: ModelAnswer? = nil, date: Date = Date()) -> UUID? {
+        guard retention != .off, !text.isEmpty else { return nil }
+        let entry = HistoryEntry(date: date, text: text, duration: duration, raw: raw == text ? nil : raw,
+                                 setup: setup, prompt: prompt,
+                                 transcribeSeconds: transcribeSeconds, polishSeconds: polishSeconds,
+                                 transcribedBy: transcribedBy, polishedBy: polishedBy)
+        entries.insert(entry, at: 0)
+        save()
+        return entry.id
+    }
+
+    /// Dictations you corrected (or whose captured edit you accepted), newest first.
+    var corrections: [HistoryEntry] { entries.filter { $0.correction != nil } }
+
+    /// Captured edits waiting for your Accept, newest first.
+    var waiting: [HistoryEntry] { entries.filter(\.isWaiting) }
+
+    /// Saves a captured edit (`EditWatcher`) on its entry: only on one you haven't corrected or had a
+    /// capture on already (yours wins, and one dictation is watched once).
+    func setCapture(_ capture: Capture, for id: UUID) {
+        guard let i = entries.firstIndex(where: { $0.id == id }), entries[i].correction == nil, entries[i].capture == nil else { return }
+        entries[i].capture = capture
         save()
     }
 
-    /// Dictations you corrected, newest first.
-    var corrections: [HistoryEntry] { entries.filter { $0.correction != nil } }
+    /// Accept on a waiting capture: it becomes the entry's correction, which trains Learn.
+    func accept(_ id: UUID) {
+        guard let i = entries.firstIndex(where: { $0.id == id }), var capture = entries[i].capture,
+              capture.state == .waiting || capture.state == .auto else { return }
+        capture.state = .accepted
+        entries[i].correction = entries[i].correction ?? capture.edited
+        entries[i].capture = capture
+        save()
+    }
+
+    /// Dismiss on a capture: it counts for nothing, and an `auto` one stops training Learn.
+    func dismiss(_ id: UUID) {
+        guard let i = entries.firstIndex(where: { $0.id == id }), var capture = entries[i].capture,
+              capture.state == .waiting || capture.state == .auto else { return }
+        if capture.state == .auto { entries[i].correction = nil }
+        capture.state = .dismissed
+        entries[i].capture = capture
+        save()
+    }
 
     /// Saves what you wanted instead; empty removes the correction. Called on every keystroke, so an
     /// edit is written once typing pauses (a 5k-entry history takes ~15 ms to save); adding or
@@ -154,6 +203,12 @@ final class HistoryStore: ObservableObject {
         let edit = entries[i].correction != nil && value != nil
         typing = edit
         entries[i].correction = value
+        // A correction typed on a captured edit makes it yours; taking yours away dismisses the capture,
+        // so its edit doesn't go on feeding vocabulary unseen.
+        if var capture = entries[i].capture {
+            capture.state = value == nil ? .dismissed : .accepted
+            if capture != entries[i].capture { entries[i].capture = capture }
+        }
         typing = false
         if edit {
             unpublishedEdit = true
@@ -164,12 +219,12 @@ final class HistoryStore: ObservableObject {
     }
 
     /// Saves intake worked out at idle (`VocabularyIntake`), one publish and one save for them all.
-    /// Each is kept only if it was worked out from the entry's correction as it is now (nil: only once
-    /// the correction is gone), so one typed on since is worked out again next time.
+    /// Each is kept only if it was worked out from the entry's fix as it is now (`fixTarget`; nil: only
+    /// once the fix is gone), so one typed on since is worked out again next time.
     func setIntakes(_ intakes: [UUID: Intake?]) {
         var copy = entries
         for i in copy.indices {
-            guard let intake = intakes[copy[i].id], intake?.of == copy[i].correction, copy[i].intake != intake else { continue }
+            guard let intake = intakes[copy[i].id], intake?.of == copy[i].fixTarget, copy[i].intake != intake else { continue }
             copy[i].intake = intake
         }
         guard copy != entries else { return }
@@ -204,7 +259,8 @@ final class HistoryStore: ObservableObject {
     private func prune() {
         guard let maxAge = retention.maxAge else { return }
         let cutoff = Date().addingTimeInterval(-maxAge)
-        let kept = entries.filter { $0.date > cutoff || $0.correction != nil }  // corrections are kept until you delete them
+        // Corrections are kept until you delete them, except an `auto` captured one you never looked at.
+        let kept = entries.filter { $0.date > cutoff || ($0.correction != nil && $0.capture?.state != .auto) }
         if kept.count != entries.count {
             entries = kept
             save()

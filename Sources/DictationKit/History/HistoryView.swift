@@ -38,7 +38,8 @@ struct HistoryView: View {
         } else {
             groupedList(filtered, by: \.date) { entry in
                 HistoryRow(entry: entry, onDelete: { store.delete(entry) }, onCorrect: {
-                    if entry.correction == nil {
+                    // A captured edit waiting for you opens as it is, for Accept or Dismiss.
+                    if entry.correction == nil && !entry.isWaiting {
                         store.setCorrection(entry.text, for: entry.id)
                         suggester?.suggest(for: entry, in: store)
                     }

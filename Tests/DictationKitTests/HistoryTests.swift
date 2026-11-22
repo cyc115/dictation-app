@@ -202,5 +202,126 @@ final class HistoryStoreTests: XCTestCase {
         let store = HistoryStore(fileURL: url, defaults: makeDefaults(self))
         XCTAssertTrue(store.entries.isEmpty)
     }
+
+    func testAddSaysWhichEntryItMade() {
+        let store = makeHistory(self)
+        let id = store.add(text: "hello", duration: 1)
+        XCTAssertEqual(id, store.entries[0].id)
+        XCTAssertNil(store.add(text: "", duration: 1), "nothing kept, no id")
+        store.retention = .off
+        XCTAssertNil(store.add(text: "hello", duration: 1))
+    }
+}
+
+/// Captured fixes (*Learn from my edits*) on their History entries: waiting until you Accept them,
+/// and only then training Learn.
+final class CapturedFixTests: XCTestCase {
+    private func captured(_ store: HistoryStore, _ text: String = "I use cloud code.", edited: String = "I use Claude Code.") -> UUID {
+        let id = store.add(text: text, duration: 1)!
+        store.setCapture(Capture(edited: edited, mode: .readback, app: "Slack"), for: id)
+        return id
+    }
+
+    func testACaptureWaitsAndDoesNotTrainLearn() throws {
+        let url = makeTempURL(self), defaults = makeDefaults(self)
+        let store = HistoryStore(fileURL: url, defaults: defaults)
+        let id = captured(store)
+        XCTAssertEqual(store.waiting.map(\.id), [id])
+        XCTAssertTrue(store.corrections.isEmpty, "waiting: no correction, so Learn doesn't see it")
+        XCTAssertEqual(store.entries[0].fixTarget, "I use Claude Code.", "vocabulary counts it")
+        let saved = try XCTUnwrap(HistoryStore(fileURL: url, defaults: defaults).entries.first?.capture)
+        XCTAssertEqual(saved, Capture(edited: "I use Claude Code.", mode: .readback, app: "Slack", state: .waiting))
+    }
+
+    func testAcceptMakesItACorrection() {
+        let store = makeHistory(self)
+        let id = captured(store)
+        store.accept(id)
+        XCTAssertEqual(store.corrections.first?.correction, "I use Claude Code.")
+        XCTAssertEqual(store.entries[0].capture?.state, .accepted)
+        XCTAssertTrue(store.waiting.isEmpty)
+    }
+
+    func testDismissCountsForNothing() {
+        let store = makeHistory(self)
+        let id = captured(store)
+        store.dismiss(id)
+        XCTAssertEqual(store.entries[0].capture?.state, .dismissed)
+        XCTAssertNil(store.entries[0].fixTarget, "not for vocabulary either")
+        XCTAssertTrue(store.waiting.isEmpty)
+        XCTAssertTrue(store.corrections.isEmpty)
+        store.accept(id)
+        XCTAssertTrue(store.corrections.isEmpty, "a dismissed capture can't be accepted later")
+    }
+
+    func testDismissingAnAutoFixClearsItsCorrection() {
+        let url = makeTempURL(self)
+        var entry = HistoryEntry(date: Date(), text: "cloud", duration: 1)  // as phase 4's judge leaves it
+        entry.correction = "Claude"
+        entry.capture = Capture(edited: "Claude", mode: .readback, app: "Slack", state: .auto)
+        try? JSONFile.write([entry], to: url)
+        let store = HistoryStore(fileURL: url, defaults: makeDefaults(self))
+        let id = entry.id
+        XCTAssertEqual(store.corrections.map(\.id), [id], "auto trains Learn")
+        store.dismiss(id)
+        XCTAssertNil(store.entries[0].correction)
+        XCTAssertEqual(store.entries[0].capture?.state, .dismissed)
+    }
+
+    func testTypingACorrectionOnACaptureMakesItYours() {
+        let store = makeHistory(self)
+        let id = captured(store)
+        store.setCorrection("I use Claude Code, the CLI.", for: id)
+        XCTAssertEqual(store.entries[0].capture?.state, .accepted)
+        XCTAssertEqual(store.entries[0].fixTarget, "I use Claude Code, the CLI.", "yours wins over the edit")
+        store.setCorrection("", for: id)
+        XCTAssertEqual(store.entries[0].capture?.state, .dismissed, "taking yours away: its edit doesn't feed vocabulary unseen")
+        XCTAssertNil(store.entries[0].fixTarget)
+    }
+
+    func testOneCapturePerDictationAndNeverOverACorrection() {
+        let store = makeHistory(self)
+        let id = captured(store)
+        store.setCapture(Capture(edited: "other", mode: .keystrokes, app: "Notes"), for: id)
+        XCTAssertEqual(store.entries[0].capture?.edited, "I use Claude Code.")
+        let corrected = store.add(text: "cloud", duration: 1)!
+        store.setCorrection("Claude", for: corrected)
+        store.setCapture(Capture(edited: "clod", mode: .readback, app: "Slack"), for: corrected)
+        XCTAssertNil(store.entries[0].capture)
+    }
+
+    /// Kept past "Keep history" only as a correction you made or accepted; waiting, dismissed and
+    /// `auto` ones go with their dictation.
+    func testRetentionKeepsOnlyCorrectionsThatAreYours() throws {
+        let url = makeTempURL(self), defaults = makeDefaults(self)
+        let old = Date().addingTimeInterval(-10 * 86_400)
+        func entry(_ text: String, correction: String? = nil, _ state: Capture.State?) -> HistoryEntry {
+            var e = HistoryEntry(date: old, text: text, duration: 1)
+            e.correction = correction
+            e.capture = state.map { Capture(edited: text + "!", mode: .readback, app: "Slack", state: $0) }
+            return e
+        }
+        try JSONFile.write([entry("manual", correction: "manual!", nil), entry("accepted", correction: "accepted!", .accepted),
+                            entry("auto", correction: "auto!", .auto), entry("waiting", .waiting), entry("dismissed", .dismissed)], to: url)
+        defaults.set(HistoryRetention.days7.rawValue, forKey: "historyRetention")
+        XCTAssertEqual(HistoryStore(fileURL: url, defaults: defaults).entries.map(\.text), ["manual", "accepted"])
+    }
+
+    /// A newer build's state reads as dismissed (counts for nothing); an entry without a capture, or a
+    /// file from before captures, loads as before.
+    func testUnknownStatesFromANewerBuildCountForNothing() throws {
+        let url = makeTempURL(self)
+        try Data(#"""
+        [{"id":"7F1D7C55-0000-4000-8000-000000000001","date":"2026-10-07T07:00:00Z","text":"cloud","duration":1,
+          "capture":{"edited":"Claude","mode":"telepathy","app":"Slack","state":"judgedTwice"}},
+         {"id":"7F1D7C55-0000-4000-8000-000000000002","date":"2026-10-07T07:00:00Z","text":"old","duration":1,
+          "capture":{"mode":"readback"}}]
+        """#.utf8).write(to: url)
+        let entries = HistoryStore(fileURL: url, defaults: makeDefaults(self)).entries
+        XCTAssertEqual(entries.count, 2, "history still loads")
+        XCTAssertEqual(entries[0].capture, Capture(edited: "Claude", mode: .keystrokes, app: "Slack", state: .dismissed))
+        XCTAssertNil(entries[0].fixTarget)
+        XCTAssertEqual(entries[1].capture?.state, .dismissed, "no text: nothing to learn")
+    }
 }
 

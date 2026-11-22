@@ -13,8 +13,9 @@ import SwiftUI
 final class LearnController: ObservableObject {
     /// Corrections needed before the first tune.
     static let minimum = 10
-    /// Fixes a tune takes at most, newest first: it makes 10 teacher calls that each carry most
-    /// unlearned fixes, and about 8 student calls per fix.
+    /// Fixes a tune takes at most: yours (typed or accepted) newest first, then captured ones nobody
+    /// reviewed (`auto`, phase 4). It makes 10 teacher calls that each carry most unlearned fixes, and
+    /// about 8 student calls per fix.
     static let maxFixes = 60
     /// The teacher: Claude Sonnet 5.5, thinking at medium effort. In the Oct 14 bake-off
     /// (bench/results/polish/README.md) it tuned as well as any teacher tried (+7 points on the
@@ -107,9 +108,25 @@ final class LearnController: ObservableObject {
     /// The vocabulary a tune would run with now (from memory; `learn()` re-reads the file first).
     private var terms: Vocabulary { vocabulary.vocabulary(enabled: settings.vocabularyEnabled) }
 
-    /// The fixes a tune takes: the newest `maxFixes` corrections. The gate asks whether these are
-    /// learned, so past the cap it reaches "all learned" rather than offering a tune with nothing to learn.
-    private var tuneFixes: [HistoryEntry] { Array(corrections.sorted { $0.date > $1.date }.prefix(Self.maxFixes)) }
+    /// The fixes a tune takes: `maxFixes` corrections, yours newest first, then unreviewed `auto` ones.
+    /// The gate asks whether these are learned, so past the cap it reaches "all learned" rather than
+    /// offering a tune with nothing to learn.
+    private var tuneFixes: [HistoryEntry] { Self.tuneFixes(corrections) }
+
+    nonisolated static func tuneFixes(_ corrections: [HistoryEntry]) -> [HistoryEntry] {
+        let unreviewed = { (e: HistoryEntry) in e.capture?.state == .auto }
+        let sorted = corrections.sorted { a, b in
+            unreviewed(a) != unreviewed(b) ? !unreviewed(a) : a.date > b.date
+        }
+        return Array(sorted.prefix(maxFixes))
+    }
+
+    /// Corrections you typed, and captured edits that train (`accepted` and `auto`): the tile's
+    /// "28 yours · 12 captured".
+    var counts: (yours: Int, captured: Int) {
+        let captured = corrections.filter { $0.capture != nil }.count
+        return (corrections.count - captured, captured)
+    }
 
     /// What a tune is given: `tuneFixes`, each transcript with the vocabulary replaced (what the
     /// student would be given in a dictation).

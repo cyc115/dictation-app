@@ -169,4 +169,47 @@ final class VocabularyIntakeTests: XCTestCase {
         hosted.settle()
         XCTAssertEqual(fx.intake.passes, 3, "each time it's shown")
     }
+    /// A captured edit waiting for your Accept counts toward vocabulary like a correction (every guard
+    /// the same); one you dismissed counts for nothing; Accept doesn't make it count twice.
+    func testCapturedEditsCountUnlessDismissed() throws {
+        let fx = makeFixture()
+        dictate(fx, Array(claude.prefix(2)))
+        let captured = fx.history.add(text: "Klod said no", duration: 1)!
+        fx.history.setCapture(Capture(edited: "Claude said no", mode: .readback, app: "Slack"), for: captured)
+        fx.intake.runIfIdle()
+        XCTAssertEqual(fx.history.entries[0].intake?.of, "Claude said no")
+        XCTAssertEqual(fx.vocabulary.entries.map(\.term), ["Claude"], "the third dictation was a captured edit")
+        XCTAssertEqual(fx.history.corrections.count, 2, "still waiting: not a correction, so Learn doesn't see it")
+
+        fx.history.accept(captured)
+        fx.intake.runIfIdle()
+        XCTAssertEqual(fx.vocabulary.candidates.first?.seen, 3, "the same fix: counted once")
+    }
+
+    func testADismissedCaptureCountsForNothing() {
+        let fx = makeFixture()
+        dictate(fx, Array(claude.prefix(2)))
+        let captured = fx.history.add(text: "Klod said no", duration: 1)!
+        fx.history.setCapture(Capture(edited: "Claude said no", mode: .keystrokes, app: "Notes"), for: captured)
+        fx.history.dismiss(captured)
+        fx.intake.runIfIdle()
+        XCTAssertNil(fx.history.entries[0].intake)
+        XCTAssertTrue(fx.vocabulary.entries.isEmpty)
+        XCTAssertEqual(fx.vocabulary.candidates.first?.seen, 2)
+    }
+
+    /// A dictation with a captured edit isn't one you left alone: its words don't make a heard an
+    /// ordinary word.
+    func testACapturedDictationIsNotAnUncorrectedOne() {
+        let fx = makeFixture()
+        dictate(fx, [("my cloud bill", nil), ("the cloud is down", nil)])
+        for text in ["cloud is great", "ask cloud", "cloud said no"] {
+            let id = fx.history.add(text: text, duration: 1)!
+            fx.history.setCapture(Capture(edited: text.replacingOccurrences(of: "cloud", with: "Claude"), mode: .readback, app: "Slack"), for: id)
+        }
+        fx.intake.runIfIdle()
+        let heard = fx.vocabulary.candidates.first?.heard.first
+        XCTAssertEqual(heard?.ordinary, false, "only 2 dictations left alone have it")
+        XCTAssertEqual(fx.vocabulary.entries.first?.heardAs, ["cloud"])
+    }
 }

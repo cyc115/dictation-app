@@ -1,6 +1,7 @@
 import Foundation
 
-/// The idle pass: works out each correction's word changes (`FixIntake`) and counts candidates from
+/// The idle pass: works out each fix's word changes (`FixIntake`: your correction, or a captured edit
+/// you haven't dismissed, `HistoryEntry.fixTarget`) and counts candidates from
 /// them (`CandidateTally`), then learns the terms seen often enough (`VocabularyStore.updateCandidates`).
 /// Made once in `AppServices`.
 ///
@@ -8,9 +9,9 @@ import Foundation
 /// backfill of every existing correction), and when the Vocabulary or Corrections tab is shown;
 /// never while a dictation is in progress. The work runs off the main thread on a copy of History,
 /// so nothing a dictation does waits on it; its result is applied on the main thread, or dropped if
-/// a dictation started meanwhile (the next pass redoes it). Only entries whose correction differs
-/// from `intake.of` are worked out again, so typing a correction costs nothing, and a pass that
-/// changes nothing writes nothing.
+/// a dictation started meanwhile (the next pass redoes it). Only entries whose fix differs from
+/// `intake.of` are worked out again, so typing a correction costs nothing, and a pass that changes
+/// nothing writes nothing.
 final class VocabularyIntake {
     /// How long after the last dictation the pass runs.
     static let idleDelay: TimeInterval = 30
@@ -63,8 +64,8 @@ final class VocabularyIntake {
                 guard let self else { return }
                 self.running = false
                 guard !self.isBusy() else { return }
-                // A correction changed while it worked: counting from the old one could learn a term
-                // from a fix that's gone (and learning can't be taken back). Try again later.
+                // A fix changed while it worked: counting from the old one could learn a term from a
+                // fix that's gone (and learning can't be taken back). Try again later.
                 guard Self.fixes(self.history.entries) == Self.fixes(entries) else { return self.scheduleAfterIdle() }
                 if !intakes.isEmpty { self.history.setIntakes(intakes) }
                 self.vocabulary.updateCandidates(support, learnAfter: self.settings.vocabularyEnabled ? self.settings.vocabularyLearnAfter : nil)
@@ -73,19 +74,19 @@ final class VocabularyIntake {
         }
     }
 
-    /// Each dictation's correction, by id: what a pass's result depends on.
+    /// Each dictation's fix, by id: what a pass's result depends on.
     private static func fixes(_ entries: [HistoryEntry]) -> [UUID: String] {
-        Dictionary(entries.compactMap { entry in entry.correction.map { (entry.id, $0) } }, uniquingKeysWith: { first, _ in first })
+        Dictionary(entries.compactMap { entry in entry.fixTarget.map { (entry.id, $0) } }, uniquingKeysWith: { first, _ in first })
     }
 
-    /// The pass's work, on a copy of History (newest first): the intake of each entry whose
-    /// correction changed since its intake was worked out (nil where the correction is gone), and the
-    /// candidates counted with it.
+    /// The pass's work, on a copy of History (newest first): the intake of each entry whose fix
+    /// changed since its intake was worked out (nil where the fix is gone), and the candidates
+    /// counted with it.
     static func work(_ entries: [HistoryEntry]) -> (intakes: [UUID: Intake?], support: [VocabularyCandidate]) {
         var entries = entries
         var intakes: [UUID: Intake?] = [:]
-        for i in entries.indices where entries[i].correction != entries[i].intake?.of {
-            let intake = entries[i].correction.map { FixIntake.intake(of: entries[i].text, target: $0) }
+        for i in entries.indices where entries[i].fixTarget != entries[i].intake?.of {
+            let intake = entries[i].fixTarget.map { FixIntake.intake(of: entries[i].text, target: $0) }
             intakes.updateValue(intake, forKey: entries[i].id)  // a nil value is kept, not a removal
             entries[i].intake = intake
         }
