@@ -16,7 +16,7 @@ final class AppFilesTests: XCTestCase {
     }
 
     func testEverythingLivesInTheAppFolder() {
-        for url in [HistoryStore.defaultFileURL, LearnedPromptStore.defaultFileURL, DictationSetup.customFile,
+        for url in [HistoryStore.defaultFileURL, LearnedPromptStore.defaultFileURL, VocabularyStore.defaultFileURL, DictationSetup.customFile,
                     FileSecretStore.defaultFile, RecordingArchive.defaultDirectory, CommandMode.defaultFolder] {
             XCTAssertEqual(url.deletingLastPathComponent().standardizedFileURL, AppPaths.folder.standardizedFileURL, url.path)
         }

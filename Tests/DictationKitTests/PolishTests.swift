@@ -29,8 +29,8 @@ final class PolishServiceTests: XCTestCase {
     /// Kept recordings name the polish model.
     func testModelNames() {
         let onDevice: (String, Bool) -> PolishBackend = { OnDevicePolish(instructions: $0, wrap: $1) }
-        XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: "k", onDevice: onDevice).name, "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra")
-        XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: nil, onDevice: onDevice).name, "apple:on-device")
+        XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: "k", vocabulary: .none, onDevice: onDevice).name, "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra")
+        XCTAssertEqual(DictationSetup.cloudFlash.polishBackend(apiKey: nil, vocabulary: .none, onDevice: onDevice).name, "apple:on-device")
     }
 }
 

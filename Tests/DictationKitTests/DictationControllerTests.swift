@@ -52,6 +52,7 @@ final class OverlayLog: OverlayWindow {
 final class DictationControllerTests: XCTestCase {
     private var settings: AppSettings!
     private var history: HistoryStore!
+    private var vocabulary: VocabularyStore!
     private var insights: Insights!
     private var engine: FakeEngine!
     private var pasted: [String] = []
@@ -73,6 +74,7 @@ final class DictationControllerTests: XCTestCase {
         settings = makeSettings(self)
         settings.interactionSounds = false
         history = makeHistory(self)
+        vocabulary = makeVocabulary(self)
         insights = Insights(defaults: makeDefaults(self))
         engine = FakeEngine()
         let pasteboard = makePasteboard(self)
@@ -92,7 +94,7 @@ final class DictationControllerTests: XCTestCase {
         let controller = DictationController(
             settings: settings, overlay: overlay, injector: injector, history: history, insights: insights,
             archive: RecordingArchive(directory: makeTempURL(self, "Recordings")), muter: OutputMuter(defaults: makeDefaults(self)),
-            commandMode: commands)
+            commandMode: commands, vocabulary: vocabulary)
         if !realEngines { controller.makeEngine = { [unowned self] _ in engine } }
         controller.pickMics = { _, _ in MicPick(chosen: FakeMics.wired) }  // not this Mac's mics
         controller.sendDelay = 0.01
@@ -233,7 +235,7 @@ final class DictationControllerTests: XCTestCase {
         let controller = makeController(overlay: overlay)
         engine.isBatch = true
         settings.polishEnabled = true
-        controller.makePolish = { _ in PolishService(backend: FakePolish(delay: 0.1)) }
+        controller.makePolish = { _, _ in PolishService(backend: FakePolish(delay: 0.1)) }
         controller.start()
         controller.stop()
         waitUntil { !controller.isBusy }
@@ -255,7 +257,7 @@ final class DictationControllerTests: XCTestCase {
         let controller = makeController()
         settings.polishEnabled = true
         let log = EventLog()
-        controller.makePolish = { _ in PolishService(backend: FakePolish(delay: 0.01, log: log)) }
+        controller.makePolish = { _, _ in PolishService(backend: FakePolish(delay: 0.01, log: log)) }
         controller.start()
         XCTAssertEqual(log.events, ["prepare"], "polish loads while you speak")
         controller.stop()
@@ -270,7 +272,7 @@ final class DictationControllerTests: XCTestCase {
     func testPolishedTextIsRecordedAfterThePaste() {
         let controller = makeController()
         settings.polishEnabled = true
-        controller.makePolish = { _ in PolishService(backend: FakePolish(delay: 0.01)) }
+        controller.makePolish = { _, _ in PolishService(backend: FakePolish(delay: 0.01)) }
         let recorded = history.objectWillChange.sink { [unowned self] _ in keys.append("history") }
         defer { recorded.cancel() }
         controller.start()
@@ -287,7 +289,7 @@ final class DictationControllerTests: XCTestCase {
         let main = FakePolish(delay: 2), backup = FakePolish(delay: 0.01)
         main.name = "polish-main"
         backup.name = "polish-backup"
-        controller.makePolish = { _ in PolishService(backend: main, backup: backup, backupAfter: 0.05) }
+        controller.makePolish = { _, _ in PolishService(backend: main, backup: backup, backupAfter: 0.05) }
         controller.start()
         controller.stop()
         waitUntil { !controller.isBusy }
@@ -389,7 +391,7 @@ final class DictationControllerTests: XCTestCase {
         settings.polishEnabled = true
         settings.keepRecordings = true
         var polished = 0
-        controller.makePolish = { _ in polished += 1; return PolishService(backend: FakePolish(delay: 0, log: EventLog())) }
+        controller.makePolish = { _, _ in polished += 1; return PolishService(backend: FakePolish(delay: 0, log: EventLog())) }
         controller.enter()
         XCTAssertEqual(polished, 0)
         XCTAssertEqual(engine.archive?.directory, controller.archive.directory.appendingPathComponent("Commands"))
@@ -526,7 +528,7 @@ final class DictationControllerTests: XCTestCase {
     func testEnterSendsAfterThePolishedText() {
         let controller = makeController()
         settings.polishEnabled = true
-        controller.makePolish = { _ in PolishService(backend: FakePolish(delay: 0.01, log: EventLog())) }
+        controller.makePolish = { _, _ in PolishService(backend: FakePolish(delay: 0.01, log: EventLog())) }
         controller.start()
         controller.enter()
         waitUntil { keys.count == 2 }
@@ -549,7 +551,7 @@ final class DictationControllerTests: XCTestCase {
     func testEnterDuringPolishSendsAfterThePolishedText() {
         let controller = makeController()
         settings.polishEnabled = true
-        controller.makePolish = { _ in PolishService(backend: FakePolish(delay: 0.1, log: EventLog())) }
+        controller.makePolish = { _, _ in PolishService(backend: FakePolish(delay: 0.1, log: EventLog())) }
         controller.start()
         controller.stop()
         waitUntil { controller.overlay.mode == .processing }
@@ -621,5 +623,185 @@ final class DictationControllerTests: XCTestCase {
         controller.start()
         waitUntil { !controller.dictating && !controller.isBusy }
         XCTAssertEqual(pasted, ["hello world"])
+    }
+
+    // MARK: Vocabulary
+
+    /// Polish that writes down what it was given and answers `answer(input)`.
+    private final class EchoPolish: PolishBackend {
+        var inputs: [String] = []
+        let answer: (String) -> String
+        init(_ answer: @escaping (String) -> String = { $0 }) { self.answer = answer }
+        func polish(_ text: String) async throws -> String { inputs.append(text); return answer(text) }
+    }
+
+    /// Replaced before polish (polish gets the terms) and again after (polish can write a variant back);
+    /// History's raw stays what the speech model heard.
+    func testVocabularyReplacesBeforeAndAfterPolish() {
+        let controller = makeController()
+        vocabulary.add(term: "Claude", heardAs: ["cloud"])
+        settings.polishEnabled = true
+        engine.text = "ask cloud about it"
+        let polish = EchoPolish { $0 + ", then cloud." }
+        var given: Vocabulary?
+        controller.makePolish = { _, vocabulary in given = vocabulary; return PolishService(backend: polish) }
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(polish.inputs, ["ask Claude about it"])
+        XCTAssertEqual(given?.entries.map(\.term), ["Claude"], "the polish is built with the vocabulary")
+        XCTAssertEqual(pasted, ["ask Claude about it, then Claude."])
+        XCTAssertEqual(history.entries.first?.text, "ask Claude about it, then Claude.")
+        XCTAssertEqual(history.entries.first?.raw, "ask cloud about it", "what the speech model heard")
+        XCTAssertEqual(vocabulary.entries.first?.uses, 2, "both passes count")
+    }
+
+    /// With no terms, the polish is asked exactly what it was asked before vocabulary (same input,
+    /// same instructions, nothing wrapped) and what it answers is pasted unchanged.
+    func testWithNoTermsPolishAndThePasteAreAsBefore() throws {
+        let controller = makeController()
+        settings.setOpenRouterKey("sk-test")
+        vocabulary.add(term: "Off", heardAs: ["of"])
+        vocabulary.setEnabled(false, for: vocabulary.entries[0].id)
+        let empty = vocabulary.vocabulary(enabled: settings.vocabularyEnabled)
+        let service = controller.makePolish(.cloudFlash, empty)
+        let main = try XCTUnwrap(service.backend as? OpenRouterPolish)
+        let backup = try XCTUnwrap(service.backup as? OpenRouterPolish)
+        XCTAssertEqual(main.instructions, DictationSetup.cloudFlash.promptText)
+        XCTAssertEqual(backup.instructions, DictationSetup.cloudFlash.promptText)
+        let before = OpenRouterPolish.request(model: main.model, apiKey: "sk-test", text: "x", instructions: DictationSetup.cloudFlash.promptText,
+                                              provider: main.provider)
+        let now = OpenRouterPolish.request(model: main.model, apiKey: "sk-test", text: "x", instructions: main.instructions, provider: main.provider)
+        func body(_ request: URLRequest) -> NSDictionary? {
+            request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? NSDictionary }
+        }
+        XCTAssertNotNil(body(now))
+        XCTAssertEqual(body(now), body(before), "the request is today's")
+
+        settings.polishEnabled = true
+        engine.text = "ask cloud of it"
+        let polish = EchoPolish { $0 + "。" }
+        controller.makePolish = { _, _ in PolishService(backend: polish) }
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(polish.inputs, ["ask cloud of it"])
+        XCTAssertEqual(pasted, ["ask cloud of it。"])
+        XCTAssertEqual(vocabulary.entries.first?.uses, 0)
+    }
+
+    /// Every backend built from the setup is told the terms: main, backup, and on-device.
+    func testEveryPolishModelIsToldTheTerms() throws {
+        let controller = makeController()
+        vocabulary.add(term: "GeForce Now", heardAs: ["G Four Snow"])
+        let terms = vocabulary.vocabulary(enabled: true)
+        let wanted = DictationSetup.cloudFlash.promptText + "\n\n" + terms.promptBlock
+        let cloud = controller.makePolish(.cloudFlash, terms)  // no key: on-device, with the cloud setup's prompt
+        XCTAssertEqual((cloud.backend as? OnDevicePolish)?.instructions, wanted)
+        settings.setOpenRouterKey("sk-test")
+        let keyed = controller.makePolish(.cloudFlash, terms)
+        XCTAssertEqual((keyed.backend as? OpenRouterPolish)?.instructions, wanted)
+        XCTAssertEqual((keyed.backup as? OpenRouterPolish)?.instructions, wanted)
+        XCTAssertEqual((controller.makePolish(.onDevice, terms).backend as? OnDevicePolish)?.instructions,
+                       DictationSetup.onDevice.promptText + "\n\n" + terms.promptBlock)
+    }
+
+    /// The first replacement is before polish, so a polish that fails, comes back empty or runs out
+    /// of time still pastes the terms.
+    func testAFailedEmptyOrLatePolishStillPastesTheTerms() {
+        let controller = makeController()
+        vocabulary.add(term: "Claude", heardAs: ["cloud"])
+        settings.polishEnabled = true
+        engine.text = "ask cloud"
+        for service in [PolishService(backend: FakePolish(error: .failed("down"))),
+                        PolishService(backend: FakePolish(output: "  ")),
+                        PolishService(backend: FakePolish(delay: 2), deadline: 0.05)] {
+            controller.makePolish = { _, _ in service }
+            controller.start()
+            controller.stop()
+            waitUntil { !controller.isBusy }
+        }
+        XCTAssertEqual(pasted, ["ask Claude", "ask Claude", "ask Claude"])
+    }
+
+    func testWithPolishOffTheTermsAreReplacedAndTheRawKept() {
+        let controller = makeController()
+        vocabulary.add(term: "Claude", heardAs: ["cloud"])
+        engine.text = "ask cloud"
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(pasted, ["ask Claude"])
+        XCTAssertEqual(history.entries.first?.text, "ask Claude")
+        XCTAssertEqual(history.entries.first?.raw, "ask cloud")
+        XCTAssertNil(history.entries.first?.prompt, "not polished")
+    }
+
+    /// Uses are saved once the text is in front of you, after History: nothing added to the wait.
+    func testUsesAreSavedAfterThePaste() {
+        let controller = makeController()
+        vocabulary.add(term: "Claude", heardAs: ["cloud"])
+        engine.text = "ask cloud"
+        let recorded = [history.objectWillChange.sink { [unowned self] _ in keys.append("history") },
+                        vocabulary.objectWillChange.sink { [unowned self] _ in keys.append("uses") }]
+        defer { recorded.forEach { $0.cancel() } }
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(keys, ["paste:ask Claude", "history", "uses"])
+        XCTAssertEqual(vocabulary.entries.first?.uses, 1)
+    }
+
+    func testUseVocabularyOffChangesNothing() {
+        let controller = makeController()
+        vocabulary.add(term: "Claude", heardAs: ["cloud"])
+        settings.vocabularyEnabled = false
+        engine.text = "ask cloud"
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(pasted, ["ask cloud"])
+        XCTAssertEqual(vocabulary.entries.first?.uses, 0)
+    }
+
+    /// `DictationApp vocabulary add` while the app runs: the next dictation has it.
+    func testATermAddedFromTheCommandLineIsUsedNextDictation() {
+        let controller = makeController()
+        VocabularyStore(fileURL: vocabulary.fileURL).add(term: "Claude", heardAs: ["cloud"])
+        engine.text = "ask cloud"
+        controller.start()
+        controller.stop()
+        waitUntil { !controller.isBusy }
+        XCTAssertEqual(pasted, ["ask Claude"])
+    }
+
+    /// A command's transcript isn't replaced: only dictations are.
+    func testACommandIsNotReplaced() {
+        let controller = makeController()
+        settings.setOpenRouterKey("test-key")
+        vocabulary.add(term: "Claude", heardAs: ["volume"])
+        engine.text = "volume down"
+        controller.enter()
+        controller.enter()
+        waitUntil { !controller.isBusy }
+        XCTAssertTrue(decided.events.contains { $0.hasPrefix("decide: volume down") }, "\(decided.events)")
+        XCTAssertEqual(vocabulary.entries.first?.uses, 0)
+    }
+
+    /// The speech hint: off by default; on, plain dictation on an on-device engine gets the terms.
+    func testTheSpeechHintGivesOnDeviceModelsTheTerms() {
+        let controller = makeController()
+        vocabulary.add(term: "Claude", heardAs: ["cloud"])
+        controller.start()
+        XCTAssertEqual(engine.context, .none, "off by default")
+        controller.cancel()
+        settings.vocabularySpeechHint = true
+        controller.start()
+        XCTAssertEqual(engine.context.words, ["Claude"])
+        controller.cancel()
+        settings.setup = .cloudFlash
+        controller.start()
+        XCTAssertEqual(engine.context, .none, "the cloud models can't take it")
+        controller.cancel()
     }
 }

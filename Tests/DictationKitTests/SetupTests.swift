@@ -28,17 +28,17 @@ final class SetupTests: XCTestCase {
 
     func testCloudPolishGetsTheBackupAndDeadlineOnDeviceWaits() throws {
         let onDevice: (String, Bool) -> PolishBackend = { _, _ in FakePolish() }
-        let cloud = DictationSetup.cloudFlash.polishService(apiKey: "sk-test", onDevice: onDevice)
+        let cloud = DictationSetup.cloudFlash.polishService(apiKey: "sk-test", vocabulary: .none, onDevice: onDevice)
         XCTAssertTrue(cloud.backend is OpenRouterPolish)
         let backup = try XCTUnwrap(cloud.backup as? OpenRouterPolish)
         XCTAssertEqual(backup.instructions, PolishPrompt.v7, "the backup uses the setup's prompt")
         XCTAssertEqual(cloud.backupAfter, 0.8)
         XCTAssertEqual(cloud.deadline, 6)
-        let big = otherCloudSetup.polishService(apiKey: "sk-test", onDevice: onDevice)
+        let big = otherCloudSetup.polishService(apiKey: "sk-test", vocabulary: .none, onDevice: onDevice)
         XCTAssertNotNil(big.backup)
         XCTAssertEqual(big.deadline, 6, "every cloud polish gives up at the deadline")
         for (setup, key) in [(DictationSetup.onDevice, "sk-test"), (DictationSetup.cloudFlash, "")] {
-            let local = setup.polishService(apiKey: key, onDevice: onDevice)
+            let local = setup.polishService(apiKey: key, vocabulary: .none, onDevice: onDevice)
             XCTAssertTrue(local.backend is FakePolish)
             XCTAssertNil(local.backup, setup.id)
             XCTAssertNil(local.deadline, "\(setup.id): on-device is slow but there")
@@ -59,15 +59,15 @@ final class SetupTests: XCTestCase {
     func testCloudPolishNeedsAKeyElseOnDeviceWithTheSetupsPrompt() throws {
         var asked: (String, Bool)?
         let onDevice: (String, Bool) -> PolishBackend = { asked = ($0, $1); return FakePolish() }
-        let cloud = try XCTUnwrap(DictationSetup.cloudFlash.polishBackend(apiKey: "sk-test", onDevice: onDevice) as? OpenRouterPolish)
+        let cloud = try XCTUnwrap(DictationSetup.cloudFlash.polishBackend(apiKey: "sk-test", vocabulary: .none, onDevice: onDevice) as? OpenRouterPolish)
         XCTAssertEqual(cloud.model, "deepseek/deepseek-v4.1-flash")
         XCTAssertEqual(cloud.provider, "Together,DeepInfra")
         XCTAssertEqual(cloud.instructions, PolishPrompt.v7)
         XCTAssertTrue(cloud.wrap, "the transcript goes in <transcript> tags, as benchmarked")
         XCTAssertNil(asked)
-        XCTAssertTrue(DictationSetup.cloudFlash.polishBackend(apiKey: nil, onDevice: onDevice) is FakePolish, "no key: on-device")
-        XCTAssertTrue(DictationSetup.cloudFlash.polishBackend(apiKey: "", onDevice: onDevice) is FakePolish)
-        XCTAssertTrue(DictationSetup.onDevice.polishBackend(apiKey: "sk-test", onDevice: onDevice) is FakePolish)
+        XCTAssertTrue(DictationSetup.cloudFlash.polishBackend(apiKey: nil, vocabulary: .none, onDevice: onDevice) is FakePolish, "no key: on-device")
+        XCTAssertTrue(DictationSetup.cloudFlash.polishBackend(apiKey: "", vocabulary: .none, onDevice: onDevice) is FakePolish)
+        XCTAssertTrue(DictationSetup.onDevice.polishBackend(apiKey: "sk-test", vocabulary: .none, onDevice: onDevice) is FakePolish)
         XCTAssertEqual(asked?.0, PolishPrompt.v3)
         XCTAssertEqual(asked?.1, true)
     }

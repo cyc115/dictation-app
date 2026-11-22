@@ -242,9 +242,9 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     }
 
     /// What polishes a dictation. A cloud polish model needs the cloud API key; without one it's
-    /// on-device, with this setup's prompt.
-    func polishBackend(apiKey: String?, onDevice: (String, Bool) -> PolishBackend) -> PolishBackend {
-        let instructions = promptText
+    /// on-device, with this setup's prompt. Told the vocabulary's terms (`instructions(_:)`).
+    func polishBackend(apiKey: String?, vocabulary: Vocabulary, onDevice: (String, Bool) -> PolishBackend) -> PolishBackend {
+        let instructions = instructions(vocabulary)
         guard let key = cloudKey(apiKey),
               let backend = Self.polishBackend(spec: polish, apiKey: key, instructions: instructions, wrap: wrap)
         else { return onDevice(instructions, wrap) }
@@ -318,11 +318,12 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     /// The setup id to use for a saved or recorded one.
     static func currentID(_ id: String) -> String { replaced[id] ?? id }
 
-    /// What polishes a dictation, with the backup and deadline when it's the cloud model.
-    func polishService(apiKey: String?, onDevice: (String, Bool) -> PolishBackend) -> PolishService {
-        let main = polishBackend(apiKey: apiKey, onDevice: onDevice)
+    /// What polishes a dictation, with the backup and deadline when it's the cloud model; both told
+    /// the vocabulary's terms.
+    func polishService(apiKey: String?, vocabulary: Vocabulary, onDevice: (String, Bool) -> PolishBackend) -> PolishService {
+        let main = polishBackend(apiKey: apiKey, vocabulary: vocabulary, onDevice: onDevice)
         guard let key = cloudKey(apiKey) else { return PolishService(backend: main) }
-        let backup = polishBackup.flatMap { Self.polishBackend(spec: $0, apiKey: key, instructions: promptText, wrap: wrap) }
+        let backup = polishBackup.flatMap { Self.polishBackend(spec: $0, apiKey: key, instructions: instructions(vocabulary), wrap: wrap) }
         return PolishService(backend: main, backup: backup, backupAfter: polishBackupWait, deadline: polishDeadline)
     }
 

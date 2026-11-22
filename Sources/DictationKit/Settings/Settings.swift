@@ -179,6 +179,12 @@ final class AppSettings: ObservableObject {
     /// `defaults write com.mikechen.DictationApp correctionModel <id>`, or `DictationApp settings set correctionModel <id>`.
     @Setting("correctionModel", default: CorrectionSuggester.defaultModel) var correctionModel: String
     @Setting("aiPolishEnabled", default: false) var polishEnabled: Bool
+    /// Vocabulary (`VocabularyStore`): what the speech model mishears is replaced by your terms, and
+    /// polish is told them. On by default; with no terms it changes nothing.
+    @Setting("vocabularyEnabled", default: true) var vocabularyEnabled: Bool
+    /// Also give the terms to the on-device speech models as context words (`SpeechContext`). Off
+    /// until measured: English hint words have made Qwen translate mixed Chinese (`SpeechContext.prompt`).
+    @Setting("vocabularySpeechHint", default: false) var vocabularySpeechHint: Bool
     /// CoreAudio device UID; empty means the system default input.
     @Setting("microphoneUID", default: "") var microphoneUID: String
     /// Also record from the other wired and built-in mics, move a dictation to whichever hears you

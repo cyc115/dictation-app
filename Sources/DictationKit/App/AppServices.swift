@@ -1,7 +1,7 @@
 import Foundation
 
 /// What the app's features share: your settings, History, Insights, kept recordings, learned
-/// prompts and commands, one of each. `live()` makes the real ones once, at launch; everything else
+/// prompts, vocabulary and commands, one of each. `live()` makes the real ones once, at launch; everything else
 /// is handed what it needs from here, so nothing reaches for a global. Tests make their own with
 /// temporary files and defaults (`makeServices` in TestSupport), so they can't touch yours.
 final class AppServices {
@@ -16,10 +16,14 @@ final class AppServices {
     let learn: LearnController
     /// App updates from GitHub Releases: the menu and Settings › Updates.
     let updates: Updates
+    /// Your terms: applied to every dictation, told to polish, used by Learn.
+    let vocabulary: VocabularyStore
 
     init(settings: AppSettings, history: HistoryStore, insights: Insights, archive: RecordingArchive,
-         commands: CommandMode, updates: Updates = Updates(backend: nil), general: [GeneralCase] = GeneralCase.app ?? []) {
+         commands: CommandMode, vocabulary: VocabularyStore, updates: Updates = Updates(backend: nil),
+         general: [GeneralCase] = GeneralCase.app ?? []) {
         self.settings = settings
+        self.vocabulary = vocabulary
         self.updates = updates
         self.history = history
         self.insights = insights
@@ -40,6 +44,7 @@ final class AppServices {
     static func live() -> AppServices {
         let history = HistoryStore()
         return AppServices(settings: AppSettings(learned: LearnedPromptStore()), history: history, insights: Insights(),
-                           archive: RecordingArchive(), commands: CommandMode(history: history), updates: .live())
+                           archive: RecordingArchive(), commands: CommandMode(history: history), vocabulary: VocabularyStore(),
+                           updates: .live())
     }
 }

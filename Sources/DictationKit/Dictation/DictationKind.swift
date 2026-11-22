@@ -11,6 +11,8 @@ enum DictationKind: Equatable {
 
     /// Whether AI polish, if on, gets the transcript.
     var polishes: Bool { self == .text }
+    /// Whether your vocabulary is applied to the transcript (and hinted to the speech model).
+    var usesVocabulary: Bool { self == .text }
     /// Where Keep recordings, if on, keeps its audio (for speech-model test sets): a command's in
     /// Recordings/Commands, apart from the dictations the speech benchmarks read.
     func archive(in archive: RecordingArchive) -> RecordingArchive {

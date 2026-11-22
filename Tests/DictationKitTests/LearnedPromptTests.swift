@@ -89,7 +89,7 @@ final class LearnedPromptStoreTests: XCTestCase {
         XCTAssertEqual(settings.setups.first { $0.id == "on-device" }?.prompt, "v3", "another setup keeps its own")
         XCTAssertTrue(settings.setups.contains(settings.setup), "the picker's list has the applied one")
 
-        let cloud = try XCTUnwrap(settings.setup.polishBackend(apiKey: "sk-or-v1-test", onDevice: { _, _ in FakePolish() }) as? OpenRouterPolish)
+        let cloud = try XCTUnwrap(settings.setup.polishBackend(apiKey: "sk-or-v1-test", vocabulary: .none, onDevice: { _, _ in FakePolish() }) as? OpenRouterPolish)
         XCTAssertEqual(cloud.instructions, "Learned prompt.", "dictation polishes with it")
         let suggester = try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: settings.setup) as? OpenRouterPolish)
         XCTAssertEqual(suggester.instructions, "Learned prompt.", "so do correction suggestions")

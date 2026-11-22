@@ -101,7 +101,8 @@ final class LatencyRunner {
         if spec.hasPrefix("setup:") {
             let id = spec.dropFirst("setup:".count)
             let setup = (DictationSetup.builtIns + DictationSetup.loadCustom(from: setupsFile).setups).first { $0.id == id }
-            return setup?.polishService(apiKey: apiKey, onDevice: { OnDevicePolish(instructions: $0, wrap: $1) })
+            // Without your vocabulary: the latency suite measures the setup's prompt alone, like the bench.
+            return setup?.polishService(apiKey: apiKey, vocabulary: .none, onDevice: { OnDevicePolish(instructions: $0, wrap: $1) })
         }
         // Without a prompt override, each model gets its setup's prompt, as in the app.
         if ModelSpec(spec) == .apple(locale: nil) {

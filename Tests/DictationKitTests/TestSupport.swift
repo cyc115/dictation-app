@@ -132,6 +132,11 @@ func fakeSystem(_ mode: CommandMode, message: String = "Done", ran: @escaping (S
     mode.typeText = { _ in }
 }
 
+/// An empty vocabulary in a throwaway file: never the user's own vocabulary.json.
+func makeVocabulary(_ test: XCTestCase) -> VocabularyStore {
+    VocabularyStore(fileURL: makeTempURL(test, "vocabulary.json"))
+}
+
 /// An empty History in a throwaway file with throwaway defaults: never the user's own.
 func makeHistory(_ test: XCTestCase) -> HistoryStore {
     HistoryStore(fileURL: makeTempURL(test), defaults: makeDefaults(test))
@@ -146,7 +151,7 @@ func makeServices(_ test: XCTestCase, settings: AppSettings? = nil, history: His
     commands.apps = { [:] }  // not this Mac's
     return AppServices(settings: settings ?? makeSettings(test), history: history, insights: Insights(defaults: makeDefaults(test)),
                        archive: RecordingArchive(directory: makeTempURL(test, "Recordings")), commands: commands,
-                       updates: Updates(backend: FakeUpdater()), general: [])  // as in the installed app
+                       vocabulary: makeVocabulary(test), updates: Updates(backend: FakeUpdater()), general: [])  // as in the installed app
 }
 
 /// A settings store with throwaway defaults, no saved key, no custom setups and no learned prompts.

@@ -9,6 +9,9 @@ import Foundation
 /// to `CommandMode`, which picks one of your commands and runs it, instead of being typed. What
 /// differs by kind is in `DictationKind`.
 ///
+/// Your vocabulary (`VocabularyStore`) fixes the terms the speech model mishears: replaced before
+/// polish and again after, polish told the terms, and (Settings) the on-device speech models too.
+///
 /// Everything it touches is passed in, so tests can run start → stop → polish → paste with fake
 /// engines and polish (`makeEngine`, `makePolish`) and a fake paste.
 final class DictationController {
@@ -19,13 +22,14 @@ final class DictationController {
     let insights: Insights
     let archive: RecordingArchive
     let commandMode: CommandMode
+    let vocabulary: VocabularyStore
     private let muter: OutputMuter
 
     /// The engine for a dictation with `setup` (nil: it can't run, e.g. no API key for a cloud model).
     lazy var makeEngine: (DictationSetup) -> DictationEngine? = { [unowned self] in self.appEngine(for: $0) }
-    /// The polish for a dictation with `setup`.
-    lazy var makePolish: (DictationSetup) -> PolishService = { [unowned self] setup in
-        setup.polishService(apiKey: self.settings.openRouterKey, onDevice: self.onDevicePolish(instructions:wrap:))
+    /// The polish for a dictation with `setup`, told this vocabulary's terms.
+    lazy var makePolish: (DictationSetup, Vocabulary) -> PolishService = { [unowned self] setup, vocabulary in
+        setup.polishService(apiKey: self.settings.openRouterKey, vocabulary: vocabulary, onDevice: self.onDevicePolish(instructions:wrap:))
     }
     /// The mic a dictation with this preferred UID records from (tests fake it).
     /// The mics for a dictation, from the Microphone setting and whether Intelligent mic selection is
@@ -64,6 +68,8 @@ final class DictationController {
         let setup: DictationSetup
         /// Its polish; nil when it isn't polished.
         let polisher: PolishService?
+        /// The vocabulary as it was when it started (none for a command, or with Use vocabulary off).
+        let vocabulary: Vocabulary
         /// The polish half of its kept-recording JSON (nil unless Keep recordings is on).
         let note: RecordingNote?
         let started: Date
@@ -85,9 +91,10 @@ final class DictationController {
         init(send: Bool) { self.send = send }
     }
 
-    init(settings: AppSettings, overlay: OverlayWindow, injector: TextInjector,
-         history: HistoryStore, insights: Insights, archive: RecordingArchive, muter: OutputMuter, commandMode: CommandMode) {
+    init(settings: AppSettings, overlay: OverlayWindow, injector: TextInjector, history: HistoryStore, insights: Insights,
+         archive: RecordingArchive, muter: OutputMuter, commandMode: CommandMode, vocabulary: VocabularyStore) {
         self.settings = settings
+        self.vocabulary = vocabulary
         self.overlay = overlay
         self.injector = injector
         self.history = history
@@ -164,17 +171,21 @@ final class DictationController {
             overlay.show(.plain("Add your cloud API key in Settings to use \(setup.title)", seconds: 4))
             return onMissingKey(setup)
         }
-        // A command's words, so a short one isn't misheard; plain dictation gets none.
-        engine.context = kind == .command ? commandMode.speechContext() : .none
+        // A command-line change since the last dictation counts (the file is only read if it changed).
+        vocabulary.reloadIfChanged()
+        let terms = kind.usesVocabulary ? vocabulary.vocabulary(enabled: settings.vocabularyEnabled) : .none
+        // A command's words, so a short one isn't misheard; plain dictation gets your terms, if
+        // that's on and the engine can take them.
+        engine.context = kind == .command ? commandMode.speechContext() : speechHint(terms, setup: setup)
         if kind == .command { commandMode.prepare(model: settings.commandDecider, apiKey: settings.openRouterKey ?? "") }
         // Load the polish model while you speak instead of after you stop.
-        let polisher = settings.polishEnabled && kind.polishes ? makePolish(setup) : nil
+        let polisher = settings.polishEnabled && kind.polishes ? makePolish(setup, terms) : nil
         polisher?.prepare()
         let archive = settings.keepRecordings ? kind.archive(in: archive) : nil
         let note = archive.map { _ in RecordingNote(polishModel: polisher?.backend.name) }
         engine.archive = archive
         engine.note = note
-        current = Dictation(kind: kind, engine: engine, setup: setup, polisher: polisher, note: note, started: Date())
+        current = Dictation(kind: kind, engine: engine, setup: setup, polisher: polisher, vocabulary: terms, note: note, started: Date())
         setDictating(true)
         let mics = pickMics(settings.microphoneUID, settings.intelligentMicSelection)
         let mic = mics?.chosen
@@ -207,6 +218,13 @@ final class DictationController {
         let work = DispatchWorkItem { [weak self] in self?.stop() }
         autoStop = work
         DispatchQueue.main.asyncAfter(deadline: .now() + limit, execute: work)
+    }
+
+    /// Your terms as the speech model's context words: only with Hint the on-device speech model on,
+    /// and only for an on-device engine (the cloud transcription endpoint takes no prompt).
+    private func speechHint(_ terms: Vocabulary, setup: DictationSetup) -> SpeechContext {
+        guard settings.vocabularySpeechHint, !setup.isCloud, !terms.isEmpty else { return .none }
+        return SpeechContext(words: terms.speechWords)
     }
 
     /// The mic went live, went silent, or a better one took over: the pill shows it, and the start
@@ -342,33 +360,38 @@ final class DictationController {
         }
     }
 
+    /// Replaces your terms, polishes (if on), replaces again, pastes, then saves: History, the kept
+    /// recording's note, and how often each term fired, all after the paste.
     private func deliver(_ raw: String, from dictation: Dictation, duration: TimeInterval,
                          transcribed: TimeInterval, transcribedBy: ModelAnswer?, target: TextSpot?, delivery: Delivery) {
         guard !raw.isEmpty else { return finished(delivery) }
-        let setup = dictation.setup, note = dictation.note
-        if let polisher = dictation.polisher {
-            overlay.showProcessing()
-            let started = ProcessInfo.processInfo.systemUptime
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                let (polished, error, polishedBy) = await polisher.polishReporting(raw)
-                let seconds = ProcessInfo.processInfo.systemUptime - started
-                overlay.hide()
-                type(polished, to: target, delivery: delivery) {
-                    // After typing it, so saving it (History rewrites its whole file) adds nothing to your wait.
-                    self.history.add(text: polished, duration: duration, raw: raw, setup: setup.id, prompt: setup.prompt,
-                                     transcribeSeconds: transcribed, polishSeconds: seconds,
-                                     transcribedBy: transcribedBy, polishedBy: polishedBy)
-                    note?.polished(polished, seconds: seconds, error: error)
-                    self.finished(delivery)
-                }
+        let setup = dictation.setup, note = dictation.note, terms = dictation.vocabulary
+        // Before polish, so a polish that fails, comes back empty or runs out of time still has them.
+        let replaced = terms.apply(raw)
+        /// Pastes `text`, then saves it; `polish`: how long polish took and which model answered.
+        func paste(_ text: String, uses: [UUID: Int], polish: (seconds: Double, by: ModelAnswer?, error: String?)?) {
+            type(text, to: target, delivery: delivery) { [weak self] in
+                guard let self else { return }
+                // After typing it, so saving it (History rewrites its whole file) adds nothing to your wait.
+                self.history.add(text: text, duration: duration, raw: raw, setup: setup.id, prompt: polish == nil ? nil : setup.prompt,
+                                 transcribeSeconds: transcribed, polishSeconds: polish?.seconds,
+                                 transcribedBy: transcribedBy, polishedBy: polish?.by)
+                if let polish { note?.polished(text, seconds: polish.seconds, error: polish.error) }
+                self.vocabulary.recordUses(uses)
+                self.finished(delivery)
             }
-        } else {
-            type(raw, to: target, delivery: delivery) { [weak self] in
-                self?.history.add(text: raw, duration: duration, setup: setup.id, transcribeSeconds: transcribed,
-                                  transcribedBy: transcribedBy)
-                self?.finished(delivery)
-            }
+        }
+        guard let polisher = dictation.polisher else { return paste(replaced.text, uses: replaced.uses, polish: nil) }
+        overlay.showProcessing()
+        let started = ProcessInfo.processInfo.systemUptime
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            let (polished, error, polishedBy) = await polisher.polishReporting(replaced.text)
+            let seconds = ProcessInfo.processInfo.systemUptime - started
+            overlay.hide()
+            // Again after polish: variants are learned from polished text, and polish can write one back.
+            let final = terms.apply(polished)
+            paste(final.text, uses: replaced.uses.merging(final.uses, uniquingKeysWith: +), polish: (seconds, polishedBy, error))
         }
     }
 }

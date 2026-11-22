@@ -36,7 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let muter = OutputMuter()
     private lazy var dictation = DictationController(
         settings: settings, overlay: overlay, injector: injector, history: services.history, insights: services.insights,
-        archive: services.archive, muter: muter, commandMode: services.commands)
+        archive: services.archive, muter: muter, commandMode: services.commands, vocabulary: services.vocabulary)
     private let relaunch = AppRelaunch()
     private var bundleWatcher: BundleWatcher?
     private lazy var exclusion = ExclusionWatcher(excluded: settings.excludedApps)
