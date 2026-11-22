@@ -113,9 +113,18 @@ Part 2, speech with terms (on-device, 25 recordings, 32 mishearings; one pass):
 | again | 11 | 11 | 3.37 s | 13.54 s |
 | held out | 5 | 5 | 3.02 s | 13.44 s |
 
-The hint fixes 6 more of 32 on the dictations its terms came from, none on the others, for about
-+0.25 s typical on recordings with a median of 44 s of speech (one pass; held out measured −0.10 s,
-so the noise is of that size). Replacement added nothing to any arm's count.
+- **The hint replaced one dictation with the list of terms.** On 1 of the 25 recordings (a short
+  mixed Chinese and English one), with context words the model wrote the terms themselves, comma
+  separated, instead of what was said: with the 12 terms and with the 11 held out. Without context
+  words it transcribed normally. The synthetic run in `../local/README.md` didn't show this.
+- **So *again*'s 11 is really 10:** one "right" is a term standing in that echoed list. 5 → 10 of 32
+  on the dictations the terms came from, 5 → 5 held out, and one dictation lost.
+- No other recording lost its Chinese (Chinese characters over all 25: 2,306 off, 2,274 again).
+- Wait: about +0.25 s typical on recordings with a median of 44 s of speech (one pass; held out
+  measured −0.10 s, so the noise is of that size).
+- Replacement added nothing to any arm's count.
+- The bench doesn't flag an echoed list yet: it was found by comparing transcripts by hand.
+- After this run the hint's default went back to off.
 
 Parts 3–6 (first run):
 
