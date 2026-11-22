@@ -8,7 +8,7 @@ import XCTest
 final class SnapshotTests: XCTestCase {
     /// Test windows draw as the window in use (an "on" switch in colour, `controlActiveState` key),
     /// in the pinned blue whatever the Mac's accent: `OffscreenWindow.hasKeyAppearance` and
-    /// `pinSystemColors`. If this fails after a macOS update, AppKit no longer asks
+    /// TestColorPin. If this fails after a macOS update, AppKit no longer asks
     /// `hasKeyAppearance` for the active look and every snapshot's controls went grey.
     func testHostedWindowsDrawActive() throws {
         struct Probe: View {
@@ -25,7 +25,6 @@ final class SnapshotTests: XCTestCase {
         let track = try XCTUnwrap(rep.colorAt(x: 52, y: 80)?.usingColorSpace(.sRGB))
         XCTAssertGreaterThan(track.blueComponent - track.redComponent, 0.5, "an on switch is blue, not grey: \(track)")
         XCTAssertTrue(systemColorsArePinned(), "accent pinned to blue for this process: \(NSColor.controlAccentColor)")
-        XCTAssertEqual(UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)["AppleAccentColor"] as? Int, 4)
         XCTAssertFalse(hosted.window.isKeyWindow, "only the look changes, not focus")
     }
 

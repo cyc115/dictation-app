@@ -39,9 +39,11 @@ let package = Package(
             // build.sh puts Sparkle.framework in Contents/Frameworks.
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
+        // Test support only: pins the accent colour AppKit draws snapshots with, at load time.
+        .target(name: "TestColorPin", path: "Tests/TestColorPin"),
         .testTarget(
             name: "DictationKitTests",
-            dependencies: ["DictationKit"],
+            dependencies: ["DictationKit", "TestColorPin"],
             exclude: ["__Snapshots__"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),

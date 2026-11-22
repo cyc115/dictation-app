@@ -343,7 +343,6 @@ final class HostedView<Content: View> {
         NSApplication.shared.accessibilitySetValue(
             true, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
         // The Mac's own settings stay out of what's drawn: date format, time zone, accent color.
-        pinSystemColors()
         hostingView = NSHostingView(rootView: AnyView(view
             .environment(\.dateContext, testDates)
             .environment(\.locale, testDates.locale)
@@ -434,26 +433,16 @@ extension XCTestCase {
     }
 }
 
-/// The accent and highlight colours AppKit draws with in this test process: blue, whatever this
-/// Mac's System Settings say. A switch, a selected segment or a default button takes the system
-/// accent, not SwiftUI's `accentColor` (and a `tint` would also recolour every plain button, which
-/// the app doesn't do). Set in the argument domain: this process only, never saved, so the Mac's own
-/// settings are untouched. AppKit reads the accent once, so this must run before anything draws
-/// one; `HostedView` calls it first, and `assertSnapshot` checks it took (`pinnedAccent`).
-func pinSystemColors() { _ = systemColorsPinned }
-
-private let systemColorsPinned: Void = {
-    var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
-    arguments["AppleAccentColor"] = 4  // blue
-    arguments["AppleHighlightColor"] = "0.698039 0.843137 1.000000 Blue"
-    UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
-}()
-
+/// The accent and highlight colours AppKit draws with in this test process are pinned to blue,
+/// whatever this Mac's System Settings say, by TestColorPin (a load-time constructor: AppKit reads
+/// the accent once, when the app object is made, which can be before any test code runs). A switch,
+/// a selected segment or a default button takes the system accent, not SwiftUI's `accentColor`
+/// (and a `tint` would also recolour every plain button, which the app doesn't do).
 /// The system blue that pinned accent draws as (sRGB 0, 122, 255).
 let pinnedAccent = (red: 0.0, green: 0.478, blue: 1.0)
 
-/// Whether AppKit is drawing with the pinned accent; false if something read the accent before
-/// `pinSystemColors` (then this Mac's own accent would show in snapshots).
+/// Whether AppKit is drawing with the pinned accent; false if TestColorPin's pin didn't take (then
+/// this Mac's own accent would show in snapshots).
 func systemColorsArePinned() -> Bool {
     guard let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) else { return false }
     return abs(accent.redComponent - pinnedAccent.red) < 0.01 && abs(accent.greenComponent - pinnedAccent.green) < 0.01
@@ -564,10 +553,9 @@ func assertSnapshot(of view: NSView, named name: String, tolerance: Double = 0.0
         return XCTFail("\(name): snapshot a view in an OffscreenWindow/OffscreenPanel (HostedView does this), "
                        + "or it changes with the display it's on", file: file, line: line)
     }
-    pinSystemColors()
     guard systemColorsArePinned() else {
-        return XCTFail("\(name): AppKit read this Mac's accent colour before pinSystemColors() ran, so the snapshot "
-                       + "would follow System Settings; call pinSystemColors() before anything draws", file: file, line: line)
+        return XCTFail("\(name): AppKit's accent is \(NSColor.controlAccentColor), not the blue TestColorPin pins at "
+                       + "load, so the snapshot would follow this Mac's System Settings", file: file, line: line)
     }
     for _ in 0..<5 where fitOverlayScrollers(in: view) {
         view.display()
