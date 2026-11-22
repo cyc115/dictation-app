@@ -370,7 +370,9 @@ delays a dictation.
   rules and sends nothing.
 - **Cloud bench (Nov 22, 6.9¢, `bench/results/edits/README.md`):** Claude Sonnet 5.5 98% in batches
   of 10, 94% one at a time (misheard precision 95% / 87%); DeepSeek V4.1 Flash 93% both (83%);
-  Gemini 3.8 Flash 89% both. Batching held accuracy, so the defaults stay: Sonnet 5.5, batches of
+  Gemini 3.8 Flash 89% both. 14 of the 54 changes repeat the examples in the judge's instructions;
+  without them the order is the same (Sonnet 98% in batches of 10, 92% one at a time; DeepSeek 90%;
+  Gemini 85%). Batching held accuracy, so the defaults stay: Sonnet 5.5, batches of
   10. The live batch (`./test.sh --live`) passed ($0.0025, 1.3 s).
 - **Taking an `auto` capture back:** Corrections shows it among your corrections with the
   "captured" badge; its trash button dismisses it (clears the correction), editing it makes it
@@ -425,7 +427,7 @@ for $0.0077; a default latency run is about $0.003 (`bench/README.md`); a tune i
 |---|---|---|
 | `bench/suite.py polish run`, one model, with a sample vocabulary: **done Nov 22**, the block was reworded and moved | Polish quality and wait with the terms block | 10¢ in all |
 | ~~`./test.sh --local`, then the latency suite on the on-device model only, no polish~~ **Done Nov 22**, as one run of `LocalEngine` on the 46 test clips and 8 term clips with 0, 10 and 50 terms (neither suite passes vocabulary terms). No harm on the test clips (5.3% → 5.1% word errors, no new translation), term clips 23% → 6% errors, +0.04 s with 10 terms and +0.17 s with 50. `bench/results/local/README.md`. The default stays off until Mike decides | Whether `vocabularySpeechHint` can default on (the code notes English-first hint words made Qwen translate mixed Chinese) | $0 |
-| `bench/suite.py edits run`: cheap models first, the strong one once as the reference, batches of 10 | The judge's model, and whether batching holds accuracy | est. under 15¢ |
+| ~~`bench/suite.py edits run`: cheap models first, the strong one once as the reference, batches of 10~~ **Done Nov 22**: Sonnet 5.5 in batches of 10 stays the default (`bench/results/edits/README.md`) | The judge's model, and whether batching holds accuracy | 6.9¢, plus 0.25¢ for the live batch |
 
 The edits suite records each request's cost (as the polish suite does), prints the run's total, and
 has a `--dry-run` that estimates it first.

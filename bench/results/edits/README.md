@@ -28,6 +28,22 @@ variant). p50 is per request.
 - **Batching held accuracy** for all three, so the app keeps batches of 10 and Sonnet 5.5 as the
   default `judgeModel`.
 - **One run, 54 changes:** a change is about 2 points, so differences of a few points are noise.
+- **The set shares examples with the prompt:** 14 of the 54 changes are pairs the judge's
+  instructions give as examples ("open router" → "OpenRouter", "deep sea" → "DeepSeek", "Amerspoon"
+  → "Hammerspoon", "克劳德" → "Claude", "Tuesday" → "Thursday", "GPT" → "Claude"), and the cases and
+  the prompt were written together, so the table flatters every model. Rescored from the saved
+  result without those 14 (40 changes), the order is the same:
+
+  | model | batch | right | misheard precision |
+  |:--|--:|--:|--:|
+  | **Claude Sonnet 5.5** | **10** | **98%** (39/40) | **91%** (10/11) |
+  | Claude Sonnet 5.5 | 1 | 92% (37/40) | 77% (10/13) |
+  | DeepSeek V4.1 Flash | 10 | 90% (36/40) | 71% (10/14) |
+  | DeepSeek V4.1 Flash | 1 | 90% (36/40) | 71% (10/14) |
+  | Gemini 3.8 Flash | 10 | 85% (34/40) | 67% (8/12) |
+  | Gemini 3.8 Flash | 1 | 85% (34/40) | 73% (8/11) |
+
+  Before the next run, change the examples in `JudgeFixes.txt` or the cases so none is shared.
 
 ## Apple Intelligence (the On-device setup), Nov 22
 
