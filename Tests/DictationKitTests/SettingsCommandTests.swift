@@ -83,6 +83,18 @@ final class SettingsCommandTests: XCTestCase {
         XCTAssertEqual(notified, 5)
     }
 
+    /// The judge's two switches with no (or not always a) Settings row: off by default, set from here.
+    func testSetTheJudgeSwitches() {
+        let s = makeSettings(self)
+        XCTAssertFalse(s.trainOnUnreviewedCaptures)
+        XCTAssertFalse(s.judgeUsesCloud)
+        XCTAssertEqual(run("set", "trainOnUnreviewedCaptures", "on", settings: s), 0)
+        XCTAssertTrue(s.trainOnUnreviewedCaptures)
+        XCTAssertEqual(out, ["trainOnUnreviewedCaptures = on"])
+        XCTAssertEqual(run("set", "judgeUsesCloud", "on", settings: s), 0)
+        XCTAssertTrue(s.judgeUsesCloud)
+    }
+
     func testBadValueOrNameChangesNothing() {
         let s = makeSettings(self)
         XCTAssertEqual(run("set", "hotkey", "capsLock", settings: s), 1)
