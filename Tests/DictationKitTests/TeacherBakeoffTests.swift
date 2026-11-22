@@ -78,7 +78,8 @@ final class TeacherBakeoffTests: XCTestCase {
         }
         let elapsed = Date().timeIntervalSince(start)
 
-        // The tuner's meters: right even when the tune failed part way (the result has its own copy).
+        // The tuner's meters, so a tune that failed part way still shows what it spent on the calls that
+        // answered (a call that failed outright reports no usage and isn't counted).
         let (teacherCost, studentCost) = (tuner.teacherUsage.total(), tuner.studentUsage.total())
         var json: [String: Any] = ["teacher": model, "student": id, "corrections": cases.count, "general": general.count,
                                    "prompt": env["BAKEOFF_PROMPT"] ?? "v4", "folds": min(tuner.folds, cases.count),
