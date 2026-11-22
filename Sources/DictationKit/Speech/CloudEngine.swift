@@ -3,7 +3,8 @@ import Foundation
 
 /// Records the mic to WAV while dictating, then uploads it for transcription when you stop.
 final class CloudEngine: RecordingEngine, DictationEngine {
-    var modelID = DictationSetup.cloudFlash.openRouterID!
+    /// The speech model, "<OpenRouter id>[@Provider,…]" (the hosts it may run on).
+    var modelID = DictationSetup.cloudFlash.speechRoute!
     var apiKey = ""
     var client: TranscriptionClient = OpenRouterClient()
     /// "Backup model when slow": the model also asked when `modelID` is slow, after `backupWait`
@@ -26,7 +27,7 @@ final class CloudEngine: RecordingEngine, DictationEngine {
     /// Set up for `setup`'s speech model as the app runs it; `backupWhenSlow` is the "Backup model
     /// when slow" setting.
     func use(_ setup: DictationSetup, apiKey: String, backupWhenSlow: Bool) {
-        modelID = setup.openRouterID ?? modelID
+        modelID = setup.speechRoute ?? modelID
         backupModelID = backupWhenSlow ? setup.backup : nil
         backupWait = setup.backupWait
         self.apiKey = apiKey
@@ -75,9 +76,11 @@ final class CloudEngine: RecordingEngine, DictationEngine {
 
 /// On by default (Settings → Model → "Backup model when slow"); off asks the chosen model only. Cloud Flash usually answers in
 /// about a second, but in slow spells lasting minutes it takes 3–50 s (bench/results/latency/). This
-/// also asks the setup's backup (`DictationSetup.backup`: Grok STT for Cloud Flash); the first
-/// answer wins. The backup runs on another host: Cloud Flash's Qwen is only on DeepInfra, and its old backup (Qwen 0.6B, also
-/// DeepInfra) stalled with it (Oct 31: p95 16.6 s; Grok on xAI 1.3 s, worst 1.5 s).
+/// also asks the setup's backup (`DictationSetup.backup`: Voxtral Mini for Cloud Flash); the first
+/// answer wins. The backup runs on another host: Cloud Flash's Qwen is pinned to PrimeIntellect
+/// (DeepInfra, its other host, hung on 8 of 8 calls on Nov 22), and Voxtral runs on Mistral. Grok
+/// STT, the backup until Nov 22, left OpenRouter in early November and answered every ask with a 404
+/// in 0.1 s, so slow dictations waited out the main model (27–44 s).
 ///  - Normally the backup is asked only once the main model hasn't answered within its wait
 ///    (`DictationSetup.backupWait`), or failed.
 ///  - After the main model was late, both are asked at once for `spell`: the next answers would

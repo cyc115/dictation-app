@@ -24,6 +24,12 @@ enum OpenRouter {
         "X-OpenRouter-App-Visibility": "hidden",
     ]
 
+    /// The request's "provider" field for `providers` ("Together,DeepInfra"): only these hosts, in
+    /// order, no others. Chat completions take it as JSON, transcription as a form field.
+    static func provider(_ providers: String) -> [String: Any] {
+        ["order": providers.split(separator: ",").map(String.init), "allow_fallbacks": false]
+    }
+
     /// A POST of `body` as JSON.
     static func post(_ url: URL, body: [String: Any], apiKey: String?, timeout: TimeInterval = 60) -> URLRequest {
         var request = request(url, apiKey: apiKey, timeout: timeout)

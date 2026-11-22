@@ -68,25 +68,25 @@ final class LatencyRunnerTests: XCTestCase {
         let runner = LatencyRunner()
         runner.backupWait = 0.1
         let client = FakeTranscriptionClient()  // the main model never answers
-        client.scripts["x-ai/grok-stt-1.0"] = FakeTranscriptionClient.Script(delay: 0, result: FakeTranscriptionClient.text("backup"))
+        client.scripts["mistralai/voxtral-mini-transcribe"] = FakeTranscriptionClient.Script(delay: 0, result: FakeTranscriptionClient.text("backup"))
         runner.transcriptionClient = client
         let sample = try XCTUnwrap(run(runner, LatencyTrial(id: "on", file: Self.clip,
                                                             stt: "openrouter:qwen/qwen3-asr-1.7b+backup", polish: [])))
         XCTAssertEqual(sample.raw, "backup")
-        XCTAssertEqual(sample.answeredBy, "openrouter:x-ai/grok-stt-1.0")
-        XCTAssertEqual(client.asked.map(\.model), ["qwen/qwen3-asr-1.7b", "x-ai/grok-stt-1.0"])
+        XCTAssertEqual(sample.answeredBy, "openrouter:mistralai/voxtral-mini-transcribe")
+        XCTAssertEqual(client.asked.map(\.model), ["qwen/qwen3-asr-1.7b@PrimeIntellect", "mistralai/voxtral-mini-transcribe"])
     }
 
     func testWithoutTheSuffixOnlyTheMainModelIsAsked() throws {
         let runner = LatencyRunner()
         runner.backupWait = 0.1
         let client = FakeTranscriptionClient()
-        client.scripts["qwen/qwen3-asr-1.7b"] = FakeTranscriptionClient.Script(delay: 0.3, result: FakeTranscriptionClient.text("main"))
+        client.scripts["qwen/qwen3-asr-1.7b@PrimeIntellect"] = FakeTranscriptionClient.Script(delay: 0.3, result: FakeTranscriptionClient.text("main"))
         runner.transcriptionClient = client
         let sample = try XCTUnwrap(run(runner, LatencyTrial(id: "off", file: Self.clip,
                                                             stt: "openrouter:qwen/qwen3-asr-1.7b", polish: [])))
-        XCTAssertEqual(sample.answeredBy, "openrouter:qwen/qwen3-asr-1.7b")
-        XCTAssertEqual(client.asked.map(\.model), ["qwen/qwen3-asr-1.7b"])
+        XCTAssertEqual(sample.answeredBy, "openrouter:qwen/qwen3-asr-1.7b@PrimeIntellect")
+        XCTAssertEqual(client.asked.map(\.model), ["qwen/qwen3-asr-1.7b@PrimeIntellect"])
     }
 
     func testRealBackendsForSpecs() throws {

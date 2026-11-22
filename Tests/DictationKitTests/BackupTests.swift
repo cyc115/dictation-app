@@ -6,7 +6,7 @@ import XCTest
 final class CloudBackupTests: XCTestCase {
     typealias Client = FakeTranscriptionClient
     static let main = "qwen/qwen3-asr-1.7b"
-    static let backup = "x-ai/grok-stt-1.0"
+    static let backup = "mistralai/voxtral-mini-transcribe"
 
     private func dictate(_ client: Client, backup: AdaptiveBackup?, backupWait: TimeInterval = 0.2) -> (engine: CloudEngine, text: String?, error: String?) {
         let engine = CloudEngine()
@@ -112,7 +112,7 @@ final class CloudBackupTests: XCTestCase {
         _ = stopAndWait(engine, timeout: 3)
         let json = try String(contentsOf: XCTUnwrap(archive.recordings.first).deletingPathExtension()
             .appendingPathExtension("json"), encoding: .utf8)
-        XCTAssertTrue(json.contains("grok-stt-1.0"))
+        XCTAssertTrue(json.contains("voxtral-mini-transcribe"))
     }
 
     // MARK: On: across dictations
@@ -181,7 +181,7 @@ final class CloudBackupTests: XCTestCase {
         XCTAssertEqual(engine.backupWait, 4)
         XCTAssertEqual(engine.apiKey, "k")
         engine.use(.cloudFlash, apiKey: "k", backupWhenSlow: true)
-        XCTAssertEqual(engine.modelID, Self.main)
+        XCTAssertEqual(engine.modelID, Self.main + "@PrimeIntellect", "the setup's pinned host")
         XCTAssertEqual(engine.backupModelID, Self.backup)
         XCTAssertEqual(engine.backupWait, 2)
         engine.use(.cloudFlash, apiKey: "k", backupWhenSlow: false)

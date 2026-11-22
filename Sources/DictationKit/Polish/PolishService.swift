@@ -179,10 +179,7 @@ struct OpenRouterPolish: PolishBackend {
 
     static func request(model: String, apiKey: String, text: String,
                         instructions: String, provider: String? = nil, reasoning: [String: Any]? = nil) -> URLRequest {
-        // `provider`: only these, in order, no others.
-        let pinned: [String: Any] = provider.map {
-            ["provider": ["order": $0.split(separator: ",").map(String.init), "allow_fallbacks": false]]
-        } ?? [:]
+        let pinned: [String: Any] = provider.map { ["provider": OpenRouter.provider($0)] } ?? [:]
         return OpenRouter.chat(model: model, system: instructions, user: text, apiKey: apiKey, reasoning: reasoning, extra: pinned)
     }
 

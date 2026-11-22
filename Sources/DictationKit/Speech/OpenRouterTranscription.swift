@@ -7,7 +7,8 @@ protocol TranscriptionClient {
                     completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask?
 }
 
-/// Minimal client for OpenRouter's speech-to-text endpoint (multipart WAV upload).
+/// Minimal client for OpenRouter's speech-to-text endpoint (multipart WAV upload). `model` is
+/// "<id>[@Provider,…]": with hosts, only those are used (OpenRouter honours `provider` here too).
 final class OpenRouterClient: TranscriptionClient {
     static let endpoint = URL(string: "https://openrouter.ai/api/v1/audio/transcriptions")!
     private let session: URLSession
@@ -41,7 +42,14 @@ final class OpenRouterClient: TranscriptionClient {
         let boundary = "DictationApp-\(UUID().uuidString)"
         var body = Data()
         func add(_ s: String) { body.append(Data(s.utf8)) }
-        add("--\(boundary)\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n\(model)\r\n")
+        func field(_ name: String, _ value: String) {
+            add("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n")
+        }
+        let route = model.split(separator: "@", maxSplits: 1).map(String.init)
+        field("model", route[0])
+        if route.count > 1, let pin = try? JSONSerialization.data(withJSONObject: OpenRouter.provider(route[1]), options: .sortedKeys) {
+            field("provider", String(decoding: pin, as: UTF8.self))
+        }
         add("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\nContent-Type: audio/wav\r\n\r\n")
         body.append(audio)
         add("\r\n--\(boundary)--\r\n")

@@ -41,6 +41,15 @@ final class OpenRouterClientTests: XCTestCase {
         XCTAssertTrue(text.contains("name=\"model\"\r\n\r\nmeta/muse-voice-transcribe-1.0\r\n"))
         XCTAssertTrue(text.contains("filename=\"a.wav\"\r\nContent-Type: audio/wav\r\n\r\n"))
         XCTAssertTrue(text.hasSuffix("\r\n--\(boundary)--\r\n"))
+        XCTAssertFalse(text.contains("name=\"provider\""), "no hosts named: OpenRouter routes")
+    }
+
+    /// "<id>@Hosts": only those hosts, in order, no others (as polish pins them).
+    func testMultipartPinsTheNamedHosts() {
+        let (body, _) = OpenRouterClient.multipart(model: "qwen/qwen3-asr-1.7b@PrimeIntellect,DeepInfra", audio: Data([1]), filename: "a.wav")
+        let text = String(decoding: body, as: UTF8.self)
+        XCTAssertTrue(text.contains("name=\"model\"\r\n\r\nqwen/qwen3-asr-1.7b\r\n"))
+        XCTAssertTrue(text.contains("name=\"provider\"\r\n\r\n{\"allow_fallbacks\":false,\"order\":[\"PrimeIntellect\",\"DeepInfra\"]}\r\n"), text)
     }
 }
 
@@ -170,7 +179,7 @@ final class CloudEngineTests: XCTestCase {
         let input = AVAudioPCMBuffer(pcmFormat: src.processingFormat, frameCapacity: AVAudioFrameCount(src.length))!
         try src.read(into: input)
         // Every model the app can ask, backups included.
-        var models = DictationSetup.builtIns.compactMap(\.openRouterID)
+        var models = DictationSetup.builtIns.compactMap(\.speechRoute)  // pinned hosts, as the app asks
         for backup in DictationSetup.builtIns.compactMap(\.backup) where !models.contains(backup) {
             models.append(backup)
         }

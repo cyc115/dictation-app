@@ -156,13 +156,21 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(DictationSetup.currentID("cloud-flash"), "cloud-flash")
     }
 
-    /// Cloud Flash's Qwen is only on DeepInfra; a backup there stalls with it (Oct 31 latency run).
+    /// Cloud Flash's Qwen is pinned to PrimeIntellect (DeepInfra, its other host, hung on every call on
+    /// Nov 22); its backup runs on a third host, so a stall on one never stalls both.
     func testCloudFlashsSpeechBackupIsOnAnotherHost() {
         XCTAssertEqual(DictationSetup.cloudFlash.openRouterID, "qwen/qwen3-asr-1.7b")
-        XCTAssertEqual(DictationSetup.cloudFlash.backup, "x-ai/grok-stt-1.0")
+        XCTAssertEqual(DictationSetup.cloudFlash.speechRoute, "qwen/qwen3-asr-1.7b@PrimeIntellect")
+        XCTAssertEqual(DictationSetup.cloudFlash.backup, "mistralai/voxtral-mini-transcribe")
         XCTAssertEqual(DictationSetup.cloudFlash.backupHelp, "If Cloud Flash hasn't answered in 2 seconds, a faster model "
             + "from another host is asked too and the first answer is used. After a slow answer, both are asked at once "
-            + "for 5 minutes. Grok STT (xAI) gets more technical terms wrong.")
+            + "for 5 minutes. Voxtral Mini (Mistral) gets more technical terms wrong.")
+    }
+
+    func testOpenRouterRouteKeepsTheHosts() {
+        XCTAssertEqual(ModelSpec("openrouter:a/b@X,Y")?.openRouterRoute, "a/b@X,Y")
+        XCTAssertEqual(ModelSpec("openrouter:a/b")?.openRouterRoute, "a/b")
+        XCTAssertNil(ModelSpec("apple")?.openRouterRoute)
     }
 
     func testCapabilities() {

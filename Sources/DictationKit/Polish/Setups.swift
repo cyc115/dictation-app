@@ -141,6 +141,13 @@ enum ModelSpec: Equatable, CustomStringConvertible {
         return nil
     }
 
+    /// The OpenRouter model with its hosts, "<id>[@Provider,…]", as `CloudEngine` and
+    /// `OpenRouterClient` take it; nil when it's not an OpenRouter model.
+    var openRouterRoute: String? {
+        if case .openRouter(let id, let providers) = self { return id + (providers.map { "@\($0)" } ?? "") }
+        return nil
+    }
+
     var description: String {
         switch self {
         case .apple(let locale): return locale.map { "apple:\($0)" } ?? "apple"
@@ -170,8 +177,8 @@ struct DictationSetup: Codable, Hashable, Identifiable {
     /// One line for Settings (default: the models and prompt).
     let summary: String
     let speech: String
-    /// "Backup model when slow": an OpenRouter model id also asked when `speech` is slow
-    /// (AdaptiveBackup), after `backupWait` seconds. Cloud speech only.
+    /// "Backup model when slow": an OpenRouter model id ("<id>[@Provider]") also asked when `speech`
+    /// is slow (AdaptiveBackup), after `backupWait` seconds. Cloud speech only.
     let backup: String?
     let backupWait: TimeInterval
     /// Added to the "Backup model when slow" help, e.g. how the backup is worse.
@@ -217,6 +224,8 @@ struct DictationSetup: Codable, Hashable, Identifiable {
 
     /// OpenRouter model id of the speech model; nil for on-device.
     var openRouterID: String? { ModelSpec(speech)?.openRouterID }
+    /// The speech model with its pinned hosts ("qwen/qwen3-asr-1.7b@PrimeIntellect"); nil for on-device.
+    var speechRoute: String? { ModelSpec(speech)?.openRouterRoute }
 
     var isCloud: Bool { openRouterID != nil }
     /// Hugging Face id of the speech model run on this Mac; nil otherwise.
@@ -271,7 +280,7 @@ struct DictationSetup: Codable, Hashable, Identifiable {
             case .apple(locale: nil) where apple, .openRouter: return
             case .apple where field == "speech", .local where field == "speech": return
             default:
-                let allowed = field == "speech" ? "\"local:<Hugging Face id>\", \"apple[:<locale>]\" or \"openrouter:<model id>\""
+                let allowed = field == "speech" ? "\"local:<Hugging Face id>\", \"apple[:<locale>]\" or \"openrouter:<model id>[@Provider]\""
                     : (apple ? "\"apple\" or " : "") + "\"openrouter:<model id>[@Provider]\""
                 throw SetupError("\(id): \(field) must be " + allowed)
             }
@@ -297,8 +306,9 @@ struct DictationSetup: Codable, Hashable, Identifiable {
            "speech": "local:mlx-community/Qwen3-ASR-1.7B-8bit", "polish": "apple", "prompt": "v3", "wrap": true},
           {"id": "cloud-flash", "title": "Cloud Flash",
            "summary": "Fastest cloud model — text in about half a second. Handles English mixed into Chinese. Audio is sent to the cloud when you stop.",
-           "speech": "openrouter:qwen/qwen3-asr-1.7b",
-           "backup": "x-ai/grok-stt-1.0", "backupWait": 2, "backupNote": "Grok STT (xAI) gets more technical terms wrong.",
+           "speech": "openrouter:qwen/qwen3-asr-1.7b@PrimeIntellect",
+           "backup": "mistralai/voxtral-mini-transcribe", "backupWait": 2,
+           "backupNote": "Voxtral Mini (Mistral) gets more technical terms wrong.",
            "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
            "polishBackup": "openrouter:deepseek/deepseek-v4.1-flash@DeepInfra,Together", "polishBackupWait": 0.8,
            "prompt": "v7", "wrap": true}
