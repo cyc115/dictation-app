@@ -172,3 +172,36 @@ files: `teacher-bakeoff-20261014/`.
 - **Bug found by the bake-off**: the trap floor counted every case whose output held a `must_not`
   phrase (a filler left in, say), not only traps. Fixed the same day; the "acted" numbers in the
   result files are the old count.
+
+# Cheaper tune: 3 folds, a cached teacher, three teachers — 2026-11-22
+
+Can a tune cost less without tuning worse? Since Nov 22 a tune is 3 folds × 3 lenses + 1 final
+(10 teacher calls, was 16), and each fold's three lens calls share one cached prefix. Three teachers
+each ran one real tune through `TeacherBakeoffTests`, side by side from this Mac: student DeepSeek
+V4.1 Flash, starting prompt `v4`, 28 corrections, general set of 88, reasoning effort medium. Cost
+is what OpenRouter reported per call. Result files: `teacher-bakeoff-20261122/`.
+
+| teacher | mine | general | lens | verdict | tune | teacher cost | student cost | total |
+|:--|:--|:--|:--|:--|--:|--:|--:|--:|
+| **Claude Sonnet 5.5** | 71.5 → **74.8** | 76.1 → 80.7 | rules | pass | 44 s | $0.214 | $0.054 | **$0.267** |
+| GPT-6.2 Sol | 71.5 → 72.2 | 76.1 → 78.4 | rules | no improvement | 45 s | $0.272 | $0.055 | $0.327 |
+| GPT-6 Luna | 71.2 → 72.6 | 75.0 → 71.6 | rules | general dropped | 87 s | $0.019 | $0.054 | $0.073 |
+
+- **Pick: stay on Claude Sonnet 5.5.** The only tune Keep would have accepted. Luna's is 3.6 times
+  cheaper, but its gain (+1.4) is inside the ±1.5 noise and its prompt lost 3.4 on the general set;
+  Sol cost more than Sonnet and gained +0.7.
+- **Caching works on Anthropic only.** Sonnet: in every fold the first call wrote ~12k tokens
+  ($0.037–0.041) and the other two read them ($0.007–0.011 each). Without the cache the same ten
+  calls would have cost about $0.33 (124k prompt tokens at $2, 8k out at $10), so it saved a third.
+  Both OpenAI models report **no cached tokens on any call** and bill every prompt as a cache write
+  (1.25×), sequenced calls and `session_id` notwithstanding. Why isn't known.
+- **The student is now the floor**: 436 calls, about $0.054 a tune whatever the teacher. That is 20%
+  of a Sonnet tune and 74% of a Luna one.
+- **Tokens**: the same fold prefix is ~12k tokens to Claude and ~7.7k to the OpenAI models.
+- **Not isolated**: Sonnet gained +3.3 here against +6.9 on Oct 14, but that run had 18 corrections
+  and 5 folds; this one has 28 and 3. No 5-fold run was made on today's corrections, so what 3
+  folds cost in score, if anything, is unmeasured.
+- **Lenses**: "rules" won all three; "examples" scored at or under the starting prompt in all
+  three (70.9, 70.9, 71.4), as in all five Oct 14 tunes.
+- **Caveat**: one tune per teacher. Luna's general drop could be partly bad luck (the general set
+  moves ±2–4 between runs of the same prompt), but nothing here shows it tuning as well as Sonnet.
