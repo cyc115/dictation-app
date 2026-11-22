@@ -69,6 +69,13 @@ side by side:
 With no learned prompt active, the report says so and runs base only. `--prompts` and `--arms` pick a
 subset for a cheaper rerun.
 
+The built-in prompt can itself be a promoted learned one that names terms (v7 does), so `base` isn't
+term-free either. `--prompts` also takes any built-in version by name (a key of `PolishPrompt.versions`,
+e.g. `--prompts learned,base,v4`): the setup's polish model and wrap with that version as its `prompt`,
+the path a setup with `"prompt": "v4"` takes. The report labels it `prompt: v4 (built-in)`. A version that
+is the base or the learned prompt runs once, under that name, and the report says so. An unknown name
+is refused with the list.
+
 ### Scoring
 
 - **A mishearing is fixed** when the output has the wanted words (`new`; whole words, case as you

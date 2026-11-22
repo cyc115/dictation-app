@@ -27,7 +27,8 @@ Arms: off (no vocabulary), terms-only (part 1: your terms told to polish, no rep
 again (your vocabulary as it is: circular on purpose), held-out (without the variants and learned entries
 whose only source is the dictation under test; entries you typed stay). Part 2 runs off, again, held-out.
 Part 1 runs each arm under two prompts: learned (the setup's active learned prompt, which may know the terms
-already) and base (its built-in one); --prompts and --arms pick a subset. Scores: fixed (your case) and
+already) and base (its built-in one); --prompts and --arms pick a subset, and --prompts also takes a built-in
+version by name (v4: the setup's model with that version's text). Scores: fixed (your case) and
 fixed, any case.
 
 Privacy: only fixed dictations go to the cloud (part 1), with the bench's key ($OPENROUTER_BENCH_API_KEY).
@@ -67,6 +68,8 @@ SPEECH_ARMS = ("off", "again", "held-out")  # part 2 scores the transcript befor
 # Part 1's prompts: the setup's active learned prompt (tuned on these same fixes, so it may name the terms
 # already), and its built-in one (what it polishes with before any tune).
 PROMPTS = ("learned", "base")
+SETUPS_SWIFT = REPO / "Sources/DictationKit/Polish/Setups.swift"
+POLISH_PROMPTS = harness.ROOT / "polish_prompts"  # each identical to its PolishPrompt version (test_polish checks)
 PARTS = (1, 2, 3, 4, 5, 6)
 PART_NAMES = {1: "mishearings fixed", 2: "speech with terms", 3: "reach and wrong hits", 4: "wait", 5: "what learns",
               6: "edit replay"}
@@ -408,6 +411,27 @@ def current_setup(data: Path) -> str:
     return found or FALLBACK_SETUP
 
 
+def builtin_versions(swift: Path = SETUPS_SWIFT) -> tuple[str, ...]:
+    """The keys of PolishPrompt.versions, read from the app's source: what --prompts takes besides learned and base."""
+    found = re.search(r"static let versions = \[(.*?)\]", swift.read_text())
+    if not found:
+        raise SystemExit(f"PolishPrompt.versions not found in {swift}: update history.builtin_versions")
+    return tuple(sorted(re.findall(r'"(v\d+)"\s*:', found.group(1)), key=lambda v: int(v[1:])))
+
+
+def prompt_of(setup: dict, name: str) -> dict | None:
+    """{version, text} of one of part 1's prompts: learned, base, or a built-in version by name (its text from
+    bench/polish_prompts, for the estimate only: the harness sends the app's own)."""
+    if name in ("learned", "base"):
+        return setup[name]
+    path = POLISH_PROMPTS / f"{name}.txt"
+    return {"version": name, "text": path.read_text().strip() if path.exists() else ""}
+
+
+def prompt_label(name: str, version: str | None) -> str:
+    return f"{name} (built-in)" if name not in ("learned", "base") else f"{name} ({version})"
+
+
 def resolve_setup(setup_id: str, folder: Path) -> dict:
     """What part 1 polishes with, as the harness picks it: the setup (built-in or in setups.json) with its
     active learned prompt; Cloud Flash's when that setup polishes on this Mac."""
@@ -450,7 +474,7 @@ def estimate(job: dict, history: list[dict], vocabulary: dict, setup: dict, pric
     """Calls per part, and part 1's tokens and cost (None: the polish model's price isn't known)."""
     by_id = {uid(e["id"]): e for e in history}
     held = {d["id"]: d["heldOut"] for d in job["dictations"]}
-    prompt = {p: edits.estimate_tokens((setup[p] or {}).get("text") or "") for p in PROMPTS}
+    prompt = {p: edits.estimate_tokens((prompt_of(setup, p) or {}).get("text") or "") for p in job["prompts"]}
     again = terms_tokens(vocabulary.get("entries") or [])
     tokens_in = tokens_out = 0
     for trial in job["polish"]:
@@ -475,13 +499,15 @@ def plan_text(job: dict, plan: dict, setup: dict, counts: dict, rounds: int) -> 
     if 1 in parts:
         cost = ("price unknown: pass --price MODEL=IN,OUT ($ per million tokens)" if plan["cost"] is None
                 else f"≈ ${plan['cost']:.4f} (an upper estimate: the pinned host's list price, no cache; the Nov 22 run cost about a third of its estimate)")
-        prompts = " and ".join(f"{p} ({setup[p]['version']})" for p in job["prompts"])
+        prompts = " and ".join(prompt_label(p, prompt_of(setup, p)["version"]) for p in job["prompts"])
         lines.append(f"  part 1  {PART_NAMES[1]:<22} {plan['polish_calls']} polish calls ({n} × {len(job['arms'])} arms × "
                      f"{len(job['prompts'])} prompts × {rounds} rounds), setup {setup['id']}"
                      f"{' (yours polishes on this Mac)' if setup['fellBack'] else ''}, prompts {prompts}, arms {', '.join(job['arms'])}, "
                      f"{setup['model']}; ≈ {plan['tokens_in']:,} tokens in, {plan['tokens_out']:,} out: {cost}")
         if counts.get("noLearned"):
             lines.append(f"          {setup['id']} has no learned prompt active: part 1 runs the base prompt only")
+        for name, same in (counts.get("promptsSameAs") or {}).items():
+            lines.append(f"          {name} is the {same} prompt: run once, as {same}")
     if 2 in parts:
         lines.append(f"  part 2  {PART_NAMES[2]:<22} {plan['speech_runs']} on-device transcriptions ({plan['clips']} clips × {len(SPEECH_ARMS)} arms), "
                      "$0 (skipped at run time if the model isn't downloaded)")
@@ -535,6 +561,11 @@ def read_rows(path: Path) -> list[dict]:
 
 # ---------------------------------------------------------------- scoring
 
+def _prompt_order(name: str) -> tuple:
+    """learned, base, then the built-in versions by number."""
+    return (PROMPTS.index(name), 0) if name in PROMPTS else (len(PROMPTS), int(name[1:]) if name[1:].isdigit() else 0)
+
+
 def _spread(values: list[float]) -> dict:
     return {"mean": round(statistics.fmean(values), 4), "min": round(min(values), 4), "max": round(max(values), 4)} if values else None
 
@@ -560,7 +591,7 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
     p1 = [{**r, "prompt": r.get("prompt", "learned")} for r in rows if r.get("part") == 1 and "arm" in r]
     if p1 or any(r.get("part") == 1 for r in rows):
         by_prompt = {}
-        for prompt in [p for p in PROMPTS if any(r["prompt"] == p for r in p1)]:
+        for prompt in dict.fromkeys(r["prompt"] for r in sorted(p1, key=lambda r: _prompt_order(r["prompt"]))):
             sel = [r for r in p1 if r["prompt"] == prompt]
             arms_run = [a for a in ARMS if any(r["arm"] == a for r in sel)]
             # Only whole rounds count toward fixed and word errors: one cut short by the cost cap would drag the mean down.
@@ -737,6 +768,8 @@ def report_text(result: dict, markdown: bool = False) -> str:
         lines += _unsourced_note(cfg)
         if "learned" in (cfg.get("promptsAsked") or []) and "learned" not in (cfg.get("prompts") or []):
             lines.append(f"  {setup.get('setup')} has no learned prompt active: the base prompt only")
+        for name, same in (cfg.get("promptsSameAs") or {}).items():
+            lines.append(f"  {name} is the {same} prompt: run once, as {same}")
         prompts = v["prompts"] if "prompts" in v else {"as run": {"arms": v.get("arms", {})}}  # results from before prompts were split
         if len({pv.get("wholeRounds") for pv in prompts.values()}) > 1:
             lines.append("  !! the prompts have different numbers of whole rounds (a stop at the cap): compare with care")
@@ -744,7 +777,7 @@ def report_text(result: dict, markdown: bool = False) -> str:
             version = {"learned": setup.get("learnedPrompt"), "base": setup.get("basePrompt")}.get(prompt) or setup.get("prompt")
             rows = [[arm, _range(a["fixed"]), _range(a.get("fixedAnyCase")), _range(a["word_errors"], pct=True), a["rounds"], a["errors"] or "",
                      _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])] for arm, a in pv["arms"].items()]
-            lines += [f"  prompt: {prompt} ({version})",
+            lines += [f"  prompt: {prompt_label(prompt, version) if prompt != 'as run' else f'as run ({version})'}",
                       harness.table(["arm", "fixed (mean, range)", "fixed, any case", "word errors vs fix", "rounds", "errors", "polish p50 s", "p95 s"],
                                     rows, markdown)]
     if 2 in p or "2" in p:
@@ -852,10 +885,10 @@ def parse_parts(text: str | None) -> list[int]:
     return parts
 
 
-def parse_list(text: str | None, choices: tuple[str, ...], flag: str) -> tuple[str, ...]:
-    """A comma-separated subset of `choices`, in their order; all of them when not given."""
+def parse_list(text: str | None, choices: tuple[str, ...], flag: str, default: tuple[str, ...] | None = None) -> tuple[str, ...]:
+    """A comma-separated subset of `choices`, in their order; `default` (all of them) when not given."""
     if not text:
-        return choices
+        return choices if default is None else default
     asked = [x.strip() for x in text.split(",") if x.strip()]
     if not asked or any(x not in choices for x in asked):
         raise SystemExit(f"{flag} {text!r}: choose from {','.join(choices)}")
@@ -871,13 +904,28 @@ def prepare(args, folder: Path) -> tuple[dict, dict, dict, dict]:
     kept = match_recordings(chosen, recordings(data / "Recordings")) if 2 in parts else {}
     setup = resolve_setup(args.setup or current_setup(data), folder)
     arms = parse_list(args.arms, ARMS, "--arms")
-    asked = parse_list(args.prompts, PROMPTS, "--prompts")
-    prompts = tuple(p for p in asked if setup[p] is not None) or ("base",)  # no learned prompt active: base only
+    asked = parse_list(args.prompts, PROMPTS + builtin_versions(), "--prompts", default=PROMPTS)
+    prompts = tuple(p for p in asked if prompt_of(setup, p) is not None)
+    # A built-in version that is the base or the learned prompt runs once, under that name.
+    same_as = {}
+    for name in [p for p in prompts if p not in PROMPTS]:
+        mine = prompt_of(setup, name)
+        for other in ("base", "learned"):
+            theirs = setup[other]
+            if theirs and (theirs["version"] == name or theirs["text"].strip() == mine["text"]):
+                same_as[name] = other
+                break
+    prompts = tuple(p for p in prompts if p not in same_as)
+    for name, other in same_as.items():
+        if other not in prompts:
+            prompts += (other,)
+    prompts = tuple(sorted(prompts, key=_prompt_order)) or ("base",)  # no learned prompt active: base only
     job = build_job(folder, chosen, kept, parts, args.rounds, args.seed, setup["id"], args.max_cost, args.learn_after,
                     arms=arms, prompts=prompts)
     plan = estimate(job, history, load(folder / "vocabulary.json", {}), setup, read_prices(args.price))
     counts = {"entries": len(history), "fixed": len(chosen), "mishearings": sum(len(mishearings(e)) for e in chosen),
-              "recorded": len(kept), "noLearned": "learned" in asked and setup["learned"] is None, "promptsAsked": list(asked)}
+              "recorded": len(kept), "noLearned": "learned" in asked and setup["learned"] is None, "promptsAsked": list(asked),
+              "promptsSameAs": same_as}
     return job, plan, setup, counts
 
 
@@ -928,7 +976,8 @@ def cmd_run(args, harness_run=run_harness) -> int:
         summary = score(rows, load(folder / "edit-watch.json", {}), load(folder / "vocabulary.json", {}), args.learn_after)
         config = {k: v for k, v in job.items() if k not in ("dictations", "polish", "speech", "history", "vocabulary", "learnedPrompts", "setups")}
         config |= {"rounds": rounds, "seed": args.seed, "limit": args.limit, "estimate": plan, "harnessExit": code,
-                   "setupAsked": setup["asked"], "setupFellBack": setup["fellBack"], "promptsAsked": counts["promptsAsked"]}
+                   "setupAsked": setup["asked"], "setupFellBack": setup["fellBack"], "promptsAsked": counts["promptsAsked"],
+                   "promptsSameAs": counts["promptsSameAs"]}
         result = {"suite": NAME, "run_at": started.isoformat(timespec="seconds"), "env": harness.environment(), "config": config,
                   "summary": summary, "rows": rows}
         saved = Path(args.out) if args.out else RESULTS
@@ -965,7 +1014,9 @@ def fixture_job() -> dict:
     history = load(FIXTURE / "history.json", [])
     chosen = test_set(history)
     kept = match_recordings(chosen, recordings(FIXTURE / "Recordings"))
-    return build_job(FIXTURE, chosen, kept, list(PARTS), 2, 1, FALLBACK_SETUP, MAX_COST, LEARN_AFTER, relative_to=FIXTURE)
+    # Every kind of prompt: learned (the fixture's v8), base (Cloud Flash's own), and a built-in version by name.
+    return build_job(FIXTURE, chosen, kept, list(PARTS), 2, 1, FALLBACK_SETUP, MAX_COST, LEARN_AFTER, relative_to=FIXTURE,
+                     prompts=("learned", "base", "v4"))
 
 
 def cmd_fixture_job(args) -> int:
@@ -983,8 +1034,9 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("--max-cost", type=float, default=MAX_COST, help="US $ cap: refuse above it, and stop sending once spent (default %(default).2f)")
     r.add_argument("--rounds", type=int, default=ROUNDS, help="part 1 rounds (default %(default)s)")
     r.add_argument("--arms", metavar="LIST", help=f"part 1's arms, comma-separated (default all: {','.join(ARMS)})")
-    r.add_argument("--prompts", metavar="LIST", help="part 1's prompts: learned (the setup's active learned prompt) and base (its "
-                   "built-in one); default both")
+    r.add_argument("--prompts", metavar="LIST", help="part 1's prompts: learned (the setup's active learned prompt), base (its "
+                   "own prompt) and any built-in version by name (v1, v4…: the setup's model with that version's text); "
+                   "default learned,base")
     r.add_argument("--limit", type=int, metavar="N", help="only the newest N fixed dictations")
     r.add_argument("--setup", metavar="ID", help="part 1's setup (default: the app's current one when it polishes in the cloud, else cloud-flash)")
     r.add_argument("--price", action="append", metavar="MODEL=IN,OUT", help="$ per million prompt and completion tokens, for the estimate")

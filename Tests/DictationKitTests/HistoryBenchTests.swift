@@ -115,7 +115,7 @@ final class HistoryBench {
         if parts.contains(4) { timeReplacement(history, again) }
         if parts.contains(5) { learning(history) }
         if parts.contains(6) { replay(fixes) }
-        if parts.contains(1) { await polishing(fixes, again: again, heldOut: heldOut, prompts: ["base": base, "learned": learned]) }
+        if parts.contains(1) { await polishing(fixes, again: again, heldOut: heldOut, prompts: promptSetups(base: base, learned: learned)) }
         if parts.contains(2) { await speech(again: again, heldOut: heldOut) }
         write(["part": -1, "kind": "done", "cost": meter.total().cost, "calls": meter.count, "stopped": stopped])
     }
@@ -129,6 +129,20 @@ final class HistoryBench {
         let named = all.first { $0.id == DictationSetup.currentID(job.setup) } ?? .cloudFlash
         let fellBack = named.polishesOnDevice
         return (fellBack ? DictationSetup.cloudFlash : named, fellBack)
+    }
+
+    /// Part 1's prompts by name: base, learned (nil when none is active), and each built-in version the
+    /// job names ("v4"): the setup with that version as its `prompt` and no learned text, as a setup
+    /// with `"prompt": "v4"` reads it (`promptText` → `PolishPrompt.text(for:)`).
+    func promptSetups(base: DictationSetup, learned: DictationSetup?) -> [String: DictationSetup?] {
+        var found: [String: DictationSetup?] = ["base": base, "learned": learned]
+        for name in Set(job.polish.compactMap(\.prompt)) where found[name] == nil && PolishPrompt.versions[name] != nil {
+            var version = base
+            version.prompt = name
+            version.learnedText = nil
+            found[name] = version
+        }
+        return found
     }
 
     /// That setup with its active learned prompt applied, as `AppSettings` applies it (`LearnedPromptStore.apply(to:)`);
@@ -482,7 +496,8 @@ final class HistoryBenchTests: XCTestCase {
         func output(_ arm: String, _ n: Int, prompt: String = "base") -> String {
             polish.first { $0["arm"] as? String == arm && $0["id"] as? String == id(n) && $0["round"] as? Int == 1 && $0["prompt"] as? String == prompt }?["output"] as? String ?? ""
         }
-        XCTAssertEqual(Set(polish.compactMap { $0["prompt"] as? String }), ["learned", "base"])
+        XCTAssertEqual(Set(polish.compactMap { $0["prompt"] as? String }), ["learned", "base", "v4"])
+        XCTAssertEqual(Set(polish.filter { $0["prompt"] as? String == "v4" }.compactMap { $0["promptVersion"] as? String }), ["v4"])
         XCTAssertEqual(output("again", 1, prompt: "learned"), output("again", 1))
         XCTAssertTrue(output("off", 1).contains("nodes"))
         XCTAssertTrue(output("terms-only", 1).contains("nodes"), "terms told to polish, nothing replaced")
@@ -500,8 +515,12 @@ final class HistoryBenchTests: XCTestCase {
                        "the terms block in every arm but off")
         XCTAssertEqual(systems.filter { $0.hasPrefix("You clean up dictated text for the history bench fixture.") }.count,
                        job.polish.filter { $0.prompt == "learned" }.count, "the learned prompt for the learned trials")
-        XCTAssertEqual(systems.filter { $0.hasPrefix(DictationSetup.cloudFlash.promptText.prefix(60)) }.count,
+        // Each prompt up to its closing paragraph (the terms block goes in before it): v4 and v7 share their opening.
+        func body(_ prompt: String) -> String { prompt.range(of: "\n\n", options: .backwards).map { String(prompt[..<$0.lowerBound]) } ?? prompt }
+        XCTAssertEqual(systems.filter { $0.hasPrefix(body(DictationSetup.cloudFlash.promptText)) }.count,
                        job.polish.filter { $0.prompt == "base" }.count, "Cloud Flash's own prompt for the base trials")
+        XCTAssertEqual(systems.filter { $0.hasPrefix(body(try! PolishPrompt.text(for: "v4"))) }.count,
+                       job.polish.filter { $0.prompt == "v4" }.count, "the built-in v4 for the v4 trials")
         XCTAssertEqual(StubURLProtocol.sent.first?.value(forHTTPHeaderField: "X-Title"), "DictationApp", "names its app")
         XCTAssertEqual(polish.compactMap { $0["cost"] as? Double }.reduce(0, +), 0.001 * Double(job.polish.count), accuracy: 1e-9)
 
@@ -568,7 +587,7 @@ final class HistoryBenchTests: XCTestCase {
         let out = makeTempURL(self, "rows.jsonl")
         try await bench(job, out: out).run()
         let rows = try rows(out)
-        XCTAssertEqual(StubURLProtocol.sent.count, job.polish.filter { $0.prompt == "base" }.count)
+        XCTAssertEqual(StubURLProtocol.sent.count, job.polish.filter { $0.prompt != "learned" }.count, "base and v4 still run")
         XCTAssertEqual(rows.filter { $0["kind"] as? String == "skipped" && $0["prompt"] as? String == "learned" }.count, 1)
         XCTAssertTrue(rows.first { $0["kind"] as? String == "setup" }?["learnedPrompt"] is NSNull)
     }

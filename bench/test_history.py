@@ -384,3 +384,35 @@ def test_no_learned_prompt_runs_base_only(monkeypatch, capsys, tmp_path):
     out = capsys.readouterr().out
     assert "60 polish calls (5 × 4 arms × 1 prompts × 3 rounds)" in out
     assert "no learned prompt active: part 1 runs the base prompt only" in out
+
+
+def test_prompts_take_a_built_in_version(monkeypatch, capsys, tmp_path):
+    """--prompts also takes any PolishPrompt version: the setup's model with that version's text."""
+    assert h.builtin_versions() == ("v1", "v2", "v3", "v4", "v7")
+    assert all((h.POLISH_PROMPTS / f"{v}.txt").exists() for v in h.builtin_versions()), "the estimate reads their text"
+    refuse = no_network(monkeypatch)
+    assert h.cmd_run(run_args("--parts", "1", "--prompts", "v4", "--dry-run", out=tmp_path), harness_run=refuse) == 0
+    out = capsys.readouterr().out
+    assert "60 polish calls (5 × 4 arms × 1 prompts × 3 rounds)" in out and "prompts v4 (built-in)" in out
+    with pytest.raises(SystemExit, match="choose from learned,base,v1,v2,v3,v4,v7"):
+        h.cmd_run(run_args("--prompts", "v9", "--dry-run", out=tmp_path), harness_run=refuse)
+
+
+def test_a_version_that_is_base_runs_once(monkeypatch, capsys, tmp_path):
+    refuse = no_network(monkeypatch)
+    assert h.cmd_run(run_args("--parts", "1", "--prompts", "learned,base,v7", "--dry-run", out=tmp_path), harness_run=refuse) == 0
+    out = capsys.readouterr().out
+    assert "(5 × 4 arms × 2 prompts × 3 rounds)" in out and "v7 is the base prompt: run once, as base" in out
+    assert h.cmd_run(run_args("--parts", "1", "--prompts", "v7", "--dry-run", out=tmp_path), harness_run=refuse) == 0
+    assert "prompts base (v7)" in capsys.readouterr().out, "asked for v7 alone: it runs, as base"
+
+
+def test_a_built_in_version_gets_its_own_table(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr(h.openrouter, "key", lambda env: "sk-test")
+    monkeypatch.setattr(h.openrouter, "key_problem", lambda key: None)
+    args = run_args("--parts", "1,4", "--prompts", "base,v4", "--arms", "off,again", "--rounds", "1", out=tmp_path)
+    assert h.cmd_run(args, harness_run=fake_harness) == 0
+    result = json.loads(next(tmp_path.glob("*.json")).read_text())
+    assert list(result["summary"]["parts"]["1"]["prompts"]) == ["base", "v4"]
+    report = h.report_text(result)
+    assert "prompt: v4 (built-in)" in report and "prompt: base (v7)" in report and "polish, prompt v4, seconds" in report

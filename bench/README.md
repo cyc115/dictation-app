@@ -223,6 +223,7 @@ bench/suite.py history run                    # all six parts (cap --max-cost, d
 bench/suite.py history run --parts 3,4,5,6    # only the free, local parts
 bench/suite.py history run --limit 10 --rounds 1 --setup cloud-flash
 bench/suite.py history run --parts 1 --prompts base --arms off,again   # a cheap part-1 rerun
+bench/suite.py history run --parts 1 --prompts v4                      # a term-free built-in prompt
 bench/suite.py history report [--markdown]    # totals only, safe to paste
 bench/suite.py history report --details       # hits and misses WITH your text: local only
 ```
@@ -242,7 +243,10 @@ bench/suite.py history report --details       # hits and misses WITH your text: 
   picks a subset.
 - **Prompts (part 1):** every arm runs under the setup's active learned prompt (tuned on these fixes,
   so it may know the terms already) and its base prompt (before any tune), reported side by side;
-  base only when no learned prompt is active. `--prompts learned,base`. Prompts and arms run back to
+  base only when no learned prompt is active. `--prompts learned,base` (the default); it also takes any
+  built-in version by name, the setup's model with that version's text (`--prompts learned,base,v4`:
+  v7, the built-in, names terms itself, so v4 is the term-free baseline). A version that is the base or
+  learned prompt runs once. Prompts and arms run back to
   back per dictation (arms per clip in part 2), in a seeded order.
 - **Scores:** fixed (whole words, your case) and fixed, any case (same rule, case-insensitive).
 - **How:** this module snapshots, picks, matches recordings, builds the held-out vocabularies and

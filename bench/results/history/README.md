@@ -37,7 +37,10 @@ text and are git-ignored; never `git add -f` one.
   fixes, so it may name the terms already: "off" there is Learn's prompt without vocabulary) and
   under its *base* prompt (the setup as read, before any learned prompt: what vocabulary does on its
   own). Prompts and arms run back to back per dictation in a seeded order. With no learned prompt
-  active, base only. `--prompts` and `--arms` pick a subset.
+  active, base only. `--prompts` and `--arms` pick a subset. Since the built-in prompt can be a
+  promoted learned one that names terms (v7 does), `--prompts` also takes an older built-in version
+  by name (`--prompts learned,base,v4`): the setup's model and wrap with that version as its prompt,
+  reported as `prompt: v4 (built-in)`; one that is the base or learned prompt runs once.
 - **Scoring.** A mishearing is fixed when the output has the wanted words at least as often as your
   fix, whole words in your case; *fixed, any case* is the same rule compared case-insensitively
   ("Ticketmaster" for your "ticketmaster"). Words are `WordDiff`'s: a Chinese character is a word, so a Chinese
