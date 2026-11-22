@@ -187,6 +187,53 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "vocabulary-candidates")
     }
 
+    /// The README's Vocabulary animation (`scripts/readme-gifs.py render vocabulary`), one story through
+    /// the app's own code with written dictations: "G Four Snow" fixed to "GeForce Now" in two
+    /// dictations (Corrections), counted on its way in (`CandidateTally` → `updateCandidates`: 2 of 3),
+    /// added with Add now (`learn`), and the next dictation replaced by `Vocabulary.apply` (History:
+    /// right on top, the two you fixed below as the app first wrote them). Dates in the past, so
+    /// History never says "Today".
+    func testReadmeVocabularyStory() throws {
+        let historyURL = makeTempURL(self), vocabularyURL = makeTempURL(self, "vocabulary.json")
+        var entries = [
+            HistoryEntry(date: fixedDate(2026, 1, 13, 20, 15), text: "Let's play on G Four Snow tonight.", duration: 2,
+                         raw: "let's play on g four snow tonight", setup: "on-device"),
+            HistoryEntry(date: fixedDate(2026, 1, 12, 18, 2), text: "Is G Four Snow down again?", duration: 2,
+                         raw: "is g four snow down again", setup: "on-device"),
+        ]
+        entries[0].correction = "Let's play on GeForce Now tonight."
+        entries[1].correction = "Is GeForce Now down again?"
+        for i in entries.indices { entries[i].intake = FixIntake.intake(of: entries[i].text, target: entries[i].correction!) }
+        JSONFile.save(entries, to: historyURL)
+        JSONFile.save(["entries": [VocabularyEntry(term: "reMarkable", added: fixedDate(2026, 11, 2, 9, 0), uses: 3)]], to: vocabularyURL)
+        let history = HistoryStore(fileURL: historyURL, defaults: makeDefaults(self))
+        let vocabulary = VocabularyStore(fileURL: vocabularyURL)
+        vocabulary.now = { fixedDate(2026, 1, 14, 9, 30) }
+
+        assertSnapshot(of: host(CorrectionsView(store: history), size: NSSize(width: 760, height: 480)).hostingView,
+                       named: "readme-vocabulary-1-fixed")
+
+        vocabulary.updateCandidates(CandidateTally.support(in: history.entries), learnAfter: 3)
+        XCTAssertEqual(vocabulary.candidates.map(\.term), ["GeForce Now"])
+        XCTAssertEqual(vocabulary.candidates.first?.seen, 2)
+        let seen = host(VocabularyView(store: vocabulary), size: NSSize(width: 760, height: 560))
+        XCTAssertTrue(seen.allText.contains("2 of 3"), seen.allText)
+        assertSnapshot(of: seen.hostingView, named: "readme-vocabulary-2-seen")
+
+        vocabulary.learn("geforce now")
+        XCTAssertEqual(vocabulary.entries.first { $0.term == "GeForce Now" }?.heardAs, ["G Four Snow"])
+        let terms = host(VocabularyView(store: vocabulary), size: NSSize(width: 760, height: 560))
+        assertSnapshot(of: terms.hostingView, named: "readme-vocabulary-3-terms")
+
+        // The next dictation, as the app delivers it with AI polish off: the transcript, replaced.
+        let (text, uses) = vocabulary.vocabulary(enabled: true).apply("Can we play on G Four Snow later?")
+        XCTAssertEqual(text, "Can we play on GeForce Now later?")
+        vocabulary.recordUses(uses)
+        history.add(text: text, duration: 2, raw: "can we play on g four snow later", setup: "on-device", date: fixedDate(2026, 1, 14, 9, 41))
+        assertSnapshot(of: host(HistoryView(store: history), size: NSSize(width: 760, height: 480)).hostingView,
+                       named: "readme-vocabulary-4-next")
+    }
+
     func testInsights() {
         let insights = Insights(defaults: makeDefaults(self))
         insights.record(text: Array(repeating: "w", count: 19_400).joined(separator: " "), duration: 3 * 3600 + 31 * 60)

@@ -268,6 +268,17 @@ def scene_learn(directory: Path) -> None:
               "learn", "Learns from your corrections", 2000, 1500)
 
 
+def scene_vocabulary(directory: Path) -> None:
+    """Vocabulary: a name you fixed is counted, added, and replaced in the next dictation."""
+    def crop(name: str, top: int = 0) -> Image.Image:
+        return Image.open(SNAP / f"readme-vocabulary-{name}.png").convert("RGBA").crop((0, top, 1520, top + 720))
+    crossfade([(crop("1-fixed"), "You fix a name the app got wrong", 2000),
+               (crop("2-seen", 290), "It shows up in Vocabulary: 3 fixes add it, or Add now", 2400),
+               (crop("3-terms", 290), "Now it's a term, with what the app heard", 2000),
+               (crop("4-next"), "From then on it's replaced in every dictation", 2600)],
+              "vocabulary", "Vocabulary: names it keeps getting wrong", 2000, 1230)
+
+
 def scene_analytics(directory: Path) -> None:
     """Detailed analytics: recent dictations' waits, model by model, panned top to bottom."""
     full = Image.open(SNAP / "recent-latency.png").convert("RGBA")
@@ -335,7 +346,7 @@ def scene_paste(directory: Path) -> None:
 
 SCENES = {
     "hero": scene_hero, "pill": scene_pill, "commands": scene_commands, "on-device": scene_on_device,
-    "learn": scene_learn, "analytics": scene_analytics, "paste": scene_paste,
+    "learn": scene_learn, "vocabulary": scene_vocabulary, "analytics": scene_analytics, "paste": scene_paste,
 }
 
 

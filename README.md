@@ -85,6 +85,8 @@ on-device speech model*, off by default). On synthetic clips that cut term error
 with no harm elsewhere, but on 1 of 25 real recordings the model wrote the term list instead of
 what was said (Nov 22), and it adds a little wait (about +0.04 s with 10 terms, +0.17 s with 50).
 
+![Vocabulary: you fix "G Four Snow" to "GeForce Now" twice, it shows up as 2 of 3, Add now makes it a term, and the next dictation has it right](docs/images/vocabulary.gif)
+
 It also learns them from your corrections, with no model call. When the app is idle, each
 correction is broken into word changes ("cloud" → "Claude"; a change with sentence punctuation
 inside, like "file two" → "file. Two", is formatting and isn't counted, nor is one over 4 words a side,
