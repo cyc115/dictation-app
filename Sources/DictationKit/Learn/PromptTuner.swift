@@ -157,7 +157,7 @@ final class PromptTuner {
     private let teachers: Limiter
 
     init(student: @escaping Student, teacher: @escaping Teacher, general: [GeneralCase],
-         folds: Int = 5, repeats: Int = 2, seed: UInt64 = 1, concurrency: Int = 6, teacherConcurrency: Int = 5) {
+         folds: Int = 3, repeats: Int = 2, seed: UInt64 = 1, concurrency: Int = 6, teacherConcurrency: Int = 5) {
         self.student = student
         self.teacher = teacher
         self.general = general

@@ -105,25 +105,25 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertTrue(racing.contains { $0.values.contains { $0.writing } }, "the teacher is seen writing")
         XCTAssertEqual(racing.last?[.both], LensProgress(scored: 10, of: 10, writing: false, score: 100))
         XCTAssertEqual(racing.last?[.examples]?.score, result.lensScores[.examples])
-        XCTAssertEqual(racing.count, 1 + 2 * 15 + 30, "one report per teacher start and finish, and per scored correction")
-        XCTAssertEqual(teacher.inputs.count, 5 * 3 + 1, "three candidates per fold, then the final prompt")
+        XCTAssertEqual(racing.count, 1 + 2 * 9 + 30, "one report per teacher start and finish, and per scored correction")
+        XCTAssertEqual(teacher.inputs.count, 3 * 3 + 1, "three folds of three candidates, then the final prompt")
     }
 
     func testTheTeacherNeverSeesAHeldOutCorrection() async throws {
         let teacher = FakeTeacher()
         let tuner = makeTuner(right: [.both: Set(cases.map(\.input))], teacher: teacher)
         let result = try await tuner.tune(cases: cases, prompt: "P") { _ in }
-        XCTAssertEqual(result.trace.count, 15)
+        XCTAssertEqual(result.trace.count, 9)
         for t in result.trace {
             XCTAssertTrue(Set(t.shown).isDisjoint(with: t.heldOut), "fold \(t.fold) \(t.lens)")
             XCTAssertEqual(Set(t.shown).union(t.heldOut), Set(cases.map(\.id)), "every case is shown or held out")
-            XCTAssertEqual(t.heldOut.count, 2)
+            XCTAssertTrue([3, 4].contains(t.heldOut.count), "10 cases in 3 folds: 4, 3, 3")
         }
         let heldOutByFold = Dictionary(grouping: result.trace, by: \.fold).mapValues { Set($0.flatMap(\.heldOut)) }
         XCTAssertEqual(Set(heldOutByFold.values.flatMap { $0 }).count, 10, "each case is held out exactly once")
         // The teacher's messages hold the training cases' wanted text and never a held-out one's
         // (the folds run at once, so match each message to its fold by what it shows).
-        XCTAssertEqual(teacher.inputs.count, 16)
+        XCTAssertEqual(teacher.inputs.count, 10)
         var finals = 0
         for input in teacher.inputs {
             XCTAssertEqual(input.system, PromptTuner.teacherSystem)
@@ -146,7 +146,7 @@ final class PromptTunerTests: XCTestCase {
         let learned = Set(cases.prefix(4).map(\.id))
         XCTAssertTrue(result.trace.allSatisfy { Set($0.shown).isDisjoint(with: learned) })
         XCTAssertEqual(Set(result.errors.keys), Set(cases.map(\.id)), "learned ones are still scored")
-        XCTAssertEqual(result.trace.map(\.fold).max(), 5, "6 unlearned: still 5 folds")
+        XCTAssertEqual(result.trace.map(\.fold).max(), 3, "6 unlearned: still 3 folds")
 
         for i in 0..<9 { cases[i].learned = true }
         let fewer = try await tuner.tune(cases: cases, prompt: "P") { _ in }
@@ -286,7 +286,7 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertEqual(measured.mine, m.mineBefore)
         XCTAssertEqual(measured.general, 100)
         XCTAssertEqual(measured.errors, m.errorsBefore)
-        XCTAssertEqual(teacher.inputs.count, 16, "measuring asks no teacher")
+        XCTAssertEqual(teacher.inputs.count, 10, "measuring asks no teacher")
     }
 
     func testFoldsAreStableAndDealUnlearnedFirst() {

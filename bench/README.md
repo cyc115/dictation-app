@@ -129,8 +129,8 @@ bench/suite.py polish run -m setup:cloud-flash --corrections --prompt-file ~/Lib
   done; wait
   ```
   Compare `result.mine` (cross-validated, so a teacher that memorised its fold gets no credit),
-  `result.general`, `result.acted` (must not rise) and `elapsed`. One tune is 16 teacher calls and
-  about 300 student calls. Oct 14 results: `results/polish/README.md`.
+  `result.general`, `result.acted` (must not rise) and `elapsed`. One tune is 10 teacher calls (3 folds
+  × 3 lenses, then the final prompt) and about 300 student calls. Oct 14 results: `results/polish/README.md`.
 
 ## Command mode's decision model (`suite.py commands`)
 
