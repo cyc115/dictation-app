@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 import XCTest
 @testable import DictationKit
 
@@ -248,7 +249,9 @@ final class JudgePassTests: XCTestCase {
         intake.tabShown()
         XCTAssertEqual(intake.batches, FixJudge.maxTries, "then it's asked no more")
         XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"], "and the rules count it")
-        XCTAssertTrue(FixJudge.countsATry(PolishError.unavailable("Apple Intelligence declined")))
+        XCTAssertTrue(FixJudge.countsATry(LanguageModelSession.GenerationError.guardrailViolation(.init(debugDescription: "no"))))
+        XCTAssertFalse(FixJudge.countsATry(LanguageModelSession.GenerationError.rateLimited(.init(debugDescription: "busy"))))
+        XCTAssertFalse(FixJudge.countsATry(PolishError.unavailable("Apple Intelligence isn't available on this Mac.")))
         XCTAssertFalse(FixJudge.countsATry(JudgeFailure(json: nil, status: 429)))
         XCTAssertFalse(FixJudge.countsATry(JudgeFailure(json: nil, status: 503)))
         XCTAssertFalse(FixJudge.countsATry(URLError(.timedOut)))
@@ -274,31 +277,50 @@ final class JudgePassTests: XCTestCase {
         answer()
         XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard)
 
-        intake.judgeBackend = { [unowned self] in judge }
+        // However the stopped call fails, it costs no try.
+        onDevice.failure = LanguageModelSession.GenerationError.guardrailViolation(.init(debugDescription: "stopped"))
         correct([five()[1]])
         intake.tabShown()
         intake.dictationStarted()
-        XCTAssertEqual(cancels, 1, "a cloud call isn't stopped")
         answer()
+        XCTAssertNil(history.entries[0].intake?.tries)
+
+        intake.judgeBackend = { [unowned self] in judge }
+        intake.tabShown()
+        intake.dictationStarted()
+        XCTAssertEqual(cancels, 2, "a cloud call isn't stopped")
+        answer()
+        XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard)
     }
 
     private final class OnDeviceFake: FixJudgeBackend {
         var batchSize: Int { 1 }
         var onThisMac: Bool { true }
         var cancelled = false
+        var failure: Error?
         func judge(_ items: [JudgeItem], terms: [String]) async throws -> JudgeAnswer {
             if cancelled { throw CancellationError() }
+            if let failure { throw failure }
             return JudgeAnswer(verdicts: items.map { $0.changes.map { _ in .misheard } }, usage: nil)
         }
     }
 
-    /// Turned off while the judge was asked: its answer isn't used.
+    /// Turned off while the judge was asked: its answer isn't used, nor one held for the next pass.
     func testAnAnswerAfterTheSettingIsTurnedOffIsDropped() {
         correct([five()[0]])
         intake.tabShown()
         settings.judgeFixes = false
         answer()
         XCTAssertNil(history.entries[0].intake?.changes.first?.verdict)
+
+        settings.judgeFixes = true
+        intake.tabShown()
+        busy = true
+        answer()
+        busy = false
+        settings.judgeFixes = false
+        intake.runIfIdle()
+        XCTAssertNil(history.entries[0].intake?.changes.first?.verdict, "held, then dropped")
     }
 
     /// An answer that lands while a pass is running: that pass runs again once it's done, keeping a

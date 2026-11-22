@@ -100,7 +100,8 @@ another), Apple Intelligence on-device, one at a time. Nothing in a dictation wa
   A fix it can't answer about after 3 tries is counted by the rules above.
 - A captured edit keeps only its misheard and style changes; with none, it's dismissed. One read
   back from the text box with nothing unclear and no words only added trains Learn without waiting
-  for Accept (it keeps its "captured" badge; Dismiss takes it back out). Edits followed by keys
+  for Accept (it shows with a "captured" badge among your corrections; its trash button takes it
+  back out, and editing it makes it yours). Edits followed by keys
   always wait for you.
 - A correction you typed is labelled, never changed.
 

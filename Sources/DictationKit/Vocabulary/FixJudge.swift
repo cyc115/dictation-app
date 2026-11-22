@@ -162,9 +162,17 @@ enum FixJudge {
     }
 
     /// A failed call that would fail the same way again (a refused request, an answer with no text,
-    /// Apple Intelligence declining): it counts a try. Offline, a timeout, a busy host: not.
+    /// Apple Intelligence refusing, a guardrail, a fix too long): it counts a try. Offline, a timeout,
+    /// a busy host, Apple Intelligence unavailable, rate limited or busy: not.
     static func countsATry(_ error: Error) -> Bool {
         if let failure = error as? JudgeFailure { return !failure.transient }
+        if let error = error as? LanguageModelSession.GenerationError {
+            switch error {
+            case .assetsUnavailable, .rateLimited, .concurrentRequests: return false
+            default: return true
+            }
+        }
+        if case PolishError.unavailable = error { return false }
         return !(error is URLError)
     }
 

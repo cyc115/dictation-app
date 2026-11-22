@@ -62,6 +62,8 @@ final class VocabularyIntake {
     /// Cancels the batch that's out, when it runs on this Mac (Apple Intelligence): a dictation
     /// starting stops it, so it never competes with on-device polish.
     private var cancelLocalJudge: (() -> Void)?
+    /// The batch out was stopped for a dictation: however it fails, it costs no try.
+    private var stoppedForDictation = false
     /// The judge answered while a pass was running: run another once it's done (true: as if the tab
     /// were shown).
     private var rerun: Bool?
@@ -94,8 +96,10 @@ final class VocabularyIntake {
 
     /// A dictation started: an on-device judge call stops (it's asked again at the next pass).
     func dictationStarted() {
-        cancelLocalJudge?()
+        guard let cancel = cancelLocalJudge else { return }
+        cancel()
         cancelLocalJudge = nil
+        stoppedForDictation = true
     }
 
     /// The judge is on and can run: changes then wait for its verdicts instead of counting by the rules.
@@ -105,7 +109,7 @@ final class VocabularyIntake {
     func runIfIdle(tab: Bool = false) {
         guard !running, !isBusy() else { return }
         if !held.isEmpty {
-            history.applyVerdicts(held)
+            if settings.judgeFixes { history.applyVerdicts(held) }  // turned off meanwhile: not used
             held = []
         }
         running = true
@@ -185,10 +189,14 @@ final class VocabularyIntake {
     private func judged(_ batch: [JudgeItem], _ outcome: Outcome, tab: Bool) {
         judging = false
         cancelLocalJudge = nil
+        let stopped = stoppedForDictation
+        stoppedForDictation = false
         guard settings.judgeFixes else { return }  // turned off meanwhile: its answer isn't used
         let results: [FixJudge.Judged]
         switch outcome {
         case .cancelled:
+            return
+        case .failed where stopped:
             return
         case .failed(let countsATry):
             backOff()

@@ -324,19 +324,20 @@ delays a dictation.
   the setting off. "Waited" counts from when a pass first saw the fix waiting, in memory, so a
   launch restarts the 10 minutes; a timer wakes the pass at the 10-minute mark. Turning the setting
   on sends the backlog at the next pass (after a dictation, or a tab shown; 28 corrections: 3
-  requests). An answer that lands after it's turned off is dropped.
+  requests). An answer that lands after it's turned off is dropped, held or not.
 - **One request at a time.** When it lands the pass runs again, so the verdicts count at once and
   the next batch goes if one is due; a batch sent for a tab shown goes on until nothing waits. An
   answer that lands during a dictation is held for the next pass (it was paid for). Each fix's
   verdicts are saved only if its target and word changes are still the ones judged.
 - **Retries:** `Intake.tries` (saved): a paid answer that leaves a fix out, or can't be read, adds
   one; at 3 it's asked no more and the rules count it. A request that would fail the same way again
-  (a refused request, an answer with no text, Apple Intelligence declining) adds one to each fix in
-  it, so one fix that always fails can't hold the others up; offline, a timeout, 429 or 5xx add
-  none. A failure, or an answer that covers nothing, waits 10 minutes before the next request (a
+  (a refused request, an answer with no text, Apple Intelligence refusing, a guardrail, a fix too
+  long) adds one to each fix in it, so one fix that always fails can't hold the others up; offline,
+  a timeout, 429 or 5xx, Apple Intelligence unavailable, rate limited or busy add none. While the
+  judge can't be reached (offline), vocabulary counting waits with it. A failure, or an answer that covers nothing, waits 10 minutes before the next request (a
   tab shown still asks).
-- **On-device calls stop when a dictation starts** (cancelled, no try, asked again at the next
-  pass), so the judge never competes with on-device polish for Apple Intelligence. Whether
+- **On-device calls stop when a dictation starts** (cancelled; however it then fails, no try;
+  asked again at the next pass), so the judge never competes with on-device polish for Apple Intelligence. Whether
   cancelling stops the model's work at once is unverified. Cloud calls run on: they're paid for and
   don't use the Mac.
 - **Counting:** with the judge on and able to run, a change with no verdict waits instead of
@@ -369,6 +370,9 @@ delays a dictation.
 - **Batches of 10 ship before the bench has run:** the draft keeps batching only if it matches one
   at a time. Until `bench/suite.py edits run` says so, that's open; `FixJudge.batchSize` is the one
   constant to change.
+- **Taking an `auto` capture back:** Corrections shows it among your corrections with the
+  "captured" badge; its trash button dismisses it (clears the correction), editing it makes it
+  `accepted`. No Dismiss button was added for it.
 - **Settings:** no row for `judgeModel` (as `correctionModel`). *Learn from my edits*' text now says
   nothing is sent unless the judge is on.
 - **Bench cases are all written (Mike, Nov 22),** not his corrections: 45 fixes in English, Chinese
@@ -379,7 +383,8 @@ delays a dictation.
   misheard precision are reported too. `--dry-run` estimates tokens (a Chinese character a token,
   else 4 characters) and prices them only from saved results (Claude Sonnet 5.5: $2 / $10 per
   million, from the teacher bake-off) or `--price`; the default run (Sonnet, sizes 1 and 10, 50
-  requests) is estimated at about 6¢.
+  requests) is estimated at about 6¢. The bench asks with the app's reasoning rule (off, minimal
+  for `OpenRouter.mustThink`'s models, one fallback to minimal), not the polish suite's longer chain.
 
 ## Privacy
 
