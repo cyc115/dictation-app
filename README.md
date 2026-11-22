@@ -264,7 +264,7 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
   anywhere unless *Ask a model about my fixes* is on. Per-app counts (no text) are in `edit-watch.json`.
 - *Ask a model about my fixes* (off by default) sends each fix (what the app wrote and what you
   changed it to: your corrections and captured edits) and your vocabulary's terms where polish goes:
-  OpenRouter on the cloud setups, Apple Intelligence on-device. Text you type by hand never left
+  OpenRouter on the cloud setups (whether or not AI polish is on), Apple Intelligence on-device. Text you type by hand never left
   the Mac before this, which is why it's off. The verdicts are kept with the fix in your history.
 - Your vocabulary stays on this Mac, in `vocabulary.json`, with the terms seen in your corrections
   (each with what the app wrote and the ids of the dictations it was in). The word changes worked

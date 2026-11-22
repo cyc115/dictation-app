@@ -151,7 +151,11 @@ def test_the_estimate_prices_tokens(monkeypatch):
         edits.read_prices(["x/y=cheap"])
 
 
-def test_caller_steps_down_to_the_lowest_reasoning_the_model_accepts():
+def test_reasoning_is_asked_as_the_app_asks_it():
+    """OpenRouterJudge: off, or minimal for OpenRouter.mustThink's models; once more at minimal if the
+    model says reasoning is mandatory."""
+    swift = (edits.harness.ROOT.parent / "Sources/DictationKit/App/OpenRouter.swift").read_text()
+    assert f'static let mustThink = [{", ".join(chr(34) + m + chr(34) for m in edits.MUST_THINK)}]' in swift
     sent = []
 
     def send(body, key, timeout):
@@ -160,9 +164,20 @@ def test_caller_steps_down_to_the_lowest_reasoning_the_model_accepts():
             return {"error": "HTTP 400: Reasoning is mandatory for this endpoint and cannot be disabled."}
         return {"seconds": 0.3, "text": "{}", "cost": 1e-6}
 
+    item = [{"wrote": "a", "target": "b", "changes": [["a", "b"]]}]
     call = edits.Caller("m/x", "k", [], "P", 5, send)
-    assert call([{"wrote": "a", "target": "b", "changes": [["a", "b"]]}])["reasoning"] == {"effort": "minimal"}
-    assert sent == [{"enabled": False}, {"effort": "minimal"}]
+    assert call(item)["reasoning"] == {"effort": "minimal"}
+    call(item)
+    assert sent == [{"enabled": False}, {"effort": "minimal"}, {"effort": "minimal"}], "remembered"
+    assert edits.Caller("openai/gpt-6-luna", "k", [], "P", 5, send).reasoning == {"effort": "minimal"}
+    sent.clear()
+
+    def refuses(body, key, timeout):
+        sent.append(body.get("reasoning"))
+        return {"error": "HTTP 400: reasoning not supported"}
+
+    assert "error" in edits.Caller("m/y", "k", [], "P", 5, refuses)(item)
+    assert sent == [{"enabled": False}], "only the app's one fallback"
 
 
 def test_failures_show_what_was_judged_wrong():

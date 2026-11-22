@@ -18,6 +18,11 @@ final class JudgePassTests: XCTestCase {
     /// What a request hands back to the main thread, run once it has finished.
     private var landed: [() -> Void] = []
     private let lock = NSLock()
+    /// Times a request was cancelled.
+    private var cancels = 0
+    /// Hold the pass's work back (to land an answer while a pass runs).
+    private var holdPass = false
+    private var heldPasses: [() -> Void] = []
 
     override func setUp() {
         super.setUp()
@@ -27,11 +32,14 @@ final class JudgePassTests: XCTestCase {
         intake.isBusy = { [unowned self] in busy }
         intake.after = { [unowned self] delay, fire in timers.append((delay, fire)) }
         intake.now = { [unowned self] in clock }
-        intake.background = { $0() }
         intake.toMain = { [unowned self] work in
             if Thread.isMainThread { work() } else { lock.withLock { landed.append(work) } }
         }
-        intake.send = { [unowned self] work in requests.append(work) }
+        intake.send = { [unowned self] work in
+            requests.append(work)
+            return { [unowned self] in cancels += 1 }
+        }
+        intake.background = { [unowned self] work in if holdPass { heldPasses.append(work) } else { work() } }
     }
 
     /// Answers every request sent so far (and any the answers send).
@@ -211,9 +219,9 @@ final class JudgePassTests: XCTestCase {
         XCTAssertEqual(history.entries.filter { $0.intake?.tries == 1 }.count, 4)
     }
 
-    /// A failed request (offline, an HTTP error) costs no try and waits 10 minutes.
+    /// A failed request (offline, a busy host) costs no try and waits 10 minutes.
     func testAFailedRequestCostsNoTry() {
-        judge.answer = { _ in throw PolishError.failed("offline") }
+        judge.answer = { _ in throw URLError(.notConnectedToInternet) }
         correct(five())
         intake.runIfIdle()
         answer()
@@ -225,6 +233,102 @@ final class JudgePassTests: XCTestCase {
         timers.last?.fire()
         answer()
         XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard)
+    }
+
+    /// A refused request (a bad model id, no credit, Apple Intelligence declining) would fail the same
+    /// way again: it counts a try, so one fix that always fails can't hold the others up forever.
+    func testARefusedRequestCountsATry() {
+        judge.answer = { _ in throw JudgeFailure(json: ["error": ["message": "No such model"]], status: 400) }
+        correct(five())
+        for _ in 0..<FixJudge.maxTries {
+            intake.tabShown()
+            answer()
+        }
+        XCTAssertEqual(history.entries[0].intake?.tries, FixJudge.maxTries)
+        intake.tabShown()
+        XCTAssertEqual(intake.batches, FixJudge.maxTries, "then it's asked no more")
+        XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"], "and the rules count it")
+        XCTAssertTrue(FixJudge.countsATry(PolishError.unavailable("Apple Intelligence declined")))
+        XCTAssertFalse(FixJudge.countsATry(JudgeFailure(json: nil, status: 429)))
+        XCTAssertFalse(FixJudge.countsATry(JudgeFailure(json: nil, status: 503)))
+        XCTAssertFalse(FixJudge.countsATry(URLError(.timedOut)))
+    }
+
+    /// An on-device judge call stops when a dictation starts, costs no try, and is asked again at the
+    /// next pass. A cloud one is left to finish (it's paid for, and it doesn't use this Mac).
+    func testADictationStopsAnOnDeviceCall() {
+        let onDevice = OnDeviceFake()
+        intake.judgeBackend = { onDevice }
+        correct([five()[0]])
+        intake.tabShown()
+        intake.dictationStarted()
+        XCTAssertEqual(cancels, 1)
+        onDevice.cancelled = true
+        answer()
+        XCTAssertNil(history.entries[0].intake?.tries)
+        XCTAssertNil(history.entries[0].intake?.changes.first?.verdict)
+        onDevice.cancelled = false
+        intake.runIfIdle()
+        XCTAssertEqual(intake.batches, 1, "no back-off, but under 5 waiting: waits for the tab or 10 minutes")
+        intake.tabShown()
+        answer()
+        XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard)
+
+        intake.judgeBackend = { [unowned self] in judge }
+        correct([five()[1]])
+        intake.tabShown()
+        intake.dictationStarted()
+        XCTAssertEqual(cancels, 1, "a cloud call isn't stopped")
+        answer()
+    }
+
+    private final class OnDeviceFake: FixJudgeBackend {
+        var batchSize: Int { 1 }
+        var onThisMac: Bool { true }
+        var cancelled = false
+        func judge(_ items: [JudgeItem], terms: [String]) async throws -> JudgeAnswer {
+            if cancelled { throw CancellationError() }
+            return JudgeAnswer(verdicts: items.map { $0.changes.map { _ in .misheard } }, usage: nil)
+        }
+    }
+
+    /// Turned off while the judge was asked: its answer isn't used.
+    func testAnAnswerAfterTheSettingIsTurnedOffIsDropped() {
+        correct([five()[0]])
+        intake.tabShown()
+        settings.judgeFixes = false
+        answer()
+        XCTAssertNil(history.entries[0].intake?.changes.first?.verdict)
+    }
+
+    /// An answer that lands while a pass is running: that pass runs again once it's done, keeping a
+    /// tab shown.
+    func testAnAnswerDuringAPassRunsItAgain() {
+        correct(five())
+        intake.runIfIdle()
+        let before = intake.passes
+        holdPass = true
+        intake.tabShown()
+        answer()
+        XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard, "saved at once")
+        holdPass = false
+        heldPasses.forEach { $0() }
+        heldPasses = []
+        XCTAssertEqual(intake.passes, before + 2, "the pass, then again with the verdicts")
+    }
+
+    /// The 10-minute wake-up during a dictation does nothing; the pass after the dictation sends it.
+    func testTheWakeUpWaitsForADictationToEnd() {
+        correct([five()[0]])
+        intake.runIfIdle()
+        clock += 600
+        busy = true
+        timers.last?.fire()
+        XCTAssertEqual(intake.batches, 0)
+        busy = false
+        intake.scheduleAfterIdle()
+        timers.last?.fire()
+        XCTAssertEqual(intake.batches, 1)
     }
 
     /// A clear capture read back from the text box trains Learn unreviewed (`auto`); dismissing it

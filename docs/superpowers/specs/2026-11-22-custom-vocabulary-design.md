@@ -323,14 +323,22 @@ delays a dictation.
   waited 10 minutes; at once when Vocabulary or Corrections is shown; never while busy, never with
   the setting off. "Waited" counts from when a pass first saw the fix waiting, in memory, so a
   launch restarts the 10 minutes; a timer wakes the pass at the 10-minute mark. Turning the setting
-  on sends the backlog (28 corrections: 3 requests).
+  on sends the backlog at the next pass (after a dictation, or a tab shown; 28 corrections: 3
+  requests). An answer that lands after it's turned off is dropped.
 - **One request at a time.** When it lands the pass runs again, so the verdicts count at once and
   the next batch goes if one is due; a batch sent for a tab shown goes on until nothing waits. An
   answer that lands during a dictation is held for the next pass (it was paid for). Each fix's
   verdicts are saved only if its target and word changes are still the ones judged.
 - **Retries:** `Intake.tries` (saved): a paid answer that leaves a fix out, or can't be read, adds
-  one; at 3 it's asked no more and the rules count it. A failed request adds none. A failure, or an
-  answer that covers nothing, waits 10 minutes before the next request (a tab shown still asks).
+  one; at 3 it's asked no more and the rules count it. A request that would fail the same way again
+  (a refused request, an answer with no text, Apple Intelligence declining) adds one to each fix in
+  it, so one fix that always fails can't hold the others up; offline, a timeout, 429 or 5xx add
+  none. A failure, or an answer that covers nothing, waits 10 minutes before the next request (a
+  tab shown still asks).
+- **On-device calls stop when a dictation starts** (cancelled, no try, asked again at the next
+  pass), so the judge never competes with on-device polish for Apple Intelligence. Whether
+  cancelling stops the model's work at once is unverified. Cloud calls run on: they're paid for and
+  don't use the Mac.
 - **Counting:** with the judge on and able to run, a change with no verdict waits instead of
   counting by the rules (phase 2's "with `judgeFixes` off"). Unable to run (no key on a cloud setup,
   no Apple Intelligence on-device), the rules count as before. Verdicts already saved still count
@@ -341,13 +349,15 @@ delays a dictation.
   the draft says. A capture with **words only added** (no verdict covers them: maybe a change of
   mind) waits for Accept instead of `auto`. A kept target equal to what the app wrote dismisses it.
   The rewritten capture's intake keeps the verdicts with `of` = the new target, so it isn't judged again.
-- **Which judge:** where polish goes, by the setup's polish model (`polishesOnDevice`), not its speech
-  model, like the terms block. `judgeModel` blank is the default; thinking off (or lowest),
+- **Which judge:** where polish goes, by the current setup's polish model (`polishesOnDevice`), not
+  its speech model, like the terms block; whether or not AI polish is switched on, and for every
+  fix, including ones dictated on another setup. `judgeModel` blank is the default; thinking off (or lowest),
   temperature 0, no `response_format` (not every model takes it).
 - **Message:** the instructions are `Vocabulary/JudgeFixes.txt`, a package resource the bench sends
   too; then the terms (up to 100, most used first; none with *Use vocabulary* off), then the fixes,
   numbered. `bench/judge_message_fixture.json` pins the message and how answers are read for both.
-  Verdict spelling is read loosely ("Changed mind"); a fix number given twice counts once.
+  Verdict spelling is read loosely ("Changed mind"); the fix number must be an integer, and the
+  first valid entry for a number counts.
 - **Caching:** instructions and terms come first, with a cache breakpoint for Anthropic models.
   Whether a batch ever hits the cache is unmeasured: batches are minutes apart and the shared part
   is short.
@@ -356,6 +366,9 @@ delays a dictation.
 - **On-device:** a fresh session per fix, as on-device polish. Its accuracy is **not measured**: the
   edits suite calls OpenRouter only. Until it is, the On-device setup uses the Apple judge, not the
   rules (the draft's fallback is still to decide).
+- **Batches of 10 ship before the bench has run:** the draft keeps batching only if it matches one
+  at a time. Until `bench/suite.py edits run` says so, that's open; `FixJudge.batchSize` is the one
+  constant to change.
 - **Settings:** no row for `judgeModel` (as `correctionModel`). *Learn from my edits*' text now says
   nothing is sent unless the judge is on.
 - **Bench cases are all written (Mike, Nov 22),** not his corrections: 45 fixes in English, Chinese

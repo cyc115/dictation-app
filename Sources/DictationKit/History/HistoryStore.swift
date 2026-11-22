@@ -243,7 +243,7 @@ final class HistoryStore: ObservableObject {
             guard let i = copy.firstIndex(where: { $0.id == fix.item.id }), copy[i].fixTarget == fix.item.target,
                   let intake = copy[i].intake, intake.of == fix.item.target,
                   intake.changes.map({ WordChange(old: $0.old, new: $0.new) }) == fix.item.changes else { continue }
-            if let verdicts = fix.verdicts {
+            if let verdicts = fix.verdicts, verdicts.count == intake.changes.count {
                 copy[i] = FixJudge.judged(copy[i], verdicts: verdicts)
             } else {
                 copy[i].intake?.tries = (intake.tries ?? 0) + 1

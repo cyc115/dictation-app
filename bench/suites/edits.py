@@ -38,7 +38,7 @@ from pathlib import Path
 
 import harness
 import openrouter
-from openrouter import CHAT, REASONING_FALLBACKS, key_problem
+from openrouter import CHAT, key_problem
 
 NAME = "edits"
 HELP = "the fix judge: verdict accuracy per word change, by model and batch size, and cost"
@@ -47,6 +47,9 @@ INSTRUCTIONS = harness.ROOT.parent / "Sources/DictationKit/Vocabulary/JudgeFixes
 DEFAULT_MODEL = "openrouter:anthropic/claude-sonnet-5.5"  # judgeModel's default (LearnController.teacherModel)
 VERDICTS = ("misheard", "style", "changedMind", "unclear")
 BATCH_SIZES = (1, 10)
+# OpenRouter.mustThink: models that can't turn thinking off get the lowest effort from the start.
+MUST_THINK = ("openai/gpt-oss", "openai/gpt-5", "openai/gpt-6")
+LOWEST = {"effort": "minimal"}
 # US $ per million tokens (prompt, completion), only where a saved result in this repo says so; others
 # need --price. Claude Sonnet 5.5: bench/results/polish/README.md, teacher bake-off ("124k prompt
 # tokens at $2, 8k out at $10").
@@ -105,8 +108,8 @@ def verdict(word) -> str | None:
 
 
 def parse(answer: str, change_counts: list[int]) -> list[list[str] | None]:
-    """FixJudge.parse: per item, its verdicts, or None unless the answer has its number with exactly one
-    known verdict per change (the first entry for a number counts)."""
+    """FixJudge.parse: per item, its verdicts, or None unless the answer has its number (an integer) with
+    exactly one known verdict per change (the first such entry counts)."""
     found: list[list[str] | None] = [None] * len(change_counts)
     start, end = answer.find("{"), answer.rfind("}")
     if not change_counts or start < 0 or end <= start:
@@ -197,24 +200,26 @@ def post(body: dict, key: str, timeout: float) -> dict:
             "completion_tokens": usage.get("completion_tokens"), "provider": data.get("provider")}
 
 
+def reasoning_for(model: str) -> dict:
+    """OpenRouter.reasoning(for:): off, or the lowest effort for a model that can't turn it off."""
+    return dict(LOWEST) if model.startswith(MUST_THINK) else {"enabled": False}
+
+
 class Caller:
-    """Asks one model, remembering the lowest reasoning setting it accepts (as polish.Caller)."""
+    """Asks one model as OpenRouterJudge does: reasoning off (or lowest), and once more at the lowest
+    effort if the model says reasoning is mandatory, remembered for its later requests."""
 
     def __init__(self, model: str, key: str, terms: list[str], prompt: str, timeout: float, send=post):
         self.model, self.key, self.terms, self.prompt, self.timeout, self.send = model, key, terms, prompt, timeout, send
-        self.reasoning: dict | None = REASONING_FALLBACKS[0]
+        self.reasoning: dict = reasoning_for(model)
 
     def __call__(self, items: list[dict]) -> dict:
-        while True:
+        result = self.send(request_body(self.model, items, self.terms, self.reasoning, self.prompt), self.key, self.timeout)
+        if self.reasoning != LOWEST and "reasoning is mandatory" in result.get("error", "").lower():
+            self.reasoning = dict(LOWEST)
             result = self.send(request_body(self.model, items, self.terms, self.reasoning, self.prompt), self.key, self.timeout)
-            error = result.get("error", "").lower()
-            if "reasoning" in error and ("mandatory" in error or "not supported" in error or "invalid" in error):
-                tried = REASONING_FALLBACKS.index(self.reasoning) if self.reasoning in REASONING_FALLBACKS else -1
-                if tried + 1 < len(REASONING_FALLBACKS):
-                    self.reasoning = REASONING_FALLBACKS[tried + 1]
-                    continue
-            result["reasoning"] = self.reasoning
-            return result
+        result["reasoning"] = self.reasoning
+        return result
 
 
 def run(specs: list[str], sizes: list[int], cases: list[dict], terms: list[str], key: str, seed: int,

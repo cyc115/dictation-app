@@ -24,9 +24,12 @@
     {"about": "one left out, one with the wrong count, one unknown verdict", "changes": [1, 2, 1, 1],
      "text": "{\"fixes\": [{\"fix\": 1, \"verdicts\": [\"style\"]}, {\"fix\": 2, \"verdicts\": [\"style\"]}, {\"fix\": 3, \"verdicts\": [\"typo\"]}]}",
      "verdicts": [["style"], null, null, null]},
-    {"about": "a number twice (the first counts) and one out of range", "changes": [1],
+    {"about": "a number twice (the first valid entry counts) and one out of range", "changes": [1],
      "text": "{\"fixes\": [{\"fix\": 1, \"verdicts\": [\"misheard\"]}, {\"fix\": 1, \"verdicts\": [\"style\"]}, {\"fix\": 7, \"verdicts\": [\"style\"]}]}",
      "verdicts": [["misheard"]]},
+    {"about": "a fix number that isn't an integer", "changes": [1, 1],
+     "text": "{\"fixes\": [{\"fix\": 1.0, \"verdicts\": [\"style\"]}, {\"fix\": true, \"verdicts\": [\"style\"]}, {\"fix\": \"2\", \"verdicts\": [\"style\"]}]}",
+     "verdicts": [null, null]},
     {"about": "prose, cut off", "changes": [1, 1],
      "text": "Sure! Here are the verdicts: {\"fixes\": [{\"fix\": 1, \"verdicts\": [\"misheard\"]",
      "verdicts": [null, null]}

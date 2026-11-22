@@ -29,7 +29,8 @@ dictation waits on it.
   fixes wait, the oldest has waited 10 minutes (time first seen pending, in memory), or the tab was
   shown; else a wake-up timer for when the oldest reaches 10 minutes. One batch at a time; its
   answer is applied at once if idle, else held until the next pass. A failed request or an answer
-  that covers nothing backs off 10 minutes (a tab shown still sends). After a batch lands the pass
+  that covers nothing backs off 10 minutes (a tab shown still sends); a refused request counts a
+  try. An on-device call is cancelled when a dictation starts (`dictationStarted`). After a batch lands the pass
   runs again: the tally recounts with the verdicts, and the next batch goes if still due.
 - `CandidateTally.support(in:judging:)`: with the judge active, a change with no verdict waits
   (counts nothing) unless the judge gave up on its fix (3 tries); off, the rules as before. A verdict

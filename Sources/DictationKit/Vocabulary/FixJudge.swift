@@ -21,7 +21,27 @@ struct JudgeAnswer {
 protocol FixJudgeBackend {
     /// Fixes one call carries.
     var batchSize: Int { get }
+    /// It runs on this Mac (Apple Intelligence): a dictation starting stops it.
+    var onThisMac: Bool { get }
     func judge(_ items: [JudgeItem], terms: [String]) async throws -> JudgeAnswer
+}
+
+extension FixJudgeBackend {
+    var onThisMac: Bool { false }
+}
+
+/// A cloud judge call that failed. `transient` (rate limited, a timeout, the host down): asking again
+/// unchanged may work, so it costs the fixes no try.
+struct JudgeFailure: LocalizedError {
+    let message: String
+    let transient: Bool
+    var errorDescription: String? { message }
+
+    /// From an OpenRouter answer with no content.
+    init(json: [String: Any]?, status: Int) {
+        message = OpenRouter.problem(json, status: status)
+        transient = status == 0 || status == 408 || status == 429 || status >= 500
+    }
 }
 
 /// *Ask a model about my fixes*: a verdict for each word change of a fix (misheard, style, a change of
@@ -72,16 +92,18 @@ enum FixJudge {
         return (prefix, fixes.joined(separator: "\n\n"))
     }
 
-    /// The verdicts in an answer, per item. An item is covered only by an entry with its number and
-    /// exactly one known verdict per change; anything else (prose, a cut-off answer, a wrong count, an
-    /// unknown verdict) leaves it nil, to be asked again.
+    /// The verdicts in an answer, per item. An item is covered only by an entry with its number (an
+    /// integer) and exactly one known verdict per change, the first such entry if there are more;
+    /// anything else (prose, a cut-off answer, a wrong count, an unknown verdict) leaves it nil, to
+    /// be asked again.
     static func parse(_ answer: String, items: [JudgeItem]) -> [[WordChange.Verdict]?] {
         var found = [[WordChange.Verdict]?](repeating: nil, count: items.count)
         guard !items.isEmpty, let start = answer.firstIndex(of: "{"), let end = answer.lastIndex(of: "}"), start < end,
               let json = try? JSONSerialization.jsonObject(with: Data(answer[start...end].utf8)) as? [String: Any],
               let fixes = json["fixes"] as? [[String: Any]] else { return found }
         for fix in fixes {
-            guard let n = (fix["fix"] as? NSNumber)?.intValue, (1...items.count).contains(n), found[n - 1] == nil,
+            guard let number = fix["fix"] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(), !CFNumberIsFloatType(number),
+                  case let n = number.intValue, (1...items.count).contains(n), found[n - 1] == nil,
                   let words = fix["verdicts"] as? [String], words.count == items[n - 1].changes.count else { continue }
             let verdicts = words.compactMap(verdict)
             if verdicts.count == words.count { found[n - 1] = verdicts }
@@ -139,6 +161,13 @@ enum FixJudge {
         return entry
     }
 
+    /// A failed call that would fail the same way again (a refused request, an answer with no text,
+    /// Apple Intelligence declining): it counts a try. Offline, a timeout, a busy host: not.
+    static func countsATry(_ error: Error) -> Bool {
+        if let failure = error as? JudgeFailure { return !failure.transient }
+        return !(error is URLError)
+    }
+
     /// The model id as typed, trimmed; the default (Learn's teacher) when blank.
     static func modelID(_ model: String) -> String {
         let id = model.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -183,9 +212,7 @@ struct OpenRouterJudge: FixJudgeBackend {
            OpenRouterPolish.refusesReasoningOff(PolishError.failed(OpenRouter.problem(json, status: status))) {
             (json, status) = try await ask(["effort": "minimal"])
         }
-        guard let text = OpenRouter.content(json, status: status) else {
-            throw PolishError.failed(OpenRouter.problem(json, status: status))
-        }
+        guard let text = OpenRouter.content(json, status: status) else { throw JudgeFailure(json: json, status: status) }
         return JudgeAnswer(verdicts: FixJudge.parse(text, items: items), usage: OpenRouter.Usage(json))
     }
 
@@ -201,6 +228,7 @@ struct OpenRouterJudge: FixJudgeBackend {
 /// `OnDevicePolish` asks it), so nothing leaves the Mac.
 struct OnDeviceJudge: FixJudgeBackend {
     var batchSize: Int { 1 }
+    var onThisMac: Bool { true }
 
     func judge(_ items: [JudgeItem], terms: [String]) async throws -> JudgeAnswer {
         guard FixJudge.appleAvailable else { throw PolishError.unavailable("Apple Intelligence isn't available on this Mac.") }

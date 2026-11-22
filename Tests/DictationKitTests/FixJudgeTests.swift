@@ -38,6 +38,26 @@ final class FixJudgeTests: XCTestCase {
         XCTAssertEqual(FixIntake.keeping([true, true, true], text: text, target: target), target)
     }
 
+    /// Chinese, and a kept change right beside one put back.
+    func testKeepingInChineseAndBesideAnother() {
+        let text = "让克劳德周二review这个PR", target = "让Claude周四review这个PR"
+        XCTAssertEqual(FixIntake.keeping([true, false], text: text, target: target), "让Claude周二review这个PR")
+        XCTAssertEqual(FixIntake.keeping([false, true], text: text, target: target), "让克劳德周四review这个PR")
+        let near = "send cloud mail to Bob", fixed = "send Claude mail to Rob"
+        XCTAssertEqual(FixIntake.keeping([false, true], text: near, target: fixed), "send cloud mail to Rob")
+    }
+
+    /// The judge's tries are saved with the fix, and history.json without them still loads.
+    func testTriesAreSavedAndOldFilesLoad() throws {
+        let intake = Intake(of: "I use Claude", changes: [WordChange(old: "cloud", new: "Claude")], tries: 2)
+        let data = try JSONEncoder().encode(intake)
+        XCTAssertEqual(try JSONDecoder().decode(Intake.self, from: data), intake)
+        let old = try JSONDecoder().decode(Intake.self, from: Data(#"{"of": "x", "changes": [{"old": "a", "new": "b", "verdict": "sarcasm"}]}"#.utf8))
+        XCTAssertNil(old.tries)
+        XCTAssertNil(old.changes[0].verdict, "a verdict a newer build wrote reads as none")
+        XCTAssertFalse(String(decoding: try JSONEncoder().encode(Intake(of: "x", changes: [])), as: UTF8.self).contains("tries"))
+    }
+
     /// What isn't a word change (a period, a filler taken out) stays as you made it.
     func testKeepingLeavesWhatIsNotAChange() {
         let text = "um I use cloud on tuesday", target = "I use Claude on Thursday."
@@ -316,6 +336,7 @@ final class FixJudgeTests: XCTestCase {
             XCTFail("should throw")
         } catch {
             XCTAssertEqual(error.localizedDescription, "Insufficient credits")
+            XCTAssertTrue(FixJudge.countsATry(error), "refused: it would fail the same way again")
         }
     }
 

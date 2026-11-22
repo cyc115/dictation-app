@@ -18,7 +18,9 @@ import Foundation
 /// wakes the pass for it), or the tab was shown; one request at a time, never while busy. Its answer
 /// is applied when it arrives if the app is idle, else held for the next pass (it was paid for); then
 /// the pass runs again, so the verdicts count at once and the next batch goes if one is due. A failed
-/// request, or an answer that covers nothing, waits 10 minutes before the next (a tab shown still asks).
+/// request, or an answer that covers nothing, waits 10 minutes before the next (a tab shown still asks);
+/// a refused one (not offline or a busy host) counts a try, so one fix can't hold the rest up. An
+/// on-device call stops when a dictation starts.
 final class VocabularyIntake {
     /// How long after the last dictation the pass runs.
     static let idleDelay: TimeInterval = 30
@@ -38,8 +40,11 @@ final class VocabularyIntake {
     /// The judge for your setup now (`FixJudge.backend`), nil when it can't run. `AppServices.live()`
     /// hands in the real one; tests a fake, so none can reach a model.
     var judgeBackend: () -> FixJudgeBackend? = { nil }
-    /// Where a judge request runs (tests hold it back, then run it).
-    var send: (@escaping () async -> Void) -> Void = { work in Task.detached(priority: .utility) { await work() } }
+    /// Where a judge request runs, and how to cancel it (tests hold it back, then run it).
+    var send: (@escaping () async -> Void) -> () -> Void = { work in
+        let task = Task.detached(priority: .utility) { await work() }
+        return { task.cancel() }
+    }
     var now: () -> Date = Date.init
     /// What the judge's requests cost, added up. In memory only: the app keeps no record of spend.
     let judgeUsage = UsageMeter()
@@ -54,6 +59,9 @@ final class VocabularyIntake {
     private var running = false
     /// A batch is out (one at a time).
     private var judging = false
+    /// Cancels the batch that's out, when it runs on this Mac (Apple Intelligence): a dictation
+    /// starting stops it, so it never competes with on-device polish.
+    private var cancelLocalJudge: (() -> Void)?
     /// The judge answered while a pass was running: run another once it's done (true: as if the tab
     /// were shown).
     private var rerun: Bool?
@@ -84,6 +92,12 @@ final class VocabularyIntake {
     /// The Vocabulary or Corrections tab was shown: a pass, and a batch if anything waits for the judge.
     func tabShown() { runIfIdle(tab: true) }
 
+    /// A dictation started: an on-device judge call stops (it's asked again at the next pass).
+    func dictationStarted() {
+        cancelLocalJudge?()
+        cancelLocalJudge = nil
+    }
+
     /// The judge is on and can run: changes then wait for its verdicts instead of counting by the rules.
     private var judge: FixJudgeBackend? { settings.judgeFixes ? judgeBackend() : nil }
 
@@ -102,6 +116,8 @@ final class VocabularyIntake {
             self?.toMain {
                 guard let self else { return }
                 self.running = false
+                let again = self.rerun  // a judge answer landed meanwhile
+                self.rerun = nil
                 guard !self.isBusy() else { return }
                 // A fix changed while it worked: counting from the old one could learn a term from a
                 // fix that's gone (and learning can't be taken back). Try again later.
@@ -109,10 +125,7 @@ final class VocabularyIntake {
                 if !intakes.isEmpty { self.history.setIntakes(intakes) }
                 self.vocabulary.updateCandidates(support, learnAfter: self.settings.vocabularyEnabled ? self.settings.vocabularyLearnAfter : nil)
                 self.passes += 1
-                if let again = self.rerun {
-                    self.rerun = nil
-                    return self.runIfIdle(tab: again)
-                }
+                if let again { return self.runIfIdle(tab: again || tab) }
                 self.judgeIfDue(tab: tab)
             }
         }
@@ -143,21 +156,50 @@ final class VocabularyIntake {
         let terms = vocabulary.vocabulary(enabled: settings.vocabularyEnabled).promptTerms
         judging = true
         batches += 1
-        send { [weak self] in
-            let answer = try? await backend.judge(batch, terms: terms)
-            self?.toMain { self?.judged(batch, answer, tab: tab) }
+        let cancel = send { [weak self] in
+            let outcome: Outcome
+            do {
+                outcome = .answer(try await backend.judge(batch, terms: terms))
+            } catch is CancellationError {
+                outcome = .cancelled
+            } catch let error as URLError where error.code == .cancelled {
+                outcome = .cancelled
+            } catch {
+                outcome = .failed(countsATry: FixJudge.countsATry(error))
+            }
+            self?.toMain { self?.judged(batch, outcome, tab: tab) }
         }
+        cancelLocalJudge = backend.onThisMac ? cancel : nil
     }
 
-    /// A batch came back (nil: the request failed). Sent for a tab shown and useful, the next pass
-    /// judges what's left too.
-    private func judged(_ batch: [JudgeItem], _ answer: JudgeAnswer?, tab: Bool) {
+    private enum Outcome {
+        case answer(JudgeAnswer)
+        /// `countsATry`: it would fail the same way again (a refused request, Apple Intelligence
+        /// declining), so it counts toward `FixJudge.maxTries`; offline or a busy host doesn't.
+        case failed(countsATry: Bool)
+        /// A dictation started (on-device): asked again at the next pass.
+        case cancelled
+    }
+
+    /// A batch came back. Sent for a tab shown and useful, the next pass judges what's left too.
+    private func judged(_ batch: [JudgeItem], _ outcome: Outcome, tab: Bool) {
         judging = false
-        guard let answer else { return backOff() }  // offline, or an HTTP error: no try counted
-        if let usage = answer.usage { judgeUsage.add(usage) }
-        let results = batch.indices.map { FixJudge.Judged(item: batch[$0], verdicts: $0 < answer.verdicts.count ? answer.verdicts[$0] : nil) }
+        cancelLocalJudge = nil
+        guard settings.judgeFixes else { return }  // turned off meanwhile: its answer isn't used
+        let results: [FixJudge.Judged]
+        switch outcome {
+        case .cancelled:
+            return
+        case .failed(let countsATry):
+            backOff()
+            guard countsATry else { return }
+            results = batch.map { FixJudge.Judged(item: $0, verdicts: nil) }
+        case .answer(let answer):
+            if let usage = answer.usage { judgeUsage.add(usage) }
+            results = batch.indices.map { FixJudge.Judged(item: batch[$0], verdicts: $0 < answer.verdicts.count ? answer.verdicts[$0] : nil) }
+            if results.contains(where: { $0.verdicts != nil }) { backoffUntil = nil } else { backOff() }
+        }
         let useful = results.contains { $0.verdicts != nil }
-        if useful { backoffUntil = nil } else { backOff() }
         guard !isBusy() else { return held += results }
         history.applyVerdicts(results)
         if running { rerun = tab && useful } else { runIfIdle(tab: tab && useful) }
