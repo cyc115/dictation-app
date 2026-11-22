@@ -557,6 +557,24 @@ final class EditWatcherTests: XCTestCase {
         XCTAssertEqual(capture?.edited, "I use Claude", "what it had")
     }
 
+    /// Deleting some or all of a dictation and dictating again is not a fix: words only removed are no
+    /// change (`FixIntake`), so no cut-off or empty text waits in Corrections.
+    func testDeletingAndDictatingAgainLeavesNothing() {
+        for readback in [true, false] {
+            for deleted in [5, 11] {  // the last word; all of it
+                desk.answers = readback
+                paste("I use cloud")
+                desk.press(Array(repeating: .backspace, count: deleted))
+                desk.show("Hi " + "I use cloud".dropLast(deleted))
+                desk.clock.advance(EditWatcher.pause)
+                watcher.endNow()
+                XCTAssertFalse(watcher.isWatching)
+                XCTAssertNil(capture, "readback \(readback), \(deleted) deleted")
+            }
+        }
+        XCTAssertEqual(captures, 0)
+    }
+
     func testEndsAfter30sWithoutAKey() {
         paste("I use cloud")
         desk.clock.advance(20)

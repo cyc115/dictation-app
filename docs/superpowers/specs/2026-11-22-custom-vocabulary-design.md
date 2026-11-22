@@ -278,6 +278,12 @@ delays typing.
   `edit-watch.json` (app names and numbers only), shown under the setting while it's on; a watch
   counts as armed once the probe has found the box isn't a password field.
 - The Learn tile's "N yours · M captured" shows only once M > 0.
+- **Deleting and dictating again leaves nothing:** words only removed are no change (`FixIntake`), so
+  a dictation cut short or deleted whole before the next one is never a capture.
+- **Checked on a real text box (2026-11-22):** TextEdit only, with the real paste, real key events
+  and real Accessibility reads: the probe chose readback and "I use cloud" → "I use Claude" was
+  captured. Not checked: Electron and browser text boxes, password fields, input methods, and
+  keystroke mode in a real app; the per-app counts in Settings say which mode each app gets.
 
 ## Phase 4: the judge
 
