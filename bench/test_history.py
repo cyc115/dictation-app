@@ -285,7 +285,7 @@ def test_the_report_has_totals_only(monkeypatch, capsys, tmp_path):
     assert s["1"]["arms"]["again"]["fixed"]["mean"] == 4, "every mishearing with a variant (茶 has none)"
     assert s["1"]["arms"]["held-out"]["fixed"]["mean"] == 1, "only reMarkable, seen in another dictation too"
     assert s["4"]["polish"]["terms-only"]["p50_change"] == pytest.approx(0.1)
-    assert s["6"]["keystrokes"] == {"exact": 3, "of": 3, "captured": 3, "inputMethod": 1, "inputMethodExact": 1}
+    assert s["6"]["keystrokes"] == {"exact": 3, "of": 3, "captured": 3, "missesPastTheEdge": 0, "inputMethod": 1, "inputMethodExact": 1}
     assert s["6"]["app"] == {"apps": 2, "armed": 8, "probesFailed": 4, "gaveUp": 2}
     assert s["5"]["added"] == 4 and s["5"]["dismissed"] == 1
     assert s["5"]["methods"]["rules"]["dismissed"]["proposed"] == 1 and s["5"]["methods"]["judge"]["dismissed"]["proposed"] == 0

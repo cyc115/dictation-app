@@ -2,7 +2,7 @@
 
 `bench/suite.py history run`. One run answers, on your real History: do the words the app misheard
 now come out right, what does that cost in wait, and does it break anything. Cap: 50¢ a run
-(`--max-cost`, default 0.50); expected about 5¢.
+(`--max-cost`, default 0.50); expected about 10–25¢ with four arms (the dry run prints the estimate).
 
 ## What it reads
 
@@ -30,7 +30,7 @@ place. Nothing is written there.
 
 | # | Part | What runs | Headline number | Cost |
 |---|---|---|---|---|
-| 1 | Mishearings fixed | stored `raw` → replace → polish with terms → replace, 3 rounds, four arms | mishearings that come out as you wanted, of 33, per arm | cloud polish, ~5¢ |
+| 1 | Mishearings fixed | stored `raw` → replace → polish with terms → replace, 3 rounds, four arms | mishearings that come out as you wanted, of 33, per arm | cloud polish, ~10–25¢ |
 | 2 | Speech with terms | each recording through the on-device speech model, no terms vs terms, interleaved | mishearings right in the transcript; seconds | $0 |
 | 3 | Reach and wrong hits | replacement alone on every stored `raw` and `text` | dictations it would change; hits per entry; hits that move a fixed dictation away from its fix | $0 |
 | 4 | Wait | replacement timed on every `raw`; polish wait from part 1; speech wait from part 2 | change in stop-to-text, typical and p95 | $0 |

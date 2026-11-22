@@ -48,7 +48,9 @@ text and are git-ignored; never `git add -f` one.
   partly circular for the rules.
 - **Part 6** is tracker fidelity with synthesized keys (per change, last first: arrows, backspaces,
   the new text; a change is a run of differing characters), not how you edit. Fixes whose new text
-  isn't ASCII would need an input method, which makes keystroke mode give up: counted apart.
+  isn't ASCII would need an input method, which makes keystroke mode give up: counted apart. Text a
+  fix adds before or after the paste is never part of the span (by design), so those misses are
+  named apart too.
 
 ## Results
 

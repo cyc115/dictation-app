@@ -599,9 +599,11 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
         ks = [r for r in p6 if r["mode"] == "keystrokes"]
         typed, ime = [r for r in ks if not r["needsInputMethod"]], [r for r in ks if r["needsInputMethod"]]
         apps = edit_watch if isinstance(edit_watch, dict) else {}
-        out["parts"][6] = {"readback": {"exact": sum(r["exact"] for r in rb), "of": len(rb), "captured": sum(r["captured"] for r in rb)},
+        edge = lambda sel: sum(1 for r in sel if not r["exact"] and r.get("pastTheEdge"))  # noqa: E731
+        out["parts"][6] = {"readback": {"exact": sum(r["exact"] for r in rb), "of": len(rb), "captured": sum(r["captured"] for r in rb),
+                                        "missesPastTheEdge": edge(rb)},
                            "keystrokes": {"exact": sum(r["exact"] for r in typed), "of": len(typed), "captured": sum(r["captured"] for r in typed),
-                                          "inputMethod": len(ime), "inputMethodExact": sum(r["exact"] for r in ime)},
+                                          "missesPastTheEdge": edge(typed), "inputMethod": len(ime), "inputMethodExact": sum(r["exact"] for r in ime)},
                            "app": {"apps": len(apps), **{k: sum(int((a or {}).get(k, 0)) for a in apps.values()) for k in ("armed", "probesFailed", "gaveUp")}}}
     return out
 
@@ -621,6 +623,11 @@ def _s(x) -> str:
 
 def _delta(x) -> str:
     return "—" if x is None else f"{x:+.2f}"
+
+
+def _edge_note(tracker: dict) -> str:
+    n = tracker.get("missesPastTheEdge", 0)
+    return f" ({n} of the misses add text before or after the paste: never the span's, by design)" if n else ""
 
 
 def report_text(result: dict, markdown: bool = False) -> str:
@@ -687,8 +694,9 @@ def report_text(result: dict, markdown: bool = False) -> str:
         k, a = v["keystrokes"], v["app"]
         lines += ["", "Part 6, edit replay (tracker fidelity with synthesized keys: per change, last first, arrows, backspaces, the new "
                   "text; not how you really edit)",
-                  f"  readback (SpanTracker): {v['readback']['exact']} of {v['readback']['of']} rebuilt exactly",
-                  f"  keystrokes (TypedEdit): {k['exact']} of {k['of']} rebuilt exactly; {k['inputMethod']} need an input method "
+                  f"  readback (SpanTracker): {v['readback']['exact']} of {v['readback']['of']} rebuilt exactly"
+                  f"{_edge_note(v['readback'])}",
+                  f"  keystrokes (TypedEdit): {k['exact']} of {k['of']} rebuilt exactly{_edge_note(k)}; {k['inputMethod']} need an input method "
                   f"(not ASCII), counted apart ({k['inputMethodExact']} rebuilt if typed as is)",
                   f"  the app's own counts (edit-watch.json, {a['apps']} apps): {a['armed']} armed, {a['probesFailed']} probes failed "
                   f"(keystroke mode), {a['gaveUp']} keystroke give-ups"]

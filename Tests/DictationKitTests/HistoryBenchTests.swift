@@ -301,6 +301,8 @@ final class HistoryBench {
             guard let entry = fixes[d.id], let target = entry.correction else { continue }
             let edits = Self.edits(from: entry.text, to: target)
             let needsInputMethod = edits.contains { $0.text.contains { !$0.isASCII } }
+            // Text put in before the paste or after it: by design never the span's (past a space at its end), so a miss here isn't the tracker's.
+            let pastTheEdge = edits.contains { $0.range.isEmpty && ($0.range.lowerBound == 0 || $0.range.lowerBound == entry.text.count) }
             for readback in [true, false] {
                 let desk = FakeEditDesk()
                 desk.attach(watcher)
@@ -309,7 +311,7 @@ final class HistoryBench {
                 let wanted = target.trimmingCharacters(in: .whitespacesAndNewlines)
                 write(["part": 6, "id": d.id.uuidString, "mode": readback ? "readback" : "keystrokes", "captured": edited != nil,
                        "exact": edited == wanted, "edited": edited ?? NSNull(), "target": target, "needsInputMethod": needsInputMethod,
-                       "changes": edits.count])
+                       "pastTheEdge": pastTheEdge, "changes": edits.count])
             }
         }
     }
