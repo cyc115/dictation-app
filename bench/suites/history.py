@@ -146,6 +146,20 @@ def is_fixed(output: str, target: str, new: str) -> bool:
     return count_term(output, new) >= max(1, count_term(target, new))
 
 
+def fixed_count(output: str, target: str, changes: list[dict]) -> int:
+    """How many of a dictation's mishearings come out right. For one wanted word, `is_fixed`; for k
+    mishearings wanting the same words, each occurrence beyond those your fix already had elsewhere
+    fixes one, so fixing one of two counts one."""
+    by_new: dict[str, int] = {}
+    for c in changes:
+        by_new[c["new"]] = by_new.get(c["new"], 0) + 1
+    n = 0
+    for new, k in by_new.items():
+        already = max(0, count_term(target, new) - k)  # occurrences in your fix that weren't these changes
+        n += min(k, max(0, count_term(output, new) - already))
+    return n
+
+
 def word_errors(target: str, output: str) -> float:
     """Word errors against your fix (the bench's token error rate: lower case, punctuation dropped)."""
     return harness.error_rate(target, output)
@@ -470,7 +484,9 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
     dictations = {r["id"]: r for r in rows if r.get("part") == 0 and r.get("kind") == "dictation" and "error" not in r}
     misheard = {d: [c for c in r["changes"] if c.get("verdict") == "misheard"] for d, r in dictations.items()}
     done = next((r for r in rows if r.get("kind") == "done"), {})
-    out: dict = {"cost": done.get("cost", 0.0), "stopped": done.get("stopped", False), "finished": bool(done),
+    # A harness that died before its last row still spent what its part 1 rows say.
+    spent = done.get("cost", sum(r.get("cost") or 0.0 for r in rows if r.get("part") == 1 and "arm" in r))
+    out: dict = {"cost": spent, "stopped": done.get("stopped", False), "finished": bool(done),
                  "setup": next(({k: r.get(k) for k in ("setup", "prompt", "polish", "fellBack")} for r in rows if r.get("kind") == "setup"), None),
                  "dictations": len(dictations), "mishearings": sum(len(v) for v in misheard.values()),
                  "changes": sum(len(r["changes"]) for r in dictations.values()), "parts": {}}
@@ -479,24 +495,28 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
     p1 = [r for r in rows if r.get("part") == 1 and "arm" in r]
     if p1 or any(r.get("part") == 1 for r in rows):
         arms = {}
+        # Only whole rounds count toward fixed and word errors: one cut short by the cost cap would drag the mean down.
+        trials = {(r["round"], r["id"], r["arm"]) for r in p1}
+        ran_ids = {r["id"] for r in p1 if r["id"] in dictations}
+        whole = {rnd for rnd in {t[0] for t in trials} if all((rnd, d, a) in trials for d in ran_ids for a in ARMS)}
         for arm in ARMS:
             fixed_by_round, wer_by_round, secs, errors = {}, {}, [], 0
             for r in (r for r in p1 if r["arm"] == arm):
                 d = dictations.get(r["id"])
-                if d is None:
+                errors += d is not None and bool(r.get("error"))
+                if d is not None and not r.get("error"):
+                    secs.append(r["seconds"])
+                if d is None or r["round"] not in whole:
                     continue
                 fixed_by_round.setdefault(r["round"], 0)
-                fixed_by_round[r["round"]] += sum(is_fixed(r["output"], d["target"], c["new"]) for c in misheard[r["id"]])
+                fixed_by_round[r["round"]] += fixed_count(r["output"], d["target"], misheard[r["id"]])
                 wer_by_round.setdefault(r["round"], []).append(word_errors(d["target"], r["output"]))
-                errors += bool(r.get("error"))
-                if not r.get("error"):
-                    secs.append(r["seconds"])
             arms[arm] = {"fixed": _spread(list(fixed_by_round.values())), "word_errors": _spread([statistics.fmean(v) for v in wer_by_round.values()]),
                          "rounds": len(fixed_by_round), "errors": errors, "seconds": _wait(secs)}
         ran = {r["id"] for r in p1}
         skipped = next((r.get("reason") for r in rows if r.get("part") == 1 and r.get("kind") == "skipped"), None)
         out["parts"][1] = {"of": sum(len(misheard[d]) for d in ran if d in misheard), "dictations": len(ran), "arms": arms,
-                           "calls": len(p1), "skipped": skipped}
+                           "calls": len(p1), "skipped": skipped, "wholeRounds": len(whole)}
 
     # Part 2: per arm, mishearings right in the transcript, and after the arm's replacement; seconds.
     p2 = [r for r in rows if r.get("part") == 2]
@@ -507,8 +527,8 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
         for arm in SPEECH_ARMS:
             sel = [r for r in runs if r["arm"] == arm and r["id"] in dictations]
             ok = [r for r in sel if not r.get("error")]
-            arms[arm] = {"transcript": sum(is_fixed(r["transcript"], dictations[r["id"]]["target"], c["new"]) for r in ok for c in misheard[r["id"]]),
-                         "replaced": sum(is_fixed(r["replaced"], dictations[r["id"]]["target"], c["new"]) for r in ok for c in misheard[r["id"]]),
+            arms[arm] = {"transcript": sum(fixed_count(r["transcript"], dictations[r["id"]]["target"], misheard[r["id"]]) for r in ok),
+                         "replaced": sum(fixed_count(r["replaced"], dictations[r["id"]]["target"], misheard[r["id"]]) for r in ok),
                          "errors": len(sel) - len(ok), "seconds": _wait([r["seconds"] for r in ok])}
         clips = {r["id"] for r in runs}
         out["parts"][2] = {"skipped": skipped, "clips": len(clips), "of": sum(len(misheard.get(d, [])) for d in clips), "arms": arms}
@@ -619,7 +639,7 @@ def report_text(result: dict, markdown: bool = False) -> str:
     if 1 in p or "1" in p:
         v = p.get(1) or p.get("1")
         lines += ["", f"Part 1, mishearings fixed (setup {setup.get('setup')}, prompt {setup.get('prompt')}, {setup.get('polish')}"
-                  f"{'; yours polishes on this Mac' if setup.get('fellBack') else ''}): of {v['of']} in {v['dictations']} dictations"]
+                  f"{'; yours polishes on this Mac' if setup.get('fellBack') or cfg.get('setupFellBack') else ''}): of {v['of']} in {v['dictations']} dictations"]
         if v.get("skipped"):
             lines.append(f"  skipped: {v['skipped']}")
         rows = [[arm, _range(a["fixed"]), _range(a["word_errors"], pct=True), a["rounds"], a["errors"] or "",
@@ -653,7 +673,8 @@ def report_text(result: dict, markdown: bool = False) -> str:
                 lines += [f"  {label}, seconds (change vs off):", harness.table(["arm", "p50", "p95", "p50 change", "p95 change"], rows, markdown)]
     if 5 in p or "5" in p:
         v = p.get(5) or p.get("5")
-        lines += ["", f"Part 5, what learns: of the {v['added']} terms you added and {v['dismissed']} you dismissed, the share each "
+        lines += ["", f"Part 5, what learns: of the {v['added']} terms added (by you, or learned after {v['learnAfter']} dictations: "
+                  f"the file doesn't tell them apart) and {v['dismissed']} you dismissed, the share each "
                   f"method proposes (would learn: seen in {v['learnAfter']}+ dictations)"]
         def frac(a: int, b: int) -> str:
             return f"{a}/{b}" + (f" ({100 * a / b:.0f}%)" if b else "")
@@ -780,7 +801,8 @@ def cmd_run(args, harness_run=run_harness) -> int:
         rows = read_rows(out_path)
         summary = score(rows, load(folder / "edit-watch.json", {}), load(folder / "vocabulary.json", {}), args.learn_after)
         config = {k: v for k, v in job.items() if k not in ("dictations", "polish", "speech", "history", "vocabulary", "learnedPrompts", "setups")}
-        config |= {"rounds": rounds, "seed": args.seed, "limit": args.limit, "estimate": plan, "harnessExit": code}
+        config |= {"rounds": rounds, "seed": args.seed, "limit": args.limit, "estimate": plan, "harnessExit": code,
+                   "setupAsked": setup["asked"], "setupFellBack": setup["fellBack"]}
         result = {"suite": NAME, "run_at": started.isoformat(timespec="seconds"), "env": harness.environment(), "config": config,
                   "summary": summary, "rows": rows}
         saved = Path(args.out) if args.out else RESULTS

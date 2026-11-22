@@ -44,6 +44,14 @@ def test_a_mishearing_is_fixed_by_whole_words_in_your_case():
     assert h.is_fixed("Claude, Claude", "Claude and Claude", "Claude")
 
 
+def test_mishearings_wanting_the_same_word_count_one_by_one():
+    two = [{"new": "Claude"}, {"new": "Claude"}]
+    assert h.fixed_count("Claude and cloud", "Claude and Claude", two) == 1, "one of two fixed"
+    assert h.fixed_count("Claude and Claude", "Claude and Claude", two) == 2
+    assert h.fixed_count("Claude and cloud", "Claude and Claude, Claude", two) == 0, "the fix had one more already"
+    assert h.fixed_count("Ask Claude", "Ask Claude", [{"new": "Claude"}]) == 1
+
+
 def test_chinese_words_are_characters():
     """Chinese has no spaces: as FixIntake splits it, each character is a word, so a Chinese term counts
     wherever its characters stand in a row, and a Latin term next to Chinese is still whole."""
@@ -292,3 +300,5 @@ def test_a_stopped_run_says_so(monkeypatch, capsys, tmp_path):
     assert result["summary"]["stopped"]
     assert "stopped sending at the cost cap" in h.report_text(result)
     assert sum(1 for r in result["rows"] if r.get("part") == 1 and "arm" in r) == 5, "the rows so far are kept"
+    assert result["summary"]["parts"]["1"]["wholeRounds"] == 0, "a round cut short isn't scored"
+    assert result["summary"]["cost"] == pytest.approx(0.005)

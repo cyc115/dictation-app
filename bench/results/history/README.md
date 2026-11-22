@@ -23,7 +23,10 @@ text and are git-ignored; never `git add -f` one.
 - **Arms.** *off*: no vocabulary. *terms only* (part 1): the terms block in polish, no replacement
   before or after. *again*: your vocabulary as it is (circular: a term learned from a dictation is
   tested on it). *held out*: without the variants and learned entries whose only source is the
-  dictation under test (entries you typed stay; a variant with no candidate stays).
+  dictation under test (entries you typed stay; a variant with no candidate stays). It keeps an
+  entry or variant this dictation helped teach along with others, even one it tipped over the
+  3-dictation line, so it leans toward *again*: read it as an upper bound for "helps on other
+  dictations".
 - **Part 1** polishes with the main model only (no backup model, no deadline), so its wait is the
   model's own; a failed call scores what the app would paste (the replaced transcript) and counts
   as an error. 3 rounds, arms back to back per dictation in a seeded order; mean and range.
@@ -40,8 +43,9 @@ text and are git-ignored; never `git add -f` one.
   the shipped app.
 - **Part 5**: *rules* is `CandidateTally.support` with every verdict taken off; *judge* is the
   verdicts as they are (an unjudged change waits). *Proposed*: the term is a candidate; *learns*: seen
-  in 3+ dictations. Compared with your candidates marked added (by you or by the 3-dictation rule)
-  and dismissed.
+  in 3+ dictations. Compared with your candidates marked added and dismissed. `vocabulary.json`
+  doesn't say whether you added a term (Add now) or the 3-dictation rule did, so "added: learns" is
+  partly circular for the rules.
 - **Part 6** is tracker fidelity with synthesized keys (per change, last first: arrows, backspaces,
   the new text; a change is a run of differing characters), not how you edit. Fixes whose new text
   isn't ASCII would need an input method, which makes keystroke mode give up: counted apart.
