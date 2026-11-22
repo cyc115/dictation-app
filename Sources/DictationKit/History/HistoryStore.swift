@@ -20,6 +20,9 @@ struct HistoryEntry: Codable, Identifiable, Equatable {
     /// polish failed, or before these were saved). Settings → Show detailed analytics shows them.
     var transcribedBy: ModelAnswer?
     var polishedBy: ModelAnswer?
+    /// The correction as word changes (`FixIntake`), worked out when the app is idle
+    /// (`VocabularyIntake`); nil until then, and with no correction.
+    var intake: Intake?
 
     /// What polish was given: a test case's input.
     var input: String { raw ?? text }
@@ -158,6 +161,20 @@ final class HistoryStore: ObservableObject {
         } else {
             save()
         }
+    }
+
+    /// Saves intake worked out at idle (`VocabularyIntake`), one publish and one save for them all.
+    /// Each is kept only if it was worked out from the entry's correction as it is now (nil: only once
+    /// the correction is gone), so one typed on since is worked out again next time.
+    func setIntakes(_ intakes: [UUID: Intake?]) {
+        var copy = entries
+        for i in copy.indices {
+            guard let intake = intakes[copy[i].id], intake?.of == copy[i].correction, copy[i].intake != intake else { continue }
+            copy[i].intake = intake
+        }
+        guard copy != entries else { return }
+        entries = copy
+        save()
     }
 
     /// Writes an edit that's waiting for typing to pause (at quit).

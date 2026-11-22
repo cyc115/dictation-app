@@ -113,7 +113,7 @@ final class HistoryStoreTests: XCTestCase {
         try Data(#"[{"id":"7F1D7C55-0000-4000-8000-000000000001","date":"2026-10-07T07:00:00Z","text":"old","duration":1}]"#.utf8).write(to: url)
         let entry = try XCTUnwrap(HistoryStore(fileURL: url, defaults: makeDefaults(self)).entries.first)
         XCTAssertEqual(entry.text, "old")
-        XCTAssertNil(entry.raw); XCTAssertNil(entry.setup); XCTAssertNil(entry.correction)
+        XCTAssertNil(entry.raw); XCTAssertNil(entry.setup); XCTAssertNil(entry.correction); XCTAssertNil(entry.intake)
         XCTAssertEqual(entry.input, "old", "no raw: the text stands in for it")
     }
 
@@ -158,6 +158,33 @@ final class HistoryStoreTests: XCTestCase {
         store.setCorrection("  \n", for: id)
         XCTAssertTrue(store.corrections.isEmpty, "emptied: no correction")
         XCTAssertNil(HistoryStore(fileURL: url, defaults: defaults).entries[1].correction)
+    }
+
+    /// The pass that works out intake (`VocabularyIntake`) sets many at once: one publish, one save;
+    /// one worked out from a correction that has changed since is stale and not kept.
+    func testIntakesAreSetTogetherAndOnlyForTheirTarget() throws {
+        let url = makeTempURL(self), defaults = makeDefaults(self)
+        let store = HistoryStore(fileURL: url, defaults: defaults)
+        store.add(text: "I use cloud.", duration: 1); store.add(text: "Cloud Code", duration: 1); store.add(text: "fine", duration: 1)
+        let (fine, code, cloud) = (store.entries[0].id, store.entries[1].id, store.entries[2].id)
+        store.setCorrection("I use Claude.", for: cloud)
+        store.setCorrection("Claude Code", for: code)
+        var published = 0
+        let watching = store.objectWillChange.sink { _ in published += 1 }
+        defer { watching.cancel() }
+        store.setIntakes([cloud: FixIntake.intake(of: "I use cloud.", target: "I use Claude."),
+                          code: FixIntake.intake(of: "Cloud Code", target: "Claude Cod"),  // typed on since
+                          fine: nil])
+        XCTAssertEqual(published, 1)
+        let saved = HistoryStore(fileURL: url, defaults: defaults).entries
+        XCTAssertEqual(saved.first { $0.id == cloud }?.intake?.changes, [WordChange(old: "cloud", new: "Claude")])
+        XCTAssertNil(saved.first { $0.id == code }?.intake, "stale: worked out again at the next pass")
+
+        store.setIntakes([fine: nil])
+        XCTAssertEqual(published, 1, "nothing changed: no publish")
+        store.setCorrection("", for: cloud)
+        store.setIntakes([cloud: nil])
+        XCTAssertNil(store.entries.first { $0.id == cloud }?.intake, "the correction is gone, and its intake with it")
     }
 
     func testRetentionNeverPrunesCorrections() throws {
