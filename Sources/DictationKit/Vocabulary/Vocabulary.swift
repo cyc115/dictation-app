@@ -281,9 +281,13 @@ struct Vocabulary {
 
     /// Identifies the enabled terms and variants (not their uses), so a measurement made with other
     /// ones is known to be stale; nil with none.
-    var fingerprint: String? {
-        guard !entries.isEmpty else { return nil }
-        let lines = entries.map { ([$0.term] + $0.heardAs.sorted()).joined(separator: "\t") }.sorted()
+    var fingerprint: String? { Self.fingerprint(of: entries) }
+
+    /// The enabled ones of `entries`, fingerprinted.
+    static func fingerprint(of entries: [VocabularyEntry]) -> String? {
+        let enabled = entries.filter { $0.enabled && !$0.term.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard !enabled.isEmpty else { return nil }
+        let lines = enabled.map { ([$0.term] + $0.heardAs.sorted()).joined(separator: "\t") }.sorted()
         let digest = SHA256.hash(data: Data(lines.joined(separator: "\n").utf8))
         return digest.prefix(8).map { String(format: "%02x", $0) }.joined()
     }

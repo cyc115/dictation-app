@@ -23,7 +23,7 @@ struct SettingsView: View {
             AudioSection(settings: settings, microphones: microphones)
             ShortcutsSection(settings: settings)
             CommandsSection(settings: settings, onShowCommands: onShowCommands)
-            PolishSection(settings: settings)
+            PolishSection(settings: settings, vocabulary: services.vocabulary)
             HistorySection(settings: settings, history: services.history, archive: services.archive)
             UpdatesSection(updates: services.updates)
             ExperimentalSection(settings: settings)

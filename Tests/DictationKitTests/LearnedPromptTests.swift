@@ -49,13 +49,13 @@ final class LearnedPromptStoreTests: XCTestCase {
     func testMeasurementsAreKeptPerSetupAndPrompt() {
         let url = makeTempURL(self, "learned-prompts.json")
         let store = LearnedPromptStore(fileURL: url)
-        XCTAssertNil(store.measurement(setup: "cloud-flash", prompt: "v7"))
+        XCTAssertNil(store.measurement(setup: "cloud-flash", prompt: "v7", vocabulary: nil))
         let m = PromptMeasurement(setup: "cloud-flash", prompt: "v7", date: fixedDate(2026, 10, 13, 9, 0), mine: 65.1, general: 70.6, corrections: 15)
         store.record(m)
-        XCTAssertEqual(store.measurement(setup: "cloud-flash", prompt: "v7"), m)
-        XCTAssertNil(store.measurement(setup: "cloud-flash", prompt: "v8"))
-        XCTAssertNil(store.measurement(setup: "cloud-big", prompt: "v7"))
-        XCTAssertEqual(LearnedPromptStore(fileURL: url).measurement(setup: "cloud-flash", prompt: "v7"), m, "remembered")
+        XCTAssertEqual(store.measurement(setup: "cloud-flash", prompt: "v7", vocabulary: nil), m)
+        XCTAssertNil(store.measurement(setup: "cloud-flash", prompt: "v8", vocabulary: nil))
+        XCTAssertNil(store.measurement(setup: "cloud-big", prompt: "v7", vocabulary: nil))
+        XCTAssertEqual(LearnedPromptStore(fileURL: url).measurement(setup: "cloud-flash", prompt: "v7", vocabulary: nil), m, "remembered")
     }
 
     func testActivateRevertsAndReChooses() {
@@ -91,7 +91,7 @@ final class LearnedPromptStoreTests: XCTestCase {
 
         let cloud = try XCTUnwrap(settings.setup.polishBackend(apiKey: "sk-or-v1-test", vocabulary: .none, onDevice: { _, _ in FakePolish() }) as? OpenRouterPolish)
         XCTAssertEqual(cloud.instructions, "Learned prompt.", "dictation polishes with it")
-        let suggester = try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: settings.setup) as? OpenRouterPolish)
+        let suggester = try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: settings.setup, vocabulary: .none) as? OpenRouterPolish)
         XCTAssertEqual(suggester.instructions, "Learned prompt.", "so do correction suggestions")
 
         store.activate(nil, for: "cloud-flash")

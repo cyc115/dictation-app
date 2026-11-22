@@ -31,12 +31,16 @@ final class AppServices {
         self.commands = commands
         suggester = CorrectionSuggester(backend: { [weak settings] in
             settings.flatMap { s in
-                s.openRouterKey.flatMap { CorrectionSuggester.backend(apiKey: $0, setup: s.setup, model: s.correctionModel) }
+                s.openRouterKey.flatMap { key in
+                    vocabulary.reloadIfChanged()
+                    return CorrectionSuggester.backend(apiKey: key, setup: s.setup, model: s.correctionModel,
+                                                       vocabulary: vocabulary.vocabulary(enabled: s.vocabularyEnabled))
+                }
             }
         }, modelName: { [weak settings] in CorrectionSuggester.modelID(settings?.correctionModel ?? "") })
         // Made on the main thread, like every other user of these (launch, tests).
         learn = MainActor.assumeIsolated {
-            LearnController(settings: settings, history: history, store: settings.learned, general: general)
+            LearnController(settings: settings, history: history, store: settings.learned, vocabulary: vocabulary, general: general)
         }
     }
 

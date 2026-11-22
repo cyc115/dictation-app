@@ -323,7 +323,7 @@ final class PromptTunerTests: XCTestCase {
         let key = try liveOpenRouterKey()
         let general = try XCTUnwrap(GeneralCase.loadAll(from: benchFolder)).filter { ["en-correction-time", "zh-correction-name"].contains($0.id) }
         XCTAssertFalse(general.isEmpty)
-        let tuner = try XCTUnwrap(LearnController.appTuner(setup: .cloudFlash, apiKey: key, general: general))
+        let tuner = try XCTUnwrap(LearnController.appTuner(setup: .cloudFlash, apiKey: key, general: general, vocabulary: .none))
         let example = (input: "can you install cloud code", wrote: "Can you install Cloud Code?", wanted: "Can you install Claude Code?")
         let answer = try await tuner.teacher(PromptTuner.teacherSystem,
                                              PromptTuner.teacherMessage(prompt: PolishPrompt.v4, lens: .rules, examples: [example]))

@@ -34,10 +34,12 @@ final class CorrectionSuggester: ObservableObject {
     static var off: CorrectionSuggester { CorrectionSuggester { nil } }
 
     /// `model` (an OpenRouter model id; blank is the default) with the AI polish prompt of the setup
-    /// chosen in Settings, so it polishes the way the app does.
-    static func backend(apiKey: String, setup: DictationSetup, model: String = defaultModel) -> PolishBackend? {
-        apiKey.isEmpty ? nil : DictationSetup.polishBackend(spec: "openrouter:" + modelID(model), apiKey: apiKey,
-                                                            instructions: setup.promptText, wrap: setup.wrap)
+    /// chosen in Settings and your vocabulary, so it polishes the way the app does.
+    static func backend(apiKey: String, setup: DictationSetup, model: String = defaultModel, vocabulary: Vocabulary) -> PolishBackend? {
+        guard !apiKey.isEmpty, let backend = DictationSetup.polishBackend(spec: "openrouter:" + modelID(model), apiKey: apiKey,
+                                                                          instructions: setup.instructions(vocabulary), wrap: setup.wrap)
+        else { return nil }
+        return VocabularyPolish.wrap(backend, vocabulary)
     }
 
     /// The model id as typed, trimmed; the default when blank.

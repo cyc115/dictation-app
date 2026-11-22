@@ -10,6 +10,7 @@ struct LearnFixture {
     let settings: AppSettings
     let history: HistoryStore
     let store: LearnedPromptStore
+    let vocabulary: VocabularyStore
     let teacher = PromptTunerTests.FakeTeacher()
     let log = EventLog()
     let controller: LearnController
@@ -19,6 +20,7 @@ struct LearnFixture {
          generalFails: [Lens: Set<String>] = [:], right: [Lens: Set<String>]? = nil, studentError: PolishError? = nil,
          studentDelay: TimeInterval = 0) {
         store = LearnedPromptStore(fileURL: makeTempURL(test, "learned-prompts.json"))
+        vocabulary = makeVocabulary(test)
         settings = makeSettings(test, learned: store)
         if key { settings.setOpenRouterKey("sk-or-v1-test") }
         settings.setup = settings.setups.first { $0.id == setup.id }!
@@ -45,7 +47,7 @@ struct LearnFixture {
                                                       with: "- Convert Traditional Chinese characters to Simplified.\n- Terms you use: Claude (never Cloud), Codex. LENS:\(lens.rawValue)")
             return "<prompt>\n\(edited)\n</prompt>"
         }
-        controller = LearnController(settings: settings, history: history, store: store, general: general) { _, _ in
+        controller = LearnController(settings: settings, history: history, store: store, vocabulary: vocabulary, general: general) { _, _, _ in
             PromptTuner(student: { FakeStudent(instructions: $0, right: right, wanted: wanted, generalFails: generalFails, log: log, error: studentError, delay: studentDelay) },
                         teacher: teacher.call, general: general, repeats: 1)
         }
@@ -83,7 +85,7 @@ final class LearnUITests: XCTestCase {
 
     func testTheTileMeasuresTheCurrentPromptWhenItHasNothingToShow() {
         let fx = LearnFixture(self, studentDelay: 0.3)
-        XCTAssertNil(fx.store.measurement(setup: "cloud-flash", prompt: "v7"))
+        XCTAssertNil(fx.store.measurement(setup: "cloud-flash", prompt: "v7", vocabulary: nil))
         let hosted = host(CorrectionsView(store: fx.history, learn: fx.controller), size: NSSize(width: 760, height: 600))
         hosted.settle()
         XCTAssertEqual(fx.controller.gate, .measuring)
@@ -91,7 +93,7 @@ final class LearnUITests: XCTestCase {
         XCTAssertEqual(hosted.element(id: "learn.status")?.value, "Measuring prompt v7 on your 10 corrections and the general test set")
         waitUntil(timeout: 5) { !fx.controller.measuring }
         hosted.settle()
-        let m = fx.store.measurement(setup: "cloud-flash", prompt: "v7")
+        let m = fx.store.measurement(setup: "cloud-flash", prompt: "v7", vocabulary: nil)
         XCTAssertEqual(m?.mine ?? 0, 83.3, accuracy: 0.1)
         XCTAssertEqual(m?.general, 100)
         XCTAssertEqual(m?.corrections, 10)
@@ -109,7 +111,7 @@ final class LearnUITests: XCTestCase {
 
         let few = LearnFixture(self, count: 7)
         _ = few.host(self)
-        XCTAssertNil(few.store.measurement(setup: "cloud-flash", prompt: "v7"), "below the minimum: not measured")
+        XCTAssertNil(few.store.measurement(setup: "cloud-flash", prompt: "v7", vocabulary: nil), "below the minimum: not measured")
         XCTAssertEqual(few.controller.gate, .needMore(have: 7))
     }
 

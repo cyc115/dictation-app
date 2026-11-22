@@ -120,18 +120,18 @@ final class CorrectionsUITests: XCTestCase {
     }
 
     func testSuggestionUsesTheChosenSetupsPrompt() throws {
-        let model = try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: otherCloudSetup) as? OpenRouterPolish)
+        let model = try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: otherCloudSetup, vocabulary: .none) as? OpenRouterPolish)
         XCTAssertEqual(model.model, "openai/gpt-6.1-sol-pro", "the default model")
         XCTAssertEqual(model.instructions, otherCloudSetup.promptText)
         XCTAssertEqual(model.wrap, otherCloudSetup.wrap)
-        XCTAssertNil(CorrectionSuggester.backend(apiKey: "", setup: .cloudFlash), "no key, no suggestion")
+        XCTAssertNil(CorrectionSuggester.backend(apiKey: "", setup: .cloudFlash, vocabulary: .none), "no key, no suggestion")
     }
 
     func testSuggestionModelIsASettingWithThinkingOff() throws {
         let settings = makeServices(self).settings
         XCTAssertEqual(settings.correctionModel, "openai/gpt-6.1-sol-pro", "the default")
         func backend(_ model: String) throws -> OpenRouterPolish {
-            try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: otherCloudSetup, model: model) as? OpenRouterPolish)
+            try XCTUnwrap(CorrectionSuggester.backend(apiKey: "k", setup: otherCloudSetup, model: model, vocabulary: .none) as? OpenRouterPolish)
         }
         XCTAssertEqual(try backend(" anthropic/claude-haiku-5.5 ").model, "anthropic/claude-haiku-5.5", "trimmed")
         XCTAssertEqual(try backend("  ").model, "openai/gpt-6.1-sol-pro", "blank is the default")

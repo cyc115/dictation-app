@@ -3,12 +3,19 @@ import Combine
 import SwiftUI
 
 /// The Learn tile's state: whether a tune can start, the one running, its result, and Keep/Discard.
-/// Reads Settings (the setup to tune), History (the corrections) and the learned prompts; forwards
-/// their changes so one `@ObservedObject` is enough for the tile.
+/// Reads Settings (the setup to tune), History (the corrections), the learned prompts and your
+/// vocabulary; forwards their changes so one `@ObservedObject` is enough for the tile.
+///
+/// A tune runs with your vocabulary as a dictation does (replaced transcripts, the student told the
+/// terms, its answers replaced), one snapshot for the whole tune, but the prompt the teacher rewrites
+/// never holds the list: it would copy it into the kept prompt.
 @MainActor
 final class LearnController: ObservableObject {
     /// Corrections needed before the first tune.
     static let minimum = 10
+    /// Fixes a tune takes at most, newest first: it makes 16 teacher calls that each carry nearly
+    /// every unlearned fix, and about 8 student calls per fix.
+    static let maxFixes = 60
     /// The teacher: Claude Sonnet 5.5, thinking at medium effort. In the Oct 14 bake-off
     /// (bench/results/polish/README.md) it tuned as well as any teacher tried (+7 points on the
     /// corrections, general set held) in 45 s, against 94 s for GPT-6.1 Sol and 6–7 minutes for Qwen3.8
@@ -39,9 +46,10 @@ final class LearnController: ObservableObject {
     let settings: AppSettings
     let history: HistoryStore
     let store: LearnedPromptStore
+    let vocabulary: VocabularyStore
     let general: [GeneralCase]
-    /// The tuner for a setup and API key (nil: that setup can't be tuned). Tests inject fakes.
-    var makeTuner: (DictationSetup, String) -> PromptTuner?
+    /// The tuner for a setup, API key and vocabulary (nil: that setup can't be tuned). Tests inject fakes.
+    var makeTuner: (DictationSetup, String, Vocabulary) -> PromptTuner?
     var now: () -> Date = Date.init
 
     @Published private(set) var phase: TunePhase?
@@ -58,32 +66,54 @@ final class LearnController: ObservableObject {
     private var baseline: PromptMeasurement?
     private var started = Date()
     private var clock: Timer?
-    /// What the running tune was started with.
-    private var running: (setup: DictationSetup, cases: [TuneCase])?
+    /// What the running tune was started with (`vocabulary`: its snapshot's fingerprint).
+    private var running: (setup: DictationSetup, cases: [TuneCase], vocabulary: String?)?
     private var task: Task<Void, Never>?
     private var forwards: [AnyCancellable] = []
 
-    init(settings: AppSettings, history: HistoryStore, store: LearnedPromptStore, general: [GeneralCase],
-         makeTuner: ((DictationSetup, String) -> PromptTuner?)? = nil) {
+    init(settings: AppSettings, history: HistoryStore, store: LearnedPromptStore, vocabulary: VocabularyStore,
+         general: [GeneralCase], makeTuner: ((DictationSetup, String, Vocabulary) -> PromptTuner?)? = nil) {
         self.settings = settings
         self.history = history
         self.store = store
+        self.vocabulary = vocabulary
         self.general = general
-        self.makeTuner = makeTuner ?? { Self.appTuner(setup: $0, apiKey: $1, general: general) }
+        self.makeTuner = makeTuner ?? { Self.appTuner(setup: $0, apiKey: $1, general: general, vocabulary: $2) }
         for object in [settings.objectWillChange.eraseToAnyPublisher(), history.objectWillChange.eraseToAnyPublisher(),
-                       store.objectWillChange.eraseToAnyPublisher()] {
+                       store.objectWillChange.eraseToAnyPublisher(), vocabulary.objectWillChange.eraseToAnyPublisher()] {
             forwards.append(object.sink { [weak self] _ in self?.objectWillChange.send() })
         }
     }
 
-    /// The setup's polish model as student, `teacherModel` (thinking) as teacher.
-    nonisolated static func appTuner(setup: DictationSetup, apiKey: String, general: [GeneralCase]) -> PromptTuner? {
+    /// The setup's polish model as student (with the vocabulary), `teacherModel` (thinking) as teacher.
+    nonisolated static func appTuner(setup: DictationSetup, apiKey: String, general: [GeneralCase], vocabulary: Vocabulary) -> PromptTuner? {
         guard case .openRouter(let id, let providers) = ModelSpec(setup.polish) else { return nil }
-        let student: PromptTuner.Student = { OpenRouterPolish(model: id, apiKey: apiKey, instructions: $0, wrap: setup.wrap, provider: providers) }
+        let student = Self.student(vocabulary: vocabulary) {
+            OpenRouterPolish(model: id, apiKey: apiKey, instructions: $0, wrap: setup.wrap, provider: providers)
+        }
         let teacher: PromptTuner.Teacher = { system, user in
             try await OpenRouterPolish(model: teacherModel, apiKey: apiKey, instructions: system, wrap: false, reasoning: ["effort": "medium"]).polish(user)
         }
         return PromptTuner(student: student, teacher: teacher, general: general)
+    }
+
+    /// The student for a candidate prompt: `model` told the prompt plus the terms block
+    /// (`Vocabulary.instructions`), its input and answer replaced (`VocabularyPolish`). With no terms,
+    /// `model` with the prompt alone.
+    nonisolated static func student(vocabulary: Vocabulary, model: @escaping (String) -> PolishBackend) -> PromptTuner.Student {
+        { prompt in VocabularyPolish.wrap(model(vocabulary.instructions(prompt)), vocabulary) }
+    }
+
+    /// The vocabulary a tune would run with now (from memory; `learn()` re-reads the file first).
+    private var terms: Vocabulary { vocabulary.vocabulary(enabled: settings.vocabularyEnabled) }
+
+    /// What a tune is given: at most `maxFixes` corrections, newest first, each transcript with the
+    /// vocabulary replaced (what the student would be given in a dictation).
+    private func tuneCases(_ terms: Vocabulary) -> [TuneCase] {
+        corrections.sorted { $0.date > $1.date }.prefix(Self.maxFixes).map {
+            TuneCase(id: $0.id, input: terms.apply($0.input).text, wanted: $0.correction ?? $0.text,
+                     learned: store.isLearned($0.id, setup: setup.id))
+        }
     }
 
     var setup: DictationSetup { settings.setup }
@@ -104,10 +134,11 @@ final class LearnController: ObservableObject {
     /// The current prompt as measured (the tune's own baseline while it runs, else the stored one).
     var measured: PromptMeasurement? {
         if case .measured(let m)? = phase, let running {
-            return PromptMeasurement(setup: running.setup.id, prompt: running.setup.prompt, date: started, mine: m.mine, general: m.general, corrections: running.cases.count)
+            return PromptMeasurement(setup: running.setup.id, prompt: running.setup.prompt, date: started, mine: m.mine, general: m.general,
+                                     corrections: running.cases.count, vocabulary: running.vocabulary)
         }
         if phase != nil, let baseline { return baseline }
-        return store.measurement(setup: setup.id, prompt: setup.prompt)
+        return store.measurement(setup: setup.id, prompt: setup.prompt, vocabulary: vocabulary.fingerprint(enabled: settings.vocabularyEnabled))
     }
 
     /// The scores on the rings: the result's, else the active learned prompt's (learned on this setup),
@@ -130,10 +161,13 @@ final class LearnController: ObservableObject {
     }
 
     func learn() {
-        guard case .ready = gate, let key = settings.openRouterKey, let tuner = makeTuner(setup, key) else { return }
-        let setup = setup
-        let cases = corrections.map { TuneCase(id: $0.id, input: $0.input, wanted: $0.correction ?? $0.text, learned: store.isLearned($0.id, setup: setup.id)) }
-        running = (setup, cases)
+        guard case .ready = gate, let key = settings.openRouterKey else { return }
+        vocabulary.reloadIfChanged()
+        let terms = terms  // one snapshot for the whole tune: a term added meanwhile can't shift the baseline
+        guard let tuner = makeTuner(setup, key, terms) else { return }
+        let setup = setup, fingerprint = terms.fingerprint
+        let cases = tuneCases(terms)
+        running = (setup, cases, fingerprint)
         error = nil; result = nil; notice = nil
         phase = .reading
         sweep += 1
@@ -150,7 +184,8 @@ final class LearnController: ObservableObject {
                     Task { @MainActor in
                         guard let self else { return }
                         if case .measured(let m) = phase {
-                            self.baseline = PromptMeasurement(setup: setup.id, prompt: setup.prompt, date: self.now(), mine: m.mine, general: m.general, corrections: cases.count)
+                            self.baseline = PromptMeasurement(setup: setup.id, prompt: setup.prompt, date: self.now(), mine: m.mine, general: m.general,
+                                                              corrections: cases.count, vocabulary: fingerprint)
                             self.store.record(self.baseline!)
                         }
                         self.phase = phase
@@ -168,16 +203,19 @@ final class LearnController: ObservableObject {
     }
 
     /// Measures the current prompt when the tile has nothing to show for it yet (enough corrections,
-    /// a cloud setup, a key, no version learned on it and no stored measurement). Called when the tile appears.
+    /// a cloud setup, a key, no version learned on it and no measurement with this vocabulary).
+    /// Called when the tile appears.
     func measureIfNeeded() {
         switch gate {
         case .ready, .allLearned: break
         default: return
         }
-        guard store.scored(for: setup.id) == nil, store.measurement(setup: setup.id, prompt: setup.prompt) == nil,
-              let key = settings.openRouterKey, let tuner = makeTuner(setup, key) else { return }
+        vocabulary.reloadIfChanged()
+        let terms = terms, fingerprint = terms.fingerprint
+        guard store.scored(for: setup.id) == nil, store.measurement(setup: setup.id, prompt: setup.prompt, vocabulary: fingerprint) == nil,
+              let key = settings.openRouterKey, let tuner = makeTuner(setup, key, terms) else { return }
         let setup = setup
-        let cases = corrections.map { TuneCase(id: $0.id, input: $0.input, wanted: $0.correction ?? $0.text) }
+        let cases = tuneCases(terms).map { TuneCase(id: $0.id, input: $0.input, wanted: $0.wanted) }
         measuring = true
         error = nil; notice = nil
         task = Task { @MainActor [weak self] in
@@ -185,7 +223,7 @@ final class LearnController: ObservableObject {
             do {
                 let m = try await tuner.measure(cases: cases, prompt: setup.promptText)
                 self?.store.record(PromptMeasurement(setup: setup.id, prompt: setup.prompt, date: self?.now() ?? Date(),
-                                                     mine: m.mine, general: m.general, corrections: cases.count))
+                                                     mine: m.mine, general: m.general, corrections: cases.count, vocabulary: fingerprint))
             } catch is CancellationError {
             } catch {
                 self?.error = error.localizedDescription

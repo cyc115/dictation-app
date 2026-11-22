@@ -5,6 +5,8 @@ import SwiftUI
 struct PolishSection: View {
     @Environment(\.dateContext) private var dates
     @ObservedObject var settings: AppSettings
+    /// A measurement made with other terms is stale (`LearnedPromptStore.measurement`).
+    @ObservedObject var vocabulary: VocabularyStore
 
     private var builtInPrompt: String { settings.builtInPrompt(for: settings.setup) }
 
@@ -12,7 +14,8 @@ struct PolishSection: View {
     /// of a version learned from it).
     private var builtInScore: Int? {
         let setup = settings.setup.id, prompt = builtInPrompt
-        let measured = settings.learned.measurement(setup: setup, prompt: prompt)?.mine
+        let measured = settings.learned.measurement(setup: setup, prompt: prompt,
+                                                    vocabulary: vocabulary.fingerprint(enabled: settings.vocabularyEnabled))?.mine
             ?? settings.learned.versions(for: setup).last { $0.basedOn == prompt }?.score.mineBefore
         return measured.map { Int($0.rounded()) }
     }

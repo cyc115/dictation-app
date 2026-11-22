@@ -37,6 +37,9 @@ final class VocabularyStore: ObservableObject {
     /// The enabled entries, ready to apply; nothing when `enabled` (Use vocabulary) is off.
     func vocabulary(enabled: Bool) -> Vocabulary { enabled ? Vocabulary(entries) : .none }
 
+    /// `vocabulary(enabled:).fingerprint`, without building its matchers (views ask this).
+    func fingerprint(enabled: Bool) -> String? { enabled ? Vocabulary.fingerprint(of: entries) : nil }
+
     /// Re-reads the file if something else changed it.
     func reloadIfChanged() {
         if modified() != seen { load() }

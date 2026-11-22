@@ -43,6 +43,8 @@ struct PromptMeasurement: Codable, Equatable {
     var general: Double
     /// How many corrections it was measured on.
     var corrections: Int
+    /// The vocabulary it was measured with (`Vocabulary.fingerprint`); nil: none.
+    var vocabulary: String? = nil
 }
 
 /// The learned prompts, and which one each setup uses, in Application Support
@@ -109,7 +111,11 @@ final class LearnedPromptStore: ObservableObject {
         save()
     }
 
-    func measurement(setup: String, prompt: String) -> PromptMeasurement? { measurements["\(setup)|\(prompt)"] }
+    /// The prompt's measurement with this vocabulary (`Vocabulary.fingerprint`); one made with
+    /// another is stale, so nil (and re-measured).
+    func measurement(setup: String, prompt: String, vocabulary: String?) -> PromptMeasurement? {
+        measurements["\(setup)|\(prompt)"].flatMap { $0.vocabulary == vocabulary ? $0 : nil }
+    }
 
     func record(_ measurement: PromptMeasurement) {
         measurements["\(measurement.setup)|\(measurement.prompt)"] = measurement
