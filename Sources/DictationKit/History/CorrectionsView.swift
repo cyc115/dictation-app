@@ -3,7 +3,8 @@ import Combine
 import SwiftUI
 
 /// Dictations you corrected: what the app wrote, and what you wanted. Each one is a test case for
-/// AI polish (`bench/suite.py polish run --corrections`); they live on their History entries.
+/// AI polish (`bench/suite.py polish run --corrections`); they live on their History entries. Above
+/// them, *Waiting for you*: edits captured after a paste (*Learn from my edits*), for Accept or Dismiss.
 struct CorrectionsView: View {
     @ObservedObject var store: HistoryStore
     @ObservedObject var suggester: CorrectionSuggester = .off
@@ -25,7 +26,7 @@ struct CorrectionsView: View {
                 Text("Teach the app the way you speak.").foregroundStyle(.secondary)
             }
             if let learn { LearnView(controller: learn) }
-            if shown.isEmpty {
+            if shown.isEmpty && waiting.isEmpty {
                 Spacer()
                 Text(store.corrections.isEmpty
                      ? "No corrections yet. In History, click the pencil beside a dictation that came out wrong."
@@ -39,6 +40,9 @@ struct CorrectionsView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 12) {
+                            if !waiting.isEmpty {
+                                WaitingGroup(entries: waiting, onAccept: store.accept, onDismiss: store.dismiss)
+                            }
                             ForEach(shown) { entry in
                                 CorrectionCard(entry: entry, focused: $focused,
                                                suggesting: suggester.pending.contains(entry.id),
@@ -78,12 +82,92 @@ struct CorrectionsView: View {
 
     /// Corrections, plus the one you're typing in even while it's empty (emptied ones go when you leave them).
     private var shown: [HistoryEntry] {
+        store.entries.filter { entry in (entry.correction != nil || entry.id == focused) && matches(entry, entry.correction) }
+    }
+
+    /// Captured edits waiting for your Accept.
+    private var waiting: [HistoryEntry] {
+        store.entries.filter { $0.isWaiting && $0.id != focused && matches($0, $0.capture?.edited) }
+    }
+
+    private func matches(_ entry: HistoryEntry, _ fix: String?) -> Bool {
         let q = search.trimmingCharacters(in: .whitespaces)
-        return store.entries.filter { entry in
-            (entry.correction != nil || entry.id == focused)
-                && (q.isEmpty || entry.text.localizedCaseInsensitiveContains(q)
-                    || (entry.correction ?? "").localizedCaseInsensitiveContains(q))
+        return q.isEmpty || entry.text.localizedCaseInsensitiveContains(q) || (fix ?? "").localizedCaseInsensitiveContains(q)
+    }
+}
+
+/// *Waiting for you*: edits you made right after a paste. Accept makes one a correction (Learn trains
+/// on it); Dismiss drops it. Until then it trains nothing.
+struct WaitingGroup: View {
+    @Environment(\.dateContext) private var dates
+    let entries: [HistoryEntry]
+    let onAccept: (UUID) -> Void
+    let onDismiss: (UUID) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text("Waiting for you").font(.headline)
+                Text("\(entries.count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    .padding(.horizontal, 6).padding(.vertical, 1).background(.quaternary, in: Capsule())
+            }
+            Text("You edited these right after they were pasted. Accept the ones that are fixes, so Learn can learn from them.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(entries) { entry in card(entry) }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("corrections.waiting")
+    }
+
+    private func card(_ entry: HistoryEntry) -> some View {
+        let edited = entry.capture?.edited ?? ""
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Text(dates.string(entry.date, .dateTime.month(.abbreviated).day().hour().minute()))
+                if let app = entry.capture?.app, !app.isEmpty {
+                    Text(app).padding(.horizontal, 8).padding(.vertical, 1).background(.quaternary, in: Capsule())
+                }
+                Spacer()
+                Button("Dismiss") { onDismiss(entry.id) }
+                    .accessibilityIdentifier("corrections.dismiss")
+                Button("Accept") { onAccept(entry.id) }
+                    .accessibilityIdentifier("corrections.accept")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 14) {
+                Text(Self.marked(entry.text, WordDiff.changed(from: entry.text, to: edited), color: .orange))
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .padding(8)
+                    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 6))
+                    .accessibilityLabel("App wrote")
+                    .accessibilityValue(entry.text)
+                Text(Self.marked(edited, WordDiff.changed(from: edited, to: entry.text), color: .green))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .padding(8)
+                    .background(.background, in: RoundedRectangle(cornerRadius: 6))
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(.separator))
+                    .accessibilityLabel("You edited it to")
+                    .accessibilityValue(edited)
+            }
+        }
+        .padding(12)
+        .background(Color.accentColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("corrections.waitingCard")
+    }
+
+    /// `text` with the words at `ranges` in `color`.
+    static func marked(_ text: String, _ ranges: [Range<String.Index>], color: Color) -> AttributedString {
+        var marked = AttributedString(text)
+        for range in ranges {
+            guard let r = Range(range, in: marked) else { continue }
+            marked[r].backgroundColor = color.opacity(0.25)
+            marked[r].foregroundColor = color
+        }
+        return marked
     }
 }
 
@@ -119,6 +203,15 @@ struct CorrectionCard: View {
             HStack(spacing: 10) {
                 Text(dates.string(entry.date, .dateTime.month(.abbreviated).day().hour().minute()))
                 if let about { Text(about).padding(.horizontal, 8).padding(.vertical, 1).background(.quaternary, in: Capsule()) }
+                if entry.capture != nil {
+                    // From your edit after the paste (accepted, or phase 4's unreviewed `auto`), not typed here.
+                    Text("captured").font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6).padding(.vertical, 1)
+                        .overlay(Capsule().stroke(Color.accentColor.opacity(0.6)))
+                        .foregroundStyle(Color.accentColor)
+                        .help(entry.capture?.app.isEmpty == false ? "Captured from your edit in \(entry.capture!.app)" : "Captured from your edit")
+                        .accessibilityIdentifier("corrections.captured")
+                }
                 Spacer()
                 if let fit {
                     HStack(spacing: 5) {
@@ -211,12 +304,6 @@ struct CorrectionCard: View {
 
     /// What the app wrote, with the words you changed in orange.
     private var written: AttributedString {
-        var text = AttributedString(entry.text)
-        for range in WordDiff.changed(from: entry.text, to: draft) {
-            guard let r = Range(range, in: text) else { continue }
-            text[r].backgroundColor = .orange.opacity(0.25)
-            text[r].foregroundColor = .orange
-        }
-        return text
+        WaitingGroup.marked(entry.text, WordDiff.changed(from: entry.text, to: draft), color: .orange)
     }
 }

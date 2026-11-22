@@ -22,6 +22,25 @@ final class SettingsUITests: XCTestCase {
         }
     }
 
+    /// Learn from my edits: off by default, turned on here; once on, how the watcher fared in each app.
+    func testLearnFromMyEditsAndItsCountsPerApp() throws {
+        let defaults = makeDefaults(self)
+        let settings = makeSettings(self, defaults: defaults)
+        let services = makeServices(self, settings: settings)
+        services.editWatcher.stats.armed(in: "Slack")
+        services.editWatcher.stats.probeFailed(in: "Slack")
+        services.editWatcher.stats.armed(in: "Notes")
+        let hosted = hostSettings(services)
+        XCTAssertFalse(settings.learnFromEdits)
+        XCTAssertNil(hosted.element(id: "editStats.Slack"), "only while it's on")
+        XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "setting.Learn from my edits"))))
+        XCTAssertTrue(makeSettings(self, defaults: defaults).learnFromEdits, "saved")
+        hosted.settle()
+        XCTAssertNotNil(hosted.element(id: "editStats.Slack"))
+        XCTAssertNotNil(hosted.element(id: "editStats.Notes"))
+        XCTAssertTrue(hosted.allText.contains("Edits watched, by app"), hosted.allText)
+    }
+
     func testTogglesChangeAndPersistSettings() {
         let defaults = makeDefaults(self)
         let settings = makeSettings(self, defaults: defaults)

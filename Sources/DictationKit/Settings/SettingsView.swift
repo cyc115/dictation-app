@@ -27,7 +27,7 @@ struct SettingsView: View {
             ShortcutsSection(settings: settings)
             CommandsSection(settings: settings, onShowCommands: onShowCommands)
             PolishSection(settings: settings, vocabulary: services.vocabulary)
-            VocabularySection(settings: settings, onShowVocabulary: onShowVocabulary)
+            VocabularySection(settings: settings, editStats: services.editWatcher.stats, onShowVocabulary: onShowVocabulary)
             HistorySection(settings: settings, history: services.history, archive: services.archive)
             UpdatesSection(updates: services.updates)
             ExperimentalSection(settings: settings)

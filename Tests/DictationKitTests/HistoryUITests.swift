@@ -66,6 +66,49 @@ final class CorrectionsUITests: XCTestCase {
         XCTAssertEqual(store.corrections.count, 1, "opening it again doesn't make another")
     }
 
+    /// A captured edit waits above the corrections: Accept makes it one (with a "captured" badge),
+    /// Dismiss drops it.
+    func testWaitingForYouAcceptAndDismiss() throws {
+        let store = makeHistory(self)
+        for text in ["I use cloud code.", "Send it to Jon."] {
+            let id = try XCTUnwrap(store.add(text: text, duration: 1))
+            store.setCapture(Capture(edited: text.replacingOccurrences(of: "cloud code", with: "Claude Code")
+                .replacingOccurrences(of: "Jon", with: "John"), mode: .readback, app: "Slack"), for: id)
+        }
+        let hosted = host(CorrectionsView(store: store), size: NSSize(width: 760, height: 560))
+        XCTAssertNil(hosted.element(id: "corrections.empty"), "a waiting edit is something to show")
+        XCTAssertEqual(hosted.elements(id: "corrections.waitingCard").count, 2)
+        XCTAssertTrue(hosted.allText.contains("Waiting for you"), hosted.allText)
+        XCTAssertEqual(hosted.elements(id: "corrections.card").count, 0)
+
+        hosted.click(try XCTUnwrap(hosted.elements(id: "corrections.accept").first))
+        hosted.settle()
+        XCTAssertEqual(store.corrections.map(\.correction), ["Send it to John."], "the newest: accepted")
+        XCTAssertEqual(hosted.elements(id: "corrections.waitingCard").count, 1)
+        XCTAssertEqual(hosted.elements(id: "corrections.card").count, 1)
+        XCTAssertNotNil(hosted.element(id: "corrections.captured"))
+
+        hosted.click(try XCTUnwrap(hosted.element(id: "corrections.dismiss")))
+        hosted.settle()
+        XCTAssertNil(hosted.element(id: "corrections.waiting"))
+        XCTAssertEqual(store.entries.last?.capture?.state, .dismissed)
+        XCTAssertEqual(store.corrections.count, 1)
+    }
+
+    /// The pencil on a dictation whose edit is waiting opens it as it is, instead of starting over
+    /// from what the app wrote.
+    func testThePencilOnAWaitingEditOpensIt() throws {
+        let store = makeHistory(self)
+        let id = try XCTUnwrap(store.add(text: "I use cloud.", duration: 1))
+        store.setCapture(Capture(edited: "I use Claude.", mode: .keystrokes, app: "Notes"), for: id)
+        var opened: UUID?
+        let hosted = host(HistoryView(store: store, onCorrect: { opened = $0 }), size: NSSize(width: 760, height: 400))
+        hosted.click(try XCTUnwrap(hosted.element(id: "history.correct")))
+        XCTAssertEqual(opened, id)
+        XCTAssertNil(store.entries[0].correction)
+        XCTAssertTrue(store.entries[0].isWaiting)
+    }
+
     func testCardsShowBothSidesAndTypingSaves() throws {
         let store = makeHistory(self)
         store.add(text: "Can you install Cloud Code?", duration: 2, raw: "can you install cloud code", setup: "cloud-flash", prompt: "v3")

@@ -83,6 +83,18 @@ final class LearnUITests: XCTestCase {
         XCTAssertNil(readyHosted.element(id: "corrections.fit"), "no fit before any tune")
     }
 
+    /// Once captured edits train too, the tile says how many are yours and how many captured.
+    func testTheTileCountsCapturedFixes() throws {
+        let fx = LearnFixture(self, count: 12)
+        let hosted = fx.host(self)
+        XCTAssertNil(hosted.element(id: "learn.counts"), "all yours: nothing to say")
+        let id = try XCTUnwrap(fx.history.add(text: "cloud", duration: 1))
+        fx.history.setCapture(Capture(edited: "Claude", mode: .readback, app: "Slack"), for: id)
+        fx.history.accept(id)
+        hosted.settle()
+        XCTAssertTrue(hosted.allText.contains("12 yours · 1 captured"), hosted.allText)
+    }
+
     func testTheTileMeasuresTheCurrentPromptWhenItHasNothingToShow() {
         let fx = LearnFixture(self, studentDelay: 0.3)
         XCTAssertNil(fx.store.measurement(setup: "cloud-flash", prompt: "v7", vocabulary: nil))

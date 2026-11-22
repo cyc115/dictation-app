@@ -279,6 +279,20 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "corrections")
     }
 
+    /// *Waiting for you* above a captured correction you accepted.
+    func testCorrectionsWaiting() {
+        let url = makeTempURL(self)
+        var waiting = HistoryEntry(date: fixedDate(2026, 11, 22, 9, 41), text: "Can you ask cloud to review the GeForce now settings?", duration: 3)
+        waiting.capture = Capture(edited: "Can you ask Claude to review the GeForce Now settings?", mode: .readback, app: "Slack")
+        var accepted = HistoryEntry(date: fixedDate(2026, 11, 21, 18, 5), text: "Send the deck to Jon tomorrow.", duration: 2, setup: "cloud-flash")
+        accepted.correction = "Send the deck to John tomorrow."
+        accepted.capture = Capture(edited: "Send the deck to John tomorrow.", mode: .keystrokes, app: "Mail", state: .accepted)
+        JSONFile.save([waiting, accepted], to: url)
+        let store = HistoryStore(fileURL: url, defaults: makeDefaults(self))
+        let hosted = host(CorrectionsView(store: store), size: NSSize(width: 760, height: 520))
+        assertSnapshot(of: hosted.hostingView, named: "corrections-waiting")
+    }
+
     /// The Learn tile at rest with a kept version: its scores on the rings, Learn ready for the new correction.
     @MainActor func testLearnReady() {
         let fx = LearnFixture(self, count: 3)
