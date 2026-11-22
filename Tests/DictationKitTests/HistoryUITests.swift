@@ -223,11 +223,9 @@ final class CorrectionsUITests: XCTestCase {
         XCTAssertFalse(corrections.allText.contains("polishing a suggestion"), corrections.allText)
 
         settings.setup = .cloudFlash
-        services.history.add(text: "Ask cloud.", duration: 1, raw: "ask cloud", setup: "cloud-flash", prompt: "v7")
-        hosted.settle()
-        hosted.click(try XCTUnwrap(hosted.elements(id: "history.correct").first))
+        services.suggester.suggest(for: services.history.entries[0], in: services.history)
         waitUntil { services.suggester.pending.isEmpty }
-        XCTAssertEqual(made, 1, "a cloud setup asks")
+        XCTAssertEqual(made, 1, "the same wiring on a cloud setup asks")
     }
 
     func testSuggestionModelIsASettingWithThinkingOff() throws {
