@@ -572,3 +572,49 @@ final class HistoryBenchTests: XCTestCase {
         try await bench.run()
     }
 }
+
+/// The app's seams the history bench runs through, each the code a dictation uses.
+final class HistoryBenchSeamTests: XCTestCase {
+    private let terms = Vocabulary([VocabularyEntry(term: "Claude", heardAs: ["cloud"], added: Date())])
+
+    /// Replaced before polish (so a failed polish still has the terms) and again after it.
+    func testRefineReplacesAroundPolish() async {
+        let polished = await DictationController.refine("ask cloud", terms: terms, polisher: PolishService(backend: FakePolish(output: "Ask cloud.")))
+        XCTAssertEqual(polished.text, "Ask Claude.")
+        XCTAssertEqual(polished.uses.values.reduce(0, +), 2, "once before, once after")
+        XCTAssertNil(polished.error)
+        let failed = await DictationController.refine("ask cloud", terms: terms,
+                                                      polisher: PolishService(backend: FakePolish(error: .failed("down"))))
+        XCTAssertEqual(failed.text, "ask Claude")
+        XCTAssertEqual(failed.error, "down")
+        let told = await DictationController.refine("ask cloud", terms: .none, polisher: PolishService(backend: FakePolish(output: "Ask cloud.")))
+        XCTAssertEqual(told.text, "Ask cloud.", "no terms: nothing replaced (the bench's terms-only arm)")
+    }
+
+    func testSpeechHintIsYourTermsOnlyWhenOnAndOnDevice() {
+        XCTAssertEqual(DictationController.speechHint(terms, setup: .onDevice, enabled: true), SpeechContext(words: ["Claude"]))
+        XCTAssertEqual(DictationController.speechHint(terms, setup: .onDevice, enabled: false), .none)
+        XCTAssertEqual(DictationController.speechHint(terms, setup: .cloudFlash, enabled: true), .none, "cloud speech takes no prompt")
+        XCTAssertEqual(DictationController.speechHint(.none, setup: .onDevice, enabled: true), .none)
+    }
+
+    /// The cloud polish backend is called through the session it's given.
+    func testPolishBackendTakesASession() async throws {
+        let session = StubURLProtocol.session()
+        StubURLProtocol.respond = { _ in .success((200, #"{"choices":[{"message":{"content":"Hi."}}]}"#)) }
+        let backend = DictationSetup.cloudFlash.polishBackend(apiKey: "k", vocabulary: terms, onDevice: { _, _ in FakePolish() }, session: session)
+        let answer = try await backend.polish("hi")
+        XCTAssertEqual(answer, "Hi.")
+        XCTAssertEqual(StubURLProtocol.sent.count, 1)
+    }
+
+    /// A heard standing in 3 dictations you didn't fix is ordinary, unless it stands there as the term itself.
+    func testOrdinaryIsTheCandidateGuard() {
+        let entries = ["the cloud", "a cloud", "cloud nine", "my remarkable", "Remarkable!", "remarkable"].map {
+            HistoryEntry(date: Date(), text: $0, duration: 1)
+        }
+        XCTAssertEqual(CandidateTally.ordinary([(heard: "cloud", term: "Claude"), (heard: "remarkable", term: "reMarkable"),
+                                                (heard: "nodes", term: "notes")], in: entries), [true, true, false])
+        XCTAssertEqual(CandidateTally.ordinary([(heard: "cloud", term: "Claude")], in: Array(entries.prefix(2))), [false])
+    }
+}

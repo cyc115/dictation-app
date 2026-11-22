@@ -17,7 +17,7 @@ def values(words, index=None):
 
 
 def test_suites_then_subcommands():
-    assert values([""]) == ("values", ["latency", "polish", "commands", "create", "edits", "accuracy", "list"])
+    assert values([""]) == ("values", ["latency", "polish", "commands", "create", "edits", "history", "accuracy", "list"])
     assert values(["edits", ""])[1] == ["run", "report", "cases"]
     assert values(["commands", ""])[1] == ["run", "report", "resources", "cases"]
     assert {"jev", "local:kev"} <= set(values(["commands", "run", "-m", ""])[1])
