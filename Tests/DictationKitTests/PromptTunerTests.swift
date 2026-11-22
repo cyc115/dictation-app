@@ -17,6 +17,9 @@ final class FakeStudent: PolishBackend {
     /// Seconds each call takes (so a test can see the tile mid-flight).
     let delay: TimeInterval
     var name = "FakeStudent"
+    /// Each call adds `usage` here once the tuner meters it (as `OpenRouterPolish` does).
+    var meter: UsageMeter?
+    static let usage = OpenRouter.Usage(calls: 1, prompt: 300, completion: 20, cost: 0.0001)
 
     init(instructions: String, right: [Lens: Set<String>], wanted: [String: String], generalFails: [Lens: Set<String>] = [:],
          log: EventLog? = nil, error: PolishError? = nil, delay: TimeInterval = 0) {
@@ -26,8 +29,11 @@ final class FakeStudent: PolishBackend {
 
     var lens: Lens? { Lens.allCases.first { instructions.contains("LENS:\($0.rawValue)") } }
 
+    func metered(by meter: UsageMeter) -> PolishBackend { self.meter = meter; return self }
+
     func polish(_ text: String) async throws -> String {
         log?.add("polish:\(lens?.rawValue ?? "current"):\(text)")
+        meter?.add(Self.usage)
         if delay > 0 { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
         if let error { throw error }
         if let w = wanted[text] {  // a correction
@@ -52,14 +58,56 @@ final class PromptTunerTests: XCTestCase {
     /// A teacher that returns the current prompt tagged with its lens, and remembers what it was shown.
     final class FakeTeacher {
         var inputs: [(system: String, user: String)] = []
+        var requests: [TeacherRequest] = []
         /// The answer for a lens, given the teacher's user message (which holds the current prompt).
         var answer: (Lens, String) -> String = { lens, _ in "<prompt>Clean it up. LENS:\(lens.rawValue)</prompt>" }
-        let lock = NSLock()
-        func call(_ system: String, _ user: String) async throws -> String {
-            lock.lock(); inputs.append((system, user)); lock.unlock()
-            let lens = Lens.allCases.first { user.hasSuffix($0.instruction) }!
-            return answer(lens, user)
+        /// What each call reports it used: a cache read for a fold's later lenses.
+        static func usage(_ request: TeacherRequest) -> OpenRouter.Usage {
+            OpenRouter.Usage(calls: 1, prompt: 8000, cached: request.cacheKey == nil ? 0 : 7000, completion: 600, reasoning: 400, cost: 0.01)
         }
+        let lock = NSLock()
+        func call(_ request: TeacherRequest) async throws -> TeacherAnswer {
+            lock.withLock { inputs.append((request.system, request.user)); requests.append(request) }
+            let lens = Lens.allCases.first { request.user.hasSuffix($0.instruction) }!
+            return TeacherAnswer(text: answer(lens, request.user), usage: Self.usage(request))
+        }
+    }
+
+    /// Records when each call starts and finishes. A fold's first call waits until every fold's first
+    /// call has started (or a second has passed), so the folds are seen running side by side.
+    final class OrderTeacher {
+        let folds: Int
+        var fail: ((TeacherRequest, Int) -> Error?) = { _, _ in nil }
+        private(set) var events: [(start: Bool, key: String?, lens: Lens)] = []
+        private var calls: [String: Int] = [:]
+        private let lock = NSLock()
+        init(folds: Int) { self.folds = folds }
+
+        func call(_ request: TeacherRequest) async throws -> TeacherAnswer {
+            let lens = Lens.allCases.first { request.user.hasSuffix($0.instruction) }!
+            let n: Int = lock.withLock {
+                events.append((true, request.cacheKey, lens))
+                guard let key = request.cacheKey else { return 0 }
+                calls[key, default: 0] += 1
+                return calls[key]!
+            }
+            if n == 1 {
+                let deadline = Date().addingTimeInterval(1)
+                while lock.withLock({ calls.count }) < folds, Date() < deadline { try await Task.sleep(nanoseconds: 1_000_000) }
+            }
+            defer { lock.withLock { events.append((false, request.cacheKey, lens)) } }
+            if let error = fail(request, n) { throw error }
+            return TeacherAnswer(text: "<prompt>Clean it up. LENS:\(lens.rawValue)</prompt>")
+        }
+    }
+
+    /// The teacher's message before caching split it, verbatim: the parts must join to exactly this.
+    static func todaysTeacherMessage(prompt: String, lens: Lens, examples: [(input: String, wrote: String, wanted: String)]) -> String {
+        var text = "Current prompt:\n<current>\n\(prompt)\n</current>\n\nCorrections:\n"
+        for (n, e) in examples.enumerated() {
+            text += "\n### Correction \(n + 1)\nTranscript:\n\(e.input)\nModel wrote:\n\(e.wrote)\nWanted:\n\(e.wanted)\n"
+        }
+        return text + "\nYour task: \(lens.instruction)"
     }
 
     func makeTuner(right: [Lens: Set<String>], generalFails: [Lens: Set<String>] = [:], acts: [Lens?: Set<String>] = [:], teacher: FakeTeacher,
@@ -238,6 +286,7 @@ final class PromptTunerTests: XCTestCase {
         let result = try await tuner.tune(cases: cases, prompt: "P") { _ in }
         XCTAssertEqual(result.lensScores[.rules], result.mineBefore, "scored as the current prompt")
         XCTAssertEqual(result.lens, .both)
+        XCTAssertEqual(teacher.inputs.count, 3 * 3 + 1, "rules is each fold's first lens: its failure still lets the other two run")
 
         teacher.answer = { _, _ in "no tags here" }
         do {
@@ -260,7 +309,7 @@ final class PromptTunerTests: XCTestCase {
             XCTAssertEqual(error.localizedDescription, "Polishing failed: HTTP 429")
         }
         let failing = PromptTuner(student: { FakeStudent(instructions: $0, right: [:], wanted: [:]) },
-                                  teacher: { _, _ in throw PolishError.failed("No credits.") }, general: [])
+                                  teacher: { _ in throw PolishError.failed("No credits.") }, general: [])
         do {
             _ = try await failing.tune(cases: cases, prompt: "P") { _ in }
             XCTFail("teacher failed")
@@ -287,6 +336,150 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertEqual(measured.general, 100)
         XCTAssertEqual(measured.errors, m.errorsBefore)
         XCTAssertEqual(teacher.inputs.count, 10, "measuring asks no teacher")
+    }
+
+    // MARK: Caching the teacher's shared part
+
+    let examples = [(input: "can you install cloud code", wrote: "Can you install Cloud Code?", wanted: "Can you install Claude Code?"),
+                    (input: "um send it", wrote: "Um, send it.", wanted: "Send it.")]
+
+    func testTheTeachersMessageIsTodaysSplitBeforeTheTask() {
+        for lens in Lens.allCases {
+            let request = PromptTuner.teacherRequest(prompt: "Clean it up.", lens: lens, examples: examples, cacheKey: "k")
+            XCTAssertEqual(request.user, Self.todaysTeacherMessage(prompt: "Clean it up.", lens: lens, examples: examples),
+                           "the teacher reads exactly what it read before caching")
+            XCTAssertEqual(request.prefix, PromptTuner.teacherRequest(prompt: "Clean it up.", lens: .rules, examples: examples).prefix,
+                           "the same for every lens: what a fold's calls can share")
+            XCTAssertEqual(request.task, "\nYour task: \(lens.instruction)")
+            XCTAssertEqual(request.system, PromptTuner.teacherSystem)
+            XCTAssertEqual(request.cacheKey, "k")
+        }
+    }
+
+    private func body(_ request: TeacherRequest, model: String) throws -> [String: Any] {
+        let urlRequest = PromptTuner.teacherURLRequest(request, model: model, apiKey: "k", reasoning: ["effort": "medium"])
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: urlRequest.httpBody!) as? [String: Any])
+    }
+
+    func testAnAnthropicTeacherCachesTheSharedPartAtAnExplicitBreakpoint() throws {
+        let lens = PromptTuner.teacherRequest(prompt: "P", lens: .examples, examples: examples, cacheKey: "learn-1-fold2")
+        let body = try body(lens, model: "anthropic/claude-sonnet-5.5")
+        let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+        XCTAssertEqual(messages[0]["role"] as? String, "system")
+        XCTAssertEqual(messages[0]["content"] as? String, PromptTuner.teacherSystem, "the system prompt stays plain (cached as the prefix)")
+        let parts = try XCTUnwrap(messages[1]["content"] as? [[String: Any]], "content parts")
+        XCTAssertEqual(parts.count, 2)
+        XCTAssertEqual(parts[0]["type"] as? String, "text")
+        XCTAssertEqual(parts[0]["text"] as? String, lens.prefix)
+        XCTAssertEqual(parts[0]["cache_control"] as? [String: String], ["type": "ephemeral"], "breakpoint after the shared part")
+        XCTAssertEqual(parts[1]["text"] as? String, lens.task)
+        XCTAssertNil(parts[1]["cache_control"], "the lens instruction comes after the breakpoint")
+        XCTAssertEqual(parts.compactMap { $0["text"] as? String }.joined(), lens.user)
+        XCTAssertEqual(body["session_id"] as? String, "learn-1-fold2", "a fold's calls stick to the provider that holds its cache")
+        XCTAssertEqual(body["model"] as? String, "anthropic/claude-sonnet-5.5")
+        XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "medium")
+        XCTAssertNil(body["cache_control"], "no top-level (automatic) caching: not every provider takes it")
+        XCTAssertNil(body["usage"], "usage comes with every response; the request field is deprecated")
+
+        let final = PromptTuner.teacherRequest(prompt: "P", lens: .both, examples: examples)
+        let finalBody = try self.body(final, model: "anthropic/claude-sonnet-5.5")
+        XCTAssertEqual((finalBody["messages"] as? [[String: Any]])?[1]["content"] as? String, final.user,
+                       "the final call shares nothing: a plain request, no cache write to pay for")
+        XCTAssertNil(finalBody["session_id"])
+    }
+
+    func testOtherTeachersGetAPlainRequest() throws {
+        let lens = PromptTuner.teacherRequest(prompt: "P", lens: .rules, examples: examples, cacheKey: "learn-1-fold1")
+        for model in ["openai/gpt-6.2-sol", "openai/gpt-6-luna", "google/gemini-3.8-flash"] {
+            let body = try body(lens, model: model)
+            let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+            XCTAssertEqual(messages[1]["content"] as? String, lens.user, "\(model): OpenAI and Gemini cache a repeated prefix on their own")
+            let text = String(data: try JSONSerialization.data(withJSONObject: body), encoding: .utf8)!
+            XCTAssertFalse(text.contains("cache_control"), model)
+            XCTAssertEqual(body["session_id"] as? String, "learn-1-fold1", "\(model): sticky routing helps implicit caches too")
+            XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "medium")
+        }
+    }
+
+    func testTheRealTeacherReturnsItsAnswerAndUsage() async throws {
+        let session = StubURLProtocol.session()
+        StubURLProtocol.respond = { _ in .success((200, OpenRouterPolishTests.usageReply)) }
+        let teacher = PromptTuner.openRouterTeacher(model: "anthropic/claude-sonnet-5.5", apiKey: "k", session: session)
+        let request = PromptTuner.teacherRequest(prompt: "P", lens: .rules, examples: examples, cacheKey: "learn-1-fold1")
+        let answer = try await teacher(request)
+        XCTAssertEqual(answer.text, "Hi.")
+        XCTAssertEqual(answer.usage?.cached, 8000)
+        XCTAssertEqual(answer.usage?.reasoning, 500)
+        let sent = try XCTUnwrap(StubURLProtocol.body(StubURLProtocol.sent[0]))
+        XCTAssertEqual(sent["session_id"] as? String, "learn-1-fold1")
+        XCTAssertEqual(StubURLProtocol.sent[0].value(forHTTPHeaderField: "HTTP-Referer"), "http://dictation-app.mac/")
+
+        StubURLProtocol.respond = { _ in .success((402, #"{"error":{"message":"No credits."}}"#)) }
+        do {
+            _ = try await teacher(request)
+            XCTFail("failed call")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "No credits.")
+        }
+    }
+
+    func testEachFoldWritesItsCacheFirstAndTheFoldsRunSideBySide() async throws {
+        let teacher = OrderTeacher(folds: 3)
+        let tuner = PromptTuner(student: { FakeStudent(instructions: $0, right: [:], wanted: self.wanted) },
+                                teacher: teacher.call, general: [], repeats: 1)
+        _ = try await tuner.tune(cases: cases, prompt: "P") { _ in }
+        let events = teacher.events
+        let keys = Set(events.compactMap(\.key))
+        XCTAssertEqual(keys.count, 3, "one cache key per fold")
+        for key in keys {
+            let fold = events.enumerated().filter { $0.element.key == key }
+            let starts = fold.filter { $0.element.start }, ends = fold.filter { !$0.element.start }
+            XCTAssertEqual(starts.count, 3, "three lenses per fold")
+            let first = starts[0]
+            let firstEnd = try XCTUnwrap(ends.first { $0.element.lens == first.element.lens })
+            XCTAssertTrue(starts.dropFirst().allSatisfy { $0.offset > firstEnd.offset },
+                          "\(key): the other two start once the first has written the cache")
+        }
+        let firstEnd = try XCTUnwrap(events.firstIndex { !$0.start })
+        XCTAssertEqual(events.prefix(firstEnd).filter(\.start).count, 3, "every fold's first call is in flight at once")
+        let final = events.enumerated().filter { $0.element.key == nil }
+        XCTAssertEqual(final.count, 2, "the final call: no cache key")
+        XCTAssertEqual(final.first?.offset, events.count - 2, "after the race")
+    }
+
+    func testAFailingFirstCallFailsTheTuneWithoutHanging() async throws {
+        let teacher = OrderTeacher(folds: 3)
+        teacher.fail = { request, n in n == 1 && request.cacheKey?.hasSuffix("fold2") == true ? PolishError.failed("HTTP 500") : nil }
+        let tuner = PromptTuner(student: { FakeStudent(instructions: $0, right: [:], wanted: self.wanted) },
+                                teacher: teacher.call, general: [], repeats: 1)
+        let outcome = await withTaskGroup(of: String.self) { group in
+            group.addTask {
+                do { _ = try await tuner.tune(cases: self.cases, prompt: "P") { _ in }; return "passed" }
+                catch let error as TuneError { return error == .teacher("HTTP 500") ? "teacher error" : "\(error)" }
+                catch { return "\(error)" }
+            }
+            group.addTask { try? await Task.sleep(nanoseconds: 10_000_000_000); return "hung" }
+            let first = await group.next()!
+            group.cancelAll()
+            return first
+        }
+        XCTAssertEqual(outcome, "teacher error", "as any teacher failure does: the tune stops and says why")
+    }
+
+    func testATuneReportsWhatTheTeacherAndTheStudentCost() async throws {
+        let teacher = FakeTeacher()
+        let tuner = makeTuner(right: [.both: Set(cases.map(\.input))], teacher: teacher)
+        let result = try await tuner.tune(cases: cases, prompt: "P") { _ in }
+        XCTAssertEqual(result.teacherUsage.calls, 10)
+        XCTAssertEqual(result.teacherUsage.cost, 0.1, accuracy: 1e-9)
+        XCTAssertEqual(result.teacherUsage.cached, 9 * 7000, "the fold calls; the final one has no cache key")
+        XCTAssertEqual(result.teacherUsage.reasoning, 4000)
+        XCTAssertEqual(result.studentUsage.calls, 20 + 60 + 8, "baseline, held-out and general-set calls, metered by the tuner")
+        XCTAssertEqual(result.studentUsage.cost, 88 * FakeStudent.usage.cost, accuracy: 1e-9)
+        let again = try await tuner.tune(cases: cases, prompt: "P") { _ in }
+        XCTAssertEqual(again.teacherUsage, result.teacherUsage, "each tune counts its own calls")
+        XCTAssertEqual(again.studentUsage, result.studentUsage)
+        XCTAssertEqual(tuner.teacherUsage.total().calls, 20, "the tuner's meter keeps every call")
     }
 
     func testFoldsAreStableAndDealUnlearnedFirst() {
@@ -325,8 +518,7 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertFalse(general.isEmpty)
         let tuner = try XCTUnwrap(LearnController.appTuner(setup: .cloudFlash, apiKey: key, general: general, vocabulary: .none))
         let example = (input: "can you install cloud code", wrote: "Can you install Cloud Code?", wanted: "Can you install Claude Code?")
-        let answer = try await tuner.teacher(PromptTuner.teacherSystem,
-                                             PromptTuner.teacherMessage(prompt: PolishPrompt.v4, lens: .rules, examples: [example]))
+        let answer = try await tuner.teacher(PromptTuner.teacherRequest(prompt: PolishPrompt.v4, lens: .rules, examples: [example])).text
         let prompt = try XCTUnwrap(PromptTuner.extractPrompt(answer), "the teacher answers inside <prompt> tags: \(answer.prefix(200))")
         XCTAssertTrue(prompt.contains("Output only"), "keeps the prompt's structure: \(prompt.suffix(80))")
         XCTAssertNotEqual(prompt, PolishPrompt.v4, "changed something")

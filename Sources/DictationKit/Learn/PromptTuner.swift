@@ -107,6 +107,27 @@ struct TuneResult: Equatable {
     var tokens: Int
     var verdict: Verdict
     var trace: [TuneTrace] = []
+    /// What this tune's teacher calls and student calls used and cost (OpenRouter's usage; zero for a
+    /// backend that doesn't report it).
+    var teacherUsage = OpenRouter.Usage()
+    var studentUsage = OpenRouter.Usage()
+}
+
+/// One teacher call. The user message is `prefix` (the current prompt and the corrections: the same
+/// for a fold's three lenses) then `task` (the lens's instruction), so the prefix can be cached.
+struct TeacherRequest: Equatable {
+    var system: String
+    var prefix: String
+    var task: String
+    /// A fold's lens calls carry one key per fold: they share `prefix`, so it's worth caching. Nil for
+    /// the final call, which shares nothing.
+    var cacheKey: String?
+    var user: String { prefix + task }
+}
+
+struct TeacherAnswer: Equatable {
+    var text: String
+    var usage: OpenRouter.Usage?
 }
 
 enum TuneError: LocalizedError, Equatable {
@@ -137,7 +158,7 @@ enum TuneError: LocalizedError, Equatable {
 /// that learned your corrections and forgot everything else.
 final class PromptTuner {
     typealias Student = (_ instructions: String) -> PolishBackend
-    typealias Teacher = (_ system: String, _ user: String) async throws -> String
+    typealias Teacher = (TeacherRequest) async throws -> TeacherAnswer
 
     /// A correction is learned when its held-out error is at most this.
     static let learnedError = 0.15
@@ -152,12 +173,16 @@ final class PromptTuner {
     let folds: Int
     let repeats: Int
     let seed: UInt64
-    /// Student calls in flight at most, over everything running; and teacher calls.
+    /// Student calls in flight at most, over everything running; and teacher calls (6: every fold's
+    /// two later lenses at once).
     private let students: Limiter
     private let teachers: Limiter
+    /// Every teacher and student call's usage, over this tuner's life (a tune reports its own share).
+    let teacherUsage = UsageMeter()
+    let studentUsage = UsageMeter()
 
     init(student: @escaping Student, teacher: @escaping Teacher, general: [GeneralCase],
-         folds: Int = 3, repeats: Int = 2, seed: UInt64 = 1, concurrency: Int = 6, teacherConcurrency: Int = 5) {
+         folds: Int = 3, repeats: Int = 2, seed: UInt64 = 1, concurrency: Int = 6, teacherConcurrency: Int = 6) {
         self.student = student
         self.teacher = teacher
         self.general = general
@@ -172,6 +197,7 @@ final class PromptTuner {
         let teachable = cases.filter { !$0.learned }
         guard !teachable.isEmpty else { throw TuneError.nothingToLearn }
         progress(.reading)
+        let (teacherMark, studentMark) = (teacherUsage.count, studentUsage.count)
 
         // Baseline: the current prompt on every correction (its outputs are what the teacher is
         // shown) and on the general set, so the rings show where it stands before the race.
@@ -202,7 +228,8 @@ final class PromptTuner {
                           errors: lensErrors[winner]!, errorsBefore: errorsBefore,
                           lensScores: scores, tokens: Self.tokenEstimate(final),
                           verdict: Self.verdict(before: before, after: after, mine: mine, mineBefore: mineBefore),
-                          trace: trace.sorted { ($0.fold, $0.lens.rawValue) < ($1.fold, $1.lens.rawValue) })
+                          trace: trace.sorted { ($0.fold, $0.lens.rawValue) < ($1.fold, $1.lens.rawValue) },
+                          teacherUsage: teacherUsage.total(from: teacherMark), studentUsage: studentUsage.total(from: studentMark))
     }
 
     /// Refused when the new prompt acts on a trap dictation the current one doesn't, gains under
@@ -214,37 +241,58 @@ final class PromptTuner {
         return .pass
     }
 
-    /// Every fold's three candidates at once: the teacher calls are the slow part (tens of seconds
-    /// each), so waiting for them fold by fold took minutes. The race reports a step per scored
-    /// correction, so the tile moves the whole time. Each lens's error per held-out case, and the trace.
+    /// Every fold at once: the teacher calls are the slow part (tens of seconds each), so waiting for
+    /// them fold by fold took minutes. Within a fold the first lens's call goes alone, writing the
+    /// provider's cache of the shared part (system, current prompt, corrections); the other two start
+    /// when it has finished, so they read it. The race reports a step per scored correction, so the
+    /// tile moves the whole time. Each lens's error per held-out case, and the trace.
     private func race(prompt: String, cases: [TuneCase], folded: [[TuneCase]], baseline: [UUID: Scored],
                       progress: @escaping (TunePhase) -> Void) async throws -> (errors: [Lens: [UUID: Double]], trace: [TuneTrace]) {
         let race = Race(of: cases.count, report: progress)
         race.report()
+        let tune = UUID().uuidString
         var lensErrors: [Lens: [UUID: Double]] = [:]
         var trace: [TuneTrace] = []
-        try await withThrowingTaskGroup(of: (Lens, [UUID: Double], TuneTrace).self) { group in
+        try await withThrowingTaskGroup(of: [(Lens, [UUID: Double], TuneTrace)].self) { group in
             for (f, heldOut) in folded.enumerated() {
                 let shown = cases.filter { c in !c.learned && !heldOut.contains { $0.id == c.id } }
-                for lens in Lens.allCases {
-                    group.addTask {
-                        race.writing(lens, +1)
-                        let text = try await self.candidate(prompt: prompt, lens: lens, examples: shown, baseline: baseline)
-                        race.writing(lens, -1)
-                        let scored: [UUID: Double]
-                        if let text {
-                            scored = try await self.errors(prompt: text, cases: heldOut) { race.scored(lens, $1) }.mapValues(\.error)
-                        } else {  // a failed candidate scores as the current prompt
-                            scored = Dictionary(uniqueKeysWithValues: heldOut.map { ($0.id, baseline[$0.id]!.error) })
-                            for error in scored.values { race.scored(lens, error) }
+                let key = "learn-\(tune)-fold\(f + 1)"
+                // One lens's candidate: written (nil if the teacher gave none), then scored on the held-out cases.
+                @Sendable func written(_ lens: Lens) async throws -> String? {
+                    let text = try await self.candidate(prompt: prompt, lens: lens, examples: shown, baseline: baseline, cacheKey: key)
+                    race.writing(lens, -1)
+                    return text
+                }
+                @Sendable func scored(_ lens: Lens, _ text: String?) async throws -> (Lens, [UUID: Double], TuneTrace) {
+                    let scored: [UUID: Double]
+                    if let text {
+                        scored = try await self.errors(prompt: text, cases: heldOut) { race.scored(lens, $1) }.mapValues(\.error)
+                    } else {  // a failed candidate scores as the current prompt
+                        scored = Dictionary(uniqueKeysWithValues: heldOut.map { ($0.id, baseline[$0.id]!.error) })
+                        for error in scored.values { race.scored(lens, error) }
+                    }
+                    return (lens, scored, TuneTrace(fold: f + 1, lens: lens, shown: shown.map(\.id), heldOut: heldOut.map(\.id)))
+                }
+                group.addTask {
+                    for lens in Lens.allCases { race.writing(lens, +1) }  // waiting for the cache counts as writing
+                    let first = Lens.allCases[0]
+                    let firstText = try await written(first)
+                    return try await withThrowingTaskGroup(of: (Lens, [UUID: Double], TuneTrace).self) { lenses in
+                        lenses.addTask { try await scored(first, firstText) }
+                        for lens in Lens.allCases.dropFirst() {
+                            lenses.addTask { try await scored(lens, written(lens)) }
                         }
-                        return (lens, scored, TuneTrace(fold: f + 1, lens: lens, shown: shown.map(\.id), heldOut: heldOut.map(\.id)))
+                        var results: [(Lens, [UUID: Double], TuneTrace)] = []
+                        for try await r in lenses { results.append(r) }
+                        return results
                     }
                 }
             }
-            for try await (lens, scored, t) in group {
-                lensErrors[lens, default: [:]].merge(scored) { _, new in new }
-                trace.append(t)
+            for try await results in group {
+                for (lens, scored, t) in results {
+                    lensErrors[lens, default: [:]].merge(scored) { _, new in new }
+                    trace.append(t)
+                }
             }
         }
         return (lensErrors, trace)
@@ -334,7 +382,7 @@ final class PromptTuner {
     /// Each case polished `repeats` times with `prompt`; the mean error, and the first output.
     /// `onCase` is called as each case's mean is in.
     func errors(prompt: String, cases: [TuneCase], onCase: ((UUID, Double) -> Void)? = nil) async throws -> [UUID: Scored] {
-        let backend = student(prompt)
+        let backend = student(prompt).metered(by: studentUsage)
         let jobs = cases.flatMap { c in (0..<repeats).map { (c, $0) } }
         let lock = NSLock()
         var scored: [UUID: Scored] = [:], counts: [UUID: Int] = [:]
@@ -368,7 +416,7 @@ final class PromptTuner {
     /// The general set with `prompt`: pass rate, and the trap floor.
     func guardScore(prompt: String) async throws -> GuardScore {
         guard !general.isEmpty else { return GuardScore(pass: 100, acted: 0) }
-        let backend = student(prompt)
+        let backend = student(prompt).metered(by: studentUsage)
         let jobs = general.map { ($0, 1) } + general.filter(\.isTrap).map { ($0, 2) }
         let results = try await withThrowingTaskGroup(of: (GeneralCase, Int, PolishScore.Check).self) { group in
             for (c, run) in jobs {
@@ -411,12 +459,14 @@ final class PromptTuner {
         Answer with the complete new prompt inside <prompt></prompt> tags and nothing else.
         """
 
-    static func teacherMessage(prompt: String, lens: Lens, examples: [(input: String, wrote: String, wanted: String)]) -> String {
-        var text = "Current prompt:\n<current>\n\(prompt)\n</current>\n\nCorrections:\n"
+    /// The teacher's call for `lens`: the current prompt and the corrections, then the lens's task.
+    static func teacherRequest(prompt: String, lens: Lens, examples: [(input: String, wrote: String, wanted: String)],
+                               cacheKey: String? = nil) -> TeacherRequest {
+        var shared = "Current prompt:\n<current>\n\(prompt)\n</current>\n\nCorrections:\n"
         for (n, e) in examples.enumerated() {
-            text += "\n### Correction \(n + 1)\nTranscript:\n\(e.input)\nModel wrote:\n\(e.wrote)\nWanted:\n\(e.wanted)\n"
+            shared += "\n### Correction \(n + 1)\nTranscript:\n\(e.input)\nModel wrote:\n\(e.wrote)\nWanted:\n\(e.wanted)\n"
         }
-        return text + "\nYour task: \(lens.instruction)"
+        return TeacherRequest(system: teacherSystem, prefix: shared, task: "\nYour task: \(lens.instruction)", cacheKey: cacheKey)
     }
 
     /// The prompt in the teacher's answer; nil if it gave none.
@@ -427,13 +477,16 @@ final class PromptTuner {
         return text.isEmpty ? nil : text
     }
 
-    private func candidate(prompt: String, lens: Lens, examples: [TuneCase], baseline: [UUID: Scored]) async throws -> String? {
+    /// `cacheKey`: a fold's lens call (nil: the final prompt).
+    private func candidate(prompt: String, lens: Lens, examples: [TuneCase], baseline: [UUID: Scored],
+                           cacheKey: String? = nil) async throws -> String? {
         let shown = examples.map { (input: $0.input, wrote: baseline[$0.id]?.output ?? "", wanted: $0.wanted) }
-        let message = Self.teacherMessage(prompt: prompt, lens: lens, examples: shown)
+        let request = Self.teacherRequest(prompt: prompt, lens: lens, examples: shown, cacheKey: cacheKey)
         let answer = try await teachers.run {
-            do { return try await self.teacher(Self.teacherSystem, message) } catch { throw TuneError.teacher(error.localizedDescription) }
+            do { return try await self.teacher(request) } catch { throw TuneError.teacher(error.localizedDescription) }
         }
-        return Self.extractPrompt(answer)
+        if let usage = answer.usage { teacherUsage.add(usage) }
+        return Self.extractPrompt(answer.text)
     }
 }
 

@@ -44,10 +44,29 @@ enum OpenRouter {
     /// unless given; `extra` adds fields (provider, response_format, max_tokens).
     static func chat(model: String, system: String, user: String, apiKey: String, reasoning: [String: Any]? = nil,
                      extra: [String: Any] = [:], timeout: TimeInterval = 60) -> URLRequest {
+        chat(model: model, system: system, userContent: user, apiKey: apiKey, reasoning: reasoning, extra: extra, timeout: timeout)
+    }
+
+    /// The same, with the user message's content as given: text, or content parts (`content(caching:then:model:)`).
+    static func chat(model: String, system: String, userContent: Any, apiKey: String, reasoning: [String: Any]? = nil,
+                     extra: [String: Any] = [:], timeout: TimeInterval = 60) -> URLRequest {
         var body: [String: Any] = ["model": model, "temperature": 0, "reasoning": reasoning ?? Self.reasoning(for: model),
-                                   "messages": [["role": "system", "content": system], ["role": "user", "content": user]]]
+                                   "messages": [["role": "system", "content": system], ["role": "user", "content": userContent]]]
         body.merge(extra) { _, new in new }
         return post(chatEndpoint, body: body, apiKey: apiKey, timeout: timeout)
+    }
+
+    /// Anthropic's models cache a prompt only up to an explicit `cache_control` breakpoint; OpenAI's
+    /// and Gemini 2.5+ cache a repeated prefix of 1024+ tokens on their own, with nothing in the
+    /// request (openrouter.ai/docs/features/prompt-caching).
+    static func needsCacheBreakpoint(_ model: String) -> Bool { model.hasPrefix("anthropic/") }
+
+    /// A user message whose `prefix` repeats across calls: for a model that needs it, two text parts
+    /// with a cache breakpoint (5 minutes) after the prefix; for the rest the plain text, as any request.
+    static func content(caching prefix: String, then rest: String, model: String) -> Any {
+        guard needsCacheBreakpoint(model) else { return prefix + rest }
+        return [["type": "text", "text": prefix, "cache_control": ["type": "ephemeral"]],
+                ["type": "text", "text": rest]]
     }
 
     /// Sends it: the response body and its HTTP status.

@@ -3,18 +3,24 @@ import XCTest
 
 /// Compares teacher models on a real tune (bench/README.md, "Teacher bake-off"). Opt-in: skipped unless
 ///   BAKEOFF_TEACHER=openai/gpt-6.1-sol BAKEOFF_HISTORY=<copy of history.json> BAKEOFF_OUT=<result.json> OPENROUTER_API_KEY=…
-/// Tunes `PolishPrompt.v4` for the Cloud Flash setup from the copy's corrections, through the tuner's
-/// real code path, timing every teacher call and phase, and writes the result as JSON. Always give it a
-/// copy of the history, never the live file: a test must not read this Mac's real one.
+/// (optional: BAKEOFF_PROMPT=<version or file>, default v4; BAKEOFF_FOLDS=<n>, default the tuner's).
+/// Tunes the prompt for the Cloud Flash setup from the copy's corrections, through the tuner's real
+/// code path (the app's own teacher, `PromptTuner.openRouterTeacher`), timing every teacher call and
+/// phase, recording each call's tokens and cost and the tune's teacher and student totals, and writes
+/// the result as JSON. Always give it a copy of the history, never the live file: a test must not read
+/// this Mac's real one.
 final class TeacherBakeoffTests: XCTestCase {
     /// Teacher calls and phase changes, recorded from the tuner's concurrent callbacks.
     final class Log: @unchecked Sendable {
         private let lock = NSLock()
         private(set) var calls: [[String: Any]] = []
         private(set) var phases: [[String: Any]] = []
-        func call(seconds: TimeInterval, characters: Int, hadPrompt: Bool, at: TimeInterval) {
+        /// `session`: the fold's cache key (its `session_id`), or "final".
+        func call(seconds: TimeInterval, characters: Int, hadPrompt: Bool, at: TimeInterval, session: String, usage: OpenRouter.Usage?) {
             lock.lock(); defer { lock.unlock() }
-            calls.append(["seconds": seconds, "characters": characters, "hadPrompt": hadPrompt, "finishedAt": at])
+            var call: [String: Any] = ["seconds": seconds, "characters": characters, "hadPrompt": hadPrompt, "finishedAt": at, "session": session]
+            if let usage { call["usage"] = usage.json }
+            calls.append(call)
         }
         func phase(_ name: String, at: TimeInterval) {
             lock.lock(); defer { lock.unlock() }
@@ -35,23 +41,27 @@ final class TeacherBakeoffTests: XCTestCase {
         let cases = history.corrections.map { TuneCase(id: $0.id, input: $0.input, wanted: $0.correction ?? $0.text) }
         XCTAssertGreaterThanOrEqual(cases.count, 10, "LearnController.minimum")
 
+        let prompt = try PolishPrompt.text(for: env["BAKEOFF_PROMPT"] ?? "v4")
+        let folds = env["BAKEOFF_FOLDS"].flatMap(Int.init)
         let setup = DictationSetup.cloudFlash
         guard case .openRouter(let id, let providers) = ModelSpec(setup.polish) else { return XCTFail("Cloud Flash polishes through OpenRouter") }
         let student: PromptTuner.Student = { OpenRouterPolish(model: id, apiKey: key, instructions: $0, wrap: setup.wrap, provider: providers) }
         let log = Log()
         let start = Date()
-        let teacher: PromptTuner.Teacher = { system, user in
+        let real = PromptTuner.openRouterTeacher(model: model, apiKey: key, reasoning: ["effort": "medium"])
+        let teacher: PromptTuner.Teacher = { request in
             let began = Date()
-            let answer = try await OpenRouterPolish(model: model, apiKey: key, instructions: system, wrap: false, reasoning: ["effort": "medium"]).polish(user)
-            log.call(seconds: Date().timeIntervalSince(began), characters: answer.count, hadPrompt: PromptTuner.extractPrompt(answer) != nil,
-                     at: Date().timeIntervalSince(start))
+            let answer = try await real(request)
+            log.call(seconds: Date().timeIntervalSince(began), characters: answer.text.count, hadPrompt: PromptTuner.extractPrompt(answer.text) != nil,
+                     at: Date().timeIntervalSince(start), session: request.cacheKey ?? "final", usage: answer.usage)
             return answer
         }
-        let tuner = PromptTuner(student: student, teacher: teacher, general: general)
+        let tuner = folds.map { PromptTuner(student: student, teacher: teacher, general: general, folds: $0) }
+            ?? PromptTuner(student: student, teacher: teacher, general: general)
         var failure: String?
         var result: TuneResult?
         do {
-            result = try await tuner.tune(cases: cases, prompt: PolishPrompt.v4) { phase in
+            result = try await tuner.tune(cases: cases, prompt: prompt) { phase in
                 let name: String
                 switch phase {
                 case .reading: name = "reading"
@@ -68,8 +78,13 @@ final class TeacherBakeoffTests: XCTestCase {
         }
         let elapsed = Date().timeIntervalSince(start)
 
+        // The tuner's meters: right even when the tune failed part way (the result has its own copy).
+        let (teacherCost, studentCost) = (tuner.teacherUsage.total(), tuner.studentUsage.total())
         var json: [String: Any] = ["teacher": model, "student": id, "corrections": cases.count, "general": general.count,
-                                   "elapsed": elapsed, "teacherCalls": log.calls, "phases": log.phases]
+                                   "prompt": env["BAKEOFF_PROMPT"] ?? "v4", "folds": tuner.folds,
+                                   "elapsed": elapsed, "teacherCalls": log.calls, "phases": log.phases,
+                                   "cost": ["teacher": teacherCost.json, "student": studentCost.json,
+                                            "total": teacherCost.cost + studentCost.cost] as [String: Any]]
         if let failure { json["error"] = failure }
         if let r = result {
             json["result"] = ["mine": r.mine, "mineBefore": r.mineBefore, "general": r.general, "generalBefore": r.generalBefore,
