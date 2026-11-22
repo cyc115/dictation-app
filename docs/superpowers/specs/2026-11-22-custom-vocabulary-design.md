@@ -304,7 +304,9 @@ delays typing.
 - **What verdicts do:**
   - *misheard* changes count toward candidates, if they pass the shape rule (phase 2's 4 words a
     side, no sentence punctuation inside: Mike, Nov 22, after misheard hunks across a sentence break
-    became candidates that could never match again);
+    became candidates that could never match again). A Chinese character counts as a word, so a
+    Chinese term over 4 characters can't become a candidate, verdict or not (add it by hand).
+    Entries learned before this rule stay as they are;
   - a captured fix's target becomes `text` with only its *misheard* and *style* changes applied;
   - none kept: the capture is dismissed;
   - **every capture waits for Accept (Mike, Nov 22).** The draft's rule (readback + at least one

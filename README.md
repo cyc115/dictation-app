@@ -82,7 +82,8 @@ On-device speech model (off by default).
 
 It also learns them from your corrections, with no model call. When the app is idle, each
 correction is broken into word changes ("cloud" → "Claude"; a change with sentence punctuation
-inside, like "file two" → "file. Two", is formatting and isn't counted); a term you fixed in 3 different
+inside, like "file two" → "file. Two", is formatting and isn't counted, nor is one over 4 words a side,
+a Chinese character counting as a word); a term you fixed in 3 different
 dictations is added on its own, with what the app wrote as its "heard as" variants. A variant
 that's an ordinary word in your other dictations ("two", "cloud") isn't added, so it's never
 replaced where you meant it; once a term is in, a new way of mishearing it is added after 2
@@ -99,8 +100,8 @@ fixes (Apple Intelligence got 37% of the bench's changes right, so it isn't used
 on **Send my fixes to the cloud for this** under it: then it sends your fixes to the same cloud
 model, and your dictations are still polished on this Mac.
 
-- Only changes it calls misheard go into vocabulary, and only short ones as above (at most 4 words
-  a side, no sentence punctuation inside); while it's on, a change waits for its verdict.
+- Only changes it calls misheard go into vocabulary, and only ones the rules above allow (at most 4
+  words a side, no sentence punctuation inside); while it's on, a change waits for its verdict.
   A fix it can't answer about after 3 tries is counted by the rules above.
 - A captured edit keeps only its misheard and style changes and still waits for your Accept; with
   none kept, it's dismissed. (`DictationApp settings set trainOnUnreviewedCaptures on`, off by

@@ -197,6 +197,7 @@ final class VocabularyCandidateTests: XCTestCase {
     /// A heard with a comma in it (it takes a *misheard* verdict to count) is one variant, not two
     /// ("well" would be replaced everywhere).
     func testAHeardWithACommaStaysOneVariant() {
+        // The tally no longer makes such a heard (punctuation inside); this guards hand-built and older candidates.
         let store = makeStore()
         let id = UUID()
         store.updateCandidates([VocabularyCandidate(term: "Claude", heard: [.init(text: "well, cloud", dictations: [id], misheard: true)])], learnAfter: 1)
@@ -217,9 +218,10 @@ final class VocabularyCandidateTests: XCTestCase {
         let period = misheard("ask cloud. Then go", "ask Claude go")
         XCTAssertEqual(period.intake?.changes.map(\.old), ["cloud. Then"])
         XCTAssertEqual(support([period]).count, 0, "a period inside")
-        let chinese = misheard("我说 克劳德，然后 走", "我说 Claude 走")
+        let chinese = misheard("我说 克劳，德 走", "我说 Claude 走")
         XCTAssertEqual(chinese.intake?.changes.count, 1)
         XCTAssertTrue(chinese.intake!.changes[0].old.contains("，"), chinese.intake!.changes[0].old)
+        XCTAssertLessThanOrEqual(FixIntake.wordCount(chinese.intake!.changes[0].old), CandidateTally.maxWords, "only the comma rules it out")
         XCTAssertEqual(support([chinese]).count, 0, "a Chinese comma inside")
         XCTAssertEqual(support([misheard("ok g four snow now then", "ok GeForce Now then")]).map(\.term), ["GeForce Now"], "4 words, no punctuation")
         XCTAssertEqual(support([misheard("ok g four snow now then", "ok GeForce Now then")]).first?.heard.first?.misheard, true)
