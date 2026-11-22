@@ -81,7 +81,7 @@ final class VocabularyLearnTests: XCTestCase {
         let result = try await tuner.tune(cases: cases, prompt: "Clean it up.") { _ in }
 
         XCTAssertFalse(instructions.value.isEmpty)
-        XCTAssertTrue(instructions.value.allSatisfy { $0.hasSuffix("\n\n" + self.claude.promptBlock) }, "every student call is told the terms")
+        XCTAssertTrue(instructions.value.allSatisfy { $0.contains(self.claude.promptBlock) }, "every student call is told the terms")
         XCTAssertTrue(inputs.value.allSatisfy { $0.hasPrefix("ask Claude") }, "the student gets the replaced transcript")
         XCTAssertEqual(result.mineBefore, 100, "its output is replaced too: the current prompt already gets these right")
         XCTAssertFalse(teacher.inputs.contains { $0.user.contains("Vocabulary (") || $0.system.contains("Vocabulary (") },

@@ -687,7 +687,8 @@ final class DictationControllerTests: XCTestCase {
         let controller = makeController()
         vocabulary.add(term: "GeForce Now", heardAs: ["G Four Snow"])
         let terms = vocabulary.vocabulary(enabled: true)
-        let wanted = DictationSetup.cloudFlash.promptText + "\n\n" + terms.promptBlock
+        let wanted = terms.instructions(DictationSetup.cloudFlash.promptText)
+        XCTAssertTrue(wanted.contains(terms.promptBlock))
         let cloud = controller.makePolish(.cloudFlash, terms)  // no key: on-device, with the cloud setup's prompt
         XCTAssertEqual((cloud.backend as? OnDevicePolish)?.instructions, wanted)
         settings.setOpenRouterKey("sk-test")
@@ -695,7 +696,7 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual((keyed.backend as? OpenRouterPolish)?.instructions, wanted)
         XCTAssertEqual((keyed.backup as? OpenRouterPolish)?.instructions, wanted)
         XCTAssertEqual((controller.makePolish(.onDevice, terms).backend as? OnDevicePolish)?.instructions,
-                       DictationSetup.onDevice.promptText + "\n\n" + terms.promptBlock)
+                       terms.instructions(DictationSetup.onDevice.promptText))
     }
 
     /// The first replacement is before polish, so a polish that fails, comes back empty or runs out

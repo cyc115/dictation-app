@@ -205,3 +205,29 @@ is what OpenRouter reported per call. Result files: `teacher-bakeoff-20261122/`.
   three (70.9, 70.9, 71.4), as in all five Oct 14 tunes.
 - **Caveat**: one tune per teacher. Luna's general drop could be partly bad luck (the general set
   moves ±2–4 between runs of the same prompt), but nothing here shows it tuning as well as Sonnet.
+
+# Vocabulary terms in the polish prompt — 2026-11-22
+
+Does telling polish your vocabulary cost anything on dictations that don't use it? The general set
+(88 cases × 3 rounds, DeepSeek V4.1 Flash @Together, prompt `v7`, all five at once from this Mac)
+with a sample vocabulary of 20 terms, 11 of them with "heard as" variants. Prompts and result files:
+`vocabulary-block-20261122/`.
+
+| prompt | pass | traps | fixes | terms | mixed | p50 | per 1k |
+|:--|--:|--:|--:|--:|--:|--:|--:|
+| `v7`, no vocabulary | 83% | 94% | 83% | 67% | 84% | 0.25 s | $0.056 |
+| + list with "heard as", "write these exactly", at the end (as first shipped) | 79% | 85% | 78% | 64% | 80% | 0.24 s | $0.065 |
+| + list with "heard as", guard wording, at the end | 78% | 91% | 74% | 64% | 78% | 0.25 s | $0.065 |
+| + list with "heard as", guard wording, before "Output only…" | 79% | 94% | 74% | 67% | 78% | 0.25 s | $0.064 |
+| **+ terms only, guard wording, before "Output only…"** | **81%** | **94%** | 78% | 67% | 83% | 0.25 s | $0.056 |
+
+- **The first shipped block cost 4 points**, in two separate runs (84% → 80% at 2 rounds, 83% → 79%
+  at 3), and let more traps through. One error is the vocabulary's own: "the cloud models" came out
+  "the Claude models". Others are cleanup slipping (a filler or the wrong half of a self-correction
+  kept) with a list after the prompt's closing line.
+- **Pick: terms only, with the guard, before the closing line** (`Vocabulary.promptHeader`,
+  `instructions(_:)`). Within the set's ±2–4 noise of no vocabulary, traps intact, no extra cost.
+  The "heard as" variants don't need to be in the prompt: they are replaced before polish runs.
+- **The wait doesn't move** (p50 0.23–0.25 s in every run).
+- **Not measured:** whether the terms help on dictations that do use them; the general set has
+  almost none of these 20. And only this one vocabulary was tried.

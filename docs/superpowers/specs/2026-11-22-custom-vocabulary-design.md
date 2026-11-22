@@ -79,13 +79,13 @@ change reaches the running app.
   transcript too; the second pass catches the rest.
 - **`raw` in History stays what the speech model heard**, before replacement, so replaying an old
   dictation (Learn) applies today's vocabulary.
-- **Terms block** (`Vocabulary.promptBlock`), most used first, then newest:
-  ```
-  Vocabulary (write these exactly; the recognizer may mishear them):
-  GeForce Now (heard as: G Four Snow, g force now)
-  reMarkable
-  ```
-  With no enabled terms nothing is appended, so the request is identical to today's.
+- **Terms block** (`Vocabulary.promptBlock`), most used first, then newest: one guard sentence
+  (`Vocabulary.promptHeader`: write a term only where the transcript has a sound-alike that makes
+  no sense; never change a word that already makes sense) and the terms, one a line, **without**
+  their "heard as" variants. It goes before the prompt's closing "Output only…" paragraph. Measured
+  Nov 22 (`bench/results/polish/README.md`): the first version, a "write these exactly" list with
+  variants at the end, cost the general set 4 points twice running; this one is within noise of no
+  vocabulary. With no enabled terms nothing is added, so the request is identical to today's.
 - **Live path, in `DictationController.deliver`:** replace the transcript first, polish that, then
   replace the result. Because the first replacement happens before `polishReporting`, a polish
   that fails, comes back empty or runs out of time still pastes replaced text.
@@ -270,7 +270,7 @@ for $0.0077; a default latency run is about $0.003 (`bench/README.md`); a tune i
 
 | Run | Decides | Cost |
 |---|---|---|
-| `bench/suite.py polish run`, one model, one round, with a sample vocabulary | Polish quality and wait with the terms block | about 1¢ |
+| `bench/suite.py polish run`, one model, with a sample vocabulary: **done Nov 22**, the block was reworded and moved | Polish quality and wait with the terms block | 10¢ in all |
 | `./test.sh --local`, then the latency suite on the on-device model only, no polish | Whether `vocabularySpeechHint` can default on (the code notes English-first hint words made Qwen translate mixed Chinese) | $0 |
 | `bench/suite.py edits run`: cheap models first, the strong one once as the reference, batches of 10 | The judge's model, and whether batching holds accuracy | est. under 15¢ |
 

@@ -269,21 +269,31 @@ struct Vocabulary {
 
     // MARK: Polish and speech
 
-    /// The terms for polish, appended to its instructions; "" with none, so nothing changes.
+    /// What polish reads before the terms. Measured Nov 22 (bench/results/polish/README.md): a plain
+    /// "write these exactly" list with each term's "heard as" variants, at the end of the prompt, cost
+    /// the general set 4 points twice running (traps 94% → 85%, "cloud models" → "Claude models").
+    /// Terms alone, with this guard, before the prompt's closing line, held it (83% → 81%, traps 94%).
+    static let promptHeader = "Vocabulary: the speaker uses these terms. Where the transcript has something that sounds like one of them and makes no sense as written, write the term exactly this way. Never change a word that already makes sense in its sentence, and never add a term that wasn't said."
+
+    /// The terms for polish, most used first; "" with none, so nothing changes. Terms only: what
+    /// each is heard as is replaced before polish sees the transcript (`apply`), and listing the
+    /// variants made polish worse.
     var promptBlock: String {
         guard !entries.isEmpty else { return "" }
-        let lines = ranked.prefix(Self.maxPromptTerms).map { entry in
-            let heard = entry.heardAs.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-            return entry.term + (heard.isEmpty ? "" : " (heard as: \(heard.joined(separator: ", ")))")
-        }
-        return (["Vocabulary (write these exactly; the recognizer may mishear them):"] + lines).joined(separator: "\n")
+        return ([Self.promptHeader] + ranked.prefix(Self.maxPromptTerms).map(\.term)).joined(separator: "\n")
     }
 
-    /// A polish prompt with the terms block after it: what every backend built from a setup is told
-    /// (main, backup, on-device, Corrections' suggestion, Learn's student). With no terms, `prompt` itself.
+    /// A polish prompt with the terms block: what every backend built from a setup is told (main,
+    /// backup, on-device, Corrections' suggestion, Learn's student). The block goes before the
+    /// prompt's closing "Output only…" paragraph, which stays the last thing the model reads; a
+    /// prompt without one gets it at the end. With no terms, `prompt` itself.
     func instructions(_ prompt: String) -> String {
         let block = promptBlock
-        return block.isEmpty ? prompt : prompt + "\n\n" + block
+        guard !block.isEmpty else { return prompt }
+        if let gap = prompt.range(of: "\n\n", options: .backwards), prompt[gap.upperBound...].hasPrefix("Output only") {
+            return prompt[..<gap.lowerBound] + "\n\n" + block + "\n\n" + prompt[gap.upperBound...]
+        }
+        return prompt + "\n\n" + block
     }
 
     /// Terms for the on-device speech models (`SpeechContext`), most used first.

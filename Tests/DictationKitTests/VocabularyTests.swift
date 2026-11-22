@@ -109,12 +109,8 @@ final class VocabularyTests: XCTestCase {
                             entry("GeForce Now", ["G Four Snow", "g force now"], uses: 9),
                             entry("Codex", added: fixedDate(2026, 11, 3, 9, 0)),
                             entry("Off", enabled: false)])
-        XCTAssertEqual(v.promptBlock, """
-            Vocabulary (write these exactly; the recognizer may mishear them):
-            GeForce Now (heard as: G Four Snow, g force now)
-            Codex
-            reMarkable
-            """)
+        // Terms only: what each is heard as is replaced before polish, and listing it made polish worse.
+        XCTAssertEqual(v.promptBlock, Vocabulary.promptHeader + "\nGeForce Now\nCodex\nreMarkable")
     }
 
     func testPromptBlockIsCappedAndEmptyWithoutTerms() {
@@ -129,7 +125,11 @@ final class VocabularyTests: XCTestCase {
     func testInstructionsAppendTheBlockOnlyWithTerms() {
         XCTAssertEqual(Vocabulary.none.instructions("PROMPT"), "PROMPT")
         let v = Vocabulary([entry("Codex")])
-        XCTAssertEqual(v.instructions("PROMPT"), "PROMPT\n\n" + v.promptBlock)
+        XCTAssertEqual(v.instructions("PROMPT"), "PROMPT\n\n" + v.promptBlock, "no closing line: at the end")
+        XCTAssertEqual(v.instructions("Rules.\n\nExamples.\n\nOutput only the cleaned transcript."),
+                       "Rules.\n\nExamples.\n\n" + v.promptBlock + "\n\nOutput only the cleaned transcript.",
+                       "the closing line stays last")
+        XCTAssertTrue(DictationSetup.cloudFlash.instructions(v).hasSuffix(v.promptBlock + "\n\nOutput only the cleaned transcript."))
         XCTAssertEqual(DictationSetup.cloudFlash.instructions(v), v.instructions(DictationSetup.cloudFlash.promptText))
     }
 
