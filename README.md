@@ -61,6 +61,16 @@ off for every model, or at the lowest effort for one that can't turn it off.
 
 ![Corrections: correct a few dictations, Learn writes a new polish prompt, and it's scored before you keep it](docs/images/learn.gif)
 
+**Learn from my edits** (Settings › Vocabulary, off by default) saves you the pencil: when you fix a
+dictation right after it's pasted, the pasted text as you left it waits in Corrections under
+*Waiting for you*. **Accept** makes it a correction (with a "captured" badge; the Learn tile counts
+"28 yours · 12 captured"), **Dismiss** drops it. Until you accept it, it trains nothing; its word
+changes do count toward vocabulary, as a correction's would. The app reads the text box back where
+the app says what's in it, and otherwise follows your keys, giving up at anything it can't follow
+(a click, a shortcut, an input method). It stops at Return, when you switch box or app, at your
+next dictation, after 30 s without a key, or after 2 minutes. Nothing waits on it: the paste and your keys go
+through as before. Settings shows, per app, how many edits were watched, read back and given up.
+
 ### Vocabulary: names it keeps getting wrong
 
 Add a term in the Vocabulary tab (or `DictationApp vocabulary add`), with what the app writes
@@ -233,6 +243,10 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
   installed apps' names, for `open`, and the open ones', for `switch-app`), to OpenRouter to pick one; `create` also sends it to
   DeepSeek to write the script. `fix` runs Claude Code on this Mac, which sends what you said, the
   command's runs and errors, and the code it reads to Anthropic. Commands are saved beside your history, in `history-commands.json`.
+- *Learn from my edits* (off by default) keeps only the pasted text and how you left it, on its
+  History entry; never your keys or anything else in the text box. It doesn't watch password
+  fields, apps where secure input is on, or the apps in *Pause in these apps*, and sends nothing
+  anywhere. Per-app counts (no text) are in `edit-watch.json`.
 - Your vocabulary stays on this Mac, in `vocabulary.json`, with the terms seen in your corrections
   (each with what the app wrote and the ids of the dictations it was in). The word changes worked
   out from each correction are kept with it in your history. Its terms go where polish already goes:

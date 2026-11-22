@@ -224,6 +224,49 @@ with fakes.
 - In phase 3 every capture is `waiting`.
 - **Diagnostics:** per app, watches armed, readback probes failed, keystroke give-ups.
 
+### Phase 3 as built
+
+Decisions the draft didn't make; where it was silent, the choice keeps less, learns less, or never
+delays typing.
+
+- **Vocabulary's target** is `HistoryEntry.fixTarget`: `correction`, else the capture's `edited`
+  unless it's `dismissed`. A waiting capture counts toward candidates (every guard unchanged); a
+  dismissed one counts for nothing. `intake.of`, the idle pass, its staleness guard and the
+  ordinary-word guard all compare with it (a dictation with a captured edit isn't "left alone").
+  A capture saved at idle schedules the idle pass.
+- **Your correction wins:** one capture per dictation, never on a corrected one, none when History
+  is off (no entry to keep it on). Deleting the correction on a captured entry dismisses the
+  capture, so its edit doesn't go on feeding vocabulary unseen. The History pencil on a waiting
+  dictation opens it in Corrections as it is (no correction started from what the app wrote).
+- **Timing:** arming does no Accessibility call; the probe runs 0.15 s after the paste (the app
+  takes the ⌘V asynchronously) on a background queue, and keys typed before it has an answer go
+  into a `TypedEdit`, so none is lost if it fails. Pause and final reads are off the main thread
+  too. The read before a Return is a background read waited on for at most 50 ms; the capture is
+  saved after the Return has gone on. A new dictation ends the watch from what it has, with no read
+  in `start()`; an app change and the time limits do one last background read.
+- **Keys** come from the event tap only (it sees each key before the app; the global monitor would
+  apply each twice), skipping the app's own `syntheticMarker` keys: the paste's ⌘V reaches the tap
+  after the watch it starts. Clicks (keystroke mode's give-up) come from a passive monitor that
+  exists only while a keystroke-mode watch runs, so clicks never go through the tap. Return means
+  ↩, ⇧↩, ⌘↩ and keypad Enter alike.
+- **The span's end:** text typed right at the end of the pasted text that starts with a space (or
+  after text typed there) isn't part of the edit; typed onto the last word, it is. In readback, a
+  read whose change crosses the span's edge (the box cleared by a send button, a selection reaching
+  past it) ends the watch on the last good read. Readback keeps a `TypedEdit` alongside: when your
+  keys agree with the box, they trim text typed after the span in the same burst ("cloud." →
+  "Claude. and more" with no pause); when they don't (autocorrect, an app's own completion), the
+  read stands as it is.
+- **Keystroke mode** also gives up on a move or delete into text it never saw (before or after the
+  paste), a word move over Chinese (apps split it with a dictionary), ↑/↓, Tab, Esc and dead keys.
+  ⌥⌫ and ⌥←/→ follow the Mac's word rule (letters, digits, apostrophes).
+- `edited` is stored without surrounding whitespace (the paste's leading space).
+- **Files:** a capture state or mode a newer build wrote reads as `dismissed`/`keystrokes`, one
+  without text as `dismissed`, so history.json loads and nothing unknown trains. An older build
+  ignores `capture` (it keeps accepted ones as plain corrections). The counts are in
+  `edit-watch.json` (app names and numbers only), shown under the setting while it's on; a watch
+  counts as armed once the probe has found the box isn't a password field.
+- The Learn tile's "N yours · M captured" shows only once M > 0.
+
 ## Phase 4: the judge
 
 `FixJudge` gives each word change a verdict: *misheard*, *style*, *changed mind*, *unclear*.
