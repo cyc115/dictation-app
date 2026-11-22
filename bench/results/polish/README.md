@@ -231,3 +231,23 @@ with a sample vocabulary of 20 terms, 11 of them with "heard as" variants. Promp
 - **The wait doesn't move** (p50 0.23–0.25 s in every run).
 - **Not measured:** whether the terms help on dictations that do use them; the general set has
   almost none of these 20. And only this one vocabulary was tried.
+
+# DeepSeek V4.1 Flash: the Sept 10 snapshot vs the Oct 17 one — 2026-11-22
+
+Cloud Flash polishes with `deepseek/deepseek-v4.1-flash` (OpenRouter's Sept 10 snapshot) pinned to
+Together, then DeepInfra. `deepseek/deepseek-v4.1-flash-1017` is a newer snapshot of the same
+version. General set, 88 cases × 3 rounds, prompt `v7`, all four at once from this Mac
+(`20261122-…_deepseek-0910-vs-1017.json`):
+
+| model | pass | traps | fixes | terms | mixed | p50 | p90 | per 1k |
+|:--|--:|--:|--:|--:|--:|--:|--:|--:|
+| **v4.1-flash @Together** (the app's) | 83% | 94% | 85% | 68% | 85% | **0.23 s** | 0.31 s | $0.056 |
+| v4.1-flash-1017 @Together | 83% | 94% | 87% | 64% | 84% | 0.42 s | 0.64 s | $0.057 |
+| v4.1-flash @DeepInfra | 82% | 94% | 87% | 63% | 83% | 0.58 s | 0.76 s | $0.023 |
+| v4.1-flash-1017 @DeepInfra | 80% | 94% | 78% | 63% | 77% | 0.60 s | 0.84 s | $0.016 |
+
+- **Not switched.** The newer snapshot polishes no better here and, on Together, took almost twice
+  as long (first text 0.33 s against 0.18 s). One run, one evening: Together may serve it faster
+  another day, so it's worth a re-run before ruling it out for good.
+- **DeepInfra is about 2.5 times cheaper** for the same snapshot at the same quality, but 0.35 s
+  slower: wrong for dictation, fine for a tune's student calls, which nobody waits on.
