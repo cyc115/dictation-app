@@ -159,6 +159,7 @@ struct MainView: View {
             .onTabHidden { selection.editing = nil }
             .onTabShown { services.intake.tabShown() }
         case .vocabulary: VocabularyView(store: services.vocabulary, learnAfter: settings.vocabularyLearnAfter,
+                                         learning: settings.vocabularyEnabled,
                                          search: searches[.vocabulary, default: ""])
             .onTabShown { services.intake.tabShown() }
         case .commands: CommandsView(mode: services.commands, settings: settings, history: history,

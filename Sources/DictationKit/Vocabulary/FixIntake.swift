@@ -16,6 +16,21 @@ struct WordChange: Codable, Equatable {
     var old: String
     var new: String
     var verdict: Verdict?
+
+    init(old: String, new: String, verdict: Verdict? = nil) {
+        self.old = old
+        self.new = new
+        self.verdict = verdict
+    }
+
+    /// A verdict this build doesn't know (written by a newer one) reads as none, so history.json
+    /// still loads after going back to an older build.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        old = try c.decode(String.self, forKey: .old)
+        new = try c.decode(String.self, forKey: .new)
+        verdict = (try? c.decodeIfPresent(Verdict.self, forKey: .verdict)) ?? nil
+    }
 }
 
 /// A dictation's fix as word changes, saved on its History entry. `of` is the target it was worked

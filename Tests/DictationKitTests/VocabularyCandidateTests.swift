@@ -88,6 +88,12 @@ final class VocabularyCandidateTests: XCTestCase {
         XCTAssertEqual(support([style]).count, 0, "judged anything else: doesn't count")
     }
 
+    /// Only the first letter's case: a sentence start, not a term. A case fix inside the word is one.
+    func testCapitalizingAWordIsNotATerm() {
+        XCTAssertEqual(support([dictation("the end", "The end"), dictation("the cat", "The cat"), dictation("the dog", "The dog")]).count, 0)
+        XCTAssertEqual(support([dictation("my iphone", "my iPhone")]).map(\.term), ["iPhone"])
+    }
+
     func testOnlyCurrentIntakeCounts() {
         var removed = dictation("I use cloud.", "I use Claude.")
         removed.correction = nil  // the correction was deleted; the pass hasn't cleared intake yet
@@ -165,10 +171,15 @@ final class VocabularyCandidateTests: XCTestCase {
         var entry = try XCTUnwrap(store.entries.first)
         entry.heardAs.removeAll { $0 == "Coloule" }
         store.update(entry)
-        store.updateCandidates(support(claudeThreeTimes + [dictation("call Claud", "call Claude")]), learnAfter: 3)
-        XCTAssertEqual(Set(store.entries.first?.heardAs ?? []), ["cloud", "Klod", "Claud"])
+        let claud = dictation("call Claud", "call Claude")
+        store.updateCandidates(support(claudeThreeTimes + [claud]), learnAfter: 3)
+        XCTAssertEqual(Set(store.entries.first?.heardAs ?? []), ["cloud", "Klod"],
+                       "once a term is in, a new variant seen once isn't enough (it could be a change of mind)")
+        store.updateCandidates(support(claudeThreeTimes + [claud, dictation("Claud again", "Claude again")]), learnAfter: 3)
+        XCTAssertEqual(Set(store.entries.first?.heardAs ?? []), ["cloud", "Klod", "Claud"], "seen twice, it is")
         store.remove(term: "Claude")
-        store.updateCandidates(support(claudeThreeTimes + [dictation("try Klaude", "try Claude")]), learnAfter: 3)
+        let klaude = [dictation("try Klaude", "try Claude"), dictation("Klaude no", "Claude no")]
+        store.updateCandidates(support(claudeThreeTimes + klaude), learnAfter: 3)
         XCTAssertTrue(store.entries.isEmpty, "deleted stays deleted")
     }
 
@@ -228,6 +239,14 @@ final class VocabularyCandidateTests: XCTestCase {
     }
 
     // MARK: vocabulary.json
+
+    /// A verdict a newer build wrote reads as none here, rather than History failing to load.
+    func testAnUnknownVerdictStillLoads() throws {
+        let url = makeTempURL(self)
+        try Data(#"[{"id":"7F1D7C55-0000-4000-8000-000000000001","date":"2026-10-07T07:00:00Z","text":"cloud","duration":1,"correction":"Claude","intake":{"of":"Claude","changes":[{"old":"cloud","new":"Claude","verdict":"somethingNew"}]}}]"#.utf8).write(to: url)
+        let entry = try XCTUnwrap(HistoryStore(fileURL: url, defaults: makeDefaults(self)).entries.first)
+        XCTAssertEqual(entry.intake?.changes, [WordChange(old: "cloud", new: "Claude")])
+    }
 
     func testAPhaseOneFileStillLoads() throws {
         let url = makeTempURL(self, "vocabulary.json")

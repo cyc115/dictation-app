@@ -89,6 +89,24 @@ final class VocabularyIntakeTests: XCTestCase {
         XCTAssertEqual(fx.intake.passes, 1)
     }
 
+    /// A correction edited while the pass worked: its result is dropped (it could learn a term from a
+    /// fix that's gone), and it tries again later.
+    func testACorrectionChangedMeanwhileDropsTheResult() {
+        let fx = makeFixture()
+        dictate(fx, claude)
+        heldWork = []
+        fx.intake.tabShown()
+        fx.history.setCorrection("", for: fx.history.entries[0].id)
+        heldWork?.forEach { $0() }
+        XCTAssertEqual(fx.intake.passes, 0)
+        XCTAssertTrue(fx.vocabulary.entries.isEmpty, "not learned from the deleted fix")
+        XCTAssertEqual(timers.map(\.delay), [30], "tries again")
+        heldWork = nil
+        timers[0].fire()
+        XCTAssertEqual(fx.intake.passes, 1)
+        XCTAssertEqual(fx.vocabulary.candidates.first?.seen, 2)
+    }
+
     /// Only an entry whose correction changed is worked out again, so phase 4's verdicts stay.
     func testOnlyAChangedCorrectionIsWorkedOutAgain() throws {
         let fx = makeFixture()

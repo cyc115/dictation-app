@@ -63,11 +63,19 @@ final class VocabularyIntake {
                 guard let self else { return }
                 self.running = false
                 guard !self.isBusy() else { return }
+                // A correction changed while it worked: counting from the old one could learn a term
+                // from a fix that's gone (and learning can't be taken back). Try again later.
+                guard Self.fixes(self.history.entries) == Self.fixes(entries) else { return self.scheduleAfterIdle() }
                 if !intakes.isEmpty { self.history.setIntakes(intakes) }
                 self.vocabulary.updateCandidates(support, learnAfter: self.settings.vocabularyEnabled ? self.settings.vocabularyLearnAfter : nil)
                 self.passes += 1
             }
         }
+    }
+
+    /// Each dictation's correction, by id: what a pass's result depends on.
+    private static func fixes(_ entries: [HistoryEntry]) -> [UUID: String] {
+        Dictionary(entries.compactMap { entry in entry.correction.map { (entry.id, $0) } }, uniquingKeysWith: { first, _ in first })
     }
 
     /// The pass's work, on a copy of History (newest first): the intake of each entry whose

@@ -44,6 +44,9 @@ ordinary word. No model call; nothing runs while a dictation is in progress.
      vocabulary off: collect, don't add), `learn(id)`, `dismiss(id)`. A dismissed term never comes
      back; a term or variant handed over once is never handed over again (so one you delete stays
      deleted). No save while the file is unreadable, none when nothing changed.
+   - Review fixes: a capitalized first letter isn't a term; once a term is in, a new variant needs 2
+     dictations of its own (or *misheard*); an unknown verdict decodes as none; a pass whose
+     corrections changed meanwhile is dropped and retried.
    - Setting `vocabularyLearnAfter` (Int, 3, no row, at least 1).
 5. **Idle pass** (`Vocabulary/VocabularyIntake.swift`, `AppServices`, `AppDelegate`, `MainWindow`)
    - Fakes for the timer, the queue and `isBusy`: not while busy; 30 s after the last dictation;

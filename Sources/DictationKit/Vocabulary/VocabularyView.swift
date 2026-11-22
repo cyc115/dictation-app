@@ -9,6 +9,8 @@ struct VocabularyView: View {
     @ObservedObject var store: VocabularyStore
     /// Dictations a term is learned after (`vocabularyLearnAfter`): the "of 3" in "2 of 3".
     var learnAfter = 3
+    /// Use vocabulary is on, so terms are learned on their own.
+    var learning = true
     /// What's typed in the toolbar's search field (MainView).
     var search = ""
     @State private var term = ""
@@ -95,7 +97,7 @@ struct VocabularyView: View {
         if !all.isEmpty {
             Section {
                 ForEach(shown) { candidate in
-                    VocabularyCandidateRow(candidate: candidate, learnAfter: learnAfter, store: store)
+                    VocabularyCandidateRow(candidate: candidate, learnAfter: max(learnAfter, 1), store: store)
                 }
                 if all.count > listed.count {
                     Button(showAllCandidates ? "Show fewer" : "Show all (\(all.count))") { showAllCandidates.toggle() }
@@ -105,7 +107,8 @@ struct VocabularyView: View {
             } header: {
                 Text("Seen in your edits")
             } footer: {
-                Text("Words you fixed in Corrections. A term fixed in \(learnAfter) dictations is added on its own.")
+                Text(learning ? "Words you fixed in Corrections. A term fixed in \(max(learnAfter, 1)) dictations is added on its own."
+                              : "Words you fixed in Corrections. Use vocabulary is off, so none is added on its own.")
                     .font(.callout).foregroundStyle(.secondary)
             }
         }

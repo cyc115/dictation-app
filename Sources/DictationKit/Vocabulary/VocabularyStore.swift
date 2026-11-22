@@ -81,7 +81,7 @@ final class VocabularyStore: ObservableObject {
         let term = term.trimmingCharacters(in: .whitespaces)
         let heard = VocabularyEntry.variants(from: heardAs.joined(separator: ","))
         guard !term.isEmpty else { return nil }
-        return change { file in
+        return change { file -> VocabularyEntry in
             if let i = file.entries.firstIndex(where: { $0.term.caseInsensitiveCompare(term) == .orderedSame }) {
                 let have = Set(file.entries[i].heardAs.map { $0.lowercased() })
                 file.entries[i].heardAs += heard.filter { !have.contains($0.lowercased()) }
@@ -120,7 +120,7 @@ final class VocabularyStore: ObservableObject {
             let before = file.entries.count
             file.entries.removeAll { $0.term.caseInsensitiveCompare(term) == .orderedSame }
             return file.entries.count < before
-        }
+        } ?? false
     }
 
     /// Counts replacements that fired (`Vocabulary.apply`). Called after the paste, never before.
@@ -140,9 +140,7 @@ final class VocabularyStore: ObservableObject {
     /// changed, and nothing while vocabulary.json can't be read (that's moved aside only for
     /// something you do).
     func updateCandidates(_ support: [VocabularyCandidate], learnAfter: Int?) {
-        reloadIfChanged()
-        guard problem == nil else { return }
-        change { file in
+        change(byYou: false) { file in
             var kept = Dictionary(file.candidates.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             var candidates = support.map { found -> VocabularyCandidate in
                 var candidate = found
@@ -184,11 +182,15 @@ final class VocabularyStore: ObservableObject {
 
     /// Hands a candidate's new variants (not ordinary words, not handed over before) to the entry with
     /// its term, or makes a learned entry for it, unless one was made before (you deleted it).
+    /// Once a term is in, a new way of mishearing it needs 2 dictations of its own (or a *misheard*
+    /// verdict): one change of mind ("GPT" → "Claude") mustn't replace "GPT" everywhere.
     /// Variants go in as they are: one with a comma in it stays one.
     private func learn(at i: Int, in file: inout File) {
         let candidate = file.candidates[i]
         let handed = Set(candidate.addedHeard)
-        let variants = candidate.heard.filter { !$0.ordinary && !handed.contains($0.text.lowercased()) }.map(\.text)
+        let variants = candidate.heard.filter {
+            !$0.ordinary && !handed.contains($0.text.lowercased()) && (!candidate.added || $0.dictations.count >= 2 || $0.misheard)
+        }.map(\.text)
         if let e = file.entries.firstIndex(where: { $0.term.caseInsensitiveCompare(candidate.term) == .orderedSame }) {
             let have = Set(file.entries[e].heardAs.map { $0.lowercased() })
             file.entries[e].heardAs += variants.filter { !have.contains($0.lowercased()) }
@@ -203,10 +205,12 @@ final class VocabularyStore: ObservableObject {
 
     // MARK: File
 
-    /// Re-reads, changes and saves.
+    /// Re-reads, changes and saves. A change not `byYou` (the idle pass) isn't made while the file
+    /// can't be read: only something you do moves it aside.
     @discardableResult
-    private func change<T>(_ edit: (inout File) -> T) -> T {
+    private func change<T>(byYou: Bool = true, _ edit: (inout File) -> T) -> T? {
         reloadIfChanged()
+        guard byYou || problem == nil else { return nil }
         let before = File(entries: entries, candidates: candidates)
         var copy = before
         let result = edit(&copy)

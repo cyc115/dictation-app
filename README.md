@@ -73,7 +73,8 @@ It also learns them from your corrections, with no model call. When the app is i
 correction is broken into word changes ("cloud" → "Claude"); a term you fixed in 3 different
 dictations is added on its own, with what the app wrote as its "heard as" variants. A variant
 that's an ordinary word in your other dictations ("two", "cloud") isn't added, so it's never
-replaced where you meant it. The tab's **Seen in your edits** shows terms on their way in ("2 of
+replaced where you meant it; a capitalized first letter ("the" → "The") isn't a term, and once a
+term is in, a new way of mishearing it is added after 2 dictations. The tab's **Seen in your edits** shows terms on their way in ("2 of
 3"), with **Add now** and dismiss; a dismissed term never comes back. With vocabulary off, nothing
 is added. The count is a setting with no row: `DictationApp settings set vocabularyLearnAfter 5`.
 
