@@ -211,6 +211,48 @@ of 10, 94% one at a time; DeepSeek V4.1 Flash 93%; Gemini 3.8 Flash 89%. Sonnet 
 stay the defaults. Apple Intelligence, tried once outside the suite, got 37%, so the On-device
 setup has no judge.
 
+## Vocabulary on your own History (`suite.py history`)
+
+Do the words the app misheard now come out right, what does that cost in wait, and does it break
+anything, on your real History (spec: `docs/superpowers/specs/2026-11-22-history-bench-design.md`;
+method and results: [`results/history/`](results/history/README.md), totals only).
+
+```sh
+bench/suite.py history run --dry-run          # calls per part and the estimated cost; reads no key, sends nothing
+bench/suite.py history run                    # all six parts (cap --max-cost, default $0.50)
+bench/suite.py history run --parts 3,4,5,6    # only the free, local parts
+bench/suite.py history run --limit 10 --rounds 1 --setup cloud-flash
+bench/suite.py history report [--markdown]    # totals only, safe to paste
+bench/suite.py history report --details       # hits and misses WITH your text: local only
+```
+
+- **Reads** `~/Library/Application Support/DictationApp` (`--data`) read-only: `history.json`,
+  `vocabulary.json`, `edit-watch.json` (and `learned-prompts.json`, `setups.json` for the setup's
+  prompt) are copied to a temporary folder first; `Recordings/` is read in place.
+- **Test set:** your corrections and accepted captured edits whose word changes have the judge's
+  verdicts; a mishearing is a change judged misheard. `--limit N`: the newest N.
+- **Parts:** 1 mishearings fixed (stored raw → replace → cloud polish with the terms → replace, 3
+  rounds); 2 the same recordings through the on-device speech model with and without your terms
+  (skipped when the model isn't downloaded); 3 what replacement alone changes across all of History;
+  4 wait (replacement, polish and speech); 5 candidates by the rules vs the judge against your Add and
+  Dismiss; 6 each fix replayed through the edit watcher's two trackers with synthesized keys.
+- **Arms:** off, terms only (part 1: the terms told to polish, nothing replaced), again (your
+  vocabulary as it is), held out (without what only the dictation under test taught it). Arms run
+  back to back per dictation (per clip in part 2), in a seeded order.
+- **How:** this module snapshots, picks, matches recordings, builds the held-out vocabularies and
+  writes a job; `HistoryBenchTests` (skipped unless `HISTORY_BENCH_JOB` is set) runs it through the
+  app's own code and writes rows; the module scores them. `history_fixture/job.json` is the job for
+  the written fixture: the harness runs it in every `./test.sh` with a stubbed network, and
+  `test_history.py` checks it is what `run` builds (`bench/suite.py history fixture-job` rewrites it).
+- **Cost:** part 1 only. The estimate prices tokens from `PRICES` (DeepSeek V4.1 Flash on Together,
+  from a saved result) or `--price`; a run refuses above `--max-cost`, and the harness stops sending
+  once the answers' reported cost reaches it (rows so far are kept; the report says it stopped).
+  Expect 10–25¢ for 28 fixes × 4 arms × 3 rounds (the dry run prints the estimate). About 10–15 minutes plus the test build.
+- **Privacy:** only fixed dictations go to the cloud, with the bench's key
+  (`$OPENROUTER_BENCH_API_KEY`, passed to the test as `HISTORY_BENCH_KEY`, never written to the job).
+  Result files (`results/history/<time>.json`) hold your text and are git-ignored: never `git add -f`
+  one. The printed report has totals only.
+
 ## Speech-to-text accuracy (`suite.py accuracy` = `bench.py`)
 
 Compares dictation models on the same audio: **Chinese with English mixed in**, **Chinese only**,

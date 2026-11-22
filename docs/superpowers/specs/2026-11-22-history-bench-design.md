@@ -30,7 +30,7 @@ place. Nothing is written there.
 
 | # | Part | What runs | Headline number | Cost |
 |---|---|---|---|---|
-| 1 | Mishearings fixed | stored `raw` → replace → polish with terms → replace, 3 rounds, three arms | mishearings that come out as you wanted, of 33, per arm | cloud polish, ~5¢ |
+| 1 | Mishearings fixed | stored `raw` → replace → polish with terms → replace, 3 rounds, four arms | mishearings that come out as you wanted, of 33, per arm | cloud polish, ~5¢ |
 | 2 | Speech with terms | each recording through the on-device speech model, no terms vs terms, interleaved | mishearings right in the transcript; seconds | $0 |
 | 3 | Reach and wrong hits | replacement alone on every stored `raw` and `text` | dictations it would change; hits per entry; hits that move a fixed dictation away from its fix | $0 |
 | 4 | Wait | replacement timed on every `raw`; polish wait from part 1; speech wait from part 2 | change in stop-to-text, typical and p95 | $0 |
@@ -40,6 +40,10 @@ place. Nothing is written there.
 ### Arms (parts 1 and 2)
 
 - **off:** no vocabulary (no replacement, no terms in polish, no speech terms).
+- **terms only** (part 1 only): your vocabulary's terms block in the polish instructions, but no
+  replacement before or after polish; the whole vocabulary, not held out. Whether polish alone turns
+  a mishearing into the term when it only knows the term exists, and (part 4) the wait the terms
+  block adds on its own, against off.
 - **again:** your vocabulary as it is. "If I said the same thing again." Circular on purpose: a term
   learned from a dictation is tested on that dictation.
 - **held out:** your vocabulary without the variants and learned entries whose only source is the
