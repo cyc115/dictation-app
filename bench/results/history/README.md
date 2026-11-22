@@ -85,10 +85,13 @@ score. When these were dictated, 0–1 of the 33 came out right (they are the on
 | v4 (built-in) | again | 10.3 (10–11) | 14.3 (14–15) | 26.4% | 0.27 s | 0.94 s |
 | v4 (built-in) | held out | 4.7 (4–5) | 7.7 (7–8) | 29.4% | 0.29 s | 1.10 s |
 
-- **On its own, vocabulary more than doubles the mishearings fixed** (4 → 10.3 of 33; 5 → 14.3 in
-  any case), under a prompt that names none of the terms. All of it comes from the terms told to
-  polish: *terms only* equals *again*, so replacement added nothing here (polish wrote the term
-  before a variant could match).
+- **On its own, vocabulary fixes more of them, mostly where the term came from.** Under a prompt
+  that names none of the terms: 4 → 10.3 of 33 with the vocabulary as it is (any case 5 → 14.3),
+  which is circular (each term is scored on the dictation it was learned from), and 4 → 4.7 held
+  out (any case 5 → 7.7), the honest number for other dictations.
+- **The gain is the terms told to polish:** *terms only* equals *again*, so replacement added
+  nothing to the count. (How often replacement fired isn't recorded per row; part 3 shows it
+  changes 11 raw transcripts.)
 - **On top of the learned prompt it adds nothing** (15.7 → 15, inside the range). The learned prompt
   was tuned on these fixes and names most of the terms itself; so does the built-in v7 (not run:
   it is that learned prompt promoted). Learn's prompt alone beats vocabulary alone (15.7 vs 10.3):
@@ -112,7 +115,7 @@ Part 2, speech with terms (on-device, 25 recordings, 32 mishearings; one pass):
 
 The hint fixes 6 more of 32 on the dictations its terms came from, none on the others, for about
 +0.25 s typical on recordings with a median of 44 s of speech (one pass; held out measured −0.10 s,
-so the noise is of that size). Replacement added nothing to any arm.
+so the noise is of that size). Replacement added nothing to any arm's count.
 
 Parts 3–6 (first run):
 
