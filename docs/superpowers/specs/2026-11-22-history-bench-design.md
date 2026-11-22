@@ -2,7 +2,8 @@
 
 `bench/suite.py history run`. One run answers, on your real History: do the words the app misheard
 now come out right, what does that cost in wait, and does it break anything. Cap: 50¢ a run
-(`--max-cost`, default 0.50); expected about 10–25¢ with four arms (the dry run prints the estimate).
+(`--max-cost`, default 0.50); about 6¢ for four arms on the learned prompt (Nov 22), so about 11¢ with
+both prompts (the dry run prints an upper estimate).
 
 ## What it reads
 
@@ -30,7 +31,7 @@ place. Nothing is written there.
 
 | # | Part | What runs | Headline number | Cost |
 |---|---|---|---|---|
-| 1 | Mishearings fixed | stored `raw` → replace → polish with terms → replace, 3 rounds, four arms | mishearings that come out as you wanted, of 33, per arm | cloud polish, ~10–25¢ |
+| 1 | Mishearings fixed | stored `raw` → replace → polish with terms → replace, 3 rounds, four arms × two prompts | mishearings that come out as you wanted, of 33, per arm | cloud polish, ~10–25¢ |
 | 2 | Speech with terms | each recording through the on-device speech model, no terms vs terms, interleaved | mishearings right in the transcript; seconds | $0 |
 | 3 | Reach and wrong hits | replacement alone on every stored `raw` and `text` | dictations it would change; hits per entry; hits that move a fixed dictation away from its fix | $0 |
 | 4 | Wait | replacement timed on every `raw`; polish wait from part 1; speech wait from part 2 | change in stop-to-text, typical and p95 | $0 |
@@ -53,10 +54,27 @@ place. Nothing is written there.
   stays and the report counts it). The honest
   number for "does it help on other dictations". Expect it near zero until terms repeat.
 
+### Prompts (part 1)
+
+The setup's active polish prompt may be a **learned** one (`learned-prompts.json`), tuned on these same
+corrections, and it can already name most of the terms: on Nov 22 every arm, off included, fixed 15–16 of
+33. So part 1 runs every arm under two prompts, interleaved with the arms per dictation, and reports them
+side by side:
+
+- **learned:** the setup with its active learned prompt (`LearnedPromptStore.apply(to:)`). "Off" here is
+  Learn's prompt without vocabulary, not "before".
+- **base:** the same setup as read, before any learned prompt (its own `prompt`, `promptText` with no
+  `learnedText`): what the app polishes with before any tune. What vocabulary does on its own.
+
+With no learned prompt active, the report says so and runs base only. `--prompts` and `--arms` pick a
+subset for a cheaper rerun.
+
 ### Scoring
 
 - **A mishearing is fixed** when the output has the wanted words (`new`; whole words, case as you
   wrote it) at least as often as your fix does.
+- **Fixed, any case**, next to it: the same whole-word rule, compared case-insensitively
+  ("Ticketmaster" for your "ticketmaster" counts here, not in the strict score).
 - **Word errors against your fix**, whole text: second number only. 100 of 139 changes are style and
   polish differs run to run, so report the mean and the range over rounds.
 - Part 1 uses the app's current setup when its polish is in the cloud, else `cloud-flash`

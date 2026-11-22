@@ -3,6 +3,7 @@
   bench/suite.py history run --dry-run           # what it would run and cost; reads no key, sends nothing
   bench/suite.py history run                     # all six parts on your History (cap: --max-cost, default $0.50)
   bench/suite.py history run --parts 3,5,6       # only the free, local parts
+  bench/suite.py history run --parts 1 --prompts base --arms off,again   # a cheap part-1 rerun
   bench/suite.py history report [--file …] [--markdown]
   bench/suite.py history report --details        # hits and misses WITH your text: for your eyes only
 
@@ -25,6 +26,9 @@ every raw and text), 4 wait, 5 what learns (rules vs judge against your Add and 
 Arms: off (no vocabulary), terms-only (part 1: your terms told to polish, no replacement before or after),
 again (your vocabulary as it is: circular on purpose), held-out (without the variants and learned entries
 whose only source is the dictation under test; entries you typed stay). Part 2 runs off, again, held-out.
+Part 1 runs each arm under two prompts: learned (the setup's active learned prompt, which may know the terms
+already) and base (its built-in one); --prompts and --arms pick a subset. Scores: fixed (your case) and
+fixed, any case.
 
 Privacy: only fixed dictations go to the cloud (part 1), with the bench's key ($OPENROUTER_BENCH_API_KEY).
 Result files hold your text and stay in bench/results/history/ (git-ignored; never `git add -f` one). The
@@ -60,6 +64,9 @@ SNAPSHOT_FILES = ("history.json", "vocabulary.json", "edit-watch.json", "learned
 # Part 1: terms-only is the terms block in polish with no replacement (does polish alone get the term right?).
 ARMS = ("off", "terms-only", "again", "held-out")
 SPEECH_ARMS = ("off", "again", "held-out")  # part 2 scores the transcript before and after replacement itself
+# Part 1's prompts: the setup's active learned prompt (tuned on these same fixes, so it may name the terms
+# already), and its built-in one (what it polishes with before any tune).
+PROMPTS = ("learned", "base")
 PARTS = (1, 2, 3, 4, 5, 6)
 PART_NAMES = {1: "mishearings fixed", 2: "speech with terms", 3: "reach and wrong hits", 4: "wait", 5: "what learns",
               6: "edit replay"}
@@ -115,11 +122,13 @@ def trim(word: str, left: bool = True, right: bool = True) -> str:
     return word[i:j]
 
 
-def count_term(text: str, term: str) -> int:
-    """Times `term` stands in `text` as whole words, case as written. Words are WordDiff's, so a Chinese
+def count_term(text: str, term: str, any_case: bool = False) -> int:
+    """Times `term` stands in `text` as whole words, case as written (or any case). Words are WordDiff's, so a Chinese
     character is a word of its own and a Chinese term matches wherever its characters stand in a row
     (Chinese has no spaces, as FixIntake splits it); a Latin term needs its words whole, with only
     FixIntake's edge punctuation around them ("Claude." counts for Claude, "Claude's" doesn't)."""
+    if any_case:
+        text, term = text.lower(), term.lower()
     want, have = words(term), words(text)
     k = len(want)
     if not k:
@@ -141,22 +150,24 @@ def count_term(text: str, term: str) -> int:
     return n
 
 
-def is_fixed(output: str, target: str, new: str) -> bool:
-    """A mishearing is fixed when the output has the wanted words at least as often as your fix does."""
-    return count_term(output, new) >= max(1, count_term(target, new))
+def is_fixed(output: str, target: str, new: str, any_case: bool = False) -> bool:
+    """A mishearing is fixed when the output has the wanted words at least as often as your fix does: in
+    your case, or (`any_case`, the second score) in any case ("Ticketmaster" for your "ticketmaster")."""
+    return count_term(output, new, any_case) >= max(1, count_term(target, new, any_case))
 
 
-def fixed_count(output: str, target: str, changes: list[dict]) -> int:
+def fixed_count(output: str, target: str, changes: list[dict], any_case: bool = False) -> int:
     """How many of a dictation's mishearings come out right. For one wanted word, `is_fixed`; for k
     mishearings wanting the same words, each occurrence beyond those your fix already had elsewhere
     fixes one, so fixing one of two counts one."""
     by_new: dict[str, int] = {}
     for c in changes:
-        by_new[c["new"]] = by_new.get(c["new"], 0) + 1
+        key = c["new"].lower() if any_case else c["new"]
+        by_new[key] = by_new.get(key, 0) + 1
     n = 0
     for new, k in by_new.items():
-        already = max(0, count_term(target, new) - k)  # occurrences in your fix that weren't these changes
-        n += min(k, max(0, count_term(output, new) - already))
+        already = max(0, count_term(target, new, any_case) - k)  # occurrences in your fix that weren't these changes
+        n += min(k, max(0, count_term(output, new, any_case) - already))
     return n
 
 
@@ -329,15 +340,16 @@ def held_out(vocabulary: dict, dictation: str, history: list[dict], sources: Sou
 
 # ---------------------------------------------------------------- the job
 
-def schedule_polish(ids: list[str], rounds: int, seed: int) -> list[dict]:
-    """Every dictation × arm once a round; each dictation's arms back to back in a seeded order, so a slow minute
-    on the network hits all arms alike."""
+def schedule_polish(ids: list[str], rounds: int, seed: int, arms: tuple[str, ...] = ARMS,
+                    prompts: tuple[str, ...] = PROMPTS) -> list[dict]:
+    """Every dictation × prompt × arm once a round; each dictation's trials back to back in a seeded order, so a
+    slow minute on the network hits all prompts and arms alike."""
     out = []
     for rnd in range(1, rounds + 1):
         for d in ids:
-            arms = list(ARMS)
-            random.Random(f"{seed}:{rnd}:{d}").shuffle(arms)
-            out += [{"round": rnd, "id": d, "arm": arm} for arm in arms]
+            trials = [(prompt, arm) for prompt in prompts for arm in arms]
+            random.Random(f"{seed}:{rnd}:{d}").shuffle(trials)
+            out += [{"round": rnd, "id": d, "prompt": prompt, "arm": arm} for prompt, arm in trials]
     return out
 
 
@@ -351,7 +363,8 @@ def schedule_speech(ids: list[str], seed: int) -> list[dict]:
 
 
 def build_job(folder: Path, chosen: list[dict], kept: dict[str, Path], parts: list[int], rounds: int, seed: int,
-              setup: str, max_cost: float, learn_after: int, relative_to: Path | None = None) -> dict:
+              setup: str, max_cost: float, learn_after: int, relative_to: Path | None = None,
+              arms: tuple[str, ...] = ARMS, prompts: tuple[str, ...] = PROMPTS) -> dict:
     """The job HistoryBenchTests runs. Paths are absolute, or relative to the job file (`relative_to`)."""
     def path(p: Path | None) -> str | None:
         if p is None:
@@ -362,7 +375,6 @@ def build_job(folder: Path, chosen: list[dict], kept: dict[str, Path], parts: li
     history = load(folder / "history.json", [])
     sources = Sources(vocabulary, history)
     ids = [uid(e["id"]) for e in chosen]
-    with_raw = [uid(e["id"]) for e in chosen]
     speech_ids = [d for d in ids if d in kept]
     return {
         "version": 1,
@@ -375,8 +387,10 @@ def build_job(folder: Path, chosen: list[dict], kept: dict[str, Path], parts: li
         "learnAfter": learn_after,
         "learnedWithoutSource": unsourced(vocabulary, history),
         "parts": sorted(parts),
+        "arms": list(arms),
+        "prompts": list(prompts),
         "dictations": [{"id": d, "heldOut": held_out(vocabulary, d, history, sources), "recording": path(kept.get(d))} for d in ids],
-        "polish": schedule_polish(with_raw, rounds, seed) if 1 in parts else [],
+        "polish": schedule_polish(ids, rounds, seed, arms, prompts) if 1 in parts else [],
         "speech": schedule_speech(speech_ids, seed) if 2 in parts else [],
     }
 
@@ -403,17 +417,18 @@ def resolve_setup(setup_id: str, folder: Path) -> dict:
     fell_back = setup["polish"] == "apple"
     if fell_back:
         setup = known[FALLBACK_SETUP]
-    learned = load(folder / "learned-prompts.json", {})
-    version = (learned.get("active") or {}).get(setup["id"])
-    text = next((p["text"] for p in learned.get("prompts") or [] if p.get("version") == version), None) if version else None
-    if text is None:
-        version = setup["prompt"]
-        try:
-            text = polish.prompt_text(version, folder / "learned-prompts.json")
-        except (SystemExit, OSError):
-            text = ""
+    # Learned: LearnedPromptStore.active(for:), a version that's also among the prompts. Base: the setup as read.
+    learned_file = load(folder / "learned-prompts.json", {})
+    version = (learned_file.get("active") or {}).get(setup["id"])
+    text = next((p["text"] for p in learned_file.get("prompts") or [] if p.get("version") == version), None) if version else None
+    try:
+        base_text = polish.prompt_text(setup["prompt"], folder / "learned-prompts.json")
+    except (SystemExit, OSError):
+        base_text = ""
     spec = setup["polish"].removeprefix("openrouter:")
-    return {"id": setup["id"], "asked": setup_id, "fellBack": fell_back, "prompt": version, "promptText": text,
+    return {"id": setup["id"], "asked": setup_id, "fellBack": fell_back,
+            "learned": {"version": version, "text": text} if text is not None else None,
+            "base": {"version": setup["prompt"], "text": base_text},
             "model": spec.split("@")[0], "polish": setup["polish"], "wrap": setup.get("wrap", True)}
 
 
@@ -435,13 +450,13 @@ def estimate(job: dict, history: list[dict], vocabulary: dict, setup: dict, pric
     """Calls per part, and part 1's tokens and cost (None: the polish model's price isn't known)."""
     by_id = {uid(e["id"]): e for e in history}
     held = {d["id"]: d["heldOut"] for d in job["dictations"]}
-    prompt = edits.estimate_tokens(setup["promptText"])
+    prompt = {p: edits.estimate_tokens((setup[p] or {}).get("text") or "") for p in PROMPTS}
     again = terms_tokens(vocabulary.get("entries") or [])
     tokens_in = tokens_out = 0
     for trial in job["polish"]:
         entry = by_id[trial["id"]]
         block = {"off": 0, "terms-only": again, "again": again, "held-out": terms_tokens(held[trial["id"]])}[trial["arm"]]
-        tokens_in += prompt + block + edits.estimate_tokens(entry.get("raw") or entry["text"]) + 20  # tags + framing
+        tokens_in += prompt[trial.get("prompt", "learned")] + block + edits.estimate_tokens(entry.get("raw") or entry["text"]) + 20  # tags + framing
         tokens_out += edits.estimate_tokens(entry.get("correction") or entry["text"])
     price = prices.get(setup["model"])
     cost = None if price is None else (tokens_in * price[0] + tokens_out * price[1]) / 1e6
@@ -458,10 +473,15 @@ def plan_text(job: dict, plan: dict, setup: dict, counts: dict, rounds: int) -> 
              "(kept in held out)"]
     parts = job["parts"]
     if 1 in parts:
-        cost = "price unknown: pass --price MODEL=IN,OUT ($ per million tokens)" if plan["cost"] is None else f"≈ ${plan['cost']:.4f}"
-        lines.append(f"  part 1  {PART_NAMES[1]:<22} {plan['polish_calls']} polish calls ({n} × {len(ARMS)} arms × {rounds} rounds), "
-                     f"setup {setup['id']}{' (yours polishes on this Mac)' if setup['fellBack'] else ''}, prompt {setup['prompt']}, "
+        cost = ("price unknown: pass --price MODEL=IN,OUT ($ per million tokens)" if plan["cost"] is None
+                else f"≈ ${plan['cost']:.4f} (an upper estimate: the pinned host's list price, no cache; the Nov 22 run cost about a third of its estimate)")
+        prompts = " and ".join(f"{p} ({setup[p]['version']})" for p in job["prompts"])
+        lines.append(f"  part 1  {PART_NAMES[1]:<22} {plan['polish_calls']} polish calls ({n} × {len(job['arms'])} arms × "
+                     f"{len(job['prompts'])} prompts × {rounds} rounds), setup {setup['id']}"
+                     f"{' (yours polishes on this Mac)' if setup['fellBack'] else ''}, prompts {prompts}, arms {', '.join(job['arms'])}, "
                      f"{setup['model']}; ≈ {plan['tokens_in']:,} tokens in, {plan['tokens_out']:,} out: {cost}")
+        if counts.get("noLearned"):
+            lines.append(f"          {setup['id']} has no learned prompt active: part 1 runs the base prompt only")
     if 2 in parts:
         lines.append(f"  part 2  {PART_NAMES[2]:<22} {plan['speech_runs']} on-device transcriptions ({plan['clips']} clips × {len(SPEECH_ARMS)} arms), "
                      "$0 (skipped at run time if the model isn't downloaded)")
@@ -531,36 +551,43 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
     # A harness that died before its last row still spent what its part 1 rows say.
     spent = done.get("cost", sum(r.get("cost") or 0.0 for r in rows if r.get("part") == 1 and "arm" in r))
     out: dict = {"cost": spent, "stopped": done.get("stopped", False), "finished": bool(done),
-                 "setup": next(({k: r.get(k) for k in ("setup", "prompt", "polish", "fellBack")} for r in rows if r.get("kind") == "setup"), None),
+                 "setup": next(({k: r.get(k) for k in ("setup", "prompt", "learnedPrompt", "basePrompt", "polish", "fellBack")}
+                                for r in rows if r.get("kind") == "setup"), None),
                  "dictations": len(dictations), "mishearings": sum(len(v) for v in misheard.values()),
                  "changes": sum(len(r["changes"]) for r in dictations.values()), "parts": {}}
 
-    # Part 1: per arm and round, mishearings fixed and word errors against the fix.
-    p1 = [r for r in rows if r.get("part") == 1 and "arm" in r]
+    # Part 1: per prompt, arm and round, mishearings fixed (your case, and any case) and word errors against the fix.
+    p1 = [{**r, "prompt": r.get("prompt", "learned")} for r in rows if r.get("part") == 1 and "arm" in r]
     if p1 or any(r.get("part") == 1 for r in rows):
-        arms = {}
-        # Only whole rounds count toward fixed and word errors: one cut short by the cost cap would drag the mean down.
-        trials = {(r["round"], r["id"], r["arm"]) for r in p1}
-        ran_ids = {r["id"] for r in p1 if r["id"] in dictations}
-        whole = {rnd for rnd in {t[0] for t in trials} if all((rnd, d, a) in trials for d in ran_ids for a in ARMS)}
-        for arm in ARMS:
-            fixed_by_round, wer_by_round, secs, errors = {}, {}, [], 0
-            for r in (r for r in p1 if r["arm"] == arm):
-                d = dictations.get(r["id"])
-                errors += d is not None and bool(r.get("error"))
-                if d is not None and not r.get("error"):
-                    secs.append(r["seconds"])
-                if d is None or r["round"] not in whole:
-                    continue
-                fixed_by_round.setdefault(r["round"], 0)
-                fixed_by_round[r["round"]] += fixed_count(r["output"], d["target"], misheard[r["id"]])
-                wer_by_round.setdefault(r["round"], []).append(word_errors(d["target"], r["output"]))
-            arms[arm] = {"fixed": _spread(list(fixed_by_round.values())), "word_errors": _spread([statistics.fmean(v) for v in wer_by_round.values()]),
-                         "rounds": len(fixed_by_round), "errors": errors, "seconds": _wait(secs)}
+        by_prompt = {}
+        for prompt in [p for p in PROMPTS if any(r["prompt"] == p for r in p1)]:
+            sel = [r for r in p1 if r["prompt"] == prompt]
+            arms_run = [a for a in ARMS if any(r["arm"] == a for r in sel)]
+            # Only whole rounds count toward fixed and word errors: one cut short by the cost cap would drag the mean down.
+            trials = {(r["round"], r["id"], r["arm"]) for r in sel}
+            # Whole: every dictation in the job got every arm that round (not only the ones that ran before a stop).
+            whole = {rnd for rnd in {t[0] for t in trials} if all((rnd, d, a) in trials for d in dictations for a in arms_run)}
+            arms = {}
+            for arm in arms_run:
+                fixed_by_round, any_case_by_round, wer_by_round, secs, errors = {}, {}, {}, [], 0
+                for r in (r for r in sel if r["arm"] == arm):
+                    d = dictations.get(r["id"])
+                    errors += d is not None and bool(r.get("error"))
+                    if d is not None and not r.get("error"):
+                        secs.append(r["seconds"])
+                    if d is None or r["round"] not in whole:
+                        continue
+                    fixed_by_round[r["round"]] = fixed_by_round.get(r["round"], 0) + fixed_count(r["output"], d["target"], misheard[r["id"]])
+                    any_case_by_round[r["round"]] = any_case_by_round.get(r["round"], 0) + fixed_count(r["output"], d["target"], misheard[r["id"]], any_case=True)
+                    wer_by_round.setdefault(r["round"], []).append(word_errors(d["target"], r["output"]))
+                arms[arm] = {"fixed": _spread(list(fixed_by_round.values())), "fixedAnyCase": _spread(list(any_case_by_round.values())),
+                             "word_errors": _spread([statistics.fmean(v) for v in wer_by_round.values()]),
+                             "rounds": len(fixed_by_round), "errors": errors, "seconds": _wait(secs)}
+            by_prompt[prompt] = {"arms": arms, "wholeRounds": len(whole), "calls": len(sel)}
         ran = {r["id"] for r in p1}
         skipped = next((r.get("reason") for r in rows if r.get("part") == 1 and r.get("kind") == "skipped"), None)
-        out["parts"][1] = {"of": sum(len(misheard[d]) for d in ran if d in misheard), "dictations": len(ran), "arms": arms,
-                           "calls": len(p1), "skipped": skipped, "wholeRounds": len(whole)}
+        out["parts"][1] = {"of": sum(len(misheard[d]) for d in ran if d in misheard), "dictations": len(ran), "prompts": by_prompt,
+                           "calls": len(p1), "skipped": skipped}
 
     # Part 2: per arm, mishearings right in the transcript, and after the arm's replacement; seconds.
     p2 = [r for r in rows if r.get("part") == 2]
@@ -573,6 +600,7 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
             ok = [r for r in sel if not r.get("error")]
             arms[arm] = {"transcript": sum(fixed_count(r["transcript"], dictations[r["id"]]["target"], misheard[r["id"]]) for r in ok),
                          "replaced": sum(fixed_count(r["replaced"], dictations[r["id"]]["target"], misheard[r["id"]]) for r in ok),
+                         "replacedAnyCase": sum(fixed_count(r["replaced"], dictations[r["id"]]["target"], misheard[r["id"]], any_case=True) for r in ok),
                          "errors": len(sel) - len(ok), "seconds": _wait([r["seconds"] for r in ok])}
         clips = {r["id"] for r in runs}
         out["parts"][2] = {"skipped": skipped, "clips": len(clips), "of": sum(len(misheard.get(d, [])) for d in clips), "arms": arms}
@@ -611,14 +639,19 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
     p4 = next((r for r in rows if r.get("part") == 4 and r.get("kind") == "replacement"), None)
     if p4 is not None:
         wait = {"replacement": {**_wait(p4["seconds"]), "build": p4.get("build")}}
-        for part, key in ((1, "polish"), (2, "speech")):
-            arms = (out["parts"].get(part) or {}).get("arms")
-            if arms:
-                off = arms["off"]["seconds"]
-                wait[key] = {arm: {**arms[arm]["seconds"],
-                                   "p50_change": None if None in (arms[arm]["seconds"]["p50"], off["p50"]) else arms[arm]["seconds"]["p50"] - off["p50"],
-                                   "p95_change": None if None in (arms[arm]["seconds"]["p95"], off["p95"]) else arms[arm]["seconds"]["p95"] - off["p95"]}
-                             for arm in arms}
+        def changes(arms: dict) -> dict:
+            off = (arms.get("off") or {}).get("seconds") or {}
+            def change(arm: str, q: str):
+                mine, base = arms[arm]["seconds"][q], off.get(q)
+                return None if mine is None or base is None else mine - base
+            return {arm: {**arms[arm]["seconds"], "p50_change": change(arm, "p50"), "p95_change": change(arm, "p95")} for arm in arms}
+
+        polish_prompts = (out["parts"].get(1) or {}).get("prompts") or {}
+        if polish_prompts:
+            wait["polish"] = {prompt: changes(v["arms"]) for prompt, v in polish_prompts.items()}
+        speech_arms = (out["parts"].get(2) or {}).get("arms")
+        if speech_arms:
+            wait["speech"] = changes(speech_arms)
         out["parts"][4] = wait
 
     # Part 5: candidates by the rules alone and by the judge, against your Add and Dismiss.
@@ -699,9 +732,16 @@ def report_text(result: dict, markdown: bool = False) -> str:
         if v.get("skipped"):
             lines.append(f"  skipped: {v['skipped']}")
         lines += _unsourced_note(cfg)
-        rows = [[arm, _range(a["fixed"]), _range(a["word_errors"], pct=True), a["rounds"], a["errors"] or "",
-                 _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])] for arm, a in v["arms"].items()]
-        lines.append(harness.table(["arm", "fixed (mean, range)", "word errors vs fix", "rounds", "errors", "polish p50 s", "p95 s"], rows, markdown))
+        if "learned" in (cfg.get("promptsAsked") or []) and "learned" not in (cfg.get("prompts") or []):
+            lines.append(f"  {setup.get('setup')} has no learned prompt active: the base prompt only")
+        prompts = v.get("prompts") or {"as run": {"arms": v.get("arms", {})}}  # results from before prompts were split
+        for prompt, pv in prompts.items():
+            version = {"learned": setup.get("learnedPrompt"), "base": setup.get("basePrompt")}.get(prompt) or setup.get("prompt")
+            rows = [[arm, _range(a["fixed"]), _range(a.get("fixedAnyCase")), _range(a["word_errors"], pct=True), a["rounds"], a["errors"] or "",
+                     _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])] for arm, a in pv["arms"].items()]
+            lines += [f"  prompt: {prompt} ({version})",
+                      harness.table(["arm", "fixed (mean, range)", "fixed, any case", "word errors vs fix", "rounds", "errors", "polish p50 s", "p95 s"],
+                                    rows, markdown)]
     if 2 in p or "2" in p:
         v = p.get(2) or p.get("2")
         lines += ["", f"Part 2, speech with terms (on-device): of {v['of']} mishearings in {v['clips']} recordings"]
@@ -709,8 +749,9 @@ def report_text(result: dict, markdown: bool = False) -> str:
             lines.append(f"  skipped: {v['skipped']}")
         else:
             lines += _unsourced_note(cfg)
-            rows = [[arm, a["transcript"], a["replaced"], a["errors"] or "", _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])] for arm, a in v["arms"].items()]
-            lines.append(harness.table(["arm", "right in transcript", "after replacement", "errors", "p50 s", "p95 s"], rows, markdown))
+            rows = [[arm, a["transcript"], a["replaced"], a.get("replacedAnyCase", "—"), a["errors"] or "", _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])]
+                    for arm, a in v["arms"].items()]
+            lines.append(harness.table(["arm", "right in transcript", "after replacement", "after, any case", "errors", "p50 s", "p95 s"], rows, markdown))
     if 3 in p or "3" in p:
         v = p.get(3) or p.get("3")
         lines += ["", f"Part 3, reach and wrong hits (replacement alone, your vocabulary): {v['changed']} of {v['entries']:,} dictations changed "
@@ -725,10 +766,17 @@ def report_text(result: dict, markdown: bool = False) -> str:
         r = v["replacement"]
         lines += ["", f"Part 4, wait: replacement before + after polish, per dictation: p50 {1e6 * (r['p50'] or 0):.0f} µs, "
                   f"p95 {1e6 * (r['p95'] or 0):.0f} µs (n={r['n']}, {r.get('build')} build)"]
-        for key, label in (("polish", "polish"), ("speech", "on-device speech")):
-            if key in v:
-                rows = [[arm, _s(a["p50"]), _s(a["p95"]), _delta(a["p50_change"]), _delta(a["p95_change"])] for arm, a in v[key].items()]
-                lines += [f"  {label}, seconds (change vs off):", harness.table(["arm", "p50", "p95", "p50 change", "p95 change"], rows, markdown)]
+        def wait_table(label: str, arms: dict) -> list[str]:
+            rows = [[arm, _s(a["p50"]), _s(a["p95"]), _delta(a["p50_change"]), _delta(a["p95_change"])] for arm, a in arms.items()]
+            return [f"  {label}, seconds (change vs off):", harness.table(["arm", "p50", "p95", "p50 change", "p95 change"], rows, markdown)]
+
+        polish_wait = v.get("polish") or {}
+        if polish_wait and all("p50" in x for x in polish_wait.values()):  # results from before prompts were split
+            polish_wait = {"as run": polish_wait}
+        for prompt, arms in polish_wait.items():
+            lines += wait_table(f"polish, prompt {prompt}", arms)
+        if "speech" in v:
+            lines += wait_table("on-device speech", v["speech"])
     if 5 in p or "5" in p:
         v = p.get(5) or p.get("5")
         lines += ["", f"Part 5, what learns: of the {v['added']} terms added (by you, or learned after {v['learnAfter']} dictations: "
@@ -766,7 +814,7 @@ def details_text(result: dict) -> str:
         for c in d["changes"]:
             if c.get("verdict") == "misheard":
                 mark = "✓" if is_fixed(r["output"], d["target"], c["new"]) else "✗"
-                out.append(f"part 1 {mark} r{r['round']} {r['arm']:<8} {c['old']} → {c['new']}  [{r['id'][:8]}]{'  error: ' + r['error'] if r.get('error') else ''}")
+                out.append(f"part 1 {mark} r{r['round']} {r.get('prompt', 'learned'):<7} {r['arm']:<10} {c['old']} → {c['new']}  [{r['id'][:8]}]{'  error: ' + r['error'] if r.get('error') else ''}")
     for r in (r for r in rows if r.get("part") == 2 and "arm" in r):
         d = dictations.get(r["id"])
         for c in (d or {}).get("changes", []):
@@ -799,6 +847,16 @@ def parse_parts(text: str | None) -> list[int]:
     return parts
 
 
+def parse_list(text: str | None, choices: tuple[str, ...], flag: str) -> tuple[str, ...]:
+    """A comma-separated subset of `choices`, in their order; all of them when not given."""
+    if not text:
+        return choices
+    asked = [x.strip() for x in text.split(",") if x.strip()]
+    if not asked or any(x not in choices for x in asked):
+        raise SystemExit(f"{flag} {text!r}: choose from {','.join(choices)}")
+    return tuple(c for c in choices if c in asked)
+
+
 def prepare(args, folder: Path) -> tuple[dict, dict, dict, dict]:
     """(job, plan, setup, counts) for the data snapshotted into `folder`."""
     history = load(folder / "history.json", [])
@@ -807,10 +865,14 @@ def prepare(args, folder: Path) -> tuple[dict, dict, dict, dict]:
     data = Path(args.data).expanduser().resolve()  # the job's paths are absolute: the harness reads them from elsewhere
     kept = match_recordings(chosen, recordings(data / "Recordings")) if 2 in parts else {}
     setup = resolve_setup(args.setup or current_setup(data), folder)
-    job = build_job(folder, chosen, kept, parts, args.rounds, args.seed, setup["id"], args.max_cost, args.learn_after)
+    arms = parse_list(args.arms, ARMS, "--arms")
+    asked = parse_list(args.prompts, PROMPTS, "--prompts")
+    prompts = tuple(p for p in asked if setup[p] is not None) or ("base",)  # no learned prompt active: base only
+    job = build_job(folder, chosen, kept, parts, args.rounds, args.seed, setup["id"], args.max_cost, args.learn_after,
+                    arms=arms, prompts=prompts)
     plan = estimate(job, history, load(folder / "vocabulary.json", {}), setup, read_prices(args.price))
     counts = {"entries": len(history), "fixed": len(chosen), "mishearings": sum(len(mishearings(e)) for e in chosen),
-              "recorded": len(kept)}
+              "recorded": len(kept), "noLearned": "learned" in asked and setup["learned"] is None, "promptsAsked": list(asked)}
     return job, plan, setup, counts
 
 
@@ -861,7 +923,7 @@ def cmd_run(args, harness_run=run_harness) -> int:
         summary = score(rows, load(folder / "edit-watch.json", {}), load(folder / "vocabulary.json", {}), args.learn_after)
         config = {k: v for k, v in job.items() if k not in ("dictations", "polish", "speech", "history", "vocabulary", "learnedPrompts", "setups")}
         config |= {"rounds": rounds, "seed": args.seed, "limit": args.limit, "estimate": plan, "harnessExit": code,
-                   "setupAsked": setup["asked"], "setupFellBack": setup["fellBack"]}
+                   "setupAsked": setup["asked"], "setupFellBack": setup["fellBack"], "promptsAsked": counts["promptsAsked"]}
         result = {"suite": NAME, "run_at": started.isoformat(timespec="seconds"), "env": harness.environment(), "config": config,
                   "summary": summary, "rows": rows}
         saved = Path(args.out) if args.out else RESULTS
@@ -915,6 +977,9 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("--dry-run", action="store_true", help="print the calls per part and the estimated cost; read no key, send nothing")
     r.add_argument("--max-cost", type=float, default=MAX_COST, help="US $ cap: refuse above it, and stop sending once spent (default %(default).2f)")
     r.add_argument("--rounds", type=int, default=ROUNDS, help="part 1 rounds (default %(default)s)")
+    r.add_argument("--arms", metavar="LIST", help=f"part 1's arms, comma-separated (default all: {','.join(ARMS)})")
+    r.add_argument("--prompts", metavar="LIST", help="part 1's prompts: learned (the setup's active learned prompt) and base (its "
+                   "built-in one); default both")
     r.add_argument("--limit", type=int, metavar="N", help="only the newest N fixed dictations")
     r.add_argument("--setup", metavar="ID", help="part 1's setup (default: the app's current one when it polishes in the cloud, else cloud-flash)")
     r.add_argument("--price", action="append", metavar="MODEL=IN,OUT", help="$ per million prompt and completion tokens, for the estimate")

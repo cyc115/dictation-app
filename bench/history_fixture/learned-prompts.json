@@ -1,0 +1,19 @@
+{
+  "active": {"cloud-flash": "v8"},
+  "prompts": [
+    {
+      "version": "v8",
+      "setup": "cloud-flash",
+      "basedOn": "v7",
+      "date": "2026-11-06T10:00:00Z",
+      "text": "You clean up dictated text for the history bench fixture. Remove fillers, fix punctuation and keep the speaker's words. Names that come up: Hammerspoon, reMarkable.\n\nOutput only the cleaned text.",
+      "lens": "rules",
+      "corrections": 4,
+      "tokens": 50,
+      "score": {"mine": 90, "mineBefore": 80, "general": 85, "generalBefore": 84},
+      "errors": {},
+      "errorsBefore": {}
+    }
+  ],
+  "measurements": {}
+}

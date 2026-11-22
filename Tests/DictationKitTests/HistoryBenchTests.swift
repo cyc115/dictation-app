@@ -11,12 +11,13 @@ struct HistoryBenchJob: Decodable {
         let heldOut: [VocabularyEntry]
         let recording: String?
     }
-    struct PolishTrial: Decodable { let round: Int; let id: UUID; let arm: String }
+    /// `prompt`: "learned" (the setup's active learned prompt) or "base" (its built-in one); nil is learned.
+    struct PolishTrial: Decodable { let round: Int; let id: UUID; let arm: String; let prompt: String? }
     struct SpeechTrial: Decodable { let id: UUID; let arm: String }
 
     let history: String
     let vocabulary: String
-    let learnedPrompts: String?
+    var learnedPrompts: String?
     let setups: String?
     let setup: String
     var maxCost: Double
@@ -89,8 +90,10 @@ final class HistoryBench {
         let store = VocabularyStore(fileURL: url(job.vocabulary))  // reads; writes nothing unless changed
         let again = Vocabulary(store.entries)
         let byID = Dictionary(history.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let (setup, fellBack) = resolveSetup()
-        write(["part": 0, "kind": "setup", "setup": setup.id, "prompt": setup.prompt, "polish": setup.polish, "fellBack": fellBack,
+        let (base, fellBack) = resolveSetup()
+        let learned = learnedSetup(base)
+        write(["part": 0, "kind": "setup", "setup": base.id, "prompt": (learned ?? base).prompt, "basePrompt": base.prompt,
+               "learnedPrompt": learned?.prompt ?? NSNull(), "polish": base.polish, "fellBack": fellBack,
                "speech": DictationSetup.onDevice.speech])
 
         var fixes: [UUID: HistoryEntry] = [:]
@@ -112,21 +115,28 @@ final class HistoryBench {
         if parts.contains(4) { timeReplacement(history, again) }
         if parts.contains(5) { learning(history) }
         if parts.contains(6) { replay(fixes) }
-        if parts.contains(1) { await polishing(fixes, again: again, heldOut: heldOut, setup: setup) }
+        if parts.contains(1) { await polishing(fixes, again: again, heldOut: heldOut, prompts: ["base": base, "learned": learned]) }
         if parts.contains(2) { await speech(again: again, heldOut: heldOut) }
         write(["part": -1, "kind": "done", "cost": meter.total().cost, "calls": meter.count, "stopped": stopped])
     }
 
-    /// The setup part 1 polishes with: the job's (built-in or in setups.json) with its active learned
-    /// prompt, as `AppSettings` applies it; Cloud Flash's when that one polishes on this Mac.
+    /// The setup part 1 polishes with, as read (built-in or in setups.json), before any learned prompt:
+    /// its own prompt (`promptText` with no `learnedText`), what it polishes with before a tune. Cloud
+    /// Flash's when that one polishes on this Mac.
     func resolveSetup() -> (DictationSetup, Bool) {
         var all = DictationSetup.builtIns
         if let path = job.setups { all += DictationSetup.loadCustom(from: url(path)).setups }
         let named = all.first { $0.id == DictationSetup.currentID(job.setup) } ?? .cloudFlash
         let fellBack = named.polishesOnDevice
-        let chosen = fellBack ? DictationSetup.cloudFlash : named
-        guard let path = job.learnedPrompts else { return (chosen, fellBack) }
-        return (LearnedPromptStore(fileURL: url(path)).apply(to: chosen), fellBack)
+        return (fellBack ? DictationSetup.cloudFlash : named, fellBack)
+    }
+
+    /// That setup with its active learned prompt applied, as `AppSettings` applies it (`LearnedPromptStore.apply(to:)`);
+    /// nil when it has none.
+    func learnedSetup(_ base: DictationSetup) -> DictationSetup? {
+        guard let path = job.learnedPrompts else { return nil }
+        let applied = LearnedPromptStore(fileURL: url(path)).apply(to: base)
+        return applied.usesLearnedPrompt ? applied : nil
     }
 
     // MARK: Part 1: mishearings fixed
@@ -143,10 +153,12 @@ final class HistoryBench {
 
     /// Each trial through `DictationController.refine` (replace, polish, replace: a dictation's path)
     /// with the setup's cloud polish backend, metered; stops sending once the answers' cost reaches the cap.
-    private func polishing(_ fixes: [UUID: HistoryEntry], again: Vocabulary, heldOut: [UUID: Vocabulary], setup: DictationSetup) async {
+    private func polishing(_ fixes: [UUID: HistoryEntry], again: Vocabulary, heldOut: [UUID: Vocabulary],
+                           prompts: [String: DictationSetup?]) async {
         guard let key, !key.isEmpty else {
             return write(["part": 1, "kind": "skipped", "reason": "no key: bench/suite.py history passes the bench's own as HISTORY_BENCH_KEY"])
         }
+        var noPrompt = Set<String>()
         for (n, trial) in job.polish.enumerated() {
             if meter.total().cost >= job.maxCost {
                 stopped = true
@@ -155,12 +167,20 @@ final class HistoryBench {
                 return
             }
             guard let entry = fixes[trial.id], let arm = Arm(rawValue: trial.arm) else { continue }
+            let prompt = trial.prompt ?? "learned"
+            guard let found = prompts[prompt], let setup = found else {
+                if noPrompt.insert(prompt).inserted {
+                    write(["part": 1, "kind": "skipped", "prompt": prompt, "reason": "the setup has no \(prompt) prompt: its trials weren't run"])
+                }
+                continue
+            }
             let (told, replaced) = vocabularies(arm, again: again, heldOut: heldOut[trial.id])
             let backend = setup.polishBackend(apiKey: key, vocabulary: told, onDevice: { _, _ in NoOnDevicePolish() }, session: session)
                 .metered(by: meter)
             let mark = meter.count
             let refined = await DictationController.refine(entry.input, terms: replaced, polisher: PolishService(backend: backend))
-            write(["part": 1, "round": trial.round, "id": trial.id.uuidString, "arm": arm.rawValue, "output": refined.text,
+            write(["part": 1, "round": trial.round, "id": trial.id.uuidString, "prompt": prompt, "promptVersion": setup.prompt,
+                   "arm": arm.rawValue, "output": refined.text,
                    "seconds": refined.seconds, "error": refined.error ?? NSNull(), "by": refined.by?.model ?? NSNull(),
                    "cost": meter.total(from: mark).cost, "toldTerms": told.entries.count])
             if (n + 1) % 10 == 0 || n + 1 == job.polish.count {
@@ -452,15 +472,18 @@ final class HistoryBenchTests: XCTestCase {
 
         let setup = try XCTUnwrap(part(0).first { $0["kind"] as? String == "setup" })
         XCTAssertEqual(setup["setup"] as? String, "cloud-flash")
-        XCTAssertEqual(setup["prompt"] as? String, "v7")
+        XCTAssertEqual(setup["basePrompt"] as? String, "v7", "the setup's own prompt")
+        XCTAssertEqual(setup["learnedPrompt"] as? String, "v8", "its active learned prompt (the fixture's learned-prompts.json)")
         XCTAssertEqual(part(0).filter { $0["kind"] as? String == "dictation" && $0["error"] == nil }.count, 5)
 
         // Part 1: the real request per arm; the stub echoes the transcript, so only replacement fixes a word.
         let polish = part(1)
         XCTAssertEqual(polish.count, job.polish.count)
-        func output(_ arm: String, _ n: Int) -> String {
-            polish.first { $0["arm"] as? String == arm && $0["id"] as? String == id(n) && $0["round"] as? Int == 1 }?["output"] as? String ?? ""
+        func output(_ arm: String, _ n: Int, prompt: String = "base") -> String {
+            polish.first { $0["arm"] as? String == arm && $0["id"] as? String == id(n) && $0["round"] as? Int == 1 && $0["prompt"] as? String == prompt }?["output"] as? String ?? ""
         }
+        XCTAssertEqual(Set(polish.compactMap { $0["prompt"] as? String }), ["learned", "base"])
+        XCTAssertEqual(output("again", 1, prompt: "learned"), output("again", 1))
         XCTAssertTrue(output("off", 1).contains("nodes"))
         XCTAssertTrue(output("terms-only", 1).contains("nodes"), "terms told to polish, nothing replaced")
         XCTAssertTrue(output("again", 1).contains("notes"))
@@ -475,6 +498,10 @@ final class HistoryBenchTests: XCTestCase {
         XCTAssertEqual(systems.count, job.polish.count)
         XCTAssertEqual(systems.filter { $0.contains(Vocabulary.promptHeader) }.count, job.polish.filter { $0.arm != "off" }.count,
                        "the terms block in every arm but off")
+        XCTAssertEqual(systems.filter { $0.hasPrefix("You clean up dictated text for the history bench fixture.") }.count,
+                       job.polish.filter { $0.prompt == "learned" }.count, "the learned prompt for the learned trials")
+        XCTAssertEqual(systems.filter { $0.hasPrefix(DictationSetup.cloudFlash.promptText.prefix(60)) }.count,
+                       job.polish.filter { $0.prompt == "base" }.count, "Cloud Flash's own prompt for the base trials")
         XCTAssertEqual(StubURLProtocol.sent.first?.value(forHTTPHeaderField: "X-Title"), "DictationApp", "names its app")
         XCTAssertEqual(polish.compactMap { $0["cost"] as? Double }.reduce(0, +), 0.001 * Double(job.polish.count), accuracy: 1e-9)
 
@@ -531,6 +558,19 @@ final class HistoryBenchTests: XCTestCase {
         XCTAssertEqual(rows.filter { $0["part"] as? Int == 1 && $0["arm"] != nil }.count, 3)
         XCTAssertEqual(rows.filter { $0["kind"] as? String == "stopped" }.count, 1)
         XCTAssertEqual(rows.last?["stopped"] as? Bool, true)
+    }
+
+    /// A setup with no learned prompt active: the learned trials aren't run (the bench asks for base only then).
+    func testWithoutALearnedPromptOnlyBaseRuns() async throws {
+        var job = try HistoryBench.load(fixture.appendingPathComponent("job.json"))
+        job.learnedPrompts = nil
+        job.parts = [1]
+        let out = makeTempURL(self, "rows.jsonl")
+        try await bench(job, out: out).run()
+        let rows = try rows(out)
+        XCTAssertEqual(StubURLProtocol.sent.count, job.polish.filter { $0.prompt == "base" }.count)
+        XCTAssertEqual(rows.filter { $0["kind"] as? String == "skipped" && $0["prompt"] as? String == "learned" }.count, 1)
+        XCTAssertTrue(rows.first { $0["kind"] as? String == "setup" }?["learnedPrompt"] is NSNull)
     }
 
     /// No key: part 1 sends nothing (and never falls back to polishing on this Mac).

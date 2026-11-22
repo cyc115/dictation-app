@@ -222,6 +222,7 @@ bench/suite.py history run --dry-run          # calls per part and the estimated
 bench/suite.py history run                    # all six parts (cap --max-cost, default $0.50)
 bench/suite.py history run --parts 3,4,5,6    # only the free, local parts
 bench/suite.py history run --limit 10 --rounds 1 --setup cloud-flash
+bench/suite.py history run --parts 1 --prompts base --arms off,again   # a cheap part-1 rerun
 bench/suite.py history report [--markdown]    # totals only, safe to paste
 bench/suite.py history report --details       # hits and misses WITH your text: local only
 ```
@@ -237,8 +238,13 @@ bench/suite.py history report --details       # hits and misses WITH your text: 
   4 wait (replacement, polish and speech); 5 candidates by the rules vs the judge against your Add and
   Dismiss; 6 each fix replayed through the edit watcher's two trackers with synthesized keys.
 - **Arms:** off, terms only (part 1: the terms told to polish, nothing replaced), again (your
-  vocabulary as it is), held out (without what only the dictation under test taught it). Arms run
-  back to back per dictation (per clip in part 2), in a seeded order.
+  vocabulary as it is), held out (without what only the dictation under test taught it). `--arms`
+  picks a subset.
+- **Prompts (part 1):** every arm runs under the setup's active learned prompt (tuned on these fixes,
+  so it may know the terms already) and its base prompt (before any tune), reported side by side;
+  base only when no learned prompt is active. `--prompts learned,base`. Prompts and arms run back to
+  back per dictation (arms per clip in part 2), in a seeded order.
+- **Scores:** fixed (whole words, your case) and fixed, any case (same rule, case-insensitive).
 - **How:** this module snapshots, picks, matches recordings, builds the held-out vocabularies and
   writes a job; `HistoryBenchTests` (skipped unless `HISTORY_BENCH_JOB` is set) runs it through the
   app's own code and writes rows; the module scores them. `history_fixture/job.json` is the job for
@@ -247,7 +253,8 @@ bench/suite.py history report --details       # hits and misses WITH your text: 
 - **Cost:** part 1 only. The estimate prices tokens from `PRICES` (DeepSeek V4.1 Flash on Together,
   from a saved result) or `--price`; a run refuses above `--max-cost`, and the harness stops sending
   once the answers' reported cost reaches it (rows so far are kept; the report says it stopped).
-  Expect 10–25¢ for 28 fixes × 4 arms × 3 rounds (the dry run prints the estimate). About 10–15 minutes plus the test build.
+  The Nov 22 run (27 fixes × 4 arms × 3 rounds, one prompt) cost 5.6¢, about a third of its estimate, so both prompts
+  come to about 11¢; the dry run prints an upper estimate. About 15–20 minutes plus the test build.
 - **Privacy:** only fixed dictations go to the cloud, with the bench's key
   (`$OPENROUTER_BENCH_API_KEY`, passed to the test as `HISTORY_BENCH_KEY`, never written to the job).
   Result files (`results/history/<time>.json`) hold your text and are git-ignored: never `git add -f`

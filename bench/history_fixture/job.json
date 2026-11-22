@@ -2,7 +2,7 @@
  "version": 1,
  "history": "history.json",
  "vocabulary": "vocabulary.json",
- "learnedPrompts": null,
+ "learnedPrompts": "learned-prompts.json",
  "setups": null,
  "setup": "cloud-flash",
  "maxCost": 0.5,
@@ -15,6 +15,16 @@
   4,
   5,
   6
+ ],
+ "arms": [
+  "off",
+  "terms-only",
+  "again",
+  "held-out"
+ ],
+ "prompts": [
+  "learned",
+  "base"
  ],
  "dictations": [
   {
@@ -423,202 +433,482 @@
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000009",
-   "arm": "held-out"
-  },
-  {
-   "round": 1,
-   "id": "DDDDDDDD-0000-4000-8000-000000000009",
-   "arm": "terms-only"
-  },
-  {
-   "round": 1,
-   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "base",
    "arm": "off"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "learned",
+   "arm": "held-out"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "learned",
+   "arm": "terms-only"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "base",
+   "arm": "held-out"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "base",
    "arm": "again"
   },
   {
    "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "learned",
+   "arm": "again"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "learned",
+   "arm": "off"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "base",
+   "arm": "terms-only"
+  },
+  {
+   "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "base",
+   "arm": "terms-only"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "base",
    "arm": "held-out"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "learned",
+   "arm": "terms-only"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "learned",
+   "arm": "again"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "learned",
    "arm": "off"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000004",
-   "arm": "terms-only"
+   "prompt": "learned",
+   "arm": "held-out"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "base",
    "arm": "again"
   },
   {
    "round": 1,
-   "id": "DDDDDDDD-0000-4000-8000-000000000003",
-   "arm": "terms-only"
-  },
-  {
-   "round": 1,
-   "id": "DDDDDDDD-0000-4000-8000-000000000003",
-   "arm": "held-out"
-  },
-  {
-   "round": 1,
-   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "base",
    "arm": "off"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "learned",
+   "arm": "again"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "base",
+   "arm": "off"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "base",
+   "arm": "held-out"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "learned",
+   "arm": "held-out"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "learned",
+   "arm": "terms-only"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "base",
+   "arm": "again"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "learned",
+   "arm": "off"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "base",
+   "arm": "terms-only"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "base",
+   "arm": "terms-only"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "base",
+   "arm": "held-out"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "base",
    "arm": "again"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000002",
-   "arm": "again"
+   "prompt": "learned",
+   "arm": "terms-only"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "base",
    "arm": "off"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000002",
-   "arm": "held-out"
+   "prompt": "learned",
+   "arm": "off"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "learned",
+   "arm": "again"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "learned",
+   "arm": "held-out"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "learned",
    "arm": "terms-only"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "learned",
    "arm": "held-out"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "base",
+   "arm": "held-out"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "base",
    "arm": "again"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "base",
+   "arm": "off"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "base",
    "arm": "terms-only"
   },
   {
    "round": 1,
    "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "learned",
+   "arm": "again"
+  },
+  {
+   "round": 1,
+   "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "learned",
    "arm": "off"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "base",
    "arm": "held-out"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000009",
-   "arm": "again"
-  },
-  {
-   "round": 2,
-   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "base",
    "arm": "terms-only"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "base",
+   "arm": "off"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "learned",
+   "arm": "terms-only"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "learned",
+   "arm": "held-out"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "learned",
+   "arm": "again"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "base",
+   "arm": "again"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000009",
+   "prompt": "learned",
    "arm": "off"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000004",
-   "arm": "terms-only"
-  },
-  {
-   "round": 2,
-   "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "base",
    "arm": "held-out"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "learned",
+   "arm": "held-out"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "base",
    "arm": "again"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000004",
-   "arm": "off"
+   "prompt": "learned",
+   "arm": "again"
   },
   {
    "round": 2,
-   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "learned",
    "arm": "terms-only"
   },
   {
    "round": 2,
-   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "base",
+   "arm": "terms-only"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "base",
+   "arm": "off"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000004",
+   "prompt": "learned",
    "arm": "off"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "base",
+   "arm": "again"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "learned",
+   "arm": "off"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "base",
    "arm": "held-out"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "learned",
    "arm": "again"
   },
   {
    "round": 2,
-   "id": "DDDDDDDD-0000-4000-8000-000000000002",
-   "arm": "again"
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "learned",
+   "arm": "held-out"
   },
   {
    "round": 2,
-   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "learned",
+   "arm": "terms-only"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "base",
+   "arm": "terms-only"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000003",
+   "prompt": "base",
    "arm": "off"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "learned",
+   "arm": "off"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "base",
+   "arm": "again"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "learned",
    "arm": "held-out"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "base",
+   "arm": "off"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "base",
    "arm": "terms-only"
   },
   {
    "round": 2,
-   "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "learned",
+   "arm": "terms-only"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "base",
+   "arm": "held-out"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000002",
+   "prompt": "learned",
    "arm": "again"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000001",
-   "arm": "terms-only"
+   "prompt": "learned",
+   "arm": "held-out"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "base",
    "arm": "off"
   },
   {
    "round": 2,
    "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "learned",
+   "arm": "terms-only"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "base",
+   "arm": "terms-only"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "base",
    "arm": "held-out"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "learned",
+   "arm": "again"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "learned",
+   "arm": "off"
+  },
+  {
+   "round": 2,
+   "id": "DDDDDDDD-0000-4000-8000-000000000001",
+   "prompt": "base",
+   "arm": "again"
   }
  ],
  "speech": [

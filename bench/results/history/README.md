@@ -32,9 +32,15 @@ text and are git-ignored; never `git add -f` one.
   dictations".
 - **Part 1** polishes with the main model only (no backup model, no deadline), so its wait is the
   model's own; a failed call scores what the app would paste (the replaced transcript) and counts
-  as an error. 3 rounds, arms back to back per dictation in a seeded order; mean and range.
+  as an error. 3 rounds; mean and range.
+- **Two prompts.** Every arm runs under the setup's active *learned* prompt (tuned on these same
+  fixes, so it may name the terms already: "off" there is Learn's prompt without vocabulary) and
+  under its *base* prompt (the setup as read, before any learned prompt: what vocabulary does on its
+  own). Prompts and arms run back to back per dictation in a seeded order. With no learned prompt
+  active, base only. `--prompts` and `--arms` pick a subset.
 - **Scoring.** A mishearing is fixed when the output has the wanted words at least as often as your
-  fix, whole words in your case. Words are `WordDiff`'s: a Chinese character is a word, so a Chinese
+  fix, whole words in your case; *fixed, any case* is the same rule compared case-insensitively
+  ("Ticketmaster" for your "ticketmaster"). Words are `WordDiff`'s: a Chinese character is a word, so a Chinese
   term counts wherever its characters stand in a row; a Latin term needs whole words, with only
   `FixIntake`'s edge punctuation around them. Word errors against the whole fix are the bench's
   token error rate (second number: most changes are style).
@@ -63,12 +69,16 @@ text and are git-ignored; never `git add -f` one.
 
 Part 1, mishearings fixed (mean over rounds, range):
 
-| arm | fixed | word errors vs fix | polish p50 | polish p95 |
-|:--|--:|--:|--:|--:|
-| off | | | | |
-| terms only | | | | |
-| again | | | | |
-| held out | | | | |
+| prompt | arm | fixed | fixed, any case | word errors vs fix | polish p50 | polish p95 |
+|:--|:--|--:|--:|--:|--:|--:|
+| learned | off | | | | | |
+| learned | terms only | | | | | |
+| learned | again | | | | | |
+| learned | held out | | | | | |
+| base | off | | | | | |
+| base | terms only | | | | | |
+| base | again | | | | | |
+| base | held out | | | | | |
 
 Part 2, speech with terms (on-device):
 
@@ -83,6 +93,6 @@ Parts 3–6:
 | part | number |
 |:--|:--|
 | 3 reach | dictations changed: · hits: · moved away from a fix: · flagged entries: |
-| 4 wait | replacement p50/p95: · polish change (terms only, again vs off): · speech change: |
+| 4 wait | replacement p50/p95: · polish change vs off, per prompt (terms only, again): · speech change: |
 | 5 what learns | added proposed, rules / judge: · dismissed proposed, rules / judge: |
 | 6 edit replay | readback exact: · keystrokes exact: · input method apart: · app counts: |

@@ -3,6 +3,7 @@ Run: uv run --with pytest --with opencc-python-reimplemented==0.1.7 pytest bench
 import json
 import os
 import re
+import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -50,6 +51,16 @@ def test_mishearings_wanting_the_same_word_count_one_by_one():
     assert h.fixed_count("Claude and Claude", "Claude and Claude", two) == 2
     assert h.fixed_count("Claude and cloud", "Claude and Claude, Claude", two) == 0, "the fix had one more already"
     assert h.fixed_count("Ask Claude", "Ask Claude", [{"new": "Claude"}]) == 1
+
+
+def test_the_second_score_takes_any_case():
+    """The strict score keeps your case; "fixed, any case" counts "Ticketmaster" for your "ticketmaster", whole words still."""
+    assert not h.is_fixed("Buy on Ticketmaster.", "Buy on ticketmaster.", "ticketmaster")
+    assert h.is_fixed("Buy on Ticketmaster.", "Buy on ticketmaster.", "ticketmaster", any_case=True)
+    assert not h.is_fixed("Buy on Ticketmasters.", "Buy on ticketmaster.", "ticketmaster", any_case=True), "whole words"
+    two = [{"new": "Claude"}, {"new": "claude"}]
+    assert h.fixed_count("CLAUDE and cloud", "Claude and claude", two, any_case=True) == 1
+    assert h.fixed_count("CLAUDE and cloud", "Claude and claude", two) == 0
 
 
 def test_chinese_words_are_characters():
@@ -123,12 +134,16 @@ def test_held_out_finds_sources_in_history_too():
 
 def test_arms_are_interleaved_per_dictation():
     plan = h.schedule_polish([D(1), D(2)], rounds=3, seed=1)
-    assert len(plan) == 2 * 3 * len(h.ARMS)
-    for i in range(0, len(plan), len(h.ARMS)):
-        block = plan[i:i + len(h.ARMS)]
-        assert len({t["id"] for t in block}) == 1 and {t["arm"] for t in block} == set(h.ARMS), "a dictation's arms back to back"
+    size = len(h.ARMS) * len(h.PROMPTS)
+    assert len(plan) == 2 * 3 * size
+    for i in range(0, len(plan), size):
+        block = plan[i:i + size]
+        assert len({t["id"] for t in block}) == 1, "a dictation's trials back to back"
+        assert {(t["prompt"], t["arm"]) for t in block} == {(p, a) for p in h.PROMPTS for a in h.ARMS}, "every prompt × arm"
     assert plan == h.schedule_polish([D(1), D(2)], rounds=3, seed=1)
-    assert {tuple(t["arm"] for t in plan[i:i + 4]) for i in range(0, len(plan), 4)} != {h.ARMS}, "shuffled"
+    assert len({tuple((t["prompt"], t["arm"]) for t in plan[i:i + size]) for i in range(0, len(plan), size)}) > 1, "shuffled"
+    some = h.schedule_polish([D(1)], rounds=1, seed=1, arms=("off", "again"), prompts=("base",))
+    assert {(t["prompt"], t["arm"]) for t in some} == {("base", "off"), ("base", "again")}
     speech = h.schedule_speech([D(1)], seed=1)
     assert {t["arm"] for t in speech} == set(h.SPEECH_ARMS)
 
@@ -142,6 +157,10 @@ def test_the_swift_harness_runs_this_job():
 def test_parts():
     assert h.parse_parts(None) == [1, 2, 3, 4, 5, 6]
     assert h.parse_parts("4,1,3") == [1, 3, 4]
+    assert h.parse_list("again,off", h.ARMS, "--arms") == ("off", "again"), "in the arms' own order"
+    assert h.parse_list(None, h.PROMPTS, "--prompts") == h.PROMPTS
+    with pytest.raises(SystemExit):
+        h.parse_list("loud", h.ARMS, "--arms")
     for bad in ("7", "a", ""):
         if bad:
             with pytest.raises(SystemExit):
@@ -162,7 +181,9 @@ def test_dry_run_sends_nothing(monkeypatch, capsys, tmp_path):
     refuse = no_network(monkeypatch)
     assert h.cmd_run(run_args("--dry-run", out=tmp_path), harness_run=refuse) == 0
     out = capsys.readouterr().out
-    assert "60 polish calls (5 × 4 arms × 3 rounds)" in out
+    assert "120 polish calls (5 × 4 arms × 2 prompts × 3 rounds)" in out
+    assert "prompts learned (v8) and base (v7)" in out
+    assert "an upper estimate" in out
     assert "1 learned entries with no known source (kept in held out)" in out
     assert "3 on-device transcriptions (1 clips × 3 arms)" in out
     assert "dry run: nothing sent" in out
@@ -193,11 +214,14 @@ def test_the_estimate_counts_every_arm():
     job = h.build_job(folder, chosen, {}, [1], 3, 1, "cloud-flash", 0.5, 3)
     setup = h.resolve_setup("cloud-flash", folder)
     plan = h.estimate(job, HISTORY, VOCABULARY, setup, h.PRICES)
-    assert plan["polish_calls"] == 5 * 4 * 3
+    assert plan["polish_calls"] == 5 * 4 * 2 * 3
     off = h.estimate({**job, "polish": [t for t in job["polish"] if t["arm"] == "off"]}, HISTORY, VOCABULARY, setup, h.PRICES)
     told = h.estimate({**job, "polish": [t for t in job["polish"] if t["arm"] == "terms-only"]}, HISTORY, VOCABULARY, setup, h.PRICES)
     assert told["tokens_in"] > off["tokens_in"], "the terms block costs tokens"
-    assert setup["model"] == "deepseek/deepseek-v4.1-flash" and setup["prompt"] == "v7"
+    assert setup["model"] == "deepseek/deepseek-v4.1-flash" and setup["base"]["version"] == "v7" and setup["learned"]["version"] == "v8"
+    base = h.estimate({**job, "polish": [t for t in job["polish"] if t["prompt"] == "base"]}, HISTORY, VOCABULARY, setup, h.PRICES)
+    learned = h.estimate({**job, "polish": [t for t in job["polish"] if t["prompt"] == "learned"]}, HISTORY, VOCABULARY, setup, h.PRICES)
+    assert base["tokens_in"] > learned["tokens_in"], "each prompt's own length (the fixture's learned one is short)"
     assert h.resolve_setup("on-device", folder)["fellBack"], "a setup that polishes on this Mac: Cloud Flash's"
 
 
@@ -222,8 +246,8 @@ def fake_harness(job_path: Path, out_path: Path, key, log: Path, stop_after: int
     for d in job["dictations"]:  # the harness runs elsewhere: every path it's given must stand on its own
         assert d["recording"] is None or (Path(d["recording"]).is_absolute() and Path(d["recording"]).exists())
     assert Path(job["history"]).is_absolute() and Path(job["history"]).parent == folder / "data"
-    rows = [{"part": 0, "kind": "setup", "setup": job["setup"], "prompt": "v7", "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra",
-             "fellBack": False}]
+    rows = [{"part": 0, "kind": "setup", "setup": job["setup"], "prompt": "v8", "basePrompt": "v7", "learnedPrompt": "v8",
+             "polish": "openrouter:deepseek/deepseek-v4.1-flash@Together,DeepInfra", "fellBack": False}]
     for d in job["dictations"]:
         e = history[d["id"]]
         rows.append({"part": 0, "kind": "dictation", "id": d["id"], "input": e.get("raw") or e["text"], "hadRaw": "raw" in e,
@@ -236,7 +260,10 @@ def fake_harness(job_path: Path, out_path: Path, key, log: Path, stop_after: int
             rows.append({"part": 1, "kind": "stopped", "cost": cost})
             break
         e = history[t["id"]]
-        rows.append({"part": 1, "round": t["round"], "id": t["id"], "arm": t["arm"], "output": replace(e.get("raw") or e["text"], vocab_for(t["arm"], t["id"])),
+        output = replace(e.get("raw") or e["text"], vocab_for(t["arm"], t["id"]))
+        if t["prompt"] == "learned":  # a stand-in for a learned prompt that knows a term already, in its own case
+            output = output.replace("hammer spoon", "HAMMERSPOON")
+        rows.append({"part": 1, "round": t["round"], "id": t["id"], "prompt": t["prompt"], "arm": t["arm"], "output": output,
                      "seconds": 0.5 + 0.1 * (t["arm"] != "off"), "error": None, "cost": 0.001})
         cost += 0.001
     for t in job["speech"]:
@@ -297,11 +324,17 @@ def test_the_report_has_totals_only(monkeypatch, capsys, tmp_path):
         assert not found.search(summary), f"{text!r} in the summary"
     assert "Claude" in h.details_text(result), "the local details do have text"
     s = result["summary"]["parts"]
-    assert s["1"]["of"] == 6 and s["1"]["arms"]["off"]["fixed"]["mean"] == 0
-    assert s["1"]["arms"]["again"]["fixed"]["mean"] == 5, "every mishearing with a variant (茶 has none)"
-    assert s["1"]["arms"]["held-out"]["fixed"]["mean"] == 1, "only reMarkable, seen in another dictation too"
+    base, learned = s["1"]["prompts"]["base"]["arms"], s["1"]["prompts"]["learned"]["arms"]
+    assert s["1"]["of"] == 6 and base["off"]["fixed"]["mean"] == 0
+    assert base["again"]["fixed"]["mean"] == 5, "every mishearing with a variant (茶 has none)"
+    assert base["held-out"]["fixed"]["mean"] == 1, "only reMarkable, seen in another dictation too"
+    assert learned["off"]["fixed"]["mean"] == 0
+    assert learned["off"]["fixedAnyCase"]["mean"] == 2, "HAMMERSPOON, and the case-only remarkable: right in any case only"
+    assert "prompt: learned (v8)" in report and "prompt: base (v7)" in report and "fixed, any case" in report
     assert "1 learned entries with no known source: kept in held out" in report
-    assert s["4"]["polish"]["terms-only"]["p50_change"] == pytest.approx(0.1)
+    assert s["4"]["polish"]["base"]["terms-only"]["p50_change"] == pytest.approx(0.1)
+    assert s["4"]["polish"]["learned"]["again"]["p50_change"] == pytest.approx(0.1)
+    assert "polish, prompt learned, seconds" in report
     assert s["6"]["keystrokes"] == {"exact": 4, "of": 4, "captured": 4, "missesPastTheEdge": 0, "inputMethod": 1, "inputMethodExact": 1}
     assert s["6"]["app"] == {"apps": 2, "armed": 8, "probesFailed": 4, "gaveUp": 2}
     assert s["5"]["added"] == 5 and s["5"]["dismissed"] == 1
@@ -317,5 +350,29 @@ def test_a_stopped_run_says_so(monkeypatch, capsys, tmp_path):
     assert result["summary"]["stopped"]
     assert "stopped sending at the cost cap" in h.report_text(result)
     assert sum(1 for r in result["rows"] if r.get("part") == 1 and "arm" in r) == 5, "the rows so far are kept"
-    assert result["summary"]["parts"]["1"]["wholeRounds"] == 0, "a round cut short isn't scored"
+    assert all(v["wholeRounds"] == 0 for v in result["summary"]["parts"]["1"]["prompts"].values()), "a round cut short isn't scored"
     assert result["summary"]["cost"] == pytest.approx(0.005)
+
+
+def test_a_subset_of_arms_and_prompts(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr(h.openrouter, "key", lambda env: "sk-test")
+    monkeypatch.setattr(h.openrouter, "key_problem", lambda key: None)
+    args = run_args("--parts", "1,4", "--arms", "off,again", "--prompts", "base", "--rounds", "1", out=tmp_path)
+    assert h.cmd_run(args, harness_run=fake_harness) == 0
+    result = json.loads(next(tmp_path.glob("*.json")).read_text())
+    calls = [r for r in result["rows"] if r.get("part") == 1 and "arm" in r]
+    assert len(calls) == 5 * 2 and {(r["prompt"], r["arm"]) for r in calls} == {("base", "off"), ("base", "again")}
+    assert list(result["summary"]["parts"]["1"]["prompts"]) == ["base"]
+    assert set(result["summary"]["parts"]["4"]["polish"]["base"]) == {"off", "again"}
+
+
+def test_no_learned_prompt_runs_base_only(monkeypatch, capsys, tmp_path):
+    data = tmp_path / "data"
+    shutil.copytree(FIXTURE, data)
+    (data / "learned-prompts.json").unlink()
+    refuse = no_network(monkeypatch)
+    args = h.parser().parse_args(["run", "--data", str(data), "--out", str(tmp_path / "out"), "--dry-run"])
+    assert h.cmd_run(args, harness_run=refuse) == 0
+    out = capsys.readouterr().out
+    assert "60 polish calls (5 × 4 arms × 1 prompts × 3 rounds)" in out
+    assert "no learned prompt active: part 1 runs the base prompt only" in out
