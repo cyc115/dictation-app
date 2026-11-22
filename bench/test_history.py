@@ -354,6 +354,14 @@ def test_a_stopped_run_says_so(monkeypatch, capsys, tmp_path):
     assert result["summary"]["cost"] == pytest.approx(0.005)
 
 
+def test_a_skipped_part_1_prints_no_empty_table():
+    result = {"run_at": "x", "config": {"parts": [1], "maxCost": 0.5}, "summary": {
+        "dictations": 1, "changes": 1, "mishearings": 1, "cost": 0, "finished": True, "setup": {},
+        "parts": {"1": {"of": 0, "dictations": 0, "prompts": {}, "calls": 0, "skipped": "no key"}}}}
+    report = h.report_text(result)
+    assert "skipped: no key" in report and "prompt:" not in report
+
+
 def test_a_subset_of_arms_and_prompts(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(h.openrouter, "key", lambda env: "sk-test")
     monkeypatch.setattr(h.openrouter, "key_problem", lambda key: None)

@@ -577,8 +577,11 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
                         secs.append(r["seconds"])
                     if d is None or r["round"] not in whole:
                         continue
-                    fixed_by_round[r["round"]] = fixed_by_round.get(r["round"], 0) + fixed_count(r["output"], d["target"], misheard[r["id"]])
-                    any_case_by_round[r["round"]] = any_case_by_round.get(r["round"], 0) + fixed_count(r["output"], d["target"], misheard[r["id"]], any_case=True)
+                    # Any case never scores below your case (an "already" in another case could otherwise lower it).
+                    strict_here = fixed_count(r["output"], d["target"], misheard[r["id"]])
+                    any_here = max(strict_here, fixed_count(r["output"], d["target"], misheard[r["id"]], any_case=True))
+                    any_case_by_round[r["round"]] = any_case_by_round.get(r["round"], 0) + any_here
+                    fixed_by_round[r["round"]] = fixed_by_round.get(r["round"], 0) + strict_here
                     wer_by_round.setdefault(r["round"], []).append(word_errors(d["target"], r["output"]))
                 arms[arm] = {"fixed": _spread(list(fixed_by_round.values())), "fixedAnyCase": _spread(list(any_case_by_round.values())),
                              "word_errors": _spread([statistics.fmean(v) for v in wer_by_round.values()]),
@@ -727,14 +730,16 @@ def report_text(result: dict, markdown: bool = False) -> str:
     p = s["parts"]
     if 1 in p or "1" in p:
         v = p.get(1) or p.get("1")
-        lines += ["", f"Part 1, mishearings fixed (setup {setup.get('setup')}, prompt {setup.get('prompt')}, {setup.get('polish')}"
+        lines += ["", f"Part 1, mishearings fixed (setup {setup.get('setup')}, {setup.get('polish')}"
                   f"{'; yours polishes on this Mac' if setup.get('fellBack') or cfg.get('setupFellBack') else ''}): of {v['of']} in {v['dictations']} dictations"]
         if v.get("skipped"):
             lines.append(f"  skipped: {v['skipped']}")
         lines += _unsourced_note(cfg)
         if "learned" in (cfg.get("promptsAsked") or []) and "learned" not in (cfg.get("prompts") or []):
             lines.append(f"  {setup.get('setup')} has no learned prompt active: the base prompt only")
-        prompts = v.get("prompts") or {"as run": {"arms": v.get("arms", {})}}  # results from before prompts were split
+        prompts = v["prompts"] if "prompts" in v else {"as run": {"arms": v.get("arms", {})}}  # results from before prompts were split
+        if len({pv.get("wholeRounds") for pv in prompts.values()}) > 1:
+            lines.append("  !! the prompts have different numbers of whole rounds (a stop at the cap): compare with care")
         for prompt, pv in prompts.items():
             version = {"learned": setup.get("learnedPrompt"), "base": setup.get("basePrompt")}.get(prompt) or setup.get("prompt")
             rows = [[arm, _range(a["fixed"]), _range(a.get("fixedAnyCase")), _range(a["word_errors"], pct=True), a["rounds"], a["errors"] or "",
