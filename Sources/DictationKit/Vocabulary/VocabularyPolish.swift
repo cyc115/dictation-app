@@ -3,8 +3,8 @@ import Foundation
 /// A polish backend that replaces your terms in what it's given and in what it answers, as a
 /// dictation does around its polish. For the polish runs with no `DictationController.deliver`
 /// around them: Learn's student (so a tune measures what you'd get) and Corrections' suggestion.
-/// Forwards `prepare()` and `name`: the protocol's defaults would lose the prewarm and rename the
-/// model in History.
+/// Forwards `prepare()`, `name` and `metered(by:)`: the protocol's defaults would lose the prewarm,
+/// rename the model in History, and leave a tune's student calls uncounted.
 struct VocabularyPolish: PolishBackend {
     let backend: PolishBackend
     let vocabulary: Vocabulary
@@ -16,6 +16,10 @@ struct VocabularyPolish: PolishBackend {
 
     func prepare() { backend.prepare() }
     var name: String { backend.name }
+    /// The wrapped model's calls are what cost: without this a tune with terms would report no student cost.
+    func metered(by meter: UsageMeter) -> PolishBackend {
+        VocabularyPolish(backend: backend.metered(by: meter), vocabulary: vocabulary)
+    }
 
     func polish(_ text: String) async throws -> String {
         let answer = try await backend.polish(vocabulary.apply(text).text)

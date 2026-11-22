@@ -33,6 +33,14 @@ final class VocabularyPolishTests: XCTestCase {
         XCTAssertEqual(PolishService(backend: wrapped).backend.name, inner.name)
     }
 
+    /// A tune counts what its student calls cost: the meter has to reach the model inside the wrapper.
+    func testForwardsTheUsageMeter() throws {
+        let meter = UsageMeter()
+        let model = OpenRouterPolish(model: "deepseek/deepseek-v4.1-flash", apiKey: "k")
+        let metered = try XCTUnwrap(VocabularyPolish(backend: model, vocabulary: claude).metered(by: meter) as? VocabularyPolish)
+        XCTAssertTrue((metered.backend as? OpenRouterPolish)?.meter === meter)
+    }
+
     func testNoTermsNoWrapper() {
         let inner = FakePolish()
         XCTAssertTrue(VocabularyPolish.wrap(inner, .none) is FakePolish)

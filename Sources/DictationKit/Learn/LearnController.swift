@@ -13,8 +13,8 @@ import SwiftUI
 final class LearnController: ObservableObject {
     /// Corrections needed before the first tune.
     static let minimum = 10
-    /// Fixes a tune takes at most, newest first: it makes 16 teacher calls that each carry nearly
-    /// every unlearned fix, and about 8 student calls per fix.
+    /// Fixes a tune takes at most, newest first: it makes 10 teacher calls that each carry most
+    /// unlearned fixes, and about 8 student calls per fix.
     static let maxFixes = 60
     /// The teacher: Claude Sonnet 5.5, thinking at medium effort. In the Oct 14 bake-off
     /// (bench/results/polish/README.md) it tuned as well as any teacher tried (+7 points on the
