@@ -99,24 +99,22 @@ final class JudgePassTests: XCTestCase {
         XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"])
     }
 
-    /// On the On-device setup with `judgeUsesCloud` on (and a key), the cloud judge runs as on a cloud
-    /// setup. An answer that lands after it's turned off again is still used: the fixes were already
-    /// sent, and nothing more is.
-    func testTheOnDeviceSetupJudgesWithTheOptIn() {
+    /// A batch in flight when you switch to a setup that polishes on this Mac: its answer is still used
+    /// (the fixes were sent while the setup was a cloud one), and nothing more is sent.
+    func testSwitchingToALocalSetupSendsNoMore() {
         settings.setOpenRouterKey("sk-test")
-        settings.setup = .onDevice
-        settings.judgeUsesCloud = true
+        settings.setup = .cloudFlash
         intake.judgeBackend = { [unowned self] in FixJudge.backend(settings: settings) != nil ? judge : nil }
         let ids = correct((1...11).map { ("ask cloud about item \($0)", "ask Claude about item \($0)") })
         intake.tabShown()
         XCTAssertEqual(intake.batches, 1)
         XCTAssertTrue(services.vocabulary.entries.isEmpty, "changes wait for the verdicts")
-        settings.judgeUsesCloud = false
+        settings.setup = .onDevice
         answer()
         XCTAssertEqual(judge.asked.map(\.count), [10])
         let judged = history.entries.filter { $0.intake?.changes.first?.verdict == .misheard }
         XCTAssertEqual(judged.count, 10, "the answer is used")
-        XCTAssertEqual(intake.batches, 1, "the 11th isn't sent once it's off")
+        XCTAssertEqual(intake.batches, 1, "the 11th isn't sent from the local setup")
         XCTAssertTrue(FixJudge.pending(history.entries).map(\.id).allSatisfy(ids.contains))
         XCTAssertEqual(FixJudge.pending(history.entries).count, 1)
     }

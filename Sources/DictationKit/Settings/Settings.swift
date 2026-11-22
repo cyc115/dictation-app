@@ -197,16 +197,11 @@ final class AppSettings: ObservableObject {
     @Setting("learnFromEdits", default: false) var learnFromEdits: Bool
     /// Ask a model what each word change of a fix was: misheard, style, a change of mind or unclear
     /// (`FixJudge`), when the app is idle. Off by default: it sends your corrections and captured
-    /// edits (what the app wrote, what you changed it to) to OpenRouter (cloud setups, or with
-    /// `judgeUsesCloud`).
+    /// edits (what the app wrote, what you changed it to) to OpenRouter. Cloud setups only: on one that
+    /// polishes on this Mac nothing is sent (`FixJudge.backend`).
     @Setting("judgeFixes", default: false) var judgeFixes: Bool
-    /// The OpenRouter model that judges fixes (on the cloud setups, or with `judgeUsesCloud`); blank
-    /// is the default. No Settings row: `DictationApp settings set judgeModel <id>`.
+    /// The OpenRouter model that judges fixes on the cloud setups; blank is the default. No Settings row: `DictationApp settings set judgeModel <id>`.
     @Setting("judgeModel", default: LearnController.teacherModel) var judgeModel: String
-    /// Let the judge send fixes to OpenRouter on a setup that polishes on this Mac (`FixJudge.backend`).
-    /// Off by default: there the judge sends nothing unless you allow it. Settings › Vocabulary shows
-    /// it only on those setups.
-    @Setting("judgeUsesCloud", default: false) var judgeUsesCloud: Bool
     /// Let the judge make a clear captured edit `auto`, so it trains Learn without your Accept
     /// (`FixJudge.judged`). Off by default: every captured edit waits for Accept. No Settings row:
     /// `DictationApp settings set trainOnUnreviewedCaptures on`. Captures already `auto` stay so; it

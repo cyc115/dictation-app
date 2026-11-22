@@ -269,17 +269,17 @@ final class SnapshotTests: XCTestCase {
         assertSnapshot(of: hosted.hostingView, named: "shortcuts")
     }
 
-    /// Settings › Vocabulary on the On-device setup with Send my fixes to the cloud on and a key: Ask
-    /// a model about my fixes is available, the opt-in row under it.
-    func testVocabularySectionOnDeviceWithTheCloudJudge() {
+    /// Settings › Vocabulary on the On-device setup, defaults otherwise (the speech hint on), with Ask
+    /// a model about my fixes left on from a cloud setup: unavailable, shown off, cloud setups only.
+    func testVocabularySectionOnDevice() {
         let settings = makeSettings(self)
         settings.setup = .onDevice
-        settings.judgeUsesCloud = true
+        settings.judgeFixes = true
         settings.setOpenRouterKey("sk-test")
         let view = Form { VocabularySection(settings: settings, editStats: EditWatchStats(fileURL: makeTempURL(self, "edit-watch.json"))) }
             .formStyle(.grouped)
         let hosted = host(view, size: NSSize(width: 760, height: 600))
-        assertSnapshot(of: hosted.hostingView, named: "settings-vocabulary-on-device-cloud-judge")
+        assertSnapshot(of: hosted.hostingView, named: "settings-vocabulary-on-device")
     }
 
     /// Settings › Updates with a newer release found by the daily check.

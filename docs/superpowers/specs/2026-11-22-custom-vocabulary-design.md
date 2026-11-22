@@ -299,8 +299,7 @@ delays typing.
   bench picks one. Through `OpenRouter.chat`, so it names the app like every other call.
 - **On-device setup:** Apple Intelligence, one fix a call. If it scores poorly on the suite, the
   On-device setup uses phase 2's rule instead. **It did (Nov 22): the On-device setup uses the
-  rules** and sends nothing, unless you allow the cloud judge there (`judgeUsesCloud`, see "Phase 4
-  as built").
+  rules** and sends nothing (see "Phase 4 as built").
 - **What verdicts do:**
   - *misheard* changes count toward candidates, if they pass the shape rule (phase 2's 4 words a
     side, no sentence punctuation inside: Mike, Nov 22, after misheard hunks across a sentence break
@@ -332,7 +331,8 @@ delays a dictation.
   launch restarts the 10 minutes; a timer wakes the pass at the 10-minute mark. Turning the setting
   on sends the backlog at the next pass (after a dictation, or a tab shown; 28 corrections: 3
   requests). An answer that lands after it's turned off is dropped, held or not. One that lands
-  after `judgeUsesCloud` is turned off is used: the fixes were already sent, and nothing more is.
+  after you switch to a setup that polishes on this Mac is used (the fixes went while the setup was
+  a cloud one), and nothing more is sent.
 - **One request at a time.** When it lands the pass runs again, so the verdicts count at once and
   the next batch goes if one is due; a batch sent for a tab shown goes on until nothing waits. An
   answer that lands during a dictation is held for the next pass (it was paid for). Each fix's
@@ -345,7 +345,7 @@ delays a dictation.
   waits 10 minutes before the next request (a tab shown still asks).
 - **Counting:** with the judge on and able to run, a change with no verdict waits instead of
   counting by the rules (phase 2's "with `judgeFixes` off"). Unable to run (no key, or the On-device
-  setup without `judgeUsesCloud`), the rules count as before. Every capture waits for Accept either
+  setup), the rules count as before. Every capture waits for Accept either
   way. Verdicts already saved still count after the setting is turned off.
 - **What verdicts do, beyond the draft:** the kept target is built by `WordDiff` position (a word
   can repeat). What isn't a word change (a period added, a filler taken out) stays as you made it:
@@ -360,12 +360,11 @@ delays a dictation.
 - **Which setups:** decided by the current setup's polish model (`polishesOnDevice`), not its speech
   model, like the terms block: a cloud polish model gets the cloud judge, whether or not AI polish
   is switched on, and for every fix, including ones dictated on another setup; one that polishes on
-  this Mac gets none unless `judgeUsesCloud` is on (Mike, Nov 22; off by default), and then the same
-  OpenRouter judge (still none without a key). `judgeModel` blank is the default; thinking off (or
-  lowest), temperature 0, no `response_format` (not every model takes it). On a setup that polishes
-  on this Mac, Settings › Vocabulary shows *Send my fixes to the cloud for this* under *Ask a model
-  about my fixes*, which is available there only when `FixJudge.backend` exists (the opt-in and a
-  key); until then it says nothing is sent and the rules count. Cloud setups show no such row.
+  this Mac gets none, with no opt-in: the app respects your choice of local (Mike, Nov 22). `judgeModel`
+  blank is the default; thinking off (or lowest), temperature 0, no `response_format` (not every
+  model takes it). On a setup that polishes on this Mac, Settings › Vocabulary shows the row as
+  unavailable and off (even if `judgeFixes` was left on, kept for a cloud setup), saying it works on
+  cloud setups only and nothing is sent.
 - **Message:** the instructions are `Vocabulary/JudgeFixes.txt`, a package resource the bench sends
   too; then the terms (up to 100, most used first; none with *Use vocabulary* off), then the fixes,
   numbered. `bench/judge_message_fixture.json` pins the message and how answers are read for both.
@@ -407,11 +406,11 @@ delays a dictation.
 ## Privacy
 
 - Vocabulary stays on the Mac. Its terms go where polish already goes (OpenRouter on cloud setups,
-  Apple Intelligence on-device; the judge only on cloud setups, or on-device with `judgeUsesCloud`).
+  Apple Intelligence on-device; the judge only on cloud setups).
 - The watcher keeps only the pasted text and its edited version, and only with *Learn from my
   edits* on. It doesn't run in excluded apps or password fields.
 - The judge sends each fix (what the app wrote, what you changed it to) to OpenRouter on cloud
-  setups, and nothing on the On-device setup unless `judgeUsesCloud` is on (off). Hand-typed text
+  setups, and nothing on the On-device setup. Hand-typed text
   has never left the Mac before, so `judgeFixes` is off by default.
 - Learn now also sends accepted captured fixes to the teacher and student models, and `auto` ones
   (only with `trainOnUnreviewedCaptures`, off).

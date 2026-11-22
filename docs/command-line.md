@@ -23,9 +23,8 @@ Exit status: 0 done, 1 unknown setting or value (the error lists what it takes),
 | `excludedApps` | bundle IDs, comma-separated (`com.valvesoftware.steam,com.apple.Chess`); `""` for none |
 | `openRouterKey` | `-` reads the key from stdin (a key in the arguments shows up in `ps`); `""` removes it. `get` says only `set` or `not set` |
 | `launchAtLogin` | `on`, `off` |
-| `judgeModel` | an OpenRouter model id for *Ask a model about my fixes* (no Settings row); `""` is the default, `anthropic/claude-sonnet-5.5` |
+| `judgeModel` | an OpenRouter model id for *Ask a model about my fixes*, cloud setups only (no Settings row); `""` is the default, `anthropic/claude-sonnet-5.5` |
 | `trainOnUnreviewedCaptures` | `on`, `off` (default; no Settings row). On: the judge lets a clear captured edit, read back from the text box, train Learn without your Accept. Off: every captured edit waits for Accept. Applies to captures judged after it's turned on |
-| `judgeUsesCloud` | `on`, `off` (default). On a setup that polishes on this Mac, lets *Ask a model about my fixes* send your fixes to OpenRouter (Settings › Vocabulary › *Send my fixes to the cloud for this*) |
 | everything else | named by its UserDefaults key: `on`/`off` (also `true`/`false`, `yes`/`no`, `1`/`0`; e.g. `learnFromEdits`, Settings › Vocabulary › *Learn from my edits*; `judgeFixes`, *Ask a model about my fixes*), a number (`vocabularyLearnAfter`), or one of the values `settings` lists |
 
 New settings show up here on their own: the list is every `@Setting` in `AppSettings`

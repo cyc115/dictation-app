@@ -41,8 +41,8 @@ struct JudgeFailure: LocalizedError {
 /// misheard and style changes. Every captured edit still waits for your Accept (`auto` only with
 /// `trainOnUnreviewedCaptures`, off, no Settings row). The idle pass (`VocabularyIntake`) sends the
 /// batches; nothing here runs during a dictation. This is the logic: which fixes wait, the message,
-/// reading the answer, and what the verdicts do. Cloud setups, or a setup that polishes on this Mac
-/// once you allow it (`judgeUsesCloud`); otherwise nothing is sent and the rules count.
+/// reading the answer, and what the verdicts do. Cloud setups only: on a setup that polishes on this
+/// Mac nothing is sent and the rules count.
 enum FixJudge {
     /// Fixes in one request. Batches of 10 scored as well as one at a time (better, for Claude
     /// Sonnet 5.5) in the Nov 22 run (bench/results/edits/README.md).
@@ -170,13 +170,12 @@ enum FixJudge {
         return id.isEmpty ? LearnController.teacherModel : id
     }
 
-    /// Your judge: `judgeModel` on OpenRouter with your key, on a setup whose polish goes to the cloud,
-    /// or on one that polishes on this Mac once you allow it (`judgeUsesCloud`, off by default: each
-    /// fix then leaves the Mac). Otherwise nil there (the judge can't run; the rules count changes as
-    /// with the setting off): Apple Intelligence got 37% of the bench's changes right (Nov 22) and
-    /// isn't used. Nil without a key.
+    /// Your judge: `judgeModel` on OpenRouter with your key, on a setup whose polish goes to the cloud.
+    /// Nil (the judge can't run; the rules count changes as with the setting off) on a setup that
+    /// polishes on this Mac, where your choice of local means nothing of this leaves it: Apple
+    /// Intelligence got 37% of the bench's changes right (Nov 22) and isn't used. Nil without a key.
     static func backend(settings: AppSettings) -> FixJudgeBackend? {
-        if settings.setup.polishesOnDevice && !settings.judgeUsesCloud { return nil }
+        if settings.setup.polishesOnDevice { return nil }
         guard let key = settings.openRouterKey, !key.isEmpty else { return nil }
         return OpenRouterJudge(model: modelID(settings.judgeModel), apiKey: key)
     }

@@ -291,22 +291,17 @@ final class FixJudgeTests: XCTestCase {
 
     // MARK: Backends
 
-    /// On a setup that polishes on this Mac the judge never runs by default (nothing is sent; the
-    /// rules count), even with a key and the setting on. `judgeUsesCloud` allows the same cloud judge
-    /// there, still only with a key. Cloud setups get it either way.
-    func testTheJudgeNeedsACloudSetupOrTheOptIn() throws {
-        let settings = makeSettings(self)
+    /// The judge needs a cloud setup: on one that polishes on this Mac it never runs (nothing is sent;
+    /// the rules count), even with a key and the setting on. A `judgeUsesCloud` left by an unreleased
+    /// build is ignored.
+    func testTheJudgeNeedsACloudSetup() throws {
+        let defaults = makeDefaults(self)
+        defaults.set(true, forKey: "judgeUsesCloud")
+        let settings = makeSettings(self, defaults: defaults)
         settings.judgeFixes = true
         settings.setOpenRouterKey("sk-test")
         settings.setup = .onDevice
-        XCTAssertFalse(settings.judgeUsesCloud, "off by default")
         XCTAssertNil(FixJudge.backend(settings: settings), "On-device: no judge, even with a key")
-        settings.judgeUsesCloud = true
-        XCTAssertEqual((FixJudge.backend(settings: settings) as? OpenRouterJudge)?.model, LearnController.teacherModel, "allowed: the cloud judge")
-        settings.setOpenRouterKey(nil)
-        XCTAssertNil(FixJudge.backend(settings: settings), "allowed, no key")
-        settings.setOpenRouterKey("sk-test")
-        settings.judgeUsesCloud = false
 
         settings.setup = .cloudFlash
         XCTAssertEqual((FixJudge.backend(settings: settings) as? OpenRouterJudge)?.model, LearnController.teacherModel)
@@ -321,9 +316,6 @@ final class FixJudgeTests: XCTestCase {
         settings.setup = cloudSpeechApplePolish
         XCTAssertTrue(cloudSpeechApplePolish.usesCloud)
         XCTAssertNil(FixJudge.backend(settings: settings))
-        settings.judgeUsesCloud = true
-        XCTAssertTrue(FixJudge.backend(settings: settings) is OpenRouterJudge, "allowed")
-        settings.judgeUsesCloud = false
         let localSpeechCloudPolish = try setup(#"{"id": "b", "title": "B", "speech": "apple", "polish": "openrouter:deepseek/deepseek-v4.1-flash", "prompt": "v7"}"#)
         settings.setup = localSpeechCloudPolish
         XCTAssertTrue(FixJudge.backend(settings: settings) is OpenRouterJudge)

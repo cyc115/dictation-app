@@ -1,27 +1,27 @@
 import SwiftUI
 
 /// Settings › Vocabulary: vocabulary on or off, the on-device speech hint, Learn from my edits (and
-/// how the edit watcher has fared in each app), Ask a model about my fixes (and, on a setup that
-/// polishes on this Mac, Send my fixes to the cloud for this); the terms themselves are managed in
-/// the Vocabulary tab (`VocabularyView`).
+/// how the edit watcher has fared in each app), Ask a model about my fixes (cloud setups only); the
+/// terms themselves are managed in the Vocabulary tab (`VocabularyView`).
 struct VocabularySection: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var editStats: EditWatchStats
     var onShowVocabulary: (() -> Void)?
 
-    /// On a setup that polishes on this Mac the judge needs *Send my fixes to the cloud* and a key
-    /// (`FixJudge.backend`); on a cloud setup it's always available, as before.
-    private var judgeAvailable: Bool {
-        !settings.setup.polishesOnDevice || FixJudge.backend(settings: settings) != nil
-    }
+    /// The judge runs on cloud setups only (`FixJudge.backend`): a setup that polishes on this Mac
+    /// sends nothing, so there the row is unavailable and shows off, whatever `judgeFixes` holds (it's
+    /// kept for when you switch back).
+    private var judgeAvailable: Bool { !settings.setup.polishesOnDevice }
 
     private var judgeDetail: String {
-        let what = "When the app is idle, asks a cloud model whether each word you changed was misheard, style, or a change of mind: only misheard words go into vocabulary, and a captured edit keeps only its misheard and style changes. Captured edits still wait for your Accept. Sends what the app wrote, what you changed it to, and your vocabulary's terms."
-        guard settings.setup.polishesOnDevice else { return what }
-        if !settings.judgeUsesCloud {
-            return "Off on this setup unless you turn on Send my fixes to the cloud. Until then nothing is sent: your fixes are counted by the rules, and captured edits wait for your Accept."
-        }
-        return judgeAvailable ? what : "Needs an API key. Until then nothing is sent and the rules count your fixes."
+        judgeAvailable
+            ? "When the app is idle, asks a cloud model whether each word you changed was misheard, style, or a change of mind: only misheard words go into vocabulary, and a captured edit keeps only its misheard and style changes. Captured edits still wait for your Accept. Sends what the app wrote, what you changed it to, and your vocabulary's terms."
+            : "Works on cloud setups only. On this setup nothing is sent: your fixes are counted by the rules, and captured edits wait for your Accept."
+    }
+
+    /// Off where it can't run, so the row never looks on and working there.
+    private var judgeToggle: Binding<Bool> {
+        Binding(get: { judgeAvailable && settings.judgeFixes }, set: { settings.judgeFixes = $0 })
     }
 
     var body: some View {
@@ -40,12 +40,7 @@ struct VocabularySection: View {
                 EditWatchStatsView(stats: editStats)
             }
             SettingRow("Ask a model about my fixes", judgeDetail, available: judgeAvailable, badge: "Online · needs API key") {
-                Toggle("Ask a model about my fixes", isOn: $settings.judgeFixes)
-            }
-            if settings.setup.polishesOnDevice {
-                SettingRow("Send my fixes to the cloud for this", "This setup polishes on this Mac. With this on, Ask a model about my fixes sends each fix (what the app wrote and what you wanted) and your vocabulary's terms to a cloud model. Your dictations are still polished on this Mac.", badge: "Online · needs API key") {
-                    Toggle("Send my fixes to the cloud for this", isOn: $settings.judgeUsesCloud)
-                }
+                Toggle("Ask a model about my fixes", isOn: judgeToggle)
             }
             SettingRow("Vocabulary", "Add, edit, turn off and delete your terms in the Vocabulary tab.") {
                 Button("Manage Vocabulary…") { onShowVocabulary?() }
