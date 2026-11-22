@@ -157,10 +157,22 @@ final class VocabularyStore: ObservableObject {
                 return remembered
             }
             file.candidates = candidates
-            guard let learnAfter else { return }
-            for i in file.candidates.indices where !file.candidates[i].dismissed && file.candidates[i].seen >= max(learnAfter, 1) {
-                learn(at: i, in: &file)
+            if let learnAfter {
+                for i in file.candidates.indices where !file.candidates[i].dismissed && file.candidates[i].seen >= max(learnAfter, 1) {
+                    learn(at: i, in: &file)
+                }
             }
+            Self.countCorrected(in: &file)
+        }
+    }
+
+    /// Each entry's `corrected`: the dictations its candidate was seen in (0 with none), so the speech
+    /// hint can rank by it without the store.
+    private static func countCorrected(in file: inout File) {
+        let seen = Dictionary(file.candidates.map { ($0.id, $0.seen) }, uniquingKeysWith: max)
+        for i in file.entries.indices {
+            let n = seen[file.entries[i].term.lowercased()] ?? 0
+            if file.entries[i].corrected != n { file.entries[i].corrected = n }
         }
     }
 
@@ -169,6 +181,7 @@ final class VocabularyStore: ObservableObject {
         change { file in
             guard let i = file.candidates.firstIndex(where: { $0.id == id }) else { return }
             learn(at: i, in: &file)
+            Self.countCorrected(in: &file)
         }
     }
 

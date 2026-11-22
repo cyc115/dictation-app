@@ -294,6 +294,23 @@ final class VocabularyCandidateTests: XCTestCase {
         XCTAssertEqual(entry.intake?.changes, [WordChange(old: "cloud", new: "Claude")])
     }
 
+    /// The idle pass keeps each entry's `corrected` at its candidate's dictations, Add now too; a
+    /// term with no correction in History has 0.
+    func testEntriesKeepHowOftenTheyWereCorrected() {
+        let store = makeStore()
+        store.add(term: "Typed")
+        let three = claudeThreeTimes
+        store.updateCandidates(support(three), learnAfter: 3)
+        XCTAssertEqual(store.entries.first { $0.term == "Claude" }?.corrected, 3)
+        XCTAssertEqual(store.entries.first { $0.term == "Typed" }?.corrected, 0)
+        store.updateCandidates(support(Array(three.prefix(1))), learnAfter: 3)
+        XCTAssertEqual(store.entries.first { $0.term == "Claude" }?.corrected, 1, "follows History")
+        store.updateCandidates(support([dictation("ask code x", "ask Codex")]), learnAfter: 3)
+        store.learn("codex")
+        XCTAssertEqual(store.entries.first { $0.term == "Codex" }?.corrected, 1, "Add now")
+        XCTAssertEqual(store.entries.first { $0.term == "Claude" }?.corrected, 0, "no longer in History")
+    }
+
     func testAPhaseOneFileStillLoads() throws {
         let url = makeTempURL(self, "vocabulary.json")
         try #"{"entries": [{"term": "Claude", "heardAs": ["cloud"]}]}"#.write(to: url, atomically: true, encoding: .utf8)

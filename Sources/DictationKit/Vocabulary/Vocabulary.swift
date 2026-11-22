@@ -21,9 +21,13 @@ struct VocabularyEntry: Codable, Identifiable, Equatable {
     var added: Date
     /// Times a replacement fired.
     var uses = 0
+    /// Dictations in History where you corrected to this term (its candidate's `seen`), as of the last
+    /// idle pass (`VocabularyStore.updateCandidates`). Kept here so ranking needs no store at
+    /// dictation time.
+    var corrected = 0
 
     init(id: UUID = UUID(), term: String, heardAs: [String] = [], enabled: Bool = true, source: Source = .manual,
-         added: Date, uses: Int = 0) {
+         added: Date, uses: Int = 0, corrected: Int = 0) {
         self.id = id
         self.term = term
         self.heardAs = heardAs
@@ -31,7 +35,11 @@ struct VocabularyEntry: Codable, Identifiable, Equatable {
         self.source = source
         self.added = added
         self.uses = uses
+        self.corrected = corrected
     }
+
+    /// How much this term has shown it's needed: replacements fired plus dictations corrected to it.
+    var usefulness: Int { uses + corrected }
 
     /// Only `term` is required, so a hand-edited vocabulary.json still loads.
     init(from decoder: Decoder) throws {
@@ -43,6 +51,7 @@ struct VocabularyEntry: Codable, Identifiable, Equatable {
         source = try c.decodeIfPresent(Source.self, forKey: .source) ?? .manual
         added = try c.decodeIfPresent(Date.self, forKey: .added) ?? Date()
         uses = try c.decodeIfPresent(Int.self, forKey: .uses) ?? 0
+        corrected = try c.decodeIfPresent(Int.self, forKey: .corrected) ?? 0
     }
 }
 
@@ -52,8 +61,9 @@ struct VocabularyEntry: Codable, Identifiable, Equatable {
 struct Vocabulary {
     /// Terms told to polish at most.
     static let maxPromptTerms = 100
-    /// Terms given to the on-device speech models at most (`SpeechContext`).
-    static let maxSpeechWords = 50
+    /// Terms given to the on-device speech models at most (`SpeechContext`). Each costs a little wait
+    /// (Nov 22: +0.04 s with 10, +0.17 s with 50, bench/results/local/README.md).
+    static let maxSpeechWords = 20
     static let none = Vocabulary([])
 
     /// The enabled entries.
@@ -89,6 +99,12 @@ struct Vocabulary {
     /// Most used first, then newest.
     private var ranked: [VocabularyEntry] {
         entries.sorted { $0.uses != $1.uses ? $0.uses > $1.uses : $0.added > $1.added }
+    }
+
+    /// Most useful first (replacements fired plus dictations corrected to it), then newest. A term
+    /// with neither (typed in, never needed yet) comes after those with some, and still fills a gap.
+    private var byUsefulness: [VocabularyEntry] {
+        entries.sorted { $0.usefulness != $1.usefulness ? $0.usefulness > $1.usefulness : $0.added > $1.added }
     }
 
     // MARK: Replacement
@@ -299,8 +315,9 @@ struct Vocabulary {
     /// The terms alone, most used first, as many as polish is told: what the judge is told (`FixJudge`).
     var promptTerms: [String] { ranked.prefix(Self.maxPromptTerms).map(\.term) }
 
-    /// Terms for the on-device speech models (`SpeechContext`), most used first.
-    var speechWords: [String] { ranked.prefix(Self.maxSpeechWords).map(\.term) }
+    /// Terms for the on-device speech models (`SpeechContext`): the 20 most useful (`byUsefulness`).
+    /// Polish and the judge keep `ranked` (most used): its order was what the polish bench measured.
+    var speechWords: [String] { byUsefulness.prefix(Self.maxSpeechWords).map(\.term) }
 
     /// Identifies the enabled terms and variants (not their uses), so a measurement made with other
     /// ones is known to be stale; nil with none.

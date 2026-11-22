@@ -54,6 +54,7 @@ struct VocabularyEntry: Codable, Identifiable {
     var source: Source        // .manual, .learned
     var added: Date
     var uses = 0              // times a replacement fired
+    var corrected = 0         // dictations in History corrected to it (its candidate's), set by the idle pass; 0 when absent
 }
 ```
 
@@ -65,7 +66,7 @@ change reaches the running app.
 
 | Stage | What vocabulary does | Added wait |
 |---|---|---|
-| On-device speech (Qwen, Apple) | Terms as `SpeechContext` words, max 50. Setting `vocabularySpeechHint`, **off until measured** | to measure |
+| On-device speech (Qwen, Apple) | Terms as `SpeechContext` words: the 20 most useful (replacements fired + dictations corrected to it, ties to the newest). Setting `vocabularySpeechHint`, **on** (measured Nov 22) | +0.04 s with 10 terms, +0.17 s with 50 |
 | Cloud speech | Nothing: OpenRouter's transcription endpoint takes no prompt | none |
 | After transcription, every setup | Each `heardAs` is replaced with its term | microseconds |
 | Polish, when on | A terms block is appended to the instructions at run time, max 100 terms | to measure |
@@ -129,7 +130,7 @@ change reaches the running app.
     on/off switch, delete. Click a term or chip to edit it;
   - a footer link to `vocabulary.json`.
 - **Settings › Vocabulary**: *Use vocabulary* (`vocabularyEnabled`, on), *Hint the on-device speech
-  model* (`vocabularySpeechHint`, off), *Learn from my edits* (`learnFromEdits`, off; phase 3),
+  model* (`vocabularySpeechHint`, on since Nov 22), *Learn from my edits* (`learnFromEdits`, off; phase 3),
   *Ask a model about my fixes* (`judgeFixes`, off; phase 4), and **Manage Vocabulary…**.
 - **Command line:** `DictationApp vocabulary list [--json]`, `add <term> [--heard a,b]`,
   `remove <term>`. Documented in `docs/command-line.md`.
@@ -440,7 +441,7 @@ for $0.0077; a default latency run is about $0.003 (`bench/README.md`); a tune i
 | Run | Decides | Cost |
 |---|---|---|
 | `bench/suite.py polish run`, one model, with a sample vocabulary: **done Nov 22**, the block was reworded and moved | Polish quality and wait with the terms block | 10¢ in all |
-| ~~`./test.sh --local`, then the latency suite on the on-device model only, no polish~~ **Done Nov 22**, as one run of `LocalEngine` on the 46 test clips and 8 term clips with 0, 10 and 50 terms (neither suite passes vocabulary terms). No harm on the test clips (5.3% → 5.1% word errors, no new translation), term clips 23% → 6% errors, +0.04 s with 10 terms and +0.17 s with 50. `bench/results/local/README.md`. The default stays off until Mike decides | Whether `vocabularySpeechHint` can default on (the code notes English-first hint words made Qwen translate mixed Chinese) | $0 |
+| ~~`./test.sh --local`, then the latency suite on the on-device model only, no polish~~ **Done Nov 22**, as one run of `LocalEngine` on the 46 test clips and 8 term clips with 0, 10 and 50 terms (neither suite passes vocabulary terms). No harm on the test clips (5.3% → 5.1% word errors, no new translation), term clips 23% → 6% errors, +0.04 s with 10 terms and +0.17 s with 50. `bench/results/local/README.md`. Mike turned it on by default (Nov 22), with the cap cut to 20 terms ranked by usefulness | Whether `vocabularySpeechHint` can default on (the code notes English-first hint words made Qwen translate mixed Chinese) | $0 |
 | ~~`bench/suite.py edits run`: cheap models first, the strong one once as the reference, batches of 10~~ **Done Nov 22**: Sonnet 5.5 in batches of 10 stays the default (`bench/results/edits/README.md`) | The judge's model, and whether batching holds accuracy | 6.9¢, plus 0.25¢ for the live batch |
 
 The edits suite records each request's cost (as the polish suite does), prints the run's total, and

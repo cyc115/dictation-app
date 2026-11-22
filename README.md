@@ -77,8 +77,10 @@ through as before. Settings shows, per app, how many edits were watched, read ba
 Add a term in the Vocabulary tab (or `DictationApp vocabulary add`), with what the app writes
 instead: "GeForce Now", heard as "G Four Snow". From then on every dictation has it right: what it
 hears is replaced with your term (in microseconds, so no wait), and AI polish is told your terms.
-Learn tunes with them too. Settings › Vocabulary turns it off, and can also hint the terms to the
-On-device speech model (off by default).
+Learn tunes with them too. Settings › Vocabulary turns it off. It also gives your 20 most useful
+terms (most replaced and most corrected) to the on-device speech model while you speak (on by
+default; measured Nov 22: no harm on ordinary dictations, terms 23% → 6% word errors, about +0.04 s
+of wait with 10 terms).
 
 It also learns them from your corrections, with no model call. When the app is idle, each
 correction is broken into word changes ("cloud" → "Claude"; a change with sentence punctuation

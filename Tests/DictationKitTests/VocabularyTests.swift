@@ -135,11 +135,43 @@ final class VocabularyTests: XCTestCase {
 
     // MARK: Speech hint and fingerprint
 
-    func testSpeechWordsAreTheTermsMostUsedFirstAtMost50() {
+    func testSpeechWordsAreAtMost20() {
+        XCTAssertEqual(Vocabulary.maxSpeechWords, 20)
         let many = (0..<80).map { entry("Term\($0)", uses: $0) }
         let words = Vocabulary(many).speechWords
-        XCTAssertEqual(words.count, 50)
+        XCTAssertEqual(words.count, 20)
         XCTAssertEqual(words.first, "Term79")
+        XCTAssertEqual(words.last, "Term60")
+    }
+
+    /// The speech hint takes the most useful terms: replacements fired plus dictations corrected to
+    /// it; ties to the newest; a typed term with neither still fills the list, after the rest.
+    func testSpeechWordsRankByUsesPlusCorrections() {
+        func e(_ term: String, uses: Int = 0, corrected: Int = 0, day: Int) -> VocabularyEntry {
+            VocabularyEntry(term: term, added: fixedDate(2026, 11, day, 9, 0), uses: uses, corrected: corrected)
+        }
+        let entries = [
+            e("Typed", day: 20),                         // no evidence, newest
+            e("Used", uses: 3, day: 1),                  // 3
+            e("Corrected", corrected: 4, day: 2),        // 4
+            e("Both", uses: 2, corrected: 3, day: 3),    // 5
+            e("OldTie", uses: 1, corrected: 1, day: 4),  // 2, older
+            e("NewTie", corrected: 2, day: 5),           // 2, newer
+        ]
+        XCTAssertEqual(Vocabulary(entries).speechWords, ["Both", "Corrected", "Used", "NewTie", "OldTie", "Typed"])
+        let full = (0..<25).map { e("Busy\($0)", uses: 1, day: 1) } + [e("Typed", day: 20)]
+        XCTAssertFalse(Vocabulary(full).speechWords.contains("Typed"), "after every term with evidence")
+        XCTAssertEqual(Vocabulary(entries).promptTerms.first, "Used", "polish keeps most used first")
+    }
+
+    /// vocabulary.json from before `corrected` existed loads it as 0, and it round-trips.
+    func testCorrectedDecodesAsZeroWhenAbsent() throws {
+        let old = try JSONDecoder().decode(VocabularyEntry.self, from: Data(#"{"term": "Claude", "uses": 2}"#.utf8))
+        XCTAssertEqual(old.corrected, 0)
+        XCTAssertEqual(old.usefulness, 2)
+        let encoder = JSONEncoder()
+        let back = try JSONDecoder().decode(VocabularyEntry.self, from: encoder.encode(VocabularyEntry(term: "Claude", added: Date(), corrected: 3)))
+        XCTAssertEqual(back.corrected, 3)
     }
 
     func testFingerprintFollowsTermsAndVariantsOnly() {
