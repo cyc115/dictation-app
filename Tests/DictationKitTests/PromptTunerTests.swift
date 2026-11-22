@@ -343,6 +343,14 @@ final class PromptTunerTests: XCTestCase {
     let examples = [(input: "can you install cloud code", wrote: "Can you install Cloud Code?", wanted: "Can you install Claude Code?"),
                     (input: "um send it", wrote: "Um, send it.", wanted: "Send it.")]
 
+    /// Vocabulary fixes misheard terms now; a teacher that also lists them writes a second, competing list.
+    func testTheTeacherLeavesTermsToVocabulary() {
+        let system = PromptTuner.teacherSystem
+        XCTAssertTrue(system.contains("handled by a separate vocabulary list"))
+        XCTAssertTrue(system.contains("add no term by name"))
+        XCTAssertFalse(system.contains("listed by name"))
+    }
+
     func testTheTeachersMessageIsTodaysSplitBeforeTheTask() {
         for lens in Lens.allCases {
             let request = PromptTuner.teacherRequest(prompt: "Clean it up.", lens: lens, examples: examples, cacheKey: "k")
