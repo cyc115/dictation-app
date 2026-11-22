@@ -117,20 +117,29 @@ bench/suite.py polish run -m setup:cloud-flash --corrections --prompt-file ~/Lib
   `v7` on Apple's model left 2 of 11 traps alone vs `v3`'s 8 (Oct 31).
 - **Teacher bake-off:** which model should write learned prompts (`LearnController.teacherModel`)?
   `Tests/DictationKitTests/TeacherBakeoffTests.swift` runs one real tune per teacher through the
-  tuner's own code path (Cloud Flash's student, `PolishPrompt.v4`, a copy of your corrections) and
-  writes scores, verdict, the prompt, and every teacher call's time to a JSON file. Build the tests
-  once, then run the teachers side by side:
+  tuner's own code path (the app's teacher call, `PromptTuner.openRouterTeacher`; Cloud Flash's
+  student; a copy of your corrections) and writes scores, verdict, the prompt, every teacher call's
+  time, tokens and cost, and the tune's cost to a JSON file. Build the tests once, then run the
+  teachers side by side:
   ```sh
   swift build --build-tests
+  mkdir -p /tmp/bakeoff
   cp ~/Library/Application\ Support/DictationApp/history.json /tmp/bakeoff/history.json   # a copy, never the live file
-  for m in openai/gpt-6.1-sol anthropic/claude-sonnet-5.5; do
+  for m in anthropic/claude-sonnet-5.5 openai/gpt-6.2-sol openai/gpt-6-luna; do
     BAKEOFF_TEACHER=$m BAKEOFF_HISTORY=/tmp/bakeoff/history.json BAKEOFF_OUT=/tmp/bakeoff/${m//\//_}.json OPENROUTER_API_KEY=… \
       xcrun xctest -XCTest DictationKitTests.TeacherBakeoffTests/testLiveTeacherBakeoff .build/debug/DictationKitTests.xctest &
   done; wait
   ```
+  Optional: `BAKEOFF_PROMPT` (starting prompt: a version such as `v7`, or a file path; default `v4`)
+  and `BAKEOFF_FOLDS` (default the tuner's, 3).
   Compare `result.mine` (cross-validated, so a teacher that memorised its fold gets no credit),
-  `result.general`, `result.acted` (must not rise) and `elapsed`. One tune is 10 teacher calls (3 folds
-  × 3 lenses, then the final prompt) and about 300 student calls. Oct 14 results: `results/polish/README.md`.
+  `result.general`, `result.acted` (must not rise), `elapsed` and `cost.total` (US dollars;
+  `cost.teacher` and `cost.student` split it, each with calls, prompt, cached, cache-write,
+  completion and reasoning tokens). Each of `teacherCalls` has its `usage` and its `session`: the
+  fold (the call's OpenRouter `session_id`) or `final`. In a fold the first call writes the prompt
+  cache and the other two should show `cachedTokens` near the prompt size. One tune is 10 teacher
+  calls (3 folds × 3 lenses, then the final prompt) and about 300 student calls. Oct 14 results:
+  `results/polish/README.md`.
 
 ## Command mode's decision model (`suite.py commands`)
 
