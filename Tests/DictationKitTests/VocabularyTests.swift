@@ -162,4 +162,16 @@ final class VocabularyTests: XCTestCase {
         XCTAssertNotNil(store.fingerprint(enabled: true))
         XCTAssertEqual(store.fingerprint(enabled: true), store.vocabulary(enabled: true).fingerprint)
     }
+
+    /// The ordinary-word guard finds a `heard` the way replacement would match it.
+    func testFinderMatchesAsReplacementDoes() {
+        let finder = Vocabulary.Finder(["cloud", "g force now", "而差v", "two"])
+        func found(_ text: String) -> [String] { finder.find(in: text).map { "\($0.phrase):\($0.text)" } }
+        XCTAssertEqual(found("Cloud and cloud nine"), ["0:Cloud", "0:cloud"], "any case, as written")
+        XCTAssertEqual(found("clouds, cloudy, twofold"), [], "only whole words")
+        XCTAssertEqual(found("open G Force Now please"), ["1:G Force Now"])
+        XCTAssertEqual(found("我的而差v一般, 我的而差V"), ["2:而差v"], "Chinese, literally")
+        XCTAssertEqual(found("我用cloud写"), ["0:cloud"], "Chinese next to a word is a boundary")
+        XCTAssertEqual(Vocabulary.Finder([]).find(in: "cloud").count, 0)
+    }
 }

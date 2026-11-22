@@ -72,6 +72,13 @@ extension String: SettingValue {
     var text: String { self }
 }
 
+extension Int: SettingValue {
+    init?(stored: Any) { guard let value = stored as? Int else { return nil }; self = value }
+    var stored: Any { self }
+    init?(text: String) { guard let value = Int(text.trimmingCharacters(in: .whitespaces)) else { return nil }; self = value }
+    var text: String { String(self) }
+}
+
 extension SettingValue where Self: RawRepresentable, RawValue == String {
     init?(stored: Any) { guard let value = (stored as? String).flatMap(Self.init(rawValue:)) else { return nil }; self = value }
     var stored: Any { rawValue }
@@ -185,6 +192,9 @@ final class AppSettings: ObservableObject {
     /// Also give the terms to the on-device speech models as context words (`SpeechContext`). Off
     /// until measured: English hint words have made Qwen translate mixed Chinese (`SpeechContext.prompt`).
     @Setting("vocabularySpeechHint", default: false) var vocabularySpeechHint: Bool
+    /// A term fixed in this many different dictations is learned (`VocabularyIntake`). No Settings
+    /// row: `DictationApp settings set vocabularyLearnAfter 5`. Below 1 counts as 1.
+    @Setting("vocabularyLearnAfter", default: 3) var vocabularyLearnAfter: Int
     /// CoreAudio device UID; empty means the system default input.
     @Setting("microphoneUID", default: "") var microphoneUID: String
     /// Also record from the other wired and built-in mics, move a dictation to whichever hears you

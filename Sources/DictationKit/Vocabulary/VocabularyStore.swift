@@ -18,6 +18,8 @@ extension VocabularyEntry {
 /// before each save of its own (a save never undoes a change made meanwhile).
 final class VocabularyStore: ObservableObject {
     @Published private(set) var entries: [VocabularyEntry] = []
+    /// Terms seen in your corrections, on their way in (`updateCandidates`); dismissed ones too.
+    @Published private(set) var candidates: [VocabularyCandidate] = []
     /// Set when vocabulary.json is there but can't be read (a hand edit gone wrong). The next save
     /// moves it aside first (`asideURL`), so no term in it is lost.
     @Published private(set) var problem: String?
@@ -32,8 +34,29 @@ final class VocabularyStore: ObservableObject {
 
     static let defaultFileURL = AppPaths.file("vocabulary.json")
 
-    private struct File: Codable {
-        var entries: [VocabularyEntry]
+    private struct File: Codable, Equatable {
+        var entries: [VocabularyEntry] = []
+        var candidates: [VocabularyCandidate] = []
+
+        private enum CodingKeys: String, CodingKey { case entries, candidates }
+
+        init(entries: [VocabularyEntry], candidates: [VocabularyCandidate]) {
+            self.entries = entries
+            self.candidates = candidates
+        }
+
+        /// A phase-1 file has no candidates.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            entries = try c.decode([VocabularyEntry].self, forKey: .entries)
+            candidates = try c.decodeIfPresent([VocabularyCandidate].self, forKey: .candidates) ?? []
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(entries, forKey: .entries)
+            if !candidates.isEmpty { try c.encode(candidates, forKey: .candidates) }
+        }
     }
 
     init(fileURL: URL = VocabularyStore.defaultFileURL) {
@@ -58,70 +81,144 @@ final class VocabularyStore: ObservableObject {
         let term = term.trimmingCharacters(in: .whitespaces)
         let heard = VocabularyEntry.variants(from: heardAs.joined(separator: ","))
         guard !term.isEmpty else { return nil }
-        return change { entries in
-            if let i = entries.firstIndex(where: { $0.term.caseInsensitiveCompare(term) == .orderedSame }) {
-                let have = Set(entries[i].heardAs.map { $0.lowercased() })
-                entries[i].heardAs += heard.filter { !have.contains($0.lowercased()) }
-                return entries[i]
+        return change { file in
+            if let i = file.entries.firstIndex(where: { $0.term.caseInsensitiveCompare(term) == .orderedSame }) {
+                let have = Set(file.entries[i].heardAs.map { $0.lowercased() })
+                file.entries[i].heardAs += heard.filter { !have.contains($0.lowercased()) }
+                return file.entries[i]
             }
             let entry = VocabularyEntry(term: term, heardAs: heard, source: source, added: now())
-            entries.append(entry)
+            file.entries.append(entry)
             return entry
         }
     }
 
     /// Saves an edited entry (its term, variants or switch).
     func update(_ entry: VocabularyEntry) {
-        change { entries in
-            guard let i = entries.firstIndex(where: { $0.id == entry.id }) else { return }
-            entries[i] = entry
+        change { file in
+            guard let i = file.entries.firstIndex(where: { $0.id == entry.id }) else { return }
+            file.entries[i] = entry
         }
     }
 
     func setEnabled(_ enabled: Bool, for id: UUID) {
-        change { entries in
-            guard let i = entries.firstIndex(where: { $0.id == id }) else { return }
-            entries[i].enabled = enabled
+        change { file in
+            guard let i = file.entries.firstIndex(where: { $0.id == id }) else { return }
+            file.entries[i].enabled = enabled
         }
     }
 
     func remove(id: UUID) {
-        change { $0.removeAll { $0.id == id } }
+        change { $0.entries.removeAll { $0.id == id } }
     }
 
     /// Removes the entry with this term (any case); false when there's none.
     @discardableResult
     func remove(term: String) -> Bool {
         let term = term.trimmingCharacters(in: .whitespaces)
-        return change { entries in
-            let before = entries.count
-            entries.removeAll { $0.term.caseInsensitiveCompare(term) == .orderedSame }
-            return entries.count < before
+        return change { file in
+            let before = file.entries.count
+            file.entries.removeAll { $0.term.caseInsensitiveCompare(term) == .orderedSame }
+            return file.entries.count < before
         }
     }
 
     /// Counts replacements that fired (`Vocabulary.apply`). Called after the paste, never before.
     func recordUses(_ uses: [UUID: Int]) {
         guard !uses.isEmpty else { return }
-        change { entries in
-            for i in entries.indices { entries[i].uses += uses[entries[i].id] ?? 0 }
+        change { file in
+            for i in file.entries.indices { file.entries[i].uses += uses[file.entries[i].id] ?? 0 }
         }
     }
 
+    // MARK: Candidates
+
+    /// Takes the candidates counted from History (`CandidateTally.support`), keeping what's yours on
+    /// them (dismissed, what was already handed over), and learns each seen in `learnAfter` dictations;
+    /// with `learnAfter` nil (Use vocabulary off), only collects them. A dismissed or handed-over term
+    /// is remembered with nothing left to count; any other is dropped. Writes nothing when nothing
+    /// changed, and nothing while vocabulary.json can't be read (that's moved aside only for
+    /// something you do).
+    func updateCandidates(_ support: [VocabularyCandidate], learnAfter: Int?) {
+        reloadIfChanged()
+        guard problem == nil else { return }
+        change { file in
+            var kept = Dictionary(file.candidates.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            var candidates = support.map { found -> VocabularyCandidate in
+                var candidate = found
+                if let had = kept.removeValue(forKey: found.id) {
+                    candidate.dismissed = had.dismissed
+                    candidate.added = had.added
+                    candidate.addedHeard = had.addedHeard
+                }
+                return candidate
+            }
+            candidates += file.candidates.filter { kept[$0.id] != nil && ($0.dismissed || $0.added) }.map {
+                var remembered = $0
+                remembered.heard = []
+                return remembered
+            }
+            file.candidates = candidates
+            guard let learnAfter else { return }
+            for i in file.candidates.indices where !file.candidates[i].dismissed && file.candidates[i].seen >= max(learnAfter, 1) {
+                learn(at: i, in: &file)
+            }
+        }
+    }
+
+    /// Add now: the candidate becomes an entry (or its variants go into yours) at once.
+    func learn(_ id: String) {
+        change { file in
+            guard let i = file.candidates.firstIndex(where: { $0.id == id }) else { return }
+            learn(at: i, in: &file)
+        }
+    }
+
+    /// Never learned or shown again.
+    func dismiss(_ id: String) {
+        change { file in
+            guard let i = file.candidates.firstIndex(where: { $0.id == id }) else { return }
+            file.candidates[i].dismissed = true
+        }
+    }
+
+    /// Hands a candidate's new variants (not ordinary words, not handed over before) to the entry with
+    /// its term, or makes a learned entry for it, unless one was made before (you deleted it).
+    /// Variants go in as they are: one with a comma in it stays one.
+    private func learn(at i: Int, in file: inout File) {
+        let candidate = file.candidates[i]
+        let handed = Set(candidate.addedHeard)
+        let variants = candidate.heard.filter { !$0.ordinary && !handed.contains($0.text.lowercased()) }.map(\.text)
+        if let e = file.entries.firstIndex(where: { $0.term.caseInsensitiveCompare(candidate.term) == .orderedSame }) {
+            let have = Set(file.entries[e].heardAs.map { $0.lowercased() })
+            file.entries[e].heardAs += variants.filter { !have.contains($0.lowercased()) }
+        } else if !candidate.added {
+            file.entries.append(VocabularyEntry(term: candidate.term, heardAs: variants, source: .learned, added: now()))
+        } else {
+            return
+        }
+        file.candidates[i].added = true
+        file.candidates[i].addedHeard += variants.map { $0.lowercased() }
+    }
+
+    // MARK: File
+
     /// Re-reads, changes and saves.
     @discardableResult
-    private func change<T>(_ edit: (inout [VocabularyEntry]) -> T) -> T {
+    private func change<T>(_ edit: (inout File) -> T) -> T {
         reloadIfChanged()
-        var copy = entries
+        let before = File(entries: entries, candidates: candidates)
+        var copy = before
         let result = edit(&copy)
-        if copy != entries {
-            entries = copy
+        if copy != before {
+            if copy.entries != entries { entries = copy.entries }
+            if copy.candidates != candidates { candidates = copy.candidates }
             if problem != nil, FileManager.default.fileExists(atPath: fileURL.path) {
                 try? FileManager.default.removeItem(at: asideURL)
                 try? FileManager.default.moveItem(at: fileURL, to: asideURL)
                 problem = "\(fileURL.lastPathComponent) couldn't be read, so it was moved to \(asideURL.lastPathComponent)."
             }
-            JSONFile.save(File(entries: entries), to: fileURL, pretty: true)
+            JSONFile.save(copy, to: fileURL, pretty: true)
             seen = modified()
         }
         return result
@@ -129,13 +226,14 @@ final class VocabularyStore: ObservableObject {
 
     private func load() {
         seen = modified()
-        var read: [VocabularyEntry] = [], problem: String?
+        var read = File(entries: [], candidates: []), problem: String?
         if let data = try? Data(contentsOf: fileURL) {
-            do { read = try JSONFile.decoder.decode(File.self, from: data).entries } catch {
+            do { read = try JSONFile.decoder.decode(File.self, from: data) } catch {
                 problem = "\(fileURL.lastPathComponent) can't be read: fix it, or add a term and it's moved to \(asideURL.lastPathComponent)."
             }
         }
-        if read != entries { entries = read }
+        if read.entries != entries { entries = read.entries }
+        if read.candidates != candidates { candidates = read.candidates }
         if problem != self.problem { self.problem = problem }
     }
 

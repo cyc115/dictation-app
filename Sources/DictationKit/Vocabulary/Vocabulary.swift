@@ -314,6 +314,31 @@ struct Vocabulary {
     }
 }
 
+extension Vocabulary {
+    /// Finds phrases in a text by the replacement's own rule (Latin: any case, whole words; with
+    /// Chinese: literally), every match, none claimed or blocked: how the ordinary-word guard
+    /// (`CandidateTally`) knows a `heard` would be replaced in a dictation. Built once, then each text
+    /// is read once.
+    struct Finder {
+        private let patterns: [Pattern]
+        private let index: PatternIndex
+
+        init(_ phrases: [String]) {
+            patterns = phrases.enumerated().map { Pattern($1, entry: $0, isTerm: true) }
+            index = PatternIndex(patterns)
+        }
+
+        /// Each match: the phrase's index and the text as written there.
+        func find(in text: String) -> [(phrase: Int, text: String)] {
+            guard !patterns.isEmpty, !text.isEmpty else { return [] }
+            let units = Array(text.utf16)
+            return index.find(in: units, patterns).sorted { $0.location < $1.location }.map {
+                (patterns[$0.pattern].entry, String(decoding: units[$0.range], as: UTF16.self))
+            }
+        }
+    }
+}
+
 extension DictationSetup {
     /// This setup's prompt with the vocabulary's terms block.
     func instructions(_ vocabulary: Vocabulary) -> String { vocabulary.instructions(promptText) }
