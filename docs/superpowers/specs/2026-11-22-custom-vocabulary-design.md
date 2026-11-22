@@ -110,10 +110,12 @@ change reaches the running app.
 - A tune takes **at most 60 fixes**: manual and accepted first, newest first, then unreviewed
   captured ones (phase 4). A tune makes 16 teacher calls that each carry nearly every unlearned
   fix, and about 8 student calls per fix.
-- **Teacher wording is not changed in this phase.** `teacherSystem` says a repeatedly misheard term
-  "may be listed by name", which now competes with vocabulary. Replacing that sentence with "terms
-  are handled by a vocabulary list; don't list terms" is a separate commit after a paid before and
-  after tune (see *Paid runs*).
+- **Teacher wording** changes in its own commit, after phase 1 lands. `teacherSystem` says a
+  repeatedly misheard term "may be listed by name", which now competes with vocabulary; that
+  sentence becomes "terms are handled by a vocabulary list; don't list terms". No paid before and
+  after tune (Mike, Nov 22): one pair can't resolve a difference inside the tuner's ±1.5 noise, and
+  every real tune is already gated by its cross-validated score, the general set and Keep. A unit
+  test checks the wording; the next real Learn is checked by eye for a prompt with no term list.
 - v7's baked-in terms stay in v7. Phase 2's backfill brings them into vocabulary from the
   corrections they were learned from.
 
@@ -261,14 +263,19 @@ Per `AGENTS.md`: everything injected, nothing touches the user's files.
 - **Architecture:** new shared objects are made in `AppServices.live()`.
 - `./test.sh --live`: one judge batch (phase 4).
 
-## Paid runs (ask Mike before each)
+## Measuring runs (approved by Mike, Nov 22)
 
-| Run | Decides |
-|---|---|
-| `bench/suite.py polish run` with a sample vocabulary | Polish quality and wait with the terms block |
-| `bench/suite.py latency run --alongside --local -P none` (after `./test.sh --local`, which is free) | Whether `vocabularySpeechHint` can default on (the code notes English-first hint words made Qwen translate mixed Chinese) |
-| One tune before and after the teacher wording change | Whether to land that change |
-| `bench/suite.py edits run` | The judge's model, and whether batching holds accuracy |
+Costs are from saved results, not `AGENTS.md`'s "$1 a run": the Oct 17 polish run was 110 requests
+for $0.0077; a default latency run is about $0.003 (`bench/README.md`); a tune is about $0.50.
+
+| Run | Decides | Cost |
+|---|---|---|
+| `bench/suite.py polish run`, one model, one round, with a sample vocabulary | Polish quality and wait with the terms block | about 1¢ |
+| `./test.sh --local`, then the latency suite on the on-device model only, no polish | Whether `vocabularySpeechHint` can default on (the code notes English-first hint words made Qwen translate mixed Chinese) | $0 |
+| `bench/suite.py edits run`: cheap models first, the strong one once as the reference, batches of 10 | The judge's model, and whether batching holds accuracy | est. under 15¢ |
+
+The edits suite records each request's cost (as the polish suite does), prints the run's total, and
+has a `--dry-run` that estimates it first.
 
 ## Not included
 
