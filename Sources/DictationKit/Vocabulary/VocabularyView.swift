@@ -18,6 +18,12 @@ struct VocabularyView: View {
     var body: some View {
         let shown = matching
         Form {
+            if let problem = store.problem {
+                Section {
+                    Label(problem, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                        .accessibilityIdentifier("vocabulary.problem")
+                }
+            }
             Section {
                 HStack(spacing: 8) {
                     TextField("Term", text: $term, prompt: Text("Term, as you want it written"))

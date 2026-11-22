@@ -107,13 +107,16 @@ final class LearnController: ObservableObject {
     /// The vocabulary a tune would run with now (from memory; `learn()` re-reads the file first).
     private var terms: Vocabulary { vocabulary.vocabulary(enabled: settings.vocabularyEnabled) }
 
-    /// What a tune is given: at most `maxFixes` corrections, newest first, each transcript with the
-    /// vocabulary replaced (what the student would be given in a dictation).
+    /// What a tune is given: at most `maxFixes` corrections, the ones not yet learned first, newest
+    /// first within each (so one with something left to learn is never past the cap), each transcript
+    /// with the vocabulary replaced (what the student would be given in a dictation).
     private func tuneCases(_ terms: Vocabulary) -> [TuneCase] {
-        corrections.sorted { $0.date > $1.date }.prefix(Self.maxFixes).map {
-            TuneCase(id: $0.id, input: terms.apply($0.input).text, wanted: $0.correction ?? $0.text,
-                     learned: store.isLearned($0.id, setup: setup.id))
+        let cases = corrections.map {
+            (date: $0.date, case: TuneCase(id: $0.id, input: terms.apply($0.input).text, wanted: $0.correction ?? $0.text,
+                                           learned: store.isLearned($0.id, setup: setup.id)))
         }
+        return cases.sorted { $0.case.learned != $1.case.learned ? !$0.case.learned : $0.date > $1.date }
+            .prefix(Self.maxFixes).map(\.case)
     }
 
     var setup: DictationSetup { settings.setup }
@@ -259,7 +262,7 @@ final class LearnController: ObservableObject {
     var status: String? {
         if let error { return error }
         if let notice { return notice }
-        if measuring { return "Measuring prompt \(setup.prompt) on your \(corrections.count) corrections and the general test set" }
+        if measuring { return "Measuring prompt \(setup.prompt) on your \(min(corrections.count, Self.maxFixes)) corrections and the general test set" }
         guard let phase, let running else { return nil }
         switch phase {
         case .reading: return "Measuring prompt \(running.setup.prompt) on your \(running.cases.count) corrections"

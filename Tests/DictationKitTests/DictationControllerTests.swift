@@ -669,14 +669,6 @@ final class DictationControllerTests: XCTestCase {
         let backup = try XCTUnwrap(service.backup as? OpenRouterPolish)
         XCTAssertEqual(main.instructions, DictationSetup.cloudFlash.promptText)
         XCTAssertEqual(backup.instructions, DictationSetup.cloudFlash.promptText)
-        let before = OpenRouterPolish.request(model: main.model, apiKey: "sk-test", text: "x", instructions: DictationSetup.cloudFlash.promptText,
-                                              provider: main.provider)
-        let now = OpenRouterPolish.request(model: main.model, apiKey: "sk-test", text: "x", instructions: main.instructions, provider: main.provider)
-        func body(_ request: URLRequest) -> NSDictionary? {
-            request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? NSDictionary }
-        }
-        XCTAssertNotNil(body(now))
-        XCTAssertEqual(body(now), body(before), "the request is today's")
 
         settings.polishEnabled = true
         engine.text = "ask cloud of it"

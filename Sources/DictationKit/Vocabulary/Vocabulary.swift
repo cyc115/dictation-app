@@ -64,7 +64,11 @@ struct Vocabulary {
     private let hasVariants: Bool
 
     init(_ entries: [VocabularyEntry]) {
-        self.entries = entries.filter { $0.enabled && !$0.term.trimmingCharacters(in: .whitespaces).isEmpty }
+        self.entries = entries.compactMap { entry in
+            var entry = entry
+            entry.term = entry.term.trimmingCharacters(in: .whitespaces)  // a hand-edited "Claude " pastes no space
+            return entry.enabled && !entry.term.isEmpty ? entry : nil
+        }
         var patterns = self.entries.enumerated().map { Pattern($1.term, entry: $0, isTerm: true) }
         var seen = Set<String>()
         for (index, entry) in self.entries.enumerated() {
@@ -92,8 +96,10 @@ struct Vocabulary {
     /// `text` with each variant replaced by its term, and how many times each entry's fired. Latin
     /// variants match case-insensitively at word boundaries (Chinese next to them is a boundary);
     /// variants with Chinese characters match literally. Longest variant first. A match is skipped
-    /// where a term already stands (variant "Claude" inside "Claude Code", or another entry's term),
-    /// so running it twice changes nothing more.
+    /// where a term already stands: over it (variant "Claude" inside "Claude Code"), across part of
+    /// it, or exactly on another entry's term. A shorter term inside the match doesn't count
+    /// ("claude code" → "Claude Code" though "Claude" is a term). So a second run changes nothing
+    /// more, short of contrived cases (a Chinese variant replaced right next to Latin letters).
     func apply(_ text: String) -> (text: String, uses: [UUID: Int]) {
         guard hasVariants, !text.isEmpty else { return (text, [:]) }
         let units = Array(text.utf16)
@@ -110,6 +116,10 @@ struct Vocabulary {
             let entry = patterns[match.pattern].entry
             let blocked = stands.contains { stand in
                 guard stand.range.overlaps(match.range) else { return false }
+                // A shorter term inside the match ("claude" in "claude code") doesn't stand in its way.
+                if match.range.contains(stand.range.lowerBound), match.range.contains(stand.range.upperBound - 1), stand.range != match.range {
+                    return false
+                }
                 // Its own term, cased differently ("Remarkable" for "reMarkable"): a fix, not a term standing.
                 let caseFix = stand.pattern == entry && stand.range == match.range && !units[match.range].elementsEqual(patterns[entry].units)
                 return !caseFix

@@ -18,7 +18,14 @@ extension VocabularyEntry {
 /// before each save of its own (a save never undoes a change made meanwhile).
 final class VocabularyStore: ObservableObject {
     @Published private(set) var entries: [VocabularyEntry] = []
+    /// Set when vocabulary.json is there but can't be read (a hand edit gone wrong). The next save
+    /// moves it aside first (`asideURL`), so no term in it is lost.
+    @Published private(set) var problem: String?
     let fileURL: URL
+    /// Where an unreadable vocabulary.json is kept: vocabulary-unreadable.json beside it.
+    var asideURL: URL {
+        fileURL.deletingLastPathComponent().appendingPathComponent(fileURL.deletingPathExtension().lastPathComponent + "-unreadable.json")
+    }
     var now: () -> Date = Date.init
     /// The file's modification date as last read or written.
     private var seen: Date?
@@ -109,6 +116,11 @@ final class VocabularyStore: ObservableObject {
         let result = edit(&copy)
         if copy != entries {
             entries = copy
+            if problem != nil, FileManager.default.fileExists(atPath: fileURL.path) {
+                try? FileManager.default.removeItem(at: asideURL)
+                try? FileManager.default.moveItem(at: fileURL, to: asideURL)
+                problem = "\(fileURL.lastPathComponent) couldn't be read, so it was moved to \(asideURL.lastPathComponent)."
+            }
             JSONFile.save(File(entries: entries), to: fileURL, pretty: true)
             seen = modified()
         }
@@ -117,8 +129,14 @@ final class VocabularyStore: ObservableObject {
 
     private func load() {
         seen = modified()
-        let read = JSONFile.read(File.self, from: fileURL)?.entries ?? []
+        var read: [VocabularyEntry] = [], problem: String?
+        if let data = try? Data(contentsOf: fileURL) {
+            do { read = try JSONFile.decoder.decode(File.self, from: data).entries } catch {
+                problem = "\(fileURL.lastPathComponent) can't be read: fix it, or add a term and it's moved to \(asideURL.lastPathComponent)."
+            }
+        }
         if read != entries { entries = read }
+        if problem != self.problem { self.problem = problem }
     }
 
     private func modified() -> Date? {

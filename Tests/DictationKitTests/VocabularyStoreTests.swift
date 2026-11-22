@@ -90,6 +90,21 @@ final class VocabularyStoreTests: XCTestCase {
         XCTAssertEqual(VocabularyEntry.variants(from: ""), [])
     }
 
+    /// A hand edit that breaks the file loses nothing: it's moved aside before the next save.
+    func testAnUnreadableFileIsMovedAsideNotOverwritten() throws {
+        let url = makeTempURL(self, "vocabulary.json")
+        let broken = #"{"entries": [{"term": "Claude"}, {"heard": ["no term"]}]}"#
+        try broken.write(to: url, atomically: true, encoding: .utf8)
+        let store = makeStore(url)
+        XCTAssertTrue(store.entries.isEmpty)
+        XCTAssertNotNil(store.problem)
+        store.add(term: "Codex")
+        XCTAssertEqual(try String(contentsOf: store.asideURL, encoding: .utf8), broken)
+        XCTAssertEqual(VocabularyStore(fileURL: url).entries.map(\.term), ["Codex"])
+        XCTAssertTrue(store.problem?.contains("vocabulary-unreadable.json") ?? false)
+        XCTAssertNil(VocabularyStore(fileURL: url).problem)
+    }
+
     func testAHandEditedFileWithOnlyTermsLoads() throws {
         let url = makeTempURL(self, "vocabulary.json")
         try #"{"entries": [{"term": "reMarkable"}, {"term": "Claude", "heardAs": ["cloud"], "enabled": false}]}"#

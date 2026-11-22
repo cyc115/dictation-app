@@ -33,8 +33,9 @@ enum VocabularyCommand {
             args.removeSubrange(flag...(flag + 1))
         }
         let term = args.dropFirst().joined(separator: " ")
+        if let problem = store.problem { io.err(problem) }
         switch args.first {
-        case nil, "list" where args.count == 1 && heard.isEmpty:
+        case nil where heard.isEmpty, "list" where args.count == 1 && heard.isEmpty:
             list(store.entries, json: json, io: io)
             return 0
         case "add" where !term.isEmpty:

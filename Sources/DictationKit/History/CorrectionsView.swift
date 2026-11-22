@@ -186,7 +186,8 @@ struct CorrectionCard: View {
                     .accessibilityIdentifier("corrections.suggestionError")
             }
             if let raw = entry.raw {
-                DisclosureGroup("Before polish") {
+                // Not polished: what the speech model heard, before your vocabulary was applied.
+                DisclosureGroup(entry.prompt == nil ? "As heard" : "Before polish") {
                     Text(raw).font(.callout.monospaced()).textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }

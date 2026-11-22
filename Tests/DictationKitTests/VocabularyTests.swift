@@ -33,6 +33,26 @@ final class VocabularyTests: XCTestCase {
         XCTAssertEqual(apply("install cloud code and ask cloud", v), "install Claude Code and ask Claude")
     }
 
+    /// A shorter term inside a longer variant doesn't stop it: "Claude" is a term, "claude code" still
+    /// becomes "Claude Code".
+    func testAShorterTermInsideAVariantDoesNotBlockIt() {
+        let v = [entry("Claude", ["cloud"]), entry("Claude Code", ["claude code"]), entry("Mike"), entry("Mike Chen", ["mike chan"])]
+        XCTAssertEqual(apply("open claude code, ask mike chan now", v), "open Claude Code, ask Mike Chen now")
+        XCTAssertEqual(apply("open Claude Code", v), "open Claude Code")
+        let once = apply("open claude code and cloud", v)
+        XCTAssertEqual(once, "open Claude Code and Claude")
+        XCTAssertEqual(apply(once, v), once)
+    }
+
+    /// A variant across part of a term that stands is left alone.
+    func testAVariantAcrossPartOfATermIsLeftAlone() {
+        XCTAssertEqual(apply("GeForce Now please", [entry("GeForce Now"), entry("Now please", ["now please"])]), "GeForce Now please")
+    }
+
+    func testATermIsUsedTrimmed() {
+        XCTAssertEqual(apply("ask cloud", [entry("Claude ", ["cloud"])]), "ask Claude")
+    }
+
     /// Variant "Claude", term "Claude Code": where "Claude Code" already stands it's left alone.
     func testAVariantInsideItsOwnTermIsNotReplacedAgain() {
         let v = [entry("Claude Code", ["Claude"])]
