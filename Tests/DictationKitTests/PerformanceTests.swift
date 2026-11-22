@@ -264,6 +264,8 @@ final class PerformanceTests: XCTestCase {
     /// The idle pass's work (intake for every correction, candidates, the ordinary-word scan of every
     /// uncorrected dictation) runs off the main thread when the app is idle; it still has to stay
     /// cheap as History grows. 2,000 dictations, 100 terms fixed in 200 of them, first pass (backfill).
+    /// ~130 ms and ~70 ms (later passes) in a debug build on a quiet Mac; budgets leave room for a busy one,
+    /// since it never runs on the paste path.
     func testVocabularyIntakePassOnALargeHistory() {
         let sentence = "so I asked the cloud about the setup again and we moved on to the next thing, 我们明天再说"
         var entries: [HistoryEntry] = []
@@ -276,14 +278,14 @@ final class PerformanceTests: XCTestCase {
             entries.append(entry)
         }
         var support: [VocabularyCandidate] = []
-        assertFaster(than: 0.3, iterations: 3, "vocabulary intake pass: 2k history, 100 terms") {
+        assertFaster(than: 0.5, iterations: 3, "vocabulary intake pass: 2k history, 100 terms") {
             support = VocabularyIntake.work(entries).support
         }
         XCTAssertEqual(support.count, 100)
         // Every later pass: intake is already there, so only the counting and the scan.
         let intakes = VocabularyIntake.work(entries).intakes
         for i in entries.indices { if let intake = intakes[entries[i].id] { entries[i].intake = intake } }
-        assertFaster(than: 0.15, iterations: 3, "vocabulary intake pass, intake already worked out: 2k history, 100 terms") {
+        assertFaster(than: 0.25, iterations: 3, "vocabulary intake pass, intake already worked out: 2k history, 100 terms") {
             XCTAssertTrue(VocabularyIntake.work(entries).intakes.isEmpty)
         }
     }
