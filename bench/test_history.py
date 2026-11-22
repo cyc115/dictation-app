@@ -383,7 +383,10 @@ def test_no_learned_prompt_runs_base_only(monkeypatch, capsys, tmp_path):
     assert h.cmd_run(args, harness_run=refuse) == 0
     out = capsys.readouterr().out
     assert "60 polish calls (5 × 4 arms × 1 prompts × 3 rounds)" in out
-    assert "no learned prompt active: part 1 runs the base prompt only" in out
+    assert "no learned prompt active: part 1 runs the base prompt in its place" in out
+    args = h.parser().parse_args(["run", "--data", str(data), "--out", str(tmp_path / "out"), "--dry-run", "--parts", "1", "--prompts", "learned,v4"])
+    assert h.cmd_run(args, harness_run=refuse) == 0
+    assert "prompts base (v7) and v4 (built-in)" in capsys.readouterr().out, "base stands in for the missing learned prompt"
 
 
 def test_prompts_take_a_built_in_version(monkeypatch, capsys, tmp_path):

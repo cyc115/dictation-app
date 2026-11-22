@@ -416,7 +416,7 @@ def builtin_versions(swift: Path = SETUPS_SWIFT) -> tuple[str, ...]:
     found = re.search(r"static let versions = \[(.*?)\]", swift.read_text())
     if not found:
         raise SystemExit(f"PolishPrompt.versions not found in {swift}: update history.builtin_versions")
-    return tuple(sorted(re.findall(r'"(v\d+)"\s*:', found.group(1)), key=lambda v: int(v[1:])))
+    return tuple(sorted(re.findall(r'"([^"]+)"\s*:', found.group(1)), key=_prompt_order))
 
 
 def prompt_of(setup: dict, name: str) -> dict | None:
@@ -505,7 +505,7 @@ def plan_text(job: dict, plan: dict, setup: dict, counts: dict, rounds: int) -> 
                      f"{' (yours polishes on this Mac)' if setup['fellBack'] else ''}, prompts {prompts}, arms {', '.join(job['arms'])}, "
                      f"{setup['model']}; ≈ {plan['tokens_in']:,} tokens in, {plan['tokens_out']:,} out: {cost}")
         if counts.get("noLearned"):
-            lines.append(f"          {setup['id']} has no learned prompt active: part 1 runs the base prompt only")
+            lines.append(f"          {setup['id']} has no learned prompt active: part 1 runs the base prompt in its place")
         for name, same in (counts.get("promptsSameAs") or {}).items():
             lines.append(f"          {name} is the {same} prompt: run once, as {same}")
     if 2 in parts:
@@ -563,7 +563,7 @@ def read_rows(path: Path) -> list[dict]:
 
 def _prompt_order(name: str) -> tuple:
     """learned, base, then the built-in versions by number."""
-    return (PROMPTS.index(name), 0) if name in PROMPTS else (len(PROMPTS), int(name[1:]) if name[1:].isdigit() else 0)
+    return (PROMPTS.index(name), 0, "") if name in PROMPTS else (len(PROMPTS), int(name[1:]) if name[1:].isdigit() else 10**6, name)
 
 
 def _spread(values: list[float]) -> dict:
@@ -767,7 +767,7 @@ def report_text(result: dict, markdown: bool = False) -> str:
             lines.append(f"  skipped: {v['skipped']}")
         lines += _unsourced_note(cfg)
         if "learned" in (cfg.get("promptsAsked") or []) and "learned" not in (cfg.get("prompts") or []):
-            lines.append(f"  {setup.get('setup')} has no learned prompt active: the base prompt only")
+            lines.append(f"  {setup.get('setup')} has no learned prompt active: the base prompt in its place")
         for name, same in (cfg.get("promptsSameAs") or {}).items():
             lines.append(f"  {name} is the {same} prompt: run once, as {same}")
         prompts = v["prompts"] if "prompts" in v else {"as run": {"arms": v.get("arms", {})}}  # results from before prompts were split
@@ -905,21 +905,22 @@ def prepare(args, folder: Path) -> tuple[dict, dict, dict, dict]:
     setup = resolve_setup(args.setup or current_setup(data), folder)
     arms = parse_list(args.arms, ARMS, "--arms")
     asked = parse_list(args.prompts, PROMPTS + builtin_versions(), "--prompts", default=PROMPTS)
-    prompts = tuple(p for p in asked if prompt_of(setup, p) is not None)
+    # No learned prompt active: base runs in its place.
+    prompts = tuple("base" if p == "learned" and setup["learned"] is None else p for p in asked)
     # A built-in version that is the base or the learned prompt runs once, under that name.
     same_as = {}
     for name in [p for p in prompts if p not in PROMPTS]:
         mine = prompt_of(setup, name)
         for other in ("base", "learned"):
             theirs = setup[other]
-            if theirs and (theirs["version"] == name or theirs["text"].strip() == mine["text"]):
+            if theirs and (theirs["version"] == name or (mine["text"] and theirs["text"].strip() == mine["text"])):
                 same_as[name] = other
                 break
     prompts = tuple(p for p in prompts if p not in same_as)
     for name, other in same_as.items():
         if other not in prompts:
             prompts += (other,)
-    prompts = tuple(sorted(prompts, key=_prompt_order)) or ("base",)  # no learned prompt active: base only
+    prompts = tuple(sorted(dict.fromkeys(prompts), key=_prompt_order))
     job = build_job(folder, chosen, kept, parts, args.rounds, args.seed, setup["id"], args.max_cost, args.learn_after,
                     arms=arms, prompts=prompts)
     plan = estimate(job, history, load(folder / "vocabulary.json", {}), setup, read_prices(args.price))
