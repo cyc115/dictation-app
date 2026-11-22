@@ -75,6 +75,12 @@ _POLISH_SPEC = re.compile(r"^(none|apple|openrouter:\S+|setup:\S+)$")
 
 # ---------------------------------------------------------------- models & clips
 
+def _model(spec: str) -> str:
+    """The model without its pinned hosts: the app answers as "openrouter:<id>@PrimeIntellect" for
+    "openrouter:<id>" (the built-in setup's hosts), which is still the main model, not the backup."""
+    return spec.partition("@")[0]
+
+
 def resolve_stt(name: str) -> str:
     spec = STT_ALIASES.get(name, (name,))[0]
     if not _STT_SPEC.match(spec):
@@ -319,9 +325,9 @@ def summarize(rows: list[dict], stt: list[str], polish: list[str]) -> dict:
     # With "+backup", a smaller model may answer instead (TranscriptionModel.backupOpenRouterID).
     summary["backups"] = {}
     for s, sel in by_stt.items():
-        main = s.removesuffix(BACKUP)
+        main = _model(s.removesuffix(BACKUP))
         answered = [r for r in sel if not r["warmup"] and _transcribed(r)]
-        by_backup = [r for r in answered if r.get("answered_by") and r["answered_by"] != main]
+        by_backup = [r for r in answered if r.get("answered_by") and _model(r["answered_by"]) != main]
         if by_backup:
             summary["backups"][s] = {"count": len(by_backup), "of": len(answered),
                                      "models": sorted({r["answered_by"] for r in by_backup})}

@@ -25,7 +25,9 @@ def test_aliases_match_the_apps_models():
     from suites import polish
     built_in = polish.setups(REPO / "nonexistent.json")
     assert latency.STT_ALIASES["local"][0] == built_in["on-device"]["speech"]
-    assert latency.STT_ALIASES["flash"][0] == built_in["cloud-flash"]["speech"]
+    # The model, not its hosts: the app's LatencyProbe runs it as the built-in setup does, pinned hosts
+    # included (an "@Host" in the alias would also swallow the "+backup" suffix).
+    assert latency.STT_ALIASES["flash"][0] == latency._model(built_in["cloud-flash"]["speech"])
 
 
 def test_plan_matches_what_the_app_decodes():
@@ -219,6 +221,7 @@ def test_report_counts_backup_answers():
     rows = [row(backup, 1.0), row(backup, 3.2), row(backup, 3.5), row(backup, 9.0, warmup=True), row(flash, 1.1)]
     rows[1]["answered_by"] = rows[2]["answered_by"] = small
     rows[0]["answered_by"] = rows[4]["answered_by"] = flash  # the main model, not the "+backup" spec
+    rows[0]["answered_by"] = flash + "@PrimeIntellect"  # the main model on its pinned host
     rows[3]["answered_by"] = small  # warm-ups don't count
     s = latency.summarize(rows, [flash, backup], ["none"])
     assert s["backups"] == {backup: {"count": 2, "of": 3, "models": [small]}}
