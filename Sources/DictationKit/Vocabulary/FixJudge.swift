@@ -37,10 +37,12 @@ struct JudgeFailure: LocalizedError {
 }
 
 /// *Ask a model about my fixes*: a verdict for each word change of a fix (misheard, style, a change of
-/// mind, unclear), so only misheard words go into vocabulary and a clear captured edit trains Learn
-/// unreviewed. The idle pass (`VocabularyIntake`) sends the batches; nothing here runs during a
-/// dictation. This is the logic: which fixes wait, the message, reading the answer, and what the
-/// verdicts do. Cloud setups only: on the On-device setup nothing is sent and the rules count.
+/// mind, unclear), so only misheard words go into vocabulary and a captured edit keeps only its
+/// misheard and style changes. Every captured edit still waits for your Accept (`auto` only with
+/// `trainOnUnreviewedCaptures`, off, no Settings row). The idle pass (`VocabularyIntake`) sends the
+/// batches; nothing here runs during a dictation. This is the logic: which fixes wait, the message,
+/// reading the answer, and what the verdicts do. Cloud setups, or a setup that polishes on this Mac
+/// once you allow it (`judgeUsesCloud`); otherwise nothing is sent and the rules count.
 enum FixJudge {
     /// Fixes in one request. Batches of 10 scored as well as one at a time (better, for Claude
     /// Sonnet 5.5) in the Nov 22 run (bench/results/edits/README.md).
@@ -121,11 +123,12 @@ enum FixJudge {
     /// - A waiting capture keeps only its misheard and style changes: the others are put back as the
     ///   app wrote them (what isn't a word change, like a period or a removed filler, stays as you
     ///   made it). With none kept it's dismissed.
-    /// - It becomes `auto` (trains Learn unreviewed) when it was read back from the text box, keeps a
-    ///   change, has nothing unclear and no words only added (a change of mind no verdict covers).
-    ///   Keystroke captures always wait for Accept.
+    /// - It stays `waiting` for your Accept. Only with `trainUnreviewed` (`trainOnUnreviewedCaptures`,
+    ///   off by default) does it become `auto` (trains Learn unreviewed), and then only when it was
+    ///   read back from the text box, keeps a change, has nothing unclear and no words only added (a
+    ///   change of mind no verdict covers). Keystroke captures always wait.
     /// The new intake is of the new target with the verdicts, so the next pass doesn't judge it again.
-    static func judged(_ entry: HistoryEntry, verdicts: [WordChange.Verdict]) -> HistoryEntry {
+    static func judged(_ entry: HistoryEntry, verdicts: [WordChange.Verdict], trainUnreviewed: Bool) -> HistoryEntry {
         var entry = entry
         guard var intake = entry.intake, intake.changes.count == verdicts.count else { return entry }
         for i in verdicts.indices { intake.changes[i].verdict = verdicts[i] }
@@ -141,7 +144,7 @@ enum FixJudge {
             entry.intake = nil
             return entry
         }
-        let auto = capture.mode == .readback && !verdicts.contains(.unclear)
+        let auto = trainUnreviewed && capture.mode == .readback && !verdicts.contains(.unclear)
             && !FixIntake.wordsOnlyAdded(from: entry.text, to: capture.edited)
             && !target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         capture.edited = target
@@ -167,12 +170,13 @@ enum FixJudge {
         return id.isEmpty ? LearnController.teacherModel : id
     }
 
-    /// Your judge: `judgeModel` on OpenRouter with your key, on a setup whose polish goes to the cloud.
-    /// Nil (the judge can't run; the rules count changes as with the setting off, and every capture
-    /// waits for Accept) on a setup that polishes on this Mac, where nothing may leave it: Apple
-    /// Intelligence got 37% of the bench's changes right (Nov 22) and isn't used. Nil without a key.
+    /// Your judge: `judgeModel` on OpenRouter with your key, on a setup whose polish goes to the cloud,
+    /// or on one that polishes on this Mac once you allow it (`judgeUsesCloud`, off by default: each
+    /// fix then leaves the Mac). Otherwise nil there (the judge can't run; the rules count changes as
+    /// with the setting off): Apple Intelligence got 37% of the bench's changes right (Nov 22) and
+    /// isn't used. Nil without a key.
     static func backend(settings: AppSettings) -> FixJudgeBackend? {
-        if settings.setup.polishesOnDevice { return nil }
+        if settings.setup.polishesOnDevice && !settings.judgeUsesCloud { return nil }
         guard let key = settings.openRouterKey, !key.isEmpty else { return nil }
         return OpenRouterJudge(model: modelID(settings.judgeModel), apiKey: key)
     }

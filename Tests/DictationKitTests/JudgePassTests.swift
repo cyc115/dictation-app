@@ -99,6 +99,25 @@ final class JudgePassTests: XCTestCase {
         XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"])
     }
 
+    /// On the On-device setup with `judgeUsesCloud` on (and a key), the cloud judge runs as on a cloud
+    /// setup. An answer that lands after it's turned off again is still used: the fixes were already
+    /// sent, and nothing more is.
+    func testTheOnDeviceSetupJudgesWithTheOptIn() {
+        settings.setOpenRouterKey("sk-test")
+        settings.setup = .onDevice
+        settings.judgeUsesCloud = true
+        intake.judgeBackend = { [unowned self] in FixJudge.backend(settings: settings) != nil ? judge : nil }
+        correct(five())
+        intake.tabShown()
+        XCTAssertEqual(intake.batches, 1)
+        XCTAssertTrue(services.vocabulary.entries.isEmpty, "changes wait for the verdicts")
+        settings.judgeUsesCloud = false
+        answer()
+        XCTAssertEqual(judge.asked.count, 1)
+        XCTAssertEqual(history.entries.first?.intake?.changes.first?.verdict, .misheard, "the answer is used")
+        XCTAssertEqual(intake.batches, 1, "nothing more is sent")
+    }
+
     func testABatchGoesOnceFiveFixesWait() {
         correct(Array(five().prefix(4)))
         intake.runIfIdle()
@@ -304,9 +323,26 @@ final class JudgePassTests: XCTestCase {
         XCTAssertEqual(intake.batches, 1)
     }
 
-    /// A clear capture read back from the text box trains Learn unreviewed (`auto`); dismissing it
-    /// stops that; it isn't kept past "Keep history".
+    /// By default every captured edit waits for Accept: a clear one read back from the text box, all
+    /// misheard, gets its verdicts and counts toward vocabulary, but stays `waiting` and trains nothing.
+    func testAClearCaptureWaitsForAcceptByDefault() throws {
+        XCTAssertFalse(settings.trainOnUnreviewedCaptures, "off by default")
+        let id = try XCTUnwrap(history.add(text: "ask open router", duration: 1))
+        history.setCapture(Capture(edited: "ask OpenRouter", mode: .readback, app: "Slack"), for: id)
+        intake.tabShown()
+        answer()
+        XCTAssertEqual(judge.asked.count, 1)
+        XCTAssertEqual(history.entries[0].capture?.state, .waiting)
+        XCTAssertNil(history.entries[0].correction)
+        XCTAssertTrue(history.corrections.isEmpty, "trains nothing")
+        XCTAssertEqual(history.entries[0].intake?.changes.map(\.verdict), [.misheard], "judged")
+        XCTAssertEqual(intake.batches, 1, "not asked again")
+    }
+
+    /// With `trainOnUnreviewedCaptures` on, a clear capture read back from the text box trains Learn
+    /// unreviewed (`auto`); it isn't kept past "Keep history".
     func testAClearCaptureBecomesAutoAndIsPruned() throws {
+        settings.trainOnUnreviewedCaptures = true
         let id = try XCTUnwrap(history.add(text: "ask open router", duration: 1, date: Date().addingTimeInterval(-10 * 86_400)))
         history.setCapture(Capture(edited: "ask OpenRouter", mode: .readback, app: "Slack"), for: id)
         intake.tabShown()
@@ -319,10 +355,12 @@ final class JudgePassTests: XCTestCase {
     }
 
     func testDismissingAnAutoCaptureStopsItTraining() throws {
+        settings.trainOnUnreviewedCaptures = true
         let id = try XCTUnwrap(history.add(text: "ask open router", duration: 1))
         history.setCapture(Capture(edited: "ask OpenRouter", mode: .readback, app: "Slack"), for: id)
         intake.tabShown()
         answer()
+        XCTAssertEqual(history.entries[0].capture?.state, .auto)
         history.dismiss(id)
         XCTAssertNil(history.entries[0].correction)
         XCTAssertNil(history.entries[0].fixTarget)

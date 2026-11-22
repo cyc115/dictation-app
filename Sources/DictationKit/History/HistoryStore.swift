@@ -236,15 +236,16 @@ final class HistoryStore: ObservableObject {
     /// Saves the judge's answer (`FixJudge`), one publish and one save: each fix's verdicts and what
     /// they do (`FixJudge.judged`), or one more try where the answer left it out. Only where the fix
     /// is still the one judged (its target and word changes): one you edited or dismissed meanwhile
-    /// is left alone, to be judged again as it is now.
-    func applyVerdicts(_ judged: [FixJudge.Judged]) {
+    /// is left alone, to be judged again as it is now. `trainUnreviewed`: `trainOnUnreviewedCaptures`
+    /// (off: every capture keeps waiting for Accept).
+    func applyVerdicts(_ judged: [FixJudge.Judged], trainUnreviewed: Bool) {
         var copy = entries
         for fix in judged {
             guard let i = copy.firstIndex(where: { $0.id == fix.item.id }), copy[i].fixTarget == fix.item.target,
                   let intake = copy[i].intake, intake.of == fix.item.target,
                   intake.changes.map({ WordChange(old: $0.old, new: $0.new) }) == fix.item.changes else { continue }
             if let verdicts = fix.verdicts, verdicts.count == intake.changes.count {
-                copy[i] = FixJudge.judged(copy[i], verdicts: verdicts)
+                copy[i] = FixJudge.judged(copy[i], verdicts: verdicts, trainUnreviewed: trainUnreviewed)
             } else {
                 copy[i].intake?.tries = (intake.tries ?? 0) + 1
             }

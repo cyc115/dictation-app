@@ -149,23 +149,40 @@ final class FixJudgeTests: XCTestCase {
     // MARK: What verdicts do
 
     func testACorrectionIsLabelledNeverRewritten() {
-        let e = entry("see you tuesday with cloud", correction: "see you Thursday with Claude")
-        let judged = FixJudge.judged(e, verdicts: [.changedMind, .misheard])
-        XCTAssertEqual(judged.correction, "see you Thursday with Claude")
-        XCTAssertEqual(judged.intake?.changes.map(\.verdict), [.changedMind, .misheard])
-        XCTAssertEqual(judged.intake?.of, "see you Thursday with Claude")
+        for train in [false, true] {
+            let e = entry("see you tuesday with cloud", correction: "see you Thursday with Claude")
+            let judged = FixJudge.judged(e, verdicts: [.changedMind, .misheard], trainUnreviewed: train)
+            XCTAssertEqual(judged.correction, "see you Thursday with Claude")
+            XCTAssertEqual(judged.intake?.changes.map(\.verdict), [.changedMind, .misheard])
+            XCTAssertEqual(judged.intake?.of, "see you Thursday with Claude")
 
-        var accepted = entry("ask cloud", capture: Capture(edited: "ask Claude", mode: .readback, app: "Slack"))
-        accepted.correction = "ask Claude"
-        accepted.capture?.state = .accepted
-        let labelled = FixJudge.judged(accepted, verdicts: [.changedMind])
-        XCTAssertEqual(labelled.capture?.state, .accepted, "yours once accepted")
-        XCTAssertEqual(labelled.correction, "ask Claude")
+            var accepted = entry("ask cloud", capture: Capture(edited: "ask Claude", mode: .readback, app: "Slack"))
+            accepted.correction = "ask Claude"
+            accepted.capture?.state = .accepted
+            let labelled = FixJudge.judged(accepted, verdicts: [.changedMind], trainUnreviewed: train)
+            XCTAssertEqual(labelled.capture?.state, .accepted, "yours once accepted")
+            XCTAssertEqual(labelled.correction, "ask Claude")
+        }
     }
 
-    func testAClearReadBackCaptureTrainsUnreviewed() {
+    /// By default (`trainOnUnreviewedCaptures` off) even a clear read-back capture, every change
+    /// misheard, waits for Accept: it gets its verdicts and nothing trains Learn.
+    func testAClearReadBackCaptureWaitsForAcceptByDefault() {
         let e = entry("open router and deep sea", capture: Capture(edited: "OpenRouter and DeepSeek", mode: .readback, app: "Slack"))
-        let judged = FixJudge.judged(e, verdicts: [.misheard, .misheard])
+        let judged = FixJudge.judged(e, verdicts: [.misheard, .misheard], trainUnreviewed: false)
+        XCTAssertEqual(judged.capture?.state, .waiting)
+        XCTAssertNil(judged.correction, "doesn't train Learn")
+        XCTAssertEqual(judged.capture?.trains, false)
+        XCTAssertEqual(judged.fixTarget, "OpenRouter and DeepSeek", "still counts toward vocabulary")
+        XCTAssertEqual(judged.intake, Intake(of: "OpenRouter and DeepSeek", changes: [
+            WordChange(old: "open router", new: "OpenRouter", verdict: .misheard),
+            WordChange(old: "deep sea", new: "DeepSeek", verdict: .misheard)]))
+    }
+
+    /// With `trainOnUnreviewedCaptures` on, a clear read-back capture trains Learn unreviewed (`auto`).
+    func testAClearReadBackCaptureTrainsUnreviewedWhenAllowed() {
+        let e = entry("open router and deep sea", capture: Capture(edited: "OpenRouter and DeepSeek", mode: .readback, app: "Slack"))
+        let judged = FixJudge.judged(e, verdicts: [.misheard, .misheard], trainUnreviewed: true)
         XCTAssertEqual(judged.capture?.state, .auto)
         XCTAssertEqual(judged.correction, "OpenRouter and DeepSeek", "trains Learn")
         XCTAssertEqual(judged.capture?.trains, true)
@@ -175,51 +192,58 @@ final class FixJudgeTests: XCTestCase {
     }
 
     func testAKeystrokeCaptureAlwaysWaits() {
-        let e = entry("I use cloud", capture: Capture(edited: "I use Claude", mode: .keystrokes, app: "Notes"))
-        let judged = FixJudge.judged(e, verdicts: [.misheard])
-        XCTAssertEqual(judged.capture?.state, .waiting)
-        XCTAssertNil(judged.correction)
-        XCTAssertEqual(judged.intake?.changes.first?.verdict, .misheard)
+        for train in [false, true] {
+            let e = entry("I use cloud", capture: Capture(edited: "I use Claude", mode: .keystrokes, app: "Notes"))
+            let judged = FixJudge.judged(e, verdicts: [.misheard], trainUnreviewed: train)
+            XCTAssertEqual(judged.capture?.state, .waiting)
+            XCTAssertNil(judged.correction)
+            XCTAssertEqual(judged.intake?.changes.first?.verdict, .misheard)
+        }
     }
 
-    /// A change of mind is put back; the rest is kept, and with it the capture still trains.
+    /// A change of mind is put back and the rest kept, whether or not it may train unreviewed; only
+    /// with `trainOnUnreviewedCaptures` does it then train.
     func testAChangeOfMindIsPutBack() {
-        let e = entry("ask cloud about tuesday", capture: Capture(edited: "ask Claude about Thursday", mode: .readback, app: "Slack"))
-        let judged = FixJudge.judged(e, verdicts: [.misheard, .changedMind])
-        XCTAssertEqual(judged.capture?.edited, "ask Claude about tuesday")
-        XCTAssertEqual(judged.capture?.state, .auto)
-        XCTAssertEqual(judged.correction, "ask Claude about tuesday")
-        XCTAssertEqual(judged.intake, Intake(of: "ask Claude about tuesday", changes: [WordChange(old: "cloud", new: "Claude", verdict: .misheard)]))
+        for train in [false, true] {
+            let e = entry("ask cloud about tuesday", capture: Capture(edited: "ask Claude about Thursday", mode: .readback, app: "Slack"))
+            let judged = FixJudge.judged(e, verdicts: [.misheard, .changedMind], trainUnreviewed: train)
+            XCTAssertEqual(judged.capture?.edited, "ask Claude about tuesday")
+            XCTAssertEqual(judged.capture?.state, train ? .auto : .waiting)
+            XCTAssertEqual(judged.correction, train ? "ask Claude about tuesday" : nil)
+            XCTAssertEqual(judged.intake, Intake(of: "ask Claude about tuesday", changes: [WordChange(old: "cloud", new: "Claude", verdict: .misheard)]))
+        }
     }
 
     func testNothingKeptDismissesTheCapture() {
-        for verdicts in [[WordChange.Verdict.changedMind], [.unclear]] {
-            let e = entry("see you tuesday", capture: Capture(edited: "see you Thursday", mode: .readback, app: "Slack"))
-            let judged = FixJudge.judged(e, verdicts: verdicts)
-            XCTAssertEqual(judged.capture?.state, .dismissed, "\(verdicts)")
-            XCTAssertNil(judged.correction)
-            XCTAssertNil(judged.fixTarget)
-            XCTAssertNil(judged.intake)
+        for train in [false, true] {
+            for verdicts in [[WordChange.Verdict.changedMind], [.unclear]] {
+                let e = entry("see you tuesday", capture: Capture(edited: "see you Thursday", mode: .readback, app: "Slack"))
+                let judged = FixJudge.judged(e, verdicts: verdicts, trainUnreviewed: train)
+                XCTAssertEqual(judged.capture?.state, .dismissed, "\(verdicts)")
+                XCTAssertNil(judged.correction)
+                XCTAssertNil(judged.fixTarget)
+                XCTAssertNil(judged.intake)
+            }
         }
     }
 
     /// Unclear, or words only added (a change of mind no verdict covers): it waits for you, with only
-    /// its misheard and style changes.
+    /// its misheard and style changes, even when clear captures may train unreviewed.
     func testUnclearOrWordsOnlyAddedWait() {
         let unclear = entry("ask GPT and cloud", capture: Capture(edited: "ask Claude and Claude", mode: .readback, app: "Slack"))
-        let judged = FixJudge.judged(unclear, verdicts: [.unclear, .misheard])
+        let judged = FixJudge.judged(unclear, verdicts: [.unclear, .misheard], trainUnreviewed: true)
         XCTAssertEqual(judged.capture?.state, .waiting)
         XCTAssertEqual(judged.capture?.edited, "ask GPT and Claude")
         XCTAssertNil(judged.correction)
 
         let added = entry("send cloud the file", capture: Capture(edited: "send Claude the file now", mode: .readback, app: "Slack"))
-        XCTAssertEqual(FixJudge.judged(added, verdicts: [.misheard]).capture?.state, .waiting)
+        XCTAssertEqual(FixJudge.judged(added, verdicts: [.misheard], trainUnreviewed: true).capture?.state, .waiting)
     }
 
     /// A kept target that's the dictation's own text, or empty, is never `auto`.
     func testNeverAutoWithoutAKeptChange() {
         let e = entry("I use cloud", capture: Capture(edited: "I use Claude", mode: .readback, app: "Slack"))
-        let judged = FixJudge.judged(e, verdicts: [.changedMind])
+        let judged = FixJudge.judged(e, verdicts: [.changedMind], trainUnreviewed: true)
         XCTAssertNotEqual(judged.capture?.state, .auto)
         XCTAssertNil(judged.correction)
     }
@@ -234,13 +258,13 @@ final class FixJudgeTests: XCTestCase {
         let item = try XCTUnwrap(FixJudge.pending(history.entries).first)
 
         history.setCorrection("I use Claude Code", for: id)  // edited meanwhile
-        history.applyVerdicts([FixJudge.Judged(item: item, verdicts: [.misheard])])
+        history.applyVerdicts([FixJudge.Judged(item: item, verdicts: [.misheard])], trainUnreviewed: false)
         XCTAssertNil(history.entries[0].intake?.changes.first?.verdict, "not on a fix that's gone")
 
         history.setCorrection("I use Claude", for: id)
-        history.applyVerdicts([FixJudge.Judged(item: item, verdicts: nil)])
+        history.applyVerdicts([FixJudge.Judged(item: item, verdicts: nil)], trainUnreviewed: false)
         XCTAssertEqual(history.entries[0].intake?.tries, 1, "left out: one more try")
-        history.applyVerdicts([FixJudge.Judged(item: item, verdicts: [.style])])
+        history.applyVerdicts([FixJudge.Judged(item: item, verdicts: [.style])], trainUnreviewed: false)
         XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .style)
         XCTAssertEqual(HistoryStore(fileURL: history.fileURL, defaults: makeDefaults(self)).entries[0].intake?.changes.first?.verdict, .style, "saved")
     }
@@ -264,14 +288,22 @@ final class FixJudgeTests: XCTestCase {
 
     // MARK: Backends
 
-    /// The judge needs a cloud setup: on one that polishes on this Mac it never runs (nothing is sent;
-    /// the rules count), even with a key and the setting on.
-    func testTheJudgeNeedsACloudSetup() throws {
+    /// On a setup that polishes on this Mac the judge never runs by default (nothing is sent; the
+    /// rules count), even with a key and the setting on. `judgeUsesCloud` allows the same cloud judge
+    /// there, still only with a key. Cloud setups get it either way.
+    func testTheJudgeNeedsACloudSetupOrTheOptIn() throws {
         let settings = makeSettings(self)
         settings.judgeFixes = true
         settings.setOpenRouterKey("sk-test")
         settings.setup = .onDevice
+        XCTAssertFalse(settings.judgeUsesCloud, "off by default")
         XCTAssertNil(FixJudge.backend(settings: settings), "On-device: no judge, even with a key")
+        settings.judgeUsesCloud = true
+        XCTAssertEqual((FixJudge.backend(settings: settings) as? OpenRouterJudge)?.model, LearnController.teacherModel, "allowed: the cloud judge")
+        settings.setOpenRouterKey(nil)
+        XCTAssertNil(FixJudge.backend(settings: settings), "allowed, no key")
+        settings.setOpenRouterKey("sk-test")
+        settings.judgeUsesCloud = false
 
         settings.setup = .cloudFlash
         XCTAssertEqual((FixJudge.backend(settings: settings) as? OpenRouterJudge)?.model, LearnController.teacherModel)
@@ -286,6 +318,9 @@ final class FixJudgeTests: XCTestCase {
         settings.setup = cloudSpeechApplePolish
         XCTAssertTrue(cloudSpeechApplePolish.usesCloud)
         XCTAssertNil(FixJudge.backend(settings: settings))
+        settings.judgeUsesCloud = true
+        XCTAssertTrue(FixJudge.backend(settings: settings) is OpenRouterJudge, "allowed")
+        settings.judgeUsesCloud = false
         let localSpeechCloudPolish = try setup(#"{"id": "b", "title": "B", "speech": "apple", "polish": "openrouter:deepseek/deepseek-v4.1-flash", "prompt": "v7"}"#)
         settings.setup = localSpeechCloudPolish
         XCTAssertTrue(FixJudge.backend(settings: settings) is OpenRouterJudge)

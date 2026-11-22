@@ -41,23 +41,53 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(hosted.allText.contains("Edits watched, by app"), hosted.allText)
     }
 
-    /// Ask a model about my fixes: off by default; a cloud setup's to turn on. On On-device it says
-    /// nothing is sent and the rules count, and can't be turned on.
+    /// Ask a model about my fixes: off by default; a cloud setup's to turn on, with no Send my fixes
+    /// to the cloud row there. On On-device it says nothing is sent and the rules count, and can't be
+    /// turned on.
     func testAskAModelAboutMyFixesNeedsACloudSetup() throws {
         let defaults = makeDefaults(self)
         let settings = makeSettings(self, defaults: defaults)
         settings.setup = .onDevice
         let hosted = host(settings)
-        XCTAssertTrue(hosted.allText.contains("Needs a cloud setup. On the On-device setup nothing is sent: your fixes are counted by the rules"), hosted.allText)
+        XCTAssertTrue(hosted.allText.contains("Off on this setup unless you turn on Send my fixes to the cloud. Until then nothing is sent: your fixes are counted by the rules"), hosted.allText)
         let row = try XCTUnwrap(hosted.element(id: "setting.Ask a model about my fixes"))
         hosted.click(row)
         XCTAssertFalse(settings.judgeFixes, "unavailable on On-device")
 
         settings.setup = .cloudFlash
         hosted.settle()
-        XCTAssertFalse(hosted.allText.contains("Needs a cloud setup."))
+        XCTAssertFalse(hosted.allText.contains("Off on this setup"))
+        XCTAssertNil(hosted.element(id: "setting.Send my fixes to the cloud for this"), "only where polish stays on this Mac")
+        XCTAssertTrue(hosted.allText.contains("Captured edits still wait for your Accept."), hosted.allText)
+        XCTAssertFalse(hosted.allText.contains("without waiting for Accept"))
         XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "setting.Ask a model about my fixes"))))
         XCTAssertTrue(makeSettings(self, defaults: defaults).judgeFixes, "saved")
+    }
+
+    /// Send my fixes to the cloud for this: shown only on a setup that polishes on this Mac, off by
+    /// default; on (with a key) it makes Ask a model about my fixes available there.
+    func testSendMyFixesToTheCloudGatesTheJudgeOnDevice() throws {
+        let defaults = makeDefaults(self)
+        let settings = makeSettings(self, defaults: defaults)
+        settings.setup = .onDevice
+        let hosted = host(settings)
+        let optIn = try XCTUnwrap(hosted.element(id: "setting.Send my fixes to the cloud for this"))
+        XCTAssertFalse(settings.judgeUsesCloud, "off by default")
+        XCTAssertTrue(hosted.allText.contains("sends each fix (what the app wrote and what you wanted) to a cloud model"), hosted.allText)
+
+        XCTAssertTrue(hosted.click(optIn))
+        XCTAssertTrue(makeSettings(self, defaults: defaults).judgeUsesCloud, "saved")
+        hosted.settle()
+        XCTAssertTrue(hosted.allText.contains("Needs an API key."), "on, but no key: still unavailable")
+        hosted.click(try XCTUnwrap(hosted.element(id: "setting.Ask a model about my fixes")))
+        XCTAssertFalse(settings.judgeFixes)
+
+        settings.setOpenRouterKey("sk-test")
+        hosted.settle()
+        XCTAssertFalse(hosted.allText.contains("Needs an API key."))
+        XCTAssertTrue(hosted.allText.contains("Captured edits still wait for your Accept."), hosted.allText)
+        XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "setting.Ask a model about my fixes"))))
+        XCTAssertTrue(settings.judgeFixes, "available with the opt-in and a key")
     }
 
     func testTogglesChangeAndPersistSettings() {
