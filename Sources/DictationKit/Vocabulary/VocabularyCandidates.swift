@@ -68,15 +68,17 @@ struct VocabularyCandidate: Codable, Equatable, Identifiable {
 /// Counts candidates from History, from scratch each time (so a deleted or edited correction no
 /// longer counts): pure, so the idle pass runs it off the main thread.
 enum CandidateTally {
-    /// A change counts (without a verdict) only if both sides are at most this many words.
+    /// A change counts only if both sides are at most this many words (with a verdict or without).
     static let maxWords = 4
     /// A heard standing in this many dictations you didn't correct is an ordinary word.
     static let ordinaryAfter = 3
 
     /// Candidates from History's current intake, newest first (`entries` is History, newest first).
-    /// A change counts when judged *misheard*, or, not judged, when both sides are at most 4 words
-    /// with no sentence punctuation inside, and its heard isn't an ordinary word. `judging` (the judge
-    /// is on and can run): a change not yet judged waits instead, unless the judge gave up on its fix
+    /// A change counts only when both sides are at most 4 words with no sentence punctuation inside
+    /// (English or Chinese), and then when judged *misheard*, or, not judged, when its heard isn't an
+    /// ordinary word. The verdict stands in for "is this a mishearing", not for the shape: a long hunk
+    /// across a sentence break could never match again as a variant. `judging` (the judge is on and
+    /// can run): a change not yet judged waits instead, unless the judge gave up on its fix
     /// (`FixJudge.maxTries`). Only the flags it counts are set: `dismissed`, `added`
     /// and `addedHeard` are the store's (`VocabularyStore.updateCandidates`).
     static func support(in entries: [HistoryEntry], judging: Bool = false) -> [VocabularyCandidate] {
@@ -115,13 +117,16 @@ enum CandidateTally {
         return candidates
     }
 
-    /// The whole rule: a verdict decides; without one, the rules do (`rules`), or it waits for one.
+    /// The whole rule: the shape first (at most `maxWords` words a side, no sentence punctuation
+    /// inside), whatever the verdict; then a verdict decides (misheard counts, even an ordinary heard,
+    /// which is flagged and never added as a variant); without one, the rules do (`rules`), or it
+    /// waits for one.
     private static func counts(_ change: WordChange, ordinary: Bool, rules: Bool) -> Bool {
+        guard FixIntake.wordCount(change.old) <= maxWords, FixIntake.wordCount(change.new) <= maxWords,
+              !FixIntake.hasPunctuationInside(change.old), !FixIntake.hasPunctuationInside(change.new) else { return false }
         switch change.verdict {
         case .misheard: return true
-        case nil:
-            return rules && !ordinary && FixIntake.wordCount(change.old) <= maxWords && FixIntake.wordCount(change.new) <= maxWords
-                && !FixIntake.hasPunctuationInside(change.old) && !FixIntake.hasPunctuationInside(change.new)
+        case nil: return rules && !ordinary
         default: return false
         }
     }

@@ -99,7 +99,8 @@ fixes (Apple Intelligence got 37% of the bench's changes right, so it isn't used
 on **Send my fixes to the cloud for this** under it: then it sends your fixes to the same cloud
 model, and your dictations are still polished on this Mac.
 
-- Only changes it calls misheard go into vocabulary; while it's on, a change waits for its verdict.
+- Only changes it calls misheard go into vocabulary, and only short ones as above (at most 4 words
+  a side, no sentence punctuation inside); while it's on, a change waits for its verdict.
   A fix it can't answer about after 3 tries is counted by the rules above.
 - A captured edit keeps only its misheard and style changes and still waits for your Accept; with
   none kept, it's dismissed. (`DictationApp settings set trainOnUnreviewedCaptures on`, off by

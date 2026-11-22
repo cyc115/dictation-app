@@ -151,9 +151,10 @@ change reaches the running app.
 - **Candidates** (in `vocabulary.json`): one per **term** (the new side, case-folded), with each
   `heard` variant and the ids of the dictations it was seen in, and `dismissed`. Counting is by
   term because the same term is misheard differently each time ("Cloud", "Coloule" → Claude).
-  - A change counts when its verdict is *misheard* (phase 4), or, with `judgeFixes` off, when both
-    sides are at most 4 words with no sentence punctuation inside ("file two" → "file. Two" is
-    formatting; 34 of 72 changes in Mike's History were) and `heard` isn't an ordinary word (below).
+  - A change counts only when both sides are at most 4 words with no sentence punctuation inside
+    (English or Chinese; "file two" → "file. Two" is formatting; 34 of 72 changes in Mike's History
+    were), and then when its verdict is *misheard* (phase 4), or, with `judgeFixes` off, when
+    `heard` isn't an ordinary word (below).
   - A term seen in **3 different dictations** (`vocabularyLearnAfter`, no Settings row) becomes a
     learned entry. **Add now** does it at once. A dismissed term never comes back.
   - **Ordinary-word guard:** a `heard` that also stands in 3 or more dictations you didn't correct
@@ -301,7 +302,9 @@ delays typing.
   rules** and sends nothing, unless you allow the cloud judge there (`judgeUsesCloud`, see "Phase 4
   as built").
 - **What verdicts do:**
-  - *misheard* changes count toward candidates;
+  - *misheard* changes count toward candidates, if they pass the shape rule (phase 2's 4 words a
+    side, no sentence punctuation inside: Mike, Nov 22, after misheard hunks across a sentence break
+    became candidates that could never match again);
   - a captured fix's target becomes `text` with only its *misheard* and *style* changes applied;
   - none kept: the capture is dismissed;
   - **every capture waits for Accept (Mike, Nov 22).** The draft's rule (readback + at least one

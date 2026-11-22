@@ -281,9 +281,12 @@ final class FixJudgeTests: XCTestCase {
         var style = entry("I use cloud", correction: "I use Claude")
         style.intake!.changes[0].verdict = .style
         XCTAssertTrue(CandidateTally.support(in: [style]).isEmpty)
+        var misheard = entry("we talked to open router today", correction: "we talked to OpenRouter today")
+        misheard.intake!.changes = misheard.intake!.changes.map { WordChange(old: $0.old, new: $0.new, verdict: .misheard) }
+        XCTAssertEqual(CandidateTally.support(in: [misheard], judging: true).first?.heard.first?.misheard, true, "misheard counts while judging")
         var long = entry("we talked to the folks at open router team today", correction: "we talked to OpenRouter today")
         long.intake!.changes = long.intake!.changes.map { WordChange(old: $0.old, new: $0.new, verdict: .misheard) }
-        XCTAssertEqual(CandidateTally.support(in: [long], judging: true).first?.heard.first?.misheard, true, "misheard counts, rules or not")
+        XCTAssertTrue(CandidateTally.support(in: [long], judging: true).isEmpty, "misheard, but over 4 words: the shape still rules it out")
     }
 
     // MARK: Backends

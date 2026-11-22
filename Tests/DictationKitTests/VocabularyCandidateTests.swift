@@ -198,10 +198,39 @@ final class VocabularyCandidateTests: XCTestCase {
     /// ("well" would be replaced everywhere).
     func testAHeardWithACommaStaysOneVariant() {
         let store = makeStore()
-        var entry = dictation("ok well, cloud is", "ok Claude is")
-        entry.intake?.changes[0].verdict = .misheard
-        store.updateCandidates(support([entry]), learnAfter: 1)
+        let id = UUID()
+        store.updateCandidates([VocabularyCandidate(term: "Claude", heard: [.init(text: "well, cloud", dictations: [id], misheard: true)])], learnAfter: 1)
         XCTAssertEqual(store.entries.first?.heardAs, ["well, cloud"])
+    }
+
+    /// A misheard verdict doesn't waive the shape: more than 4 words a side, or sentence punctuation
+    /// inside (a period, a Chinese comma), is never a candidate; 4 words with none still is.
+    func testAMisheardVerdictStillNeedsTheShape() {
+        func misheard(_ text: String, _ correction: String) -> HistoryEntry {
+            var entry = dictation(text, correction)
+            entry.intake!.changes = entry.intake!.changes.map { WordChange(old: $0.old, new: $0.new, verdict: .misheard) }
+            return entry
+        }
+        let five = misheard("so alpha beta gamma delta epsilon then", "so Alphabet then")
+        XCTAssertEqual(five.intake?.changes.map(\.old), ["alpha beta gamma delta epsilon"])
+        XCTAssertEqual(support([five]).count, 0, "5 words heard")
+        let period = misheard("ask cloud. Then go", "ask Claude go")
+        XCTAssertEqual(period.intake?.changes.map(\.old), ["cloud. Then"])
+        XCTAssertEqual(support([period]).count, 0, "a period inside")
+        let chinese = misheard("我说 克劳德，然后 走", "我说 Claude 走")
+        XCTAssertEqual(chinese.intake?.changes.count, 1)
+        XCTAssertTrue(chinese.intake!.changes[0].old.contains("，"), chinese.intake!.changes[0].old)
+        XCTAssertEqual(support([chinese]).count, 0, "a Chinese comma inside")
+        XCTAssertEqual(support([misheard("ok g four snow now then", "ok GeForce Now then")]).map(\.term), ["GeForce Now"], "4 words, no punctuation")
+        XCTAssertEqual(support([misheard("ok g four snow now then", "ok GeForce Now then")]).first?.heard.first?.misheard, true)
+    }
+
+    /// Chinese sentence punctuation counts as punctuation inside, as English does.
+    func testChineseSentencePunctuationIsPunctuationInside() {
+        for mark in ["，", "。", "！", "？", "；"] {
+            XCTAssertTrue(FixIntake.hasPunctuationInside("克劳德" + mark + "然后"), mark)
+        }
+        XCTAssertFalse(FixIntake.hasPunctuationInside("克劳德 code"))
     }
 
     /// Punctuation inside either side means formatting or rewording, not a term.
