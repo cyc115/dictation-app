@@ -8,7 +8,10 @@ To try another combination in the app, add it to
 `~/Library/Application Support/DictationApp/setups.json`. Your setups appear after the built-in
 ones. The file is re-read whenever Settings opens. A setup with a problem (an unknown model or
 prompt, a backup with no model id, an id already used) is left out of the menu, and Settings ›
-Speech model says which and why under Model; the rest of the file still loads.
+Speech model says which and why under Model; the other setups still load. A file that isn't valid
+JSON, or a setup missing a required field (`id`, `title`, `speech`, `polish`, `prompt`), loses the
+whole file until it's fixed. If the setup you had chosen is left out, the app switches to On-device;
+pick yours again once it's fixed.
 
 ```json
 {"setups": [
