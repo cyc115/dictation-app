@@ -207,5 +207,5 @@ def swift_default(setting: str) -> str:
 
 
 def test_the_default_model_is_the_judges():
-    """judgeModel's default, followed from Settings.swift to its string (today LearnController.teacherModel)."""
+    """judgeModel's default, followed from Settings.swift to its string (today FixJudge.defaultModel)."""
     assert edits.DEFAULT_MODEL == "openrouter:" + swift_default("judgeModel")
