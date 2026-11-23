@@ -25,6 +25,10 @@ final class SpeechEchoTests: XCTestCase {
         XCTAssertTrue(twelve.isEcho("Alpha, Beta One, Gamma, Epsilon."))
         XCTAssertTrue(twelve.isEcho("alpha, beta one, gamma, theta, iota, something else"), "5 of 6 pieces: 83%")
         XCTAssertTrue(twelve.isEcho("Alpha；Beta One、Gamma\nZeta!"), "the other separators, any case, a trailing !")
+        XCTAssertTrue(twelve.isEcho("Alpha\r\nGamma\r\nZeta"), "Windows line ends")
+        XCTAssertTrue(twelve.isEcho("The Alpha, the Gamma, a Zeta"), "an article on the transcript's side")
+        XCTAssertTrue(SpeechContext(words: ["Smith, Inc.", "Alpha", "Gamma"]).isEcho("Gamma, Alpha, Smith, Inc."), "a term with a comma in it")
+        XCTAssertTrue(SpeechContext(words: ["克劳德", "心率变异", "番茄钟"]).isEcho("番茄钟、心率变异、克劳德。"), "Chinese terms")
     }
 
     func testWhatIsNotAnEcho() {
@@ -125,11 +129,11 @@ final class SpeechEchoTests: XCTestCase {
         XCTAssertEqual(lines.all.count, 1)
         XCTAssertEqual(engine.lastAnswer, ModelAnswer(main: "local:test/qwen"))
 
-        // The next dictation starts clean.
-        runtime.answers = [.success(said)]
+        // The next dictation starts clean, even one that fails before it could say.
+        runtime.answers = [.failure(LocalSpeechError.notLoaded)]
         XCTAssertTrue(engine.beginRecording())
         feedSpeech(engine)
-        XCTAssertEqual(stopAndWait(engine, timeout: 5).text, said)
+        XCTAssertNotNil(stopAndWait(engine, timeout: 5).error)
         XCTAssertFalse(engine.lastEchoed)
     }
 
@@ -144,5 +148,6 @@ final class SpeechEchoTests: XCTestCase {
         XCTAssertNil(result.text, "never the echo")
         XCTAssertEqual(result.error, LocalSpeechError.notLoaded.localizedDescription)
         XCTAssertEqual(engine.lastAnswer?.failed, true)
+        XCTAssertTrue(engine.lastEchoed, "the echo happened, though the second pass failed")
     }
 }

@@ -84,7 +84,7 @@ terms (most replaced and most corrected) to the on-device speech model while you
 on-device speech model*, off by default). On synthetic clips that cut term errors from 23% to 6%
 with no harm elsewhere, but on 1 of 25 real recordings the model wrote the term list instead of
 what was said (Nov 22). When it does that, the app notices (most of the transcript's comma-separated
-pieces are your terms) and transcribes again without the hint, so that dictation waits about twice as long.
+pieces are your terms) and transcribes again without the hint, so its transcription takes about twice as long.
 It adds a little wait to every dictation too (about +0.04 s with 10 terms, +0.17 s with 50).
 
 ![Vocabulary: you fix "G Four Snow" to "GeForce Now" twice, it shows up as 2 of 3, Add now makes it a term, and the next dictation has it right](docs/images/vocabulary.gif)

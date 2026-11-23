@@ -100,8 +100,9 @@ final class LocalSpeechModel: ObservableObject {
     /// `context`: what the model is told (`SpeechContext.prompt`), `.none` for nothing. When the model
     /// writes that context back instead of what was said (`SpeechContext.isEcho`), the same samples
     /// are transcribed once more with no context and that answer is the transcript, whatever it is
-    /// (`echoed` true); if that pass fails, this throws: the echo is never the answer.
-    func transcribe(wav: URL, context: SpeechContext = .none) async throws -> (text: String, echoed: Bool) {
+    /// (`echoed` true); if that pass fails, this throws: the echo is never the answer. `onEcho` runs
+    /// before the second pass, so a caller knows of it even when that pass fails.
+    func transcribe(wav: URL, context: SpeechContext = .none, onEcho: () -> Void = {}) async throws -> (text: String, echoed: Bool) {
         lastUsed = now()
         switch state {
         case .notDownloaded, .failed:
@@ -123,6 +124,7 @@ final class LocalSpeechModel: ObservableObject {
         let echoed = context.isEcho(text)
         if echoed {
             log.notice("on-device speech: the model wrote back its context (\(context.words.count) words) instead of a transcript; transcribing again without it")
+            onEcho()
             text = try await runtime.transcribe(samples, maxTokens: maxTokens, context: "").trimmingCharacters(in: .whitespacesAndNewlines)
         }
         lastUsed = now()
@@ -314,9 +316,8 @@ final class LocalEngine: RecordingEngine, DictationEngine {
         var info = RecordingInfo(date: Date(), model: MainActor.assumeIsolated { model.name }, transcript: "", seconds: recording.duration)
         Task { @MainActor [weak self] in
             do {
-                let (text, echoed) = try await model.transcribe(wav: recording.url, context: context)
+                let (text, _) = try await model.transcribe(wav: recording.url, context: context, onEcho: { self?.lastEchoed = true })
                 info.transcript = text
-                self?.lastEchoed = echoed
                 self?.lastAnswer = ModelAnswer(main: model.name)
                 completion(text)
             } catch {

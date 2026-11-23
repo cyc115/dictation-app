@@ -52,19 +52,18 @@ struct SpeechContext: Equatable {
     /// themselves, joined with "，" and ending in "。", in reverse order, one without its leading
     /// "the". Echo when the context has at least 3 words, the transcript splits into at least 3
     /// pieces (on , ， 、 ; ； and new lines), and at least 80% of the pieces are context words (any
-    /// case, or one with its leading "the"/"a"/"an" dropped). Loose on purpose: a false alarm costs
+    /// case; a leading "the"/"a"/"an" dropped on either side; a context word with a comma in it
+    /// counts its parts too). Loose on purpose: a false alarm costs
     /// only a second transcription without the context, what the app did before the hint existed;
     /// and with under 3 pieces it never fires, so saying one or two of your terms alone stays as heard.
     func isEcho(_ transcript: String) -> Bool {
         let context = Set(words.map(Self.piece).filter { !$0.isEmpty })
         guard context.count >= 3 else { return false }
-        var known = context
-        for word in context {
-            for article in ["the ", "a ", "an "] where word.hasPrefix(article) {
-                known.insert(String(word.dropFirst(article.count)).trimmingCharacters(in: .whitespaces))
-            }
+        var known = Set(context.map(Self.withoutArticle))
+        for word in context {  // "Smith, Inc." echoed comes back as two pieces
+            known.formUnion(Self.pieces(word))
         }
-        let pieces = transcript.split(whereSeparator: { Self.separators.contains($0) }).map { Self.piece(String($0)) }.filter { !$0.isEmpty }
+        let pieces = Self.pieces(transcript)
         guard pieces.count >= 3 else { return false }
         let matches = pieces.filter(known.contains).count
         return matches * 5 >= pieces.count * 4
@@ -72,6 +71,18 @@ struct SpeechContext: Equatable {
 
     private static let separators: Set<Character> = [",", "，", "、", ";", "；", "\n", "\r", "\r\n"]
     private static let trailing = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ".。!！?？…:："))
+
+    /// `text` split where the model separates list items, each piece as it's compared.
+    private static func pieces(_ text: String) -> [String] {
+        text.split(whereSeparator: { separators.contains($0) }).map { withoutArticle(piece(String($0))) }.filter { !$0.isEmpty }
+    }
+
+    private static func withoutArticle(_ piece: String) -> String {
+        for article in ["the ", "a ", "an "] where piece.hasPrefix(article) {
+            return String(piece.dropFirst(article.count)).trimmingCharacters(in: .whitespaces)
+        }
+        return piece
+    }
 
     /// A transcript piece or a context word as they're compared: trimmed of spaces and trailing
     /// sentence marks, lower case.

@@ -7,7 +7,6 @@ import XCTest
 /// Each prints "[perf] …" timings; budgets are ~10x the measured time on an M-series Mac,
 /// so they catch real regressions (e.g. an accidental O(n²)) without flaking.
 final class PerformanceTests: XCTestCase {
-    /// Intelligent mic selection judges every buffer of every open mic (~47×/s each, four mics open).
     /// The speech hint's echo check runs on every hinted dictation before its text is delivered.
     /// Worst case: a separator after every word, so 2,000 pieces to look up.
     func testEchoCheckOnALongTranscript() {
@@ -19,6 +18,7 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
+    /// Intelligent mic selection judges every buffer of every open mic (~47×/s each, four mics open).
     func testMicSelectorPerBuffer() {
         var selector = MicSelector(mics: 4)
         var n: Float = 0
