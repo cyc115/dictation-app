@@ -289,9 +289,6 @@ final class FixJudgeTests: XCTestCase {
 
     // MARK: Backends
 
-    /// The judge needs a cloud setup: on one that polishes on this Mac it never runs (nothing is sent;
-    /// the rules count), even with a key and the setting on. A `judgeUsesCloud` left by an unreleased
-    /// build is ignored.
     /// The judge's own default model (not Learn's teacher's, though the same model today), and where it runs.
     func testTheJudgesDefaultModelAndSetups() {
         XCTAssertEqual(FixJudge.defaultModel, "anthropic/claude-sonnet-5.5")
@@ -301,6 +298,9 @@ final class FixJudgeTests: XCTestCase {
         XCTAssertFalse(FixJudge.runs(on: .onDevice))
     }
 
+    /// The judge needs a cloud setup: on one that polishes on this Mac it never runs (nothing is sent;
+    /// the rules count), even with a key and the setting on. A `judgeUsesCloud` left by an unreleased
+    /// build is ignored.
     func testTheJudgeNeedsACloudSetup() throws {
         let defaults = makeDefaults(self)
         defaults.set(true, forKey: "judgeUsesCloud")
