@@ -476,19 +476,19 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertEqual(outcome, "teacher error", "as any teacher failure does: the tune stops and says why")
     }
 
-    func testATuneReportsWhatTheTeacherAndTheStudentCost() async throws {
+    /// The tuner's meters add up what the teacher and the student cost (the teacher bake-off reads them).
+    func testTheTunerMetersWhatTheTeacherAndTheStudentCost() async throws {
         let teacher = FakeTeacher()
         let tuner = makeTuner(right: [.both: Set(cases.map(\.input))], teacher: teacher)
-        let result = try await tuner.tune(cases: cases, prompt: "P") { _ in }
-        XCTAssertEqual(result.teacherUsage.calls, 10)
-        XCTAssertEqual(result.teacherUsage.cost, 0.1, accuracy: 1e-9)
-        XCTAssertEqual(result.teacherUsage.cached, 9 * 7000, "the fold calls; the final one has no cache key")
-        XCTAssertEqual(result.teacherUsage.reasoning, 4000)
-        XCTAssertEqual(result.studentUsage.calls, 20 + 60 + 8, "baseline, held-out and general-set calls, metered by the tuner")
-        XCTAssertEqual(result.studentUsage.cost, 88 * FakeStudent.usage.cost, accuracy: 1e-9)
-        let again = try await tuner.tune(cases: cases, prompt: "P") { _ in }
-        XCTAssertEqual(again.teacherUsage, result.teacherUsage, "each tune counts its own calls")
-        XCTAssertEqual(again.studentUsage, result.studentUsage)
+        _ = try await tuner.tune(cases: cases, prompt: "P") { _ in }
+        let taught = tuner.teacherUsage.total(), studied = tuner.studentUsage.total()
+        XCTAssertEqual(taught.calls, 10)
+        XCTAssertEqual(taught.cost, 0.1, accuracy: 1e-9)
+        XCTAssertEqual(taught.cached, 9 * 7000, "the fold calls; the final one has no cache key")
+        XCTAssertEqual(taught.reasoning, 4000)
+        XCTAssertEqual(studied.calls, 20 + 60 + 8, "baseline, held-out and general-set calls, metered by the tuner")
+        XCTAssertEqual(studied.cost, 88 * FakeStudent.usage.cost, accuracy: 1e-9)
+        _ = try await tuner.tune(cases: cases, prompt: "P") { _ in }
         XCTAssertEqual(tuner.teacherUsage.total().calls, 20, "the tuner's meter keeps every call")
     }
 

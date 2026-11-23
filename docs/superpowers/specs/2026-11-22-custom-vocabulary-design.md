@@ -371,8 +371,8 @@ delays a dictation.
 - **Caching:** instructions and terms come first, with a cache breakpoint for Anthropic models.
   Whether a batch ever hits the cache is unmeasured: batches are minutes apart and the shared part
   is short.
-- **Cost:** each request's usage is added up in memory (`VocabularyIntake.judgeUsage`); the app keeps
-  no record of spend, so it isn't saved.
+- **Cost:** the app keeps no record of spend. Each answer carries OpenRouter's usage
+  (`JudgeAnswer.usage`), which only the live test reads.
 - **No on-device judge (measured Nov 22):** Apple Intelligence through a one-fix-a-call judge, on the
   45 bench cases (a one-off test, not the suite), got 20 of 54 changes right (37%), covered 36 of 54,
   misheard precision 11 of 24, changed mind 3 of 12, style 6 of 18, unclear 0 of 4, 1.7 s a fix

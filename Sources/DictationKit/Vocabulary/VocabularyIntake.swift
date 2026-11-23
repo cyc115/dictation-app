@@ -42,8 +42,6 @@ final class VocabularyIntake {
     /// Where a judge request runs (tests hold it back, then run it).
     var send: (@escaping () async -> Void) -> Void = { work in Task.detached(priority: .utility) { await work() } }
     var now: () -> Date = Date.init
-    /// What the judge's requests cost, added up. In memory only: the app keeps no record of spend.
-    let judgeUsage = UsageMeter()
     /// Passes applied so far.
     private(set) var passes = 0
     /// Batches sent to the judge so far.
@@ -172,7 +170,6 @@ final class VocabularyIntake {
             guard countsATry else { return }
             results = batch.map { FixJudge.Judged(item: $0, verdicts: nil) }
         case .answer(let answer):
-            if let usage = answer.usage { judgeUsage.add(usage) }
             results = batch.indices.map { FixJudge.Judged(item: batch[$0], verdicts: $0 < answer.verdicts.count ? answer.verdicts[$0] : nil) }
             if results.contains(where: { $0.verdicts != nil }) { backoffUntil = nil } else { backOff() }
         }

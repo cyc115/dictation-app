@@ -228,7 +228,6 @@ final class JudgePassTests: XCTestCase {
         intake.tabShown()
         XCTAssertEqual(intake.batches, 3, "given up: it never costs again")
         XCTAssertEqual(services.vocabulary.entries.map(\.term), ["Claude"], "the rules count it")
-        XCTAssertEqual(intake.judgeUsage.total().calls, 3, "what each request cost is added up")
     }
 
     /// A partial answer judges what it covers; the rest waits.

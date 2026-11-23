@@ -107,10 +107,6 @@ struct TuneResult: Equatable {
     var tokens: Int
     var verdict: Verdict
     var trace: [TuneTrace] = []
-    /// What this tune's teacher calls and student calls used and cost (OpenRouter's usage; zero for a
-    /// backend that doesn't report it).
-    var teacherUsage = OpenRouter.Usage()
-    var studentUsage = OpenRouter.Usage()
 }
 
 /// One teacher call. The user message is `prefix` (the current prompt and the corrections: the same
@@ -177,7 +173,7 @@ final class PromptTuner {
     /// two later lenses at once).
     private let students: Limiter
     private let teachers: Limiter
-    /// Every teacher and student call's usage, over this tuner's life (a tune reports its own share).
+    /// Every teacher and student call's usage, over this tuner's life (the teacher bake-off reads them).
     let teacherUsage = UsageMeter()
     let studentUsage = UsageMeter()
 
@@ -197,7 +193,6 @@ final class PromptTuner {
         let teachable = cases.filter { !$0.learned }
         guard !teachable.isEmpty else { throw TuneError.nothingToLearn }
         progress(.reading)
-        let (teacherMark, studentMark) = (teacherUsage.count, studentUsage.count)
 
         // Baseline: the current prompt on every correction (its outputs are what the teacher is
         // shown) and on the general set, so the rings show where it stands before the race.
@@ -228,8 +223,7 @@ final class PromptTuner {
                           errors: lensErrors[winner]!, errorsBefore: errorsBefore,
                           lensScores: scores, tokens: Self.tokenEstimate(final),
                           verdict: Self.verdict(before: before, after: after, mine: mine, mineBefore: mineBefore),
-                          trace: trace.sorted { ($0.fold, $0.lens.rawValue) < ($1.fold, $1.lens.rawValue) },
-                          teacherUsage: teacherUsage.total(from: teacherMark), studentUsage: studentUsage.total(from: studentMark))
+                          trace: trace.sorted { ($0.fold, $0.lens.rawValue) < ($1.fold, $1.lens.rawValue) })
     }
 
     /// Refused when the new prompt acts on a trap dictation the current one doesn't, gains under
