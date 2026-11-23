@@ -50,13 +50,18 @@ def key_problem(key: str) -> str | None:
         urllib.request.urlopen(req, timeout=15).close()
         return None
     except urllib.error.HTTPError as e:
-        try:
-            message = json.loads(e.read()).get("error", {}).get("message", "")
-        except Exception:
-            message = ""
+        message = error_message(e)
         return f"HTTP {e.code}{': ' + message if message else ''}" if e.code in (401, 402, 403) else None
     except Exception:
         return None
+
+
+def error_message(error: urllib.error.HTTPError):
+    """OpenRouter's `error.message` from a failed request's body; "" when it has none or isn't JSON."""
+    try:
+        return json.loads(error.read()).get("error", {}).get("message", "")
+    except Exception:
+        return ""
 
 
 def headers(key: str, content_type: str = "application/json") -> dict[str, str]:

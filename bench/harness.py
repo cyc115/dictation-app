@@ -170,6 +170,28 @@ def edit_distance(a: list[str], b: list[str]) -> int:
     return prev[-1]
 
 
+def estimate_tokens(text: str) -> int:
+    """For cost estimates: a Chinese character a token, else about 4 characters a token."""
+    cjk = len(CJK.findall(text))
+    return cjk + math.ceil((len(text) - cjk) / 4)
+
+
+def read_prices(values: list[str] | None, table: dict, model=lambda name: name, two: bool = True) -> dict:
+    """`table` ($ per million prompt and completion tokens, by model) with each --price MODEL=IN,OUT over
+    it, the model named by `model(MODEL)`. `two`: exactly two numbers (else any count is taken as given)."""
+    prices = dict(table)
+    for value in values or []:
+        name, _, pair = value.partition("=")
+        try:
+            numbers = tuple(float(x) for x in pair.split(","))
+            if two and len(numbers) != 2:
+                raise ValueError
+        except ValueError:
+            raise SystemExit(f"--price {value!r}: use MODEL=IN,OUT ($ per million tokens)") from None
+        prices[model(name)] = numbers
+    return prices
+
+
 def error_rate(reference: str, hypothesis: str) -> float:
     """Token edit distance over the reference's length (1 for anything heard against an empty one)."""
     ref = tokens(reference)

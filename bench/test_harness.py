@@ -59,3 +59,15 @@ def test_environment_records_code_version_but_not_the_hostname():
     env = harness.environment()
     assert env["commit"] and "os" in env
     assert platform.node() not in env.values()
+
+
+def test_estimate_tokens_and_prices():
+    assert harness.estimate_tokens("我们") == 2 and harness.estimate_tokens("abcdefgh") == 2
+    table = {"a/b": (1.0, 2.0)}
+    assert harness.read_prices(None, table) == table and harness.read_prices(None, table) is not table
+    assert harness.read_prices(["openrouter:x/y=0.5,1.5"], table, lambda m: m.removeprefix("openrouter:"))["x/y"] == (0.5, 1.5)
+    import pytest
+    for bad in ("x/y=cheap", "x/y=1", "x/y=1,2,3", "x/y"):
+        with pytest.raises(SystemExit, match="use MODEL=IN,OUT"):
+            harness.read_prices([bad], table)
+    assert harness.read_prices(["x/y=1,2,3"], table, two=False)["x/y"] == (1.0, 2.0, 3.0), "the history suite's lenient read"

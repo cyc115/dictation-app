@@ -43,3 +43,17 @@ def test_the_key_check_names_the_app_too(monkeypatch):
     assert headers["authorization"] == "Bearer k"
     assert headers["http-referer"] == "http://dictation-app-bench.mac/"
     assert headers["x-openrouter-app-visibility"] == "hidden"
+
+
+def test_error_message_is_openrouters_reason_or_nothing():
+    """One reader for a failed request's reason (key_problem, polish, edits)."""
+    import io
+    import urllib.error
+
+    def failed(body: bytes) -> urllib.error.HTTPError:
+        return urllib.error.HTTPError("https://openrouter.ai", 402, "Payment Required", {}, io.BytesIO(body))
+
+    assert openrouter.error_message(failed(b'{"error": {"message": "No credits."}}')) == "No credits."
+    assert openrouter.error_message(failed(b'{"error": {}}')) == ""
+    assert openrouter.error_message(failed(b"<html>bad gateway</html>")) == "", "not JSON"
+    assert openrouter.error_message(failed(b'{"error": "flat"}')) == "", "an error that isn't an object"

@@ -196,11 +196,7 @@ def stream(body: dict, key: str, timeout: float) -> dict:
                         text += piece
                 usage = chunk.get("usage") or usage
     except urllib.error.HTTPError as e:
-        try:
-            message = json.loads(e.read()).get("error", {}).get("message", "")
-        except Exception:
-            message = ""
-        return {"error": f"HTTP {e.code}: {message}"[:200]}
+        return {"error": f"HTTP {e.code}: {openrouter.error_message(e)}"[:200]}
     except Exception as e:  # timeouts, resets
         return {"error": f"{type(e).__name__}: {e}"[:200]}
     details = usage.get("completion_tokens_details") or {}

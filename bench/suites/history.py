@@ -53,7 +53,7 @@ from pathlib import Path
 
 import harness
 import openrouter
-from suites import edits, polish
+from suites import polish
 
 NAME = "history"
 HELP = "vocabulary on your own History: mishearings fixed, speech, reach, wait, learning, edit replay (read-only)"
@@ -478,21 +478,21 @@ def prompt_header(swift: Path = VOCABULARY_SWIFT) -> str:
 def terms_tokens(entries: list[dict]) -> int:
     """Vocabulary.promptBlock's size, roughly: the header and the enabled terms (at most 100)."""
     terms = [e["term"] for e in entries if e.get("enabled", True) and str(e.get("term", "")).strip()][:100]
-    return edits.estimate_tokens(prompt_header()) + sum(edits.estimate_tokens(t) + 1 for t in terms) if terms else 0
+    return harness.estimate_tokens(prompt_header()) + sum(harness.estimate_tokens(t) + 1 for t in terms) if terms else 0
 
 
 def estimate(job: dict, history: list[dict], vocabulary: dict, setup: dict, prices: dict) -> dict:
     """Calls per part, and part 1's tokens and cost (None: the polish model's price isn't known)."""
     by_id = {uid(e["id"]): e for e in history}
     held = {d["id"]: d["heldOut"] for d in job["dictations"]}
-    prompt = {p: edits.estimate_tokens((prompt_of(setup, p) or {}).get("text") or "") for p in job["prompts"]}
+    prompt = {p: harness.estimate_tokens((prompt_of(setup, p) or {}).get("text") or "") for p in job["prompts"]}
     again = terms_tokens(vocabulary.get("entries") or [])
     tokens_in = tokens_out = 0
     for trial in job["polish"]:
         entry = by_id[trial["id"]]
         block = {"off": 0, "terms-only": again, "again": again, "held-out": terms_tokens(held[trial["id"]])}[trial["arm"]]
-        tokens_in += prompt[trial.get("prompt", "learned")] + block + edits.estimate_tokens(entry.get("raw") or entry["text"]) + 20  # tags + framing
-        tokens_out += edits.estimate_tokens(entry.get("correction") or entry["text"])
+        tokens_in += prompt[trial.get("prompt", "learned")] + block + harness.estimate_tokens(entry.get("raw") or entry["text"]) + 20  # tags + framing
+        tokens_out += harness.estimate_tokens(entry.get("correction") or entry["text"])
     price = prices.get(setup["model"])
     cost = None if price is None else (tokens_in * price[0] + tokens_out * price[1]) / 1e6
     clips = len({t["id"] for t in job["speech"]})
@@ -961,15 +961,8 @@ def prepare(args, folder: Path) -> tuple[dict, dict, dict, dict]:
 
 
 def read_prices(values: list[str] | None) -> dict:
-    """PRICES, with --price MODEL=IN,OUT over it."""
-    prices = dict(PRICES)
-    for value in values or []:
-        model, _, pair = value.partition("=")
-        try:
-            prices[model.removeprefix("openrouter:")] = tuple(float(x) for x in pair.split(","))  # type: ignore[assignment]
-        except ValueError:
-            raise SystemExit(f"--price {value!r}: use MODEL=IN,OUT ($ per million tokens)") from None
-    return prices
+    """PRICES, with --price MODEL=IN,OUT over it (any count of numbers is taken as given, as before)."""
+    return harness.read_prices(values, PRICES, lambda name: name.removeprefix("openrouter:"), two=False)
 
 
 def cmd_run(args, harness_run=run_harness) -> int:

@@ -26,7 +26,6 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
-import math
 import random
 import statistics
 import sys
@@ -38,6 +37,7 @@ from pathlib import Path
 
 import harness
 import openrouter
+from harness import estimate_tokens
 from openrouter import CHAT, key_problem
 
 NAME = "edits"
@@ -186,11 +186,7 @@ def post(body: dict, key: str, timeout: float) -> dict:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.load(resp)
     except urllib.error.HTTPError as e:
-        try:
-            message = json.loads(e.read()).get("error", {}).get("message", "")
-        except Exception:
-            message = ""
-        return {"error": f"HTTP {e.code}: {message}"[:200]}
+        return {"error": f"HTTP {e.code}: {openrouter.error_message(e)}"[:200]}
     except Exception as e:  # timeouts, resets
         return {"error": f"{type(e).__name__}: {e}"[:200]}
     usage = data.get("usage") or {}
@@ -268,12 +264,6 @@ def summarize(rows: list[dict], cases: list[dict]) -> dict:
 
 # ---------------------------------------------------------------- the estimate
 
-def estimate_tokens(text: str) -> int:
-    """A Chinese character a token, else about 4 characters a token."""
-    cjk = len(harness.CJK.findall(text))
-    return cjk + math.ceil((len(text) - cjk) / 4)
-
-
 def estimate(specs: list[str], sizes: list[int], cases: list[dict], terms: list[str], seed: int,
              prices: dict[str, tuple[float, float]], prompt: str | None = None) -> list[dict]:
     """Per model × size: requests, estimated prompt and completion tokens, and cost (None: price unknown)."""
@@ -308,15 +298,8 @@ def estimate_text(rows: list[dict]) -> str:
 
 
 def read_prices(values: list[str] | None) -> dict[str, tuple[float, float]]:
-    prices = dict(PRICES)
-    for value in values or []:
-        model, _, pair = value.partition("=")
-        try:
-            prompt_price, completion_price = (float(x) for x in pair.split(","))
-        except ValueError:
-            raise SystemExit(f"--price {value!r}: use MODEL=IN,OUT ($ per million tokens)") from None
-        prices[parse_spec(model)] = (prompt_price, completion_price)
-    return prices
+    """PRICES, with --price over it (the model as openrouter:<id> or <id>)."""
+    return harness.read_prices(values, PRICES, parse_spec)
 
 
 # ---------------------------------------------------------------- report
