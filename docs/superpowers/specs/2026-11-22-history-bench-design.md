@@ -32,7 +32,7 @@ place. Nothing is written there.
 | # | Part | What runs | Headline number | Cost |
 |---|---|---|---|---|
 | 1 | Mishearings fixed | stored `raw` → replace → polish with terms → replace, 3 rounds, four arms × two prompts | mishearings that come out as you wanted, of 33, per arm | cloud polish, ~10–25¢ |
-| 2 | Speech with terms | each recording through the on-device speech model, no terms vs terms, interleaved | mishearings right in the transcript; seconds | $0 |
+| 2 | Speech with terms | each recording through the on-device speech model, no terms vs terms, interleaved; each row says whether the app's echo guard fired (`echoed`) and its seconds include the second pass | mishearings right in the delivered transcript; echoes caught; clips diverged from off; seconds | $0 |
 | 3 | Reach and wrong hits | replacement alone on every stored `raw` and `text` | dictations it would change; hits per entry; hits that move a fixed dictation away from its fix | $0 |
 | 4 | Wait | replacement timed on every `raw`; polish wait from part 1; speech wait from part 2 | change in stop-to-text, typical and p95 | $0 |
 | 5 | What learns | candidates by the rules alone vs by the judge, against your Add and Dismiss | of the terms you added, share each would have proposed; same for dismissed | $0 |
@@ -86,6 +86,11 @@ is refused with the list.
   polish differs run to run, so report the mean and the range over rounds.
 - Part 1 uses the app's current setup when its polish is in the cloud, else `cloud-flash`
   (`--setup`); the write-up names it.
+- Part 2 scores the transcript the app delivered (the second pass, when the guard caught the model
+  writing its context back) and counts echoes caught per arm. A second check, blind to the echo's
+  shape: per clip, the hinted transcript against the same clip's `off` one (word errors, `off` as
+  the reference); over 50% is "diverged". The report prints counts; the clip ids are in the local
+  result file's summary, the transcripts in its rows and `report --details`.
 - Part 3 can't score right or wrong where you made no fix: it counts, lists the hits in the local
   result file, and flags entries whose variant differs only in case or is an ordinary word
   (`CandidateTally`'s test).

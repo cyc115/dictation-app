@@ -248,7 +248,10 @@ bench/suite.py history report --details       # hits and misses WITH your text: 
   v7, the built-in, names terms itself, so v4 is the term-free baseline). A version that is the base or
   learned prompt runs once. Prompts and arms run back to
   back per dictation (arms per clip in part 2), in a seeded order.
-- **Scores:** fixed (whole words, your case) and fixed, any case (same rule, case-insensitive).
+- **Scores:** fixed (whole words, your case) and fixed, any case (same rule, case-insensitive). Part 2
+  scores the transcript the app delivered, counts the echoes its guard caught (the model writing its
+  context back, then a second pass without it), and counts clips whose hinted transcript diverged from
+  the same clip's off one by over half its words (ids in the local result file).
 - **How:** this module snapshots, picks, matches recordings, builds the held-out vocabularies and
   writes a job; `HistoryBenchTests` (skipped unless `HISTORY_BENCH_JOB` is set) runs it through the
   app's own code and writes rows; the module scores them. `history_fixture/job.json` is the job for

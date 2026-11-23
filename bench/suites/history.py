@@ -19,7 +19,8 @@ held-out vocabularies, writes the job, runs the test, scores and reports.
 
 Parts: 1 mishearings fixed (stored raw → replace → cloud polish with terms → replace; 3 rounds, arms
 interleaved per dictation), 2 speech with terms (each recording through the on-device model, arms
-interleaved per clip; skipped when the model isn't downloaded), 3 reach and wrong hits (replacement on
+interleaved per clip; skipped when the model isn't downloaded; echoes the app caught and transcribed again,
+and clips whose hinted transcript diverged from the unhinted one), 3 reach and wrong hits (replacement on
 every raw and text), 4 wait, 5 what learns (rules vs judge against your Add and Dismiss), 6 edit replay
 (each fix through the watcher's two trackers with synthesized keys).
 
@@ -177,6 +178,16 @@ def fixed_count(output: str, target: str, changes: list[dict], any_case: bool = 
 def word_errors(target: str, output: str) -> float:
     """Word errors against your fix (the bench's token error rate: lower case, punctuation dropped)."""
     return harness.error_rate(target, output)
+
+
+DIVERGED = 0.5  # a hinted transcript this far from the off arm's (word errors, off as the reference) is "diverged"
+
+
+def diverges(off: str, hinted: str) -> bool:
+    """The hinted transcript differs from the same clip's unhinted one by more than half its words: an echo
+    the guard didn't recognise, or other damage. Two empty transcripts are alike; text against an empty
+    off transcript diverges."""
+    return harness.error_rate(off, hinted) > DIVERGED
 
 
 def case_words(text: str) -> list[str]:
@@ -623,11 +634,14 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
         out["parts"][1] = {"of": sum(len(misheard[d]) for d in ran if d in misheard), "dictations": len(ran), "prompts": by_prompt,
                            "calls": len(p1), "skipped": skipped}
 
-    # Part 2: per arm, mishearings right in the transcript, and after the arm's replacement; seconds.
+    # Part 2: per arm, mishearings right in the delivered transcript (the second pass, when the app caught
+    # the model writing its context back), and after the arm's replacement; seconds (both passes); echoes
+    # caught; and, whatever the guard knows, clips whose hinted transcript diverged from the off arm's.
     p2 = [r for r in rows if r.get("part") == 2]
     if p2:
         skipped = next((r.get("reason") for r in p2 if r.get("kind") == "skipped"), None)
         runs = [r for r in p2 if "arm" in r]
+        off = {r["id"]: r["transcript"] for r in runs if r["arm"] == "off" and not r.get("error")}
         arms = {}
         for arm in SPEECH_ARMS:
             sel = [r for r in runs if r["arm"] == arm and r["id"] in dictations]
@@ -635,7 +649,12 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
             arms[arm] = {"transcript": sum(fixed_count(r["transcript"], dictations[r["id"]]["target"], misheard[r["id"]]) for r in ok),
                          "replaced": sum(fixed_count(r["replaced"], dictations[r["id"]]["target"], misheard[r["id"]]) for r in ok),
                          "replacedAnyCase": sum(fixed_count(r["replaced"], dictations[r["id"]]["target"], misheard[r["id"]], any_case=True) for r in ok),
-                         "errors": len(sel) - len(ok), "seconds": _wait([r["seconds"] for r in ok])}
+                         "errors": len(sel) - len(ok), "seconds": _wait([r["seconds"] for r in ok]),
+                         "echoes": sum(bool(r.get("echoed")) for r in ok)}  # rows from before the guard have no "echoed"
+            if arm != "off":
+                compared = [r for r in ok if r["id"] in off]
+                arms[arm]["diverged"] = sorted(r["id"] for r in compared if diverges(off[r["id"]], r["transcript"]))
+                arms[arm]["comparedWithOff"] = len(compared)
         clips = {r["id"] for r in runs}
         out["parts"][2] = {"skipped": skipped, "clips": len(clips), "of": sum(len(misheard.get(d, [])) for d in clips), "arms": arms}
 
@@ -787,9 +806,15 @@ def report_text(result: dict, markdown: bool = False) -> str:
             lines.append(f"  skipped: {v['skipped']}")
         else:
             lines += _unsourced_note(cfg)
-            rows = [[arm, a["transcript"], a["replaced"], a.get("replacedAnyCase", "—"), a["errors"] or "", _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])]
+            rows = [[arm, a["transcript"], a["replaced"], a.get("replacedAnyCase", "—"), a.get("echoes", "—"),
+                     f"{len(a['diverged'])} of {a['comparedWithOff']}" if "diverged" in a else "—",
+                     a["errors"] or "", _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])]
                     for arm, a in v["arms"].items()]
-            lines.append(harness.table(["arm", "right in transcript", "after replacement", "after, any case", "errors", "p50 s", "p95 s"], rows, markdown))
+            lines.append(harness.table(["arm", "right in transcript", "after replacement", "after, any case", "echoes caught",
+                                        "diverged from off", "errors", "p50 s", "p95 s"], rows, markdown))
+            lines.append("  right in transcript: the text delivered (after the second pass when the model echoed its context); "
+                         f"diverged: hinted transcript over {DIVERGED:.0%} word errors from the same clip's off transcript "
+                         "(ids in the result file)")
     if 3 in p or "3" in p:
         v = p.get(3) or p.get("3")
         lines += ["", f"Part 3, reach and wrong hits (replacement alone, your vocabulary): {v['changed']} of {v['entries']:,} dictations changed "
@@ -859,6 +884,11 @@ def details_text(result: dict) -> str:
             if c.get("verdict") == "misheard":
                 mark = "✓" if is_fixed(r["transcript"], d["target"], c["new"]) else "✗"
                 out.append(f"part 2 {mark} {r['arm']:<8} {c['old']} → {c['new']}  [{r['id'][:8]}] {r['transcript'][:120]}")
+    off = {r["id"]: r["transcript"] for r in rows if r.get("part") == 2 and r.get("arm") == "off" and not r.get("error")}
+    for r in (r for r in rows if r.get("part") == 2 and r.get("arm") not in (None, "off") and not r.get("error")):
+        if r["id"] in off and diverges(off[r["id"]], r["transcript"]):
+            out.append(f"part 2 diverged {r['arm']:<8} [{r['id'][:8]}]{' (echo caught)' if r.get('echoed') else ''} hinted: "
+                       f"{r['transcript'][:120]}  |  off: {off[r['id']][:120]}")
     for r in (r for r in rows if r.get("part") == 3 and r.get("kind") == "hit"):
         out.append(f"part 3 hit [{r['id'][:8]}]{' (fixed)' if r.get('target') else ''}: {r['text'][:100]}  →  {r['replacedText'][:100]}")
     for r in (r for r in rows if r.get("part") == 3 and r.get("kind") == "entry"):

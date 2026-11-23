@@ -66,7 +66,7 @@ change reaches the running app.
 
 | Stage | What vocabulary does | Added wait |
 |---|---|---|
-| On-device speech (Qwen, Apple) | Terms as `SpeechContext` words: the 20 most useful (replacements fired + dictations corrected to it, ties to the newest). Setting `vocabularySpeechHint`, **off**: on 1 of 25 real recordings the model wrote the term list instead of what was said (Nov 22, `bench/results/history/README.md`) | +0.04 s with 10 terms, +0.17 s with 50 |
+| On-device speech (Qwen, Apple) | Terms as `SpeechContext` words: the 20 most useful (replacements fired + dictations corrected to it, ties to the newest). Setting `vocabularySpeechHint`, **off**: on 1 of 25 real recordings the model wrote the term list instead of what was said (Nov 22, `bench/results/history/README.md`). The echo guard (`SpeechContext.isEcho`: a context of 3+ words, a transcript of 3+ pieces split on , ， 、 ; ； and new lines, 80% or more of them context words, any case or without a leading the/a/an) makes `LocalSpeechModel.transcribe` transcribe the same samples once more without the context and deliver that; a failed second pass fails the dictation. The default stays off | +0.04 s with 10 terms, +0.17 s with 50 |
 | Cloud speech | Nothing: OpenRouter's transcription endpoint takes no prompt | none |
 | After transcription, every setup | Each `heardAs` is replaced with its term | microseconds |
 | Polish, when on | A terms block is appended to the instructions at run time, max 100 terms | to measure |

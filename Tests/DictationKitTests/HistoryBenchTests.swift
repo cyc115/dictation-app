@@ -480,6 +480,8 @@ final class HistoryBenchTests: XCTestCase {
         let out = makeTempURL(self, "rows.jsonl")
         let bench = try bench(job, out: out)
         let (model, runtime) = fakeSpeech()
+        // Again's context (it has "notes") comes back as the context itself, the echo the guard catches.
+        runtime.answer = { context in context.contains("notes") ? context : nil }
         bench.speechModel = model
         try await bench.run()
         let rows = try rows(out)
@@ -527,11 +529,14 @@ final class HistoryBenchTests: XCTestCase {
 
         // Part 2: the speech hint as a dictation builds it.
         XCTAssertEqual(part(2).count, job.speech.count)
-        XCTAssertEqual(runtime.contexts.count, job.speech.count)
+        XCTAssertEqual(runtime.contexts.count, job.speech.count + 1, "again's echo is transcribed once more")
         XCTAssertEqual(runtime.contexts.filter { $0.contains("notes") }.count, 1, "again only: held out drops it, off has none")
-        XCTAssertEqual(runtime.contexts.filter(\.isEmpty).count, 1)
+        XCTAssertEqual(runtime.contexts.filter(\.isEmpty).count, 2, "off, and again's second pass")
         let againSpeech = try XCTUnwrap(part(2).first { $0["arm"] as? String == "again" })
+        XCTAssertEqual(againSpeech["echoed"] as? Bool, true)
+        XCTAssertEqual(againSpeech["transcript"] as? String, "can you send me the nodes from today's meeting", "the second pass, delivered")
         XCTAssertEqual(againSpeech["replaced"] as? String, "can you send me the notes from today's meeting")
+        XCTAssertEqual(part(2).filter { $0["echoed"] as? Bool == false }.count, job.speech.count - 1)
 
         // Part 3: reach, and the flags.
         let hits = part(3).filter { $0["kind"] as? String == "hit" }

@@ -193,7 +193,8 @@ final class AppSettings: ObservableObject {
     /// (`SpeechContext`, `Vocabulary.speechWords`). Off by default: on real recordings (Nov 22,
     /// bench/results/history/README.md) the on-device model once wrote the term list instead of what
     /// was said (1 of 25), though the synthetic run showed no harm (bench/results/local/README.md);
-    /// and each term adds a little wait.
+    /// and each term adds a little wait. When the model writes the list back, `SpeechContext.isEcho`
+    /// catches it and `LocalSpeechModel.transcribe` transcribes again without the context.
     @Setting("vocabularySpeechHint", default: false) var vocabularySpeechHint: Bool
     /// Watch how you edit a dictation right after it's pasted (`EditWatcher`) and keep it as a captured
     /// fix, waiting in Corrections for your Accept. Off by default: it reads the text box you typed into.

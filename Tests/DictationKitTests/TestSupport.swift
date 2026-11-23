@@ -206,6 +206,8 @@ final class FakeSpeechRuntime: SpeechRuntime {
     /// The context each transcription was given.
     var contexts: [String] = []
 
+    /// An answer that depends on the context (nil: `text`).
+    var answer: ((String) -> String?)?
     /// Answers for the next transcriptions, in order (then `text`, or `error`).
     var answers: [Result<String, Error>] = []
 
@@ -215,7 +217,7 @@ final class FakeSpeechRuntime: SpeechRuntime {
         contexts.append(context)
         if !answers.isEmpty { return try answers.removeFirst().get() }
         if let error { throw error }
-        return text
+        return answer?(context) ?? text
     }
 
     func unload() async { log.append("unload") }

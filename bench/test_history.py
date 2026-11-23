@@ -268,8 +268,9 @@ def fake_harness(job_path: Path, out_path: Path, key, log: Path, stop_after: int
         cost += 0.001
     for t in job["speech"]:
         e = history[t["id"]]
+        echoed = t["arm"] == "again"  # a stand-in: the app caught again's echo and delivered its second pass
         rows.append({"part": 2, "id": t["id"], "arm": t["arm"], "transcript": e["raw"], "replaced": replace(e["raw"], vocab_for(t["arm"], t["id"])),
-                     "seconds": 1.0, "error": None, "contextWords": 0})
+                     "seconds": 2.0 if echoed else 1.0, "error": None, "contextWords": 0, "echoed": echoed})
     for e in history.values():
         new = replace(e["text"], vocab["entries"])
         if new != e["text"]:
@@ -292,6 +293,10 @@ def fake_harness(job_path: Path, out_path: Path, key, log: Path, stop_after: int
     rows.append({"part": -1, "kind": "done", "cost": cost, "stopped": stopped})
     out_path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
     return 0
+
+
+def job_speech_clips(result: dict) -> int:
+    return result["summary"]["parts"]["2"]["clips"]
 
 
 def fixture_texts() -> set[str]:
@@ -340,6 +345,32 @@ def test_the_report_has_totals_only(monkeypatch, capsys, tmp_path):
     assert s["5"]["added"] == 5 and s["5"]["dismissed"] == 1
     assert s["5"]["methods"]["rules"]["dismissed"]["proposed"] == 1 and s["5"]["methods"]["judge"]["dismissed"]["proposed"] == 0
     assert "has your text" in printed
+    assert s["2"]["arms"]["again"]["echoes"] == job_speech_clips(result) and s["2"]["arms"]["held-out"]["echoes"] == 0
+    assert s["2"]["arms"]["again"]["diverged"] == [], "the stand-in delivers the same text as off"
+    assert "echoes caught" in report and "diverged from off" in report
+
+
+def test_part_2_counts_echoes_and_clips_that_diverged_from_off():
+    d = {"part": 0, "kind": "dictation", "target": "send the notes to Claude", "changes": [{"old": "cloud", "new": "Claude", "verdict": "misheard"}]}
+    rows = [{**d, "id": "A"}, {**d, "id": "B"}, {**d, "id": "C"}, {**d, "id": "E"},
+            {"part": 2, "id": "A", "arm": "off", "transcript": "send the notes to cloud", "replaced": "", "seconds": 1.0},
+            {"part": 2, "id": "A", "arm": "again", "transcript": "send the notes to Claude", "replaced": "", "seconds": 2.0, "echoed": True},
+            # The guard missed this one: a list in place of the dictation.
+            {"part": 2, "id": "B", "arm": "off", "transcript": "send the notes to cloud", "replaced": "", "seconds": 1.0},
+            {"part": 2, "id": "B", "arm": "again", "transcript": "Hammerspoon, reMarkable", "replaced": "", "seconds": 1.0, "echoed": False},
+            # An empty off transcript: anything heard against it diverges.
+            {"part": 2, "id": "C", "arm": "off", "transcript": "", "replaced": "", "seconds": 1.0},
+            {"part": 2, "id": "C", "arm": "again", "transcript": "send it", "replaced": "", "seconds": 1.0},  # from before the guard: no "echoed"
+            # An off run that failed can't be compared.
+            {"part": 2, "id": "E", "arm": "off", "transcript": "", "replaced": "", "seconds": 0, "error": "boom"},
+            {"part": 2, "id": "E", "arm": "again", "transcript": "anything at all", "replaced": "", "seconds": 1.0}]
+    arms = h.score(rows, {}, {}, 3)["parts"][2]["arms"]
+    assert arms["again"]["echoes"] == 1 and arms["off"]["echoes"] == 0
+    assert arms["again"]["diverged"] == ["B", "C"] and arms["again"]["comparedWithOff"] == 3
+    assert "diverged" not in arms["off"]
+    assert arms["again"]["transcript"] == 1, "scored on the delivered text: A's second pass has Claude"
+    assert h.diverges("a b c d", "a b x y") is False and h.diverges("a b c d", "a x y z") is True, "over half, not half"
+    assert h.diverges("", "") is False
 
 
 def test_a_stopped_run_says_so(monkeypatch, capsys, tmp_path):
