@@ -10,6 +10,20 @@ extension VocabularyEntry {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
     }
+
+    /// Its term is `term`, ignoring case (as given: no trimming).
+    func isTerm(_ term: String) -> Bool { self.term.caseInsensitiveCompare(term) == .orderedSame }
+
+    /// Adds the variants it doesn't have yet (any case), in order.
+    mutating func addVariants(_ variants: [String]) {
+        let have = Set(heardAs.map { $0.lowercased() })
+        heardAs += variants.filter { !have.contains($0.lowercased()) }
+    }
+}
+
+extension Array where Element == VocabularyEntry {
+    /// The first entry whose term is `term` (`isTerm`).
+    func firstIndex(ofTerm term: String) -> Int? { firstIndex { $0.isTerm(term) } }
 }
 
 /// Your vocabulary, in Application Support (vocabulary.json). Made once in `AppServices.live()`.
@@ -82,9 +96,8 @@ final class VocabularyStore: ObservableObject {
         let heard = VocabularyEntry.variants(from: heardAs.joined(separator: ","))
         guard !term.isEmpty else { return nil }
         return change { file -> VocabularyEntry in
-            if let i = file.entries.firstIndex(where: { $0.term.caseInsensitiveCompare(term) == .orderedSame }) {
-                let have = Set(file.entries[i].heardAs.map { $0.lowercased() })
-                file.entries[i].heardAs += heard.filter { !have.contains($0.lowercased()) }
+            if let i = file.entries.firstIndex(ofTerm: term) {
+                file.entries[i].addVariants(heard)
                 return file.entries[i]
             }
             file.entries.append(VocabularyEntry(term: term, heardAs: heard, source: source, added: now()))
@@ -122,7 +135,7 @@ final class VocabularyStore: ObservableObject {
         let term = term.trimmingCharacters(in: .whitespaces)
         return change { file in
             let before = file.entries.count
-            file.entries.removeAll { $0.term.caseInsensitiveCompare(term) == .orderedSame }
+            file.entries.removeAll { $0.isTerm(term) }
             return file.entries.count < before
         } ?? false
     }
@@ -208,9 +221,8 @@ final class VocabularyStore: ObservableObject {
         let variants = candidate.heard.filter {
             !$0.ordinary && !handed.contains($0.text.lowercased()) && (!candidate.added || $0.dictations.count >= 2 || $0.misheard)
         }.map(\.text)
-        if let e = file.entries.firstIndex(where: { $0.term.caseInsensitiveCompare(candidate.term) == .orderedSame }) {
-            let have = Set(file.entries[e].heardAs.map { $0.lowercased() })
-            file.entries[e].heardAs += variants.filter { !have.contains($0.lowercased()) }
+        if let e = file.entries.firstIndex(ofTerm: candidate.term) {
+            file.entries[e].addVariants(variants)
         } else if !candidate.added {
             file.entries.append(VocabularyEntry(term: candidate.term, heardAs: variants, source: .learned, added: now()))
         } else {

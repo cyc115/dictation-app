@@ -39,7 +39,7 @@ enum VocabularyCommand {
             list(store.entries, json: json, io: io)
             return 0
         case "add" where !term.isEmpty:
-            let existed = store.entries.contains { $0.term.caseInsensitiveCompare(term) == .orderedSame }
+            let existed = store.entries.firstIndex(ofTerm: term) != nil
             guard let entry = store.add(term: term, heardAs: heard) else { io.err(usage); return 2 }
             io.out((existed ? "updated " : "added ") + line(entry))
             return 0
