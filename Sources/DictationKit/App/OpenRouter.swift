@@ -92,6 +92,12 @@ enum OpenRouter {
         return (choices.first?["message"] as? [String: Any])?["content"] as? String
     }
 
+    /// The call failed because the model can't turn thinking off: OpenRouter's "Reasoning is mandatory
+    /// for this endpoint and cannot be disabled". Callers ask again at the lowest effort.
+    static func refusesReasoningOff(_ json: [String: Any]?, status: Int) -> Bool {
+        content(json, status: status) == nil && errorMessage(json)?.lowercased().contains("reasoning is mandatory") == true
+    }
+
     /// The `error.message` OpenRouter puts in a failed response.
     static func errorMessage(_ json: [String: Any]?) -> String? {
         (json?["error"] as? [String: Any])?["message"] as? String

@@ -197,8 +197,7 @@ struct OpenRouterJudge: FixJudgeBackend {
         }
         var (json, status) = try await ask(nil)
         // A model that can't turn thinking off (the model is a setting): ask again at the lowest effort.
-        if OpenRouter.content(json, status: status) == nil,
-           OpenRouterPolish.refusesReasoningOff(PolishError.failed(OpenRouter.problem(json, status: status))) {
+        if OpenRouter.refusesReasoningOff(json, status: status) {
             (json, status) = try await ask(["effort": "minimal"])
         }
         guard let text = OpenRouter.content(json, status: status) else { throw JudgeFailure(json: json, status: status) }
