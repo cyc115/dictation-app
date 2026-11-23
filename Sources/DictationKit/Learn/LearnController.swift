@@ -92,10 +92,7 @@ final class LearnController: ObservableObject {
         let student = Self.student(vocabulary: vocabulary) {
             OpenRouterPolish(model: id, apiKey: apiKey, instructions: $0, wrap: setup.wrap, provider: providers)
         }
-        let teacher: PromptTuner.Teacher = { request in
-            try await PromptTuner.openRouterTeacher(model: teacherModel, apiKey: apiKey, reasoning: ["effort": "medium"])(request)
-        }
-        return PromptTuner(student: student, teacher: teacher, general: general)
+        return PromptTuner(student: student, teacher: PromptTuner.openRouterTeacher(model: teacherModel, apiKey: apiKey), general: general)
     }
 
     /// The student for a candidate prompt: `model` told the prompt plus the terms block

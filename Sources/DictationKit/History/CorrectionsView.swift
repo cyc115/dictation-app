@@ -138,13 +138,13 @@ struct WaitingGroup: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             HStack(alignment: .top, spacing: 14) {
-                Text(Self.marked(entry.text, WordDiff.changed(from: entry.text, to: edited), color: .orange))
+                Text(marked(entry.text, WordDiff.changed(from: entry.text, to: edited), color: .orange))
                     .frame(maxWidth: .infinity, alignment: .topLeading)
                     .padding(8)
                     .background(.background.secondary, in: RoundedRectangle(cornerRadius: 6))
                     .accessibilityLabel("App wrote")
                     .accessibilityValue(entry.text)
-                Text(Self.marked(edited, WordDiff.changed(from: edited, to: entry.text), color: .green))
+                Text(marked(edited, WordDiff.changed(from: edited, to: entry.text), color: .green))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
                     .padding(8)
@@ -159,17 +159,17 @@ struct WaitingGroup: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("corrections.waitingCard")
     }
+}
 
-    /// `text` with the words at `ranges` in `color`.
-    static func marked(_ text: String, _ ranges: [Range<String.Index>], color: Color) -> AttributedString {
-        var marked = AttributedString(text)
-        for range in ranges {
-            guard let r = Range(range, in: marked) else { continue }
-            marked[r].backgroundColor = color.opacity(0.25)
-            marked[r].foregroundColor = color
-        }
-        return marked
+/// `text` with the words at `ranges` in `color`: the changed words in Corrections' cards.
+func marked(_ text: String, _ ranges: [Range<String.Index>], color: Color) -> AttributedString {
+    var out = AttributedString(text)
+    for range in ranges {
+        guard let r = Range(range, in: out) else { continue }
+        out[r].backgroundColor = color.opacity(0.25)
+        out[r].foregroundColor = color
     }
+    return out
 }
 
 struct CorrectionCard: View {
@@ -305,6 +305,6 @@ struct CorrectionCard: View {
 
     /// What the app wrote, with the words you changed in orange.
     private var written: AttributedString {
-        WaitingGroup.marked(entry.text, WordDiff.changed(from: entry.text, to: draft), color: .orange)
+        marked(entry.text, WordDiff.changed(from: entry.text, to: draft), color: .orange)
     }
 }
