@@ -77,9 +77,9 @@ PART_NAMES = {1: "mishearings fixed", 2: "speech with terms", 3: "reach and wron
 ROUNDS = 3
 WINDOW = 90  # seconds: a kept recording ends at most this long before its History entry is saved
 MAX_COST = 0.50
-LEARN_AFTER = 3  # AppSettings.vocabularyLearnAfter's default
+LEARN_AFTER = 3  # AppSettings.vocabularyLearnAfter's default (test_history checks Settings.swift)
 APP_DEFAULTS = "com.mikechen.DictationApp"
-SETUP_KEY = "transcriptionModel"  # AppSettings.setupKey: the current setup's id
+SETUP_KEY = "transcriptionModel"  # AppSettings.setupKey: the current setup's id (test_history checks Settings.swift)
 FALLBACK_SETUP = "cloud-flash"
 # US $ per million tokens (prompt, completion), only from a saved result: DeepSeek V4.1 Flash on Together, the
 # provider Cloud Flash pins first (bench/results/edits/20261122-045602_judge-first.json: 426 in, 23 out,
@@ -430,6 +430,14 @@ def builtin_versions(swift: Path = SETUPS_SWIFT) -> tuple[str, ...]:
     return tuple(sorted(re.findall(r'"([^"]+)"\s*:', found.group(1)), key=_prompt_order))
 
 
+def replaced_setups(swift: Path = SETUPS_SWIFT) -> dict[str, str]:
+    """DictationSetup.replaced, read from the app's source: built-in setup ids that are gone, and the one in their place."""
+    found = re.search(r"static let replaced = \[(.*?)\]", swift.read_text())
+    if not found:
+        raise SystemExit(f"DictationSetup.replaced not found in {swift}: update history.replaced_setups")
+    return dict(re.findall(r'"([^"]+)"\s*:\s*"([^"]+)"', found.group(1)))
+
+
 def prompt_of(setup: dict, name: str) -> dict | None:
     """{version, text} of one of part 1's prompts: learned, base, or a built-in version by name (its text from
     bench/polish_prompts, for the estimate only: the harness sends the app's own)."""
@@ -447,7 +455,7 @@ def resolve_setup(setup_id: str, folder: Path) -> dict:
     """What part 1 polishes with, as the harness picks it: the setup (built-in or in setups.json) with its
     active learned prompt; Cloud Flash's when that setup polishes on this Mac."""
     known = polish.setups(folder / "setups.json")
-    replaced = {"cloud-flash-deepseek": "cloud-flash", "cloud-big": "cloud-flash"}  # DictationSetup.replaced
+    replaced = replaced_setups()
     setup = known.get(replaced.get(setup_id, setup_id)) or known[FALLBACK_SETUP]
     fell_back = setup["polish"] == "apple"
     if fell_back:

@@ -1,6 +1,7 @@
 """Tests for the fix-judge suite (suites/edits.py). Run: uv run --with pytest pytest bench"""
 import json
 import math
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -185,3 +186,26 @@ def test_failures_show_what_was_judged_wrong():
     result = {"cases": cases, "trials": [{"model": "openrouter:m/x", "batch": 10, "cases": ["a"], "verdicts": {"a": ["misheard"]}}]}
     text = edits.failures_text(result, "m/x@10")
     assert "Tuesday → Thursday" in text and "wanted ['changedMind'], got ['misheard']" in text
+
+
+def swift_default(setting: str) -> str:
+    """A setting's default in Settings.swift, following `Type.member` to that member's string literal anywhere in the app."""
+    sources = edits.harness.ROOT.parent / "Sources/DictationKit"
+    found = re.search(rf'@Setting\("{setting}", default: ([^)]+)\)', (sources / "Settings/Settings.swift").read_text())
+    assert found, f"{setting} not found in Settings.swift"
+    value = found.group(1).strip()
+    if value.startswith('"'):
+        return value.strip('"')
+    owner, _, member = value.rpartition(".")
+    for path in sources.rglob("*.swift"):
+        text = path.read_text()
+        if re.search(rf"\b(class|struct|enum|extension)\s+{owner}\b", text):
+            literal = re.search(rf'static let {member}\s*=\s*"([^"]*)"', text)
+            if literal:
+                return literal.group(1)
+    raise AssertionError(f"couldn't follow {value}")
+
+
+def test_the_default_model_is_the_judges():
+    """judgeModel's default, followed from Settings.swift to its string (today LearnController.teacherModel)."""
+    assert edits.DEFAULT_MODEL == "openrouter:" + swift_default("judgeModel")

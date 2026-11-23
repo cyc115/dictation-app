@@ -450,3 +450,14 @@ def test_a_built_in_version_gets_its_own_table(monkeypatch, capsys, tmp_path):
     assert list(result["summary"]["parts"]["1"]["prompts"]) == ["base", "v4"]
     report = h.report_text(result)
     assert "prompt: v4 (built-in)" in report and "prompt: base (v7)" in report and "polish, prompt v4, seconds" in report
+
+
+SETTINGS_SWIFT = h.REPO / "Sources/DictationKit/Settings/Settings.swift"
+
+
+def test_the_apps_constants_are_the_benchs():
+    """Copies of the app's settings the bench reads, checked against Settings.swift."""
+    swift = SETTINGS_SWIFT.read_text()
+    assert re.search(rf'@Setting\("vocabularyLearnAfter", default: {h.LEARN_AFTER}\)', swift), "AppSettings.vocabularyLearnAfter's default"
+    assert f'private static let setupKey = "{h.SETUP_KEY}"' in swift, "the defaults key that holds the current setup's id"
+    assert h.replaced_setups() == {"cloud-flash-deepseek": "cloud-flash", "cloud-big": "cloud-flash"}, "DictationSetup.replaced, as read"

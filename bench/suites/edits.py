@@ -44,7 +44,7 @@ NAME = "edits"
 HELP = "the fix judge: verdict accuracy per word change, by model and batch size, and cost"
 CASES = harness.ROOT / "edit_cases.json"
 INSTRUCTIONS = harness.ROOT.parent / "Sources/DictationKit/Vocabulary/JudgeFixes.txt"
-DEFAULT_MODEL = "openrouter:anthropic/claude-sonnet-5.5"  # judgeModel's default (LearnController.teacherModel)
+DEFAULT_MODEL = "openrouter:anthropic/claude-sonnet-5.5"  # judgeModel's default (test_edits checks Settings.swift)
 VERDICTS = ("misheard", "style", "changedMind", "unclear")
 BATCH_SIZES = (1, 10)
 # OpenRouter.mustThink: models that can't turn thinking off get the lowest effort from the start.
