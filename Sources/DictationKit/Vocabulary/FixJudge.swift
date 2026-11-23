@@ -164,18 +164,22 @@ enum FixJudge {
         return !(error is URLError)
     }
 
-    /// The model id as typed, trimmed; the default (Learn's teacher) when blank.
-    static func modelID(_ model: String) -> String {
-        let id = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        return id.isEmpty ? LearnController.teacherModel : id
-    }
+    /// `judgeModel`'s default: Claude Sonnet 5.5, the edits bench's pick (98% in batches of 10, Nov 22,
+    /// bench/results/edits/README.md). The same model as Learn's teacher today, but its own setting.
+    static let defaultModel = "anthropic/claude-sonnet-5.5"
 
-    /// Your judge: `judgeModel` on OpenRouter with your key, on a setup whose polish goes to the cloud.
-    /// Nil (the judge can't run; the rules count changes as with the setting off) on a setup that
-    /// polishes on this Mac, where your choice of local means nothing of this leaves it: Apple
-    /// Intelligence got 37% of the bench's changes right (Nov 22) and isn't used. Nil without a key.
+    /// The model id as typed, trimmed; `defaultModel` when blank.
+    static func modelID(_ model: String) -> String { OpenRouter.modelID(model, default: defaultModel) }
+
+    /// Whether the judge can run on `setup`: only where polish goes to the cloud. On a setup that
+    /// polishes on this Mac your choice of local means nothing of this leaves it, and Apple
+    /// Intelligence got 37% of the bench's changes right (Nov 22), so it isn't used.
+    static func runs(on setup: DictationSetup) -> Bool { !setup.polishesOnDevice }
+
+    /// Your judge: `judgeModel` on OpenRouter with your key, on a setup it `runs(on:)`. Nil (the judge
+    /// can't run; the rules count changes as with the setting off) elsewhere, and without a key.
     static func backend(settings: AppSettings) -> FixJudgeBackend? {
-        if settings.setup.polishesOnDevice { return nil }
+        guard runs(on: settings.setup) else { return nil }
         guard let key = settings.openRouterKey, !key.isEmpty else { return nil }
         return OpenRouterJudge(model: modelID(settings.judgeModel), apiKey: key)
     }

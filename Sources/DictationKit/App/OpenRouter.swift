@@ -46,6 +46,12 @@ enum OpenRouter {
         mustThink.contains { model.hasPrefix($0) } ? ["effort": "minimal"] : ["enabled": false]
     }
 
+    /// A model id setting as typed, trimmed; `fallback` when it's blank.
+    static func modelID(_ typed: String, default fallback: String) -> String {
+        let id = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        return id.isEmpty ? fallback : id
+    }
+
     /// A chat completion: `system` and `user` messages at temperature 0, reasoning off or lowest
     /// unless given; `extra` adds fields (provider, response_format, max_tokens).
     static func chat(model: String, system: String, user: String, apiKey: String, reasoning: [String: Any]? = nil,

@@ -294,6 +294,15 @@ final class FixJudgeTests: XCTestCase {
     /// The judge needs a cloud setup: on one that polishes on this Mac it never runs (nothing is sent;
     /// the rules count), even with a key and the setting on. A `judgeUsesCloud` left by an unreleased
     /// build is ignored.
+    /// The judge's own default model (not Learn's teacher's, though the same model today), and where it runs.
+    func testTheJudgesDefaultModelAndSetups() {
+        XCTAssertEqual(FixJudge.defaultModel, "anthropic/claude-sonnet-5.5")
+        XCTAssertEqual(makeSettings(self).judgeModel, FixJudge.defaultModel)
+        XCTAssertEqual(FixJudge.modelID("  "), FixJudge.defaultModel)
+        XCTAssertTrue(FixJudge.runs(on: .cloudFlash))
+        XCTAssertFalse(FixJudge.runs(on: .onDevice))
+    }
+
     func testTheJudgeNeedsACloudSetup() throws {
         let defaults = makeDefaults(self)
         defaults.set(true, forKey: "judgeUsesCloud")
@@ -304,7 +313,7 @@ final class FixJudgeTests: XCTestCase {
         XCTAssertNil(FixJudge.backend(settings: settings), "On-device: no judge, even with a key")
 
         settings.setup = .cloudFlash
-        XCTAssertEqual((FixJudge.backend(settings: settings) as? OpenRouterJudge)?.model, LearnController.teacherModel)
+        XCTAssertEqual((FixJudge.backend(settings: settings) as? OpenRouterJudge)?.model, FixJudge.defaultModel)
         settings.judgeModel = " google/gemini-3.8-flash "
         XCTAssertEqual((FixJudge.backend(settings: settings) as? OpenRouterJudge)?.model, "google/gemini-3.8-flash")
         settings.setOpenRouterKey(nil)
@@ -385,7 +394,7 @@ final class FixJudgeTests: XCTestCase {
                      item("Let's meet on Tuesday at noon.", "Let's meet on Thursday at noon."),
                      item("我们用deep sea的模型", "我们用DeepSeek的模型")]
         XCTAssertEqual(items.map(\.changes.count), [1, 1, 1])
-        let answer = try await OpenRouterJudge(model: LearnController.teacherModel, apiKey: key).judge(items, terms: ["OpenRouter", "DeepSeek"])
+        let answer = try await OpenRouterJudge(model: FixJudge.defaultModel, apiKey: key).judge(items, terms: ["OpenRouter", "DeepSeek"])
         print("[live] judge verdicts \(answer.verdicts), cost $\(answer.usage?.cost ?? 0)")
         XCTAssertEqual(answer.verdicts.compactMap { $0 }.count, 3, "every fix covered")
         XCTAssertEqual(answer.verdicts[0], [.misheard])

@@ -8,10 +8,10 @@ struct VocabularySection: View {
     @ObservedObject var editStats: EditWatchStats
     var onShowVocabulary: (() -> Void)?
 
-    /// The judge runs on cloud setups only (`FixJudge.backend`): a setup that polishes on this Mac
+    /// The judge runs on cloud setups only (`FixJudge.runs(on:)`): a setup that polishes on this Mac
     /// sends nothing, so there the row is unavailable and shows off, whatever `judgeFixes` holds (it's
     /// kept for when you switch back).
-    private var judgeAvailable: Bool { !settings.setup.polishesOnDevice }
+    private var judgeAvailable: Bool { FixJudge.runs(on: settings.setup) }
 
     private var judgeDetail: String {
         judgeAvailable

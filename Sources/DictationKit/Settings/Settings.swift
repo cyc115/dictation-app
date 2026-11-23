@@ -205,7 +205,7 @@ final class AppSettings: ObservableObject {
     /// polishes on this Mac nothing is sent (`FixJudge.backend`).
     @Setting("judgeFixes", default: false) var judgeFixes: Bool
     /// The OpenRouter model that judges fixes on the cloud setups; blank is the default. No Settings row: `DictationApp settings set judgeModel <id>`.
-    @Setting("judgeModel", default: LearnController.teacherModel) var judgeModel: String
+    @Setting("judgeModel", default: FixJudge.defaultModel) var judgeModel: String
     /// Let the judge make a clear captured edit `auto`, so it trains Learn without your Accept
     /// (`FixJudge.judged`). Off by default: every captured edit waits for Accept. No Settings row:
     /// `DictationApp settings set trainOnUnreviewedCaptures on`. Captures already `auto` stay so; it

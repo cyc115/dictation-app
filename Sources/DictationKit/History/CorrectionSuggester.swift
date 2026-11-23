@@ -34,10 +34,7 @@ final class CorrectionSuggester: ObservableObject {
     }
 
     /// The model id as typed, trimmed; the default when blank.
-    static func modelID(_ model: String) -> String {
-        let id = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        return id.isEmpty ? defaultModel : id
-    }
+    static func modelID(_ model: String) -> String { OpenRouter.modelID(model, default: defaultModel) }
 
     /// Corrections waiting for the model.
     @Published private(set) var pending: Set<UUID> = []
