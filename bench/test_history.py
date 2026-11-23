@@ -461,3 +461,50 @@ def test_the_apps_constants_are_the_benchs():
     assert re.search(rf'@Setting\("vocabularyLearnAfter", default: {h.LEARN_AFTER}\)', swift), "AppSettings.vocabularyLearnAfter's default"
     assert f'private static let setupKey = "{h.SETUP_KEY}"' in swift, "the defaults key that holds the current setup's id"
     assert h.replaced_setups() == {"cloud-flash-deepseek": "cloud-flash", "cloud-big": "cloud-flash"}, "DictationSetup.replaced, as read"
+
+
+# ---------------------------------------------------------------- results from before a change: still read
+
+def fixture_result(monkeypatch, tmp_path, *extra: str) -> dict:
+    monkeypatch.setattr(h.openrouter, "key", lambda env: "sk-test")
+    monkeypatch.setattr(h.openrouter, "key_problem", lambda key: None)
+    assert h.cmd_run(run_args(*extra, out=tmp_path), harness_run=fake_harness) == 0
+    return json.loads(next(tmp_path.glob("*.json")).read_text())
+
+
+def test_rows_from_before_prompts_were_split_score_as_learned(monkeypatch, tmp_path):
+    rows = fixture_result(monkeypatch, tmp_path, "--parts", "1", "--prompts", "learned", "--rounds", "1")["rows"]
+    old = [{k: v for k, v in r.items() if k != "prompt"} if r.get("part") == 1 else r for r in rows]
+    s = h.score(old, {}, VOCABULARY, 3)
+    assert list(s["parts"][1]["prompts"]) == ["learned"], "a row with no prompt was the learned prompt's"
+    assert s["parts"][1]["prompts"] == h.score(rows, {}, VOCABULARY, 3)["parts"][1]["prompts"]
+    details = h.details_text({"rows": old})
+    assert " learned " in details and details == h.details_text({"rows": rows})
+
+
+def test_a_summary_from_before_prompts_were_split_still_reports(monkeypatch, tmp_path):
+    result = fixture_result(monkeypatch, tmp_path, "--parts", "1,2,4", "--prompts", "learned", "--rounds", "1")
+    p = result["summary"]["parts"]
+    arms = {arm: {k: v for k, v in a.items() if k != "fixedAnyCase"} for arm, a in p["1"]["prompts"]["learned"]["arms"].items()}
+    p["1"] = {k: v for k, v in p["1"].items() if k != "prompts"} | {"arms": arms}
+    p["4"]["polish"] = p["4"]["polish"]["learned"]
+    p["2"]["arms"] = {arm: {k: v for k, v in a.items() if k not in ("replacedAnyCase", "echoes", "diverged", "comparedWithOff")}
+                      for arm, a in p["2"]["arms"].items()}
+    report = h.report_text(result)
+    assert "prompt: as run (v8)" in report, "part 1's one table, named by the setup row's prompt"
+    assert "polish, prompt as run, seconds" in report, "part 4's flat polish table"
+    table = report[report.index("Part 2"):report.index("Part 4")]
+    assert table.count("—") == 3 * 3, "after any case, echoes and diverged: a dash in each arm"
+
+
+def test_part_2_rows_from_before_the_echo_guard(monkeypatch, tmp_path):
+    rows = fixture_result(monkeypatch, tmp_path, "--parts", "2")["rows"]
+    old = [{k: v for k, v in r.items() if k != "echoed"} for r in rows]
+    assert all(a["echoes"] == 0 for a in h.score(old, {}, VOCABULARY, 3)["parts"][2]["arms"].values())
+
+
+def test_an_estimate_from_a_job_without_prompts_prices_the_learned_prompt():
+    job = h.build_job(FIXTURE, h.test_set(HISTORY), {}, [1], 1, 1, "cloud-flash", 0.5, 3, prompts=("learned",))
+    setup = h.resolve_setup("cloud-flash", FIXTURE)
+    bare = {**job, "polish": [{k: v for k, v in t.items() if k != "prompt"} for t in job["polish"]]}
+    assert h.estimate(bare, HISTORY, VOCABULARY, setup, h.PRICES) == h.estimate(job, HISTORY, VOCABULARY, setup, h.PRICES)
