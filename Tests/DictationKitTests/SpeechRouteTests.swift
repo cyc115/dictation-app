@@ -149,6 +149,16 @@ final class SpeechRouteTests: XCTestCase {
         XCTAssertEqual(r.log, ["error: a/b@H1,H2: HTTP 500 in T: down", "info: c/d@H3: HTTP 200 in T"])
     }
 
+    /// Odd but valid setup strings, sent and named as before: "a/b@" names no host; "c/d@X@Y" pins "X@Y".
+    func testEdgeSetupStringsAreSentAndNamedAsBefore() throws {
+        let r = try dictate(setup(speech: "openrouter:a/b@", backup: "c/d@X@Y"), backup: true) { model in
+            model == "a/b" ? (500, #"{"error":{"message":"down"}}"#) : (200, #"{"text":"ok"}"#)
+        }
+        XCTAssertEqual(r.sent, [expected(model: "a/b", provider: nil), expected(model: "c/d", provider: #"{"allow_fallbacks":false,"order":["X@Y"]}"#)])
+        XCTAssertEqual(r.engine.lastAnswer, ModelAnswer(main: "a/b@", backup: "c/d@X@Y", byBackup: true, failures: [.init(model: "a/b@", message: "down")]))
+        XCTAssertEqual(r.kept?.model, "openrouter:c/d@X@Y")
+    }
+
     /// Every model failing keeps both failures under their stored names.
     func testEveryModelFailingKeepsTheirNames() throws {
         let r = try dictate(setup(speech: "openrouter:a/b@H1", backup: "c/d"), backup: true) { _ in (500, #"{"error":{"message":"down"}}"#) }

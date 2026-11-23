@@ -192,7 +192,7 @@ final class CloudEngineTests: XCTestCase {
             let result = stopAndWait(engine, timeout: 60)
             XCTAssertNil(result.error, model.name)
             let text = result.text ?? ""
-            XCTAssertTrue(text.lowercased().contains("repository"), "\(model): \(text)")
+            XCTAssertTrue(text.lowercased().contains("repository"), "\(model.name): \(text)")
         }
     }
 }
