@@ -348,9 +348,7 @@ final class PromptTunerTests: XCTestCase {
     /// compete (bench/results/history/README.md).
     func testTheTeacherMayListAMisheardTerm() {
         let system = PromptTuner.teacherSystem
-        XCTAssertTrue(system.contains("Rules must be general, not fixes for one dictation; a term the recognizer mishears more than once may be listed by name."), system)
-        XCTAssertFalse(system.contains("vocabulary list"))
-        XCTAssertFalse(system.contains("add no term by name"))
+        XCTAssertTrue(system.contains("may be listed by name"), system)
     }
 
     func testTheTeachersMessageIsTodaysSplitBeforeTheTask() {

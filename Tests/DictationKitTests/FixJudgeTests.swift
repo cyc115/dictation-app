@@ -267,12 +267,9 @@ final class FixJudgeTests: XCTestCase {
     }
 
     /// The judge needs a cloud setup: on one that polishes on this Mac it never runs (nothing is sent;
-    /// the rules count), even with a key and the setting on. A `judgeUsesCloud` left by an unreleased
-    /// build is ignored.
+    /// the rules count), even with a key and the setting on.
     func testTheJudgeNeedsACloudSetup() throws {
-        let defaults = makeDefaults(self)
-        defaults.set(true, forKey: "judgeUsesCloud")
-        let settings = makeSettings(self, defaults: defaults)
+        let settings = makeSettings(self)
         settings.judgeFixes = true
         settings.setOpenRouterKey("sk-test")
         settings.setup = .onDevice

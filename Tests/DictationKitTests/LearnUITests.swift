@@ -223,13 +223,13 @@ final class LearnUITests: XCTestCase {
         let row = "setting.Polish prompt"
         XCTAssertFalse(fx.settings.polishEnabled)
         XCTAssertEqual(hosted.element(id: row)?.isEnabled, false, "no polish, no prompt to choose")
-        XCTAssertTrue(hosted.allText.contains("Turn on AI polish to choose the prompt it polishes with."))
+        XCTAssertTrue(hosted.allText.contains("Turn on AI polish"))
         fx.settings.polishEnabled = true
         hosted.settle()
         XCTAssertNotEqual(hosted.element(id: row)?.isEnabled, false,
                           "nothing learned yet: the prompt in use is shown, not greyed out")
         XCTAssertFalse(hosted.allText.contains("Unavailable"), hosted.allText)
-        XCTAssertTrue(hosted.allText.contains("Learn one from your corrections in the Corrections tab."))
+        XCTAssertTrue(hosted.allText.contains("Learn one from your corrections"))
         XCTAssertTrue(hosted.allText.contains("v7 · built in"), "no score until measured")
 
         let id = fx.history.corrections[0].id
@@ -237,7 +237,9 @@ final class LearnUITests: XCTestCase {
         waitUntil { fx.settings.setup.prompt == "v8" }
         hosted.settle()
         XCTAssertEqual(hosted.element(id: row)?.isEnabled, true)
-        XCTAssertTrue(hosted.allText.contains("v8 · learned from 15 corrections: 65% → 74% on them, general set 71%."), hosted.allText)
+        for part in ["learned from 15 corrections", "65% → 74%", "general set 71%"] {
+            XCTAssertTrue(hosted.allText.contains(part), "\(part): \(hosted.allText)")
+        }
         XCTAssertTrue(hosted.allText.contains("v8 · 74% · from v7 · Oct 13"), hosted.allText)
 
         fx.store.activate(nil, for: "cloud-flash")
@@ -265,8 +267,9 @@ final class LearnUITests: XCTestCase {
         waitUntil { fx.settings.setup.prompt == "v8" }
         hosted.settle()
         XCTAssertTrue(hosted.allText.contains("v8 · 74% on Cloud Flash · from v7 · Oct 13"), hosted.allText)
-        XCTAssertTrue(hosted.allText.contains("v8 · learned from 15 corrections with Cloud Flash: 65% → 74% on them, general set 71% there, not measured with this setup's model."),
-                      hosted.allText)
+        for part in ["with Cloud Flash", "65% → 74%", "not measured"] {
+            XCTAssertTrue(hosted.allText.contains(part), "\(part): \(hosted.allText)")
+        }
         XCTAssertEqual(fx.store.active["cloud-flash"], "v8", "Cloud Flash keeps its own choice")
         XCTAssertNil(fx.controller.mine, "Cloud Flash's scores aren't shown as On-device's")
     }

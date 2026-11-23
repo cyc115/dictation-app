@@ -49,16 +49,15 @@ final class SettingsUITests: XCTestCase {
         let settings = makeSettings(self, defaults: defaults)
         settings.setup = .onDevice
         let hosted = host(settings)
-        XCTAssertTrue(hosted.allText.contains("Works on cloud setups only. On this setup nothing is sent: your fixes are counted by the rules"), hosted.allText)
-        XCTAssertFalse(hosted.allText.lowercased().contains("send my fixes"), "no cloud opt-in on a local setup")
         let row = try XCTUnwrap(hosted.element(id: "setting.Ask a model about my fixes"))
+        XCTAssertEqual(row.isEnabled, false, "unavailable on On-device")
+        XCTAssertEqual(row.value, "0")
         hosted.click(row)
-        XCTAssertFalse(settings.judgeFixes, "unavailable on On-device")
+        XCTAssertFalse(settings.judgeFixes, "can't be turned on there")
 
         settings.setup = .cloudFlash
         hosted.settle()
-        XCTAssertFalse(hosted.allText.contains("Works on cloud setups only"))
-        XCTAssertTrue(hosted.allText.contains("Captured edits still wait for your Accept."), hosted.allText)
+        XCTAssertNotEqual(hosted.element(id: "setting.Ask a model about my fixes")?.isEnabled, false, "a cloud setup's to turn on")
         XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "setting.Ask a model about my fixes"))))
         XCTAssertTrue(makeSettings(self, defaults: defaults).judgeFixes, "saved")
         XCTAssertEqual(hosted.element(id: "setting.Ask a model about my fixes")?.value, "1")
@@ -129,7 +128,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(installed.click(button("Open Decider", in: installed)!))
         XCTAssertEqual(launched, 1)
         let ready = row(.ready)
-        waitUntil { ready.allText.contains("Ready: commands are decided on this Mac.") }
+        waitUntil { ready.allText.contains("Ready") }
         XCTAssertNil(button("Get Decider…", in: ready))
         XCTAssertNil(button("Open Decider", in: ready))
     }

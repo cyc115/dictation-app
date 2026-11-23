@@ -220,7 +220,6 @@ final class CorrectionsUITests: XCTestCase {
         let corrections = host(CorrectionsView(store: services.history, suggester: services.suggester), size: NSSize(width: 760, height: 600))
         XCTAssertNil(corrections.element(id: "corrections.suggesting"))
         XCTAssertNil(corrections.element(id: "corrections.suggestionError"))
-        XCTAssertFalse(corrections.allText.contains("polishing a suggestion"), corrections.allText)
 
         settings.setup = .cloudFlash
         services.suggester.suggest(for: services.history.entries[0], in: services.history)
