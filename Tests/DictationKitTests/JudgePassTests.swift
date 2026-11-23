@@ -10,25 +10,25 @@ final class JudgePassTests: XCTestCase {
     private var intake: VocabularyIntake { services.intake }
     private var settings: AppSettings { services.settings }
     private let judge = FakeJudge()
-    private var timers: [(delay: TimeInterval, fire: () -> Void)] = []
-    private var busy = false
+    private var fakes: IdlePassFakes!
+    private var timers: [(delay: TimeInterval, fire: () -> Void)] { fakes.timers }
+    private var busy: Bool {
+        get { fakes.busy }
+        set { fakes.busy = newValue }
+    }
     private var clock = Date(timeIntervalSince1970: 2_000_000_000)
     /// Requests sent, not yet answered.
     private var requests: [() async -> Void] = []
     /// What a request hands back to the main thread, run once it has finished.
     private var landed: [() -> Void] = []
     private let lock = NSLock()
-    /// Hold the pass's work back (to land an answer while a pass runs).
-    private var holdPass = false
-    private var heldPasses: [() -> Void] = []
 
     override func setUp() {
         super.setUp()
         services = makeServices(self)
         settings.judgeFixes = true
         intake.judgeBackend = { [unowned self] in judge }
-        intake.isBusy = { [unowned self] in busy }
-        intake.after = { [unowned self] delay, fire in timers.append((delay, fire)) }
+        fakes = IdlePassFakes(intake)
         intake.now = { [unowned self] in clock }
         intake.toMain = { [unowned self] work in
             if Thread.isMainThread { work() } else { lock.withLock { landed.append(work) } }
@@ -36,7 +36,6 @@ final class JudgePassTests: XCTestCase {
         intake.send = { [unowned self] work in
             requests.append(work)
         }
-        intake.background = { [unowned self] work in if holdPass { heldPasses.append(work) } else { work() } }
     }
 
     /// Answers every request sent so far (and any the answers send).
@@ -300,13 +299,13 @@ final class JudgePassTests: XCTestCase {
         correct(five())
         intake.runIfIdle()
         let before = intake.passes
-        holdPass = true
+        fakes.held = []  // hold the pass's work back, to land an answer while it runs
         intake.tabShown()
         answer()
         XCTAssertEqual(history.entries[0].intake?.changes.first?.verdict, .misheard, "saved at once")
-        holdPass = false
-        heldPasses.forEach { $0() }
-        heldPasses = []
+        let held = fakes.held ?? []
+        fakes.held = nil
+        held.forEach { $0() }
         XCTAssertEqual(intake.passes, before + 2, "the pass, then again with the verdicts")
     }
 

@@ -9,10 +9,7 @@ final class VocabularyCandidateTests: XCTestCase {
     /// A dictation, corrected or not, newest last in the order made; its intake worked out as the idle pass would.
     private func dictation(_ text: String, _ correction: String? = nil) -> HistoryEntry {
         minute += 1
-        var entry = HistoryEntry(date: fixedDate(2026, 11, 22, 9, minute), text: text, duration: 1)
-        entry.correction = correction
-        entry.intake = correction.map { FixIntake.intake(of: text, target: $0) }
-        return entry
+        return entryWithIntake(text, correction: correction, date: fixedDate(2026, 11, 22, 9, minute))
     }
 
     /// History newest first, as `HistoryStore` keeps it.

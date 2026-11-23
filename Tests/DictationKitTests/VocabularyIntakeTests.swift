@@ -11,19 +11,23 @@ final class VocabularyIntakeTests: XCTestCase {
         var intake: VocabularyIntake { services.intake }
     }
 
+    private var fakes: IdlePassFakes!
     /// Timers asked for, in order: their delay and what they run.
-    private var timers: [(delay: TimeInterval, fire: () -> Void)] = []
-    private var busy = false
+    private var timers: [(delay: TimeInterval, fire: () -> Void)] { fakes.timers }
+    private var busy: Bool {
+        get { fakes.busy }
+        set { fakes.busy = newValue }
+    }
     /// The pass's work, held back until the test lets it finish (nil: runs at once).
-    private var heldWork: [() -> Void]?
+    private var heldWork: [() -> Void]? {
+        get { fakes.held }
+        set { fakes.held = newValue }
+    }
 
     private func makeFixture() -> Fixture {
         let services = makeServices(self)
-        let intake = services.intake
-        intake.isBusy = { [unowned self] in busy }
-        intake.after = { [unowned self] delay, fire in timers.append((delay, fire)) }
-        intake.background = { [unowned self] work in if heldWork != nil { heldWork!.append(work) } else { work() } }
-        intake.toMain = { $0() }
+        fakes = IdlePassFakes(services.intake)
+        services.intake.toMain = { $0() }
         return Fixture(services: services)
     }
 

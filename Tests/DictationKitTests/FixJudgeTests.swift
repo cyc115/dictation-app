@@ -21,9 +21,7 @@ final class FakeJudge: FixJudgeBackend {
 /// The judge's logic (`FixJudge`): which fixes wait, the message, reading answers, what verdicts do.
 final class FixJudgeTests: XCTestCase {
     private func entry(_ text: String, correction: String? = nil, capture: Capture? = nil) -> HistoryEntry {
-        var e = HistoryEntry(date: Date(), text: text, duration: 1, correction: correction, capture: capture)
-        e.intake = e.fixTarget.map { FixIntake.intake(of: text, target: $0) }
-        return e
+        entryWithIntake(text, correction: correction, capture: capture)
     }
 
     // MARK: Putting changes back

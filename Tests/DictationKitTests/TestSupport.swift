@@ -224,6 +224,28 @@ final class FakeSpeechRuntime: SpeechRuntime {
 }
 
 
+/// A History entry with its intake worked out as the idle pass would (`FixIntake`, from `fixTarget`).
+func entryWithIntake(_ text: String, correction: String? = nil, capture: Capture? = nil, date: Date = Date()) -> HistoryEntry {
+    var entry = HistoryEntry(date: date, text: text, duration: 1, correction: correction, capture: capture)
+    entry.intake = entry.fixTarget.map { FixIntake.intake(of: text, target: $0) }
+    return entry
+}
+
+/// What the idle pass (`VocabularyIntake`) is handed in tests: a fake "busy", the timers it asks for
+/// (kept, to fire by hand), and its work run at once, unless `held` is set (then kept there until the
+/// test runs it). Each test keeps its own `toMain`.
+final class IdlePassFakes {
+    var timers: [(delay: TimeInterval, fire: () -> Void)] = []
+    var busy = false
+    var held: [() -> Void]?
+
+    init(_ intake: VocabularyIntake) {
+        intake.isBusy = { [unowned self] in busy }
+        intake.after = { [unowned self] delay, fire in timers.append((delay, fire)) }
+        intake.background = { [unowned self] work in if held != nil { held!.append(work) } else { work() } }
+    }
+}
+
 /// Records what happened, in order, across the fakes.
 final class EventLog {
     private(set) var events: [String] = []
