@@ -39,7 +39,7 @@ final class FixIntakeTests: XCTestCase {
         let intake = FixIntake.intake(of: "I use cloud.", target: "I use Claude.")
         XCTAssertEqual(intake.of, "I use Claude.")
         XCTAssertEqual(intake.changes, [WordChange(old: "cloud", new: "Claude")])
-        XCTAssertNil(intake.changes.first?.verdict, "nothing judges a change until phase 4")
+        XCTAssertNil(intake.changes.first?.verdict, "no verdict until the judge gives one")
     }
 
     /// `WordDiff.changed` (Corrections' orange highlight) is built on the same hunks.

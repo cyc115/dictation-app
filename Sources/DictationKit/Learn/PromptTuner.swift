@@ -437,12 +437,11 @@ final class PromptTuner {
 
     // MARK: Teacher
 
-    /// "A term the recognizer mishears more than once may be listed by name" stays (restored Nov 22
-    /// after bf628c8 took it out): on real dictations (bench/results/history/README.md) the learned
-    /// prompt's own term list fixed more mishearings than vocabulary (15.7 vs 10.3 of 33), and
-    /// vocabulary on top of it changed nothing (15.7 → 15, inside the range), so the two lists don't
-    /// compete. A tune's inputs already have vocabulary's replacement applied (`LearnController`), so
-    /// the teacher only sees terms still misheard after it.
+    /// "A term the recognizer mishears more than once may be listed by name": on real dictations
+    /// (bench/results/history/README.md) the learned prompt's own term list fixed more mishearings than
+    /// vocabulary (15.7 vs 10.3 of 33), and vocabulary on top of it changed nothing (15.7 → 15, inside
+    /// the range), so the two lists don't compete. A tune's inputs already have vocabulary's
+    /// replacement applied (`LearnController`), so the teacher only sees terms still misheard after it.
     static let teacherSystem = """
         You improve the system prompt of a dictation cleanup model: a small, fast model that turns a speech \
         recognizer's transcript into the text the speaker meant to write. You are given the current prompt \

@@ -107,7 +107,7 @@ final class VocabularyIntakeTests: XCTestCase {
         XCTAssertEqual(fx.vocabulary.candidates.first?.seen, 2)
     }
 
-    /// Only an entry whose correction changed is worked out again, so phase 4's verdicts stay.
+    /// Only an entry whose correction changed is worked out again, so the judge's verdicts stay.
     func testOnlyAChangedCorrectionIsWorkedOutAgain() throws {
         let fx = makeFixture()
         dictate(fx, claude)

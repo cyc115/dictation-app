@@ -7,7 +7,7 @@ struct VocabularyEntry: Codable, Identifiable, Equatable {
     enum Source: String, Codable {
         /// Added by you (the Vocabulary page, the command line).
         case manual
-        /// Learned from your corrections (phase 2).
+        /// Learned from your corrections (`VocabularyIntake`).
         case learned
     }
 

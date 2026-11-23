@@ -256,7 +256,7 @@ final class CapturedFixTests: XCTestCase {
 
     func testDismissingAnAutoFixClearsItsCorrection() {
         let url = makeTempURL(self)
-        var entry = HistoryEntry(date: Date(), text: "cloud", duration: 1)  // as phase 4's judge leaves it
+        var entry = HistoryEntry(date: Date(), text: "cloud", duration: 1)  // as the judge leaves it
         entry.correction = "Claude"
         entry.capture = Capture(edited: "Claude", mode: .readback, app: "Slack", state: .auto)
         try? JSONFile.write([entry], to: url)

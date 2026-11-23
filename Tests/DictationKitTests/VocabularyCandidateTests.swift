@@ -74,7 +74,7 @@ final class VocabularyCandidateTests: XCTestCase {
         XCTAssertEqual(support([fix] + plain).first?.heard.first?.ordinary, false)
     }
 
-    /// Phase 4: a change judged misheard counts even when its heard is ordinary; the variant is
+    /// A change judged misheard counts even when its heard is ordinary; the variant is
     /// still never added.
     func testAMisheardVerdictCountsAnOrdinaryWord() throws {
         var fix = dictation("I use cloud.", "I use Claude.")

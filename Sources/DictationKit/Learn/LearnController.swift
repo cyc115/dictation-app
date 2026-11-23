@@ -14,7 +14,7 @@ final class LearnController: ObservableObject {
     /// Corrections needed before the first tune.
     static let minimum = 10
     /// Fixes a tune takes at most: yours (typed or accepted) newest first, then captured ones nobody
-    /// reviewed (`auto`, phase 4). It makes 10 teacher calls that each carry most unlearned fixes, and
+    /// reviewed (`auto`). It makes 10 teacher calls that each carry most unlearned fixes, and
     /// about 8 student calls per fix.
     nonisolated static let maxFixes = 60
     /// The teacher: Claude Sonnet 5.5, thinking at medium effort. In the Oct 14 bake-off

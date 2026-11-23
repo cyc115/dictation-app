@@ -10,7 +10,7 @@ struct JudgeItem: Equatable {
 }
 
 /// What a judge said: per item, in order, a verdict per change, or nil where the answer didn't cover
-/// it; and what the call cost (nil: not an OpenRouter call).
+/// it; and what the call cost (nil: the answer had no usage block).
 struct JudgeAnswer {
     var verdicts: [[WordChange.Verdict]?]
     var usage: OpenRouter.Usage?

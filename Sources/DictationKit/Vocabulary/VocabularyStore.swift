@@ -59,7 +59,7 @@ final class VocabularyStore: ObservableObject {
             self.candidates = candidates
         }
 
-        /// A phase-1 file has no candidates.
+        /// A file from before candidates existed has none.
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             entries = try c.decode([VocabularyEntry].self, forKey: .entries)

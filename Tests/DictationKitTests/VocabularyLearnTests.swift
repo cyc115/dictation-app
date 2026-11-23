@@ -128,8 +128,8 @@ final class VocabularyLearnControllerTests: XCTestCase {
         XCTAssertEqual(fx.controller.measured?.corrections, 60)
     }
 
-    /// Yours first (typed or accepted, newest first), then captured fixes nobody reviewed (`auto`,
-    /// phase 4), up to 60; a waiting capture isn't a correction at all.
+    /// Yours first (typed or accepted, newest first), then captured fixes nobody reviewed (`auto`),
+    /// up to 60; a waiting capture isn't a correction at all.
     func testATuneTakesYourFixesBeforeUnreviewedOnes() {
         let now = Date()
         func entry(_ text: String, ago: TimeInterval, _ state: Capture.State?) -> HistoryEntry {

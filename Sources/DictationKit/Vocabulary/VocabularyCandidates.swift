@@ -13,7 +13,7 @@ struct VocabularyCandidate: Codable, Equatable, Identifiable {
         /// Also stands in 3 or more dictations you didn't correct: never a variant (it would be
         /// replaced where you meant it).
         var ordinary = false
-        /// Judged misheard (phase 4) at least once.
+        /// Judged misheard (`FixJudge`) at least once.
         var misheard = false
 
         init(text: String, dictations: [UUID] = [], ordinary: Bool = false, misheard: Bool = false) {

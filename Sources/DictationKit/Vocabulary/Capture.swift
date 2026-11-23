@@ -17,7 +17,7 @@ struct Capture: Codable, Equatable {
         /// Waits in Corrections for your Accept. Every capture starts here and stays until you act on
         /// it (the judge makes it `auto` only with `trainOnUnreviewedCaptures`, off by default).
         case waiting
-        /// Judged clear enough to train without review (phase 4), only with `trainOnUnreviewedCaptures`
+        /// Judged clear enough to train without review (`FixJudge`), only with `trainOnUnreviewedCaptures`
         /// on. Ones already saved stay so (they train, and can be dismissed). Not kept past "Keep history".
         case auto
         /// You accepted it, or typed a correction on it: yours, kept like any correction.
