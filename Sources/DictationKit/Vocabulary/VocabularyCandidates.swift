@@ -84,7 +84,7 @@ enum CandidateTally {
     static func support(in entries: [HistoryEntry], judging: Bool = false) -> [VocabularyCandidate] {
         var fixes: [(id: UUID, change: WordChange, rules: Bool)] = []
         for entry in entries {
-            guard let intake = entry.intake, let target = entry.fixTarget, intake.of == target else { continue }
+            guard let intake = entry.currentIntake else { continue }
             let rules = !judging || (intake.tries ?? 0) >= FixJudge.maxTries
             for change in intake.changes where counts(change, ordinary: false, rules: rules) { fixes.append((entry.id, change, rules)) }
         }

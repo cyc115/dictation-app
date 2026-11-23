@@ -70,9 +70,9 @@ enum FixJudge {
     /// fix's, and fewer than `maxTries` answers left it out.
     static func pending(_ entries: [HistoryEntry]) -> [JudgeItem] {
         entries.compactMap { entry in
-            guard let target = entry.fixTarget, let intake = entry.intake, intake.of == target, (intake.tries ?? 0) < maxTries,
+            guard let intake = entry.currentIntake, (intake.tries ?? 0) < maxTries,
                   intake.changes.contains(where: { $0.verdict == nil }) else { return nil }
-            return JudgeItem(id: entry.id, wrote: entry.text, target: target, changes: intake.changes.map { WordChange(old: $0.old, new: $0.new) })
+            return JudgeItem(id: entry.id, wrote: entry.text, target: intake.of, changes: intake.unjudged)
         }
     }
 

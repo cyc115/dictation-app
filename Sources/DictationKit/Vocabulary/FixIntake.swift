@@ -48,6 +48,9 @@ struct Intake: Codable, Equatable {
         self.changes = changes
         self.tries = tries
     }
+
+    /// The changes without their verdicts: what the judge is shown, and what its answer must still match.
+    var unjudged: [WordChange] { changes.map { WordChange(old: $0.old, new: $0.new) } }
 }
 
 /// Turns a fix into word changes, locally: `WordDiff`'s words, diffed; each run of words replaced by

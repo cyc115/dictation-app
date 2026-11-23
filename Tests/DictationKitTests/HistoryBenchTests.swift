@@ -459,8 +459,8 @@ final class HistoryBenchTests: XCTestCase {
     func testTheFixturesChangesAreFixIntakes() throws {
         let history = try JSONFile.decoder.decode([HistoryEntry].self, from: Data(contentsOf: fixture.appendingPathComponent("history.json")))
         for entry in history {
-            guard let intake = entry.intake, let target = entry.fixTarget, intake.of == target else { continue }
-            XCTAssertEqual(FixIntake.changes(from: entry.text, to: target).map { [$0.old, $0.new] }, intake.changes.map { [$0.old, $0.new] },
+            guard let intake = entry.currentIntake else { continue }
+            XCTAssertEqual(FixIntake.changes(from: entry.text, to: intake.of).map { [$0.old, $0.new] }, intake.changes.map { [$0.old, $0.new] },
                            entry.id.uuidString)
         }
     }

@@ -41,6 +41,13 @@ struct HistoryEntry: Codable, Identifiable, Equatable {
 
     /// Waits in Corrections for your Accept or Dismiss.
     var isWaiting: Bool { capture?.state == .waiting && correction == nil }
+
+    /// The word changes worked out from the fix as it is now; nil with no fix, or when the fix
+    /// changed since (`intake.of` isn't `fixTarget`): those wait to be worked out again.
+    var currentIntake: Intake? {
+        guard let intake, let fixTarget, intake.of == fixTarget else { return nil }
+        return intake
+    }
 }
 
 /// A dictation that never became text: every speech model failed, or the mic sent only silence.
@@ -288,9 +295,8 @@ final class HistoryStore: ObservableObject {
     func applyVerdicts(_ judged: [FixJudge.Judged], trainUnreviewed: Bool) {
         var copy = entries
         for fix in judged {
-            guard let i = copy.firstIndex(where: { $0.id == fix.item.id }), copy[i].fixTarget == fix.item.target,
-                  let intake = copy[i].intake, intake.of == fix.item.target,
-                  intake.changes.map({ WordChange(old: $0.old, new: $0.new) }) == fix.item.changes else { continue }
+            guard let i = copy.firstIndex(where: { $0.id == fix.item.id }), let intake = copy[i].currentIntake,
+                  intake.of == fix.item.target, intake.unjudged == fix.item.changes else { continue }
             if let verdicts = fix.verdicts, verdicts.count == intake.changes.count {
                 copy[i] = FixJudge.judged(copy[i], verdicts: verdicts, trainUnreviewed: trainUnreviewed)
             } else {
