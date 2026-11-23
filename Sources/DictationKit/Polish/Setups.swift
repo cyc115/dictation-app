@@ -137,6 +137,10 @@ struct SpeechRoute: Hashable {
 
     /// The hosts to pin the request to; nil when none are named.
     var pinned: String? { hosts.flatMap { $0.isEmpty ? nil : $0 } }
+
+    /// It names a model: something before the "@" ("", "@", "@X" and blanks don't). A setup whose
+    /// backup has none is refused when it loads (`DictationSetup.validate`).
+    var hasModelID: Bool { !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 }
 
 /// A model as setups and benchmarks name it: "apple" (Apple's on-device models; "apple:<locale>"
@@ -323,6 +327,9 @@ struct DictationSetup: Codable, Hashable, Identifiable {
         try check("speech", speech, apple: true)
         try check("polish", polish, apple: true)
         if backup != nil && !isCloud { throw SetupError("\(id): a backup only works with cloud speech") }
+        if let backupRoute, !backupRoute.hasModelID {
+            throw SetupError("\(id): backup is missing its model id; it must be \"<model id>[@Provider]\", e.g. \"mistralai/voxtral-mini-transcribe@Mistral\"")
+        }
         if let polishBackup {
             if polishesOnDevice { throw SetupError("\(id): a polish backup only works with cloud polish") }
             try check("polishBackup", polishBackup, apple: false)

@@ -20,6 +20,7 @@ struct SpeechModelSection: View {
                     ForEach(settings.setups) { Text($0.title).tag($0) }
                 }
             }
+            .accessibilityIdentifier("speech.model")  // the row, its description and any problem in setups.json
             if let id = settings.setup.localModelID {
                 LocalModelRow(model: settings.localModel(id))
             }

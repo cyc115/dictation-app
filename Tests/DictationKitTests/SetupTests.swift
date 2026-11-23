@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import DictationKit
 
@@ -121,6 +122,45 @@ final class SetupTests: XCTestCase {
                        "setups.json: missing \"speech\" in setup #1")
         let none = DictationSetup.loadCustom(from: noCustomSetups)
         XCTAssertTrue(none.setups.isEmpty && none.error == nil, "no file: nothing to report")
+    }
+
+    /// A backup with no model id ("", "@", "@X", blank) is refused like any bad setup; the rest of the file loads.
+    func testABackupWithoutAModelIDIsRefused() throws {
+        let setup = { (id: String, backup: String) in
+            #"{"id": "\#(id)", "title": "T", "speech": "openrouter:a/b", "backup": "\#(backup)", "polish": "apple", "prompt": "v1"}"#
+        }
+        let bad = ["empty": "", "at": "@", "hosts-only": "@X", "blank": "   "]
+        let good = ["plain": "c/d", "hosts": "c/d@X,Y", "no-hosts": "c/d@", "at-in-hosts": "c/d@X@Y"]
+        let url = try writeSetups(#"{"setups": ["# + (bad.sorted { $0.key < $1.key } + good.sorted { $0.key < $1.key }).map { setup($0.key, $0.value) }
+            .joined(separator: ",") + #", {"id": "no-backup", "title": "T", "speech": "openrouter:a/b", "polish": "apple", "prompt": "v1"}]}"#)
+        let loaded = DictationSetup.loadCustom(from: url)
+        XCTAssertEqual(Set(loaded.setups.map(\.id)), Set(good.keys).union(["no-backup"]), "the valid ones still load")
+        let error = try XCTUnwrap(loaded.error)
+        for id in bad.keys {
+            XCTAssertTrue(error.contains("\(id): backup is missing its model id; it must be \"<model id>[@Provider]\""), error)
+        }
+        let routes = Dictionary(uniqueKeysWithValues: loaded.setups.map { ($0.id, $0.backupRoute) })
+        XCTAssertEqual(routes["plain"], SpeechRoute(id: "c/d"))
+        XCTAssertEqual(routes["hosts"]??.pinned, "X,Y")
+        XCTAssertEqual(routes["no-hosts"], SpeechRoute(id: "c/d", hosts: ""), "hosts named but empty: none pinned")
+        XCTAssertNil(routes["no-hosts"]??.pinned)
+        XCTAssertEqual(routes["at-in-hosts"]??.pinned, "X@Y")
+        XCTAssertEqual(routes["no-backup"], .some(nil), "no backup key: no backup")
+        for setup in DictationSetup.builtIns { XCTAssertTrue(setup.backupRoute?.hasModelID ?? true, setup.id) }
+    }
+
+    /// The refusal shows where setups.json's problems show: under Settings › Speech model › Model.
+    @MainActor
+    func testARefusedBackupShowsUnderModel() throws {
+        let url = try writeSetups("""
+            {"setups": [{"id": "broken", "title": "Broken", "speech": "openrouter:a/b", "backup": "@Mistral", "polish": "apple", "prompt": "v1"}]}
+            """)
+        let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: url, learned: noLearnedPrompts(self))
+        XCTAssertFalse(settings.setups.contains { $0.id == "broken" })
+        let hosted = host(Form { SpeechModelSection(settings: settings) }.formStyle(.grouped), size: NSSize(width: 640, height: 300))
+        let row = try XCTUnwrap(hosted.element(id: "speech.model"))
+        func texts(_ node: AXNode) -> [String] { [node.text] + node.children.flatMap(texts) }
+        XCTAssertTrue(texts(row).joined(separator: "\n").contains("broken: backup is missing its model id"), texts(row).joined(separator: "\n"))
     }
 
     func testSettingsListCustomSetupsAndPickUpEdits() throws {

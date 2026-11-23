@@ -6,7 +6,9 @@ Settings → Model. The built-in ones are in `DictationSetup.builtInJSON`
 
 To try another combination in the app, add it to
 `~/Library/Application Support/DictationApp/setups.json`. Your setups appear after the built-in
-ones. The file is re-read whenever Settings opens, and any problems show under Model.
+ones. The file is re-read whenever Settings opens. A setup with a problem (an unknown model or
+prompt, a backup with no model id, an id already used) is left out of the menu, and Settings ›
+Speech model says which and why under Model; the rest of the file still loads.
 
 ```json
 {"setups": [
@@ -20,11 +22,11 @@ ones. The file is re-read whenever Settings opens, and any problems show under M
 
 | Field | Value |
 |---|---|
-| `speech` | `apple`, or `openrouter:<model id>` |
+| `speech` | `apple[:<locale>]`, `local:<Hugging Face id>` (on this Mac), or `openrouter:<model id>[@Provider[,Provider…]]`: only those hosts, in order |
 | `polish` | `apple`, or `openrouter:<model id>[@Provider[,Provider…]]`: only those hosts, in order, trying the next if one fails |
-| `prompt` | `v1`–`v4` (from [`bench/polish_prompts/`](../bench/polish_prompts)) or the path to a text file |
+| `prompt` | `v1`–`v4` or `v7` (from [`bench/polish_prompts/`](../bench/polish_prompts)) or the path to a text file |
 | `summary` | optional: a one-line description shown in Settings |
-| `backup` | optional: an OpenRouter speech model that is also asked when the main one is slow |
+| `backup` | optional, cloud speech only: an OpenRouter speech model also asked when the main one is slow, `<model id>[@Provider[,Provider…]]` without `openrouter:` (e.g. `mistralai/voxtral-mini-transcribe@Mistral`). It needs a model id: `""`, `"@"` or `"@Mistral"` gets the setup refused. `"<model id>@"` names no host, as for `speech` |
 | `backupWait` | optional: seconds to wait before asking `backup` (default 2) |
 | `polishBackup` | optional, cloud polish only: `openrouter:…`, also asked when polish is slow or fails |
 | `polishBackupWait` | optional: seconds to wait before asking `polishBackup` (default 0.8) |
