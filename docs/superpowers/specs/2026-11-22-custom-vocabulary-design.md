@@ -424,7 +424,7 @@ Per `AGENTS.md`: everything injected, nothing touches the user's files.
   the Learn student and fingerprint, the 60-fix selection; `FixIntake` (changes, candidates, 3
   dictations, dismissed, backfill); `TypedEdit` (each key, each give-up), span extraction,
   `EditWatcher` with fake closures (every end condition, every never-armed case); `FixJudge` with
-  a fake backend (batching, send rules, never while busy, verdict effects, `auto` rule), prune.
+  a fake backend (batching, send rules, never while busy, verdict effects), prune.
 - **UI:** the Vocabulary page and the *Waiting for you* group with `HostedView`, plus snapshots.
 - **Budgets** (`PerformanceTests`): `Vocabulary.apply` on a long dictation with 200 entries; the
   key path with no watch armed; `TypedEdit` per key. Idle CPU with `scripts/perf.sh` after phase 3.

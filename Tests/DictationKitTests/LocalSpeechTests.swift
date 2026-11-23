@@ -315,7 +315,7 @@ final class LocalSpeechTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(50))
         hosted.settle()
         XCTAssertEqual(fake.log, ["download"])
-        XCTAssertTrue(hosted.allText.contains("50%"), "the download's progress: \(hosted.allText)")
+        XCTAssertTrue(hosted.allText.contains("Downloading") && hosted.allText.contains("50%"), "the download's progress: \(hosted.allText)")
         fake.finishDownload()
         try await Task.sleep(for: .milliseconds(50))
         hosted.settle()

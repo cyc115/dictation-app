@@ -41,9 +41,9 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(hosted.allText.contains("Edits watched, by app"), hosted.allText)
     }
 
-    /// Ask a model about my fixes: off by default; a cloud setup's to turn on. On On-device it says it
-    /// works on cloud setups only and nothing is sent, can't be turned on, and shows off even when it
-    /// was left on (kept for when you switch back).
+    /// Ask a model about my fixes: off by default; a cloud setup's to turn on, saying captured edits
+    /// still wait for Accept. On On-device it's unavailable, can't be turned on, and shows off even
+    /// when it was left on (kept for when you switch back).
     func testAskAModelAboutMyFixesNeedsACloudSetup() throws {
         let defaults = makeDefaults(self)
         let settings = makeSettings(self, defaults: defaults)
@@ -58,6 +58,7 @@ final class SettingsUITests: XCTestCase {
         settings.setup = .cloudFlash
         hosted.settle()
         XCTAssertNotEqual(hosted.element(id: "setting.Ask a model about my fixes")?.isEnabled, false, "a cloud setup's to turn on")
+        XCTAssertTrue(hosted.allText.contains("still wait for your Accept"), "the rule it can't change: \(hosted.allText)")
         XCTAssertTrue(hosted.click(try XCTUnwrap(hosted.element(id: "setting.Ask a model about my fixes"))))
         XCTAssertTrue(makeSettings(self, defaults: defaults).judgeFixes, "saved")
         XCTAssertEqual(hosted.element(id: "setting.Ask a model about my fixes")?.value, "1")

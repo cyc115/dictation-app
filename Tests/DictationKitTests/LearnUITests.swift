@@ -237,7 +237,7 @@ final class LearnUITests: XCTestCase {
         waitUntil { fx.settings.setup.prompt == "v8" }
         hosted.settle()
         XCTAssertEqual(hosted.element(id: row)?.isEnabled, true)
-        for part in ["learned from 15 corrections", "65% → 74%", "general set 71%"] {
+        for part in ["learned from 15 corrections: 65% → 74%", "general set 71%"] {
             XCTAssertTrue(hosted.allText.contains(part), "\(part): \(hosted.allText)")
         }
         XCTAssertTrue(hosted.allText.contains("v8 · 74% · from v7 · Oct 13"), hosted.allText)

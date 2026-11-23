@@ -112,7 +112,7 @@ final class VocabularyUITests: XCTestCase {
         XCTAssertTrue(hosted.click(showAll))
         XCTAssertNotNil(hosted.element(id: "vocabulary.candidate.HRV"))
         XCTAssertEqual(hosted.element(id: "vocabulary.candidate.seen.HRV")?.text.contains("1 of 3"), true)
-        XCTAssertTrue(hosted.allText.contains("3 dictations"), "the count it learns after")
+        XCTAssertTrue(hosted.allText.contains("fixed in 3 dictations"), "the count it learns after")
         XCTAssertTrue(host(VocabularyView(store: store, learning: false), size: NSSize(width: 760, height: 700))
             .allText.contains("Use vocabulary is off"), "says why nothing is added")
     }
