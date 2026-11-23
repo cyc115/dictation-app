@@ -277,8 +277,10 @@ final class FakeTranscriptionClient: TranscriptionClient {
         self.init(answer: Script(delay: delay, result: .success(text)))
     }
 
-    func transcribe(wav: URL, model: String, apiKey: String,
+    /// Keyed and recorded by the model's stored name ("<id>[@hosts]"), as History and the log name it.
+    func transcribe(wav: URL, model route: SpeechRoute, apiKey: String,
                     completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
+        let model = route.name
         XCTAssertTrue(FileManager.default.fileExists(atPath: wav.path), "the WAV is still there for \(model)")
         asked.append((model, ProcessInfo.processInfo.systemUptime - started))
         uploaded = wav

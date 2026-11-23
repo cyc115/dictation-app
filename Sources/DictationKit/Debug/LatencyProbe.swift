@@ -165,12 +165,12 @@ final class LatencyRunner {
             if let setup = DictationSetup.builtIn(speechModel: model) {
                 engine.use(setup, apiKey: apiKey, backupWhenSlow: withBackup)
             } else {
-                engine.modelID = model
+                engine.model = SpeechRoute(id: model)
                 engine.apiKey = apiKey
             }
             if let backupWait { engine.backupWait = backupWait }
             cloud = engine
-            time(engine) { [weak engine] in engine?.lastAnsweredBy.map { ModelSpec.openRouter(id: $0, providers: nil).description } }
+            time(engine) { [weak engine] in engine?.lastAnsweredRoute.map { ModelSpec.openRouter($0).description } }
         case .local(let id):
             // As the app runs it: the model loads while you speak (here, while the clip goes in).
             let engine = LocalEngine(model: MainActor.assumeIsolated { .named(id) })

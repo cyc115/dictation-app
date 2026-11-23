@@ -180,7 +180,7 @@ final class MicCaptureTests: XCTestCase {
         let engine = CloudEngine()
         let client = FakeTranscriptionClient(text: "hello")
         engine.client = client
-        engine.modelID = CloudBackupTests.main
+        engine.model = CloudBackupTests.mainRoute
         mics = FakeMics(engine.mic, chosen: FakeMics.buds, backups: [FakeMics.webcam])
         var events: [MicEvent] = []
         engine.start(inputUID: "buds", backups: true, onLevel: { _ in }, onMic: { events.append($0) },

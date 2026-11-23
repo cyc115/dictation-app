@@ -112,6 +112,33 @@ enum PolishPrompt {
     }
 }
 
+/// An OpenRouter model and the hosts it may run on, carried apart from the setup to the request
+/// (`CloudEngine`, `UploadRace`, `OpenRouterClient`), so nothing glues them into a string and splits
+/// it again. `name` is its one string form, "<id>[@Provider,…]", for what's stored or shown (History,
+/// kept recordings, the log); `ModelSpec`'s setup form is "openrouter:" + `name`.
+struct SpeechRoute: Hashable {
+    let id: String
+    /// Only these OpenRouter hosts, in order, comma-separated; nil lets OpenRouter route. Empty
+    /// (a setup's "<id>@") names none, as nil does, but is kept so the name stays as written.
+    let hosts: String?
+
+    init(id: String, hosts: String? = nil) {
+        self.id = id
+        self.hosts = hosts
+    }
+
+    /// A setup's "<id>[@Provider,…]" (its speech model after "openrouter:", or its `backup`).
+    init(stored: String) {
+        let parts = stored.split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+        self.init(id: parts[0], hosts: parts.count > 1 ? parts[1] : nil)
+    }
+
+    var name: String { id + (hosts.map { "@\($0)" } ?? "") }
+
+    /// The hosts to pin the request to; nil when none are named.
+    var pinned: String? { hosts.flatMap { $0.isEmpty ? nil : $0 } }
+}
+
 /// A model as setups and benchmarks name it: "apple" (Apple's on-device models; "apple:<locale>"
 /// names a speech language), "local:<Hugging Face id>" (a speech model run on this Mac with MLX,
 /// `LocalSpeechModel`) or "openrouter:<model id>[@Provider[,Provider…]]".
@@ -131,20 +158,23 @@ enum ModelSpec: Equatable, CustomStringConvertible {
             return
         }
         guard spec.hasPrefix("openrouter:") else { return nil }
-        let parts = spec.dropFirst("openrouter:".count).split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
-        guard let id = parts.first, !id.isEmpty else { return nil }
-        self = .openRouter(id: id, providers: parts.count > 1 ? parts[1] : nil)
+        let route = SpeechRoute(stored: String(spec.dropFirst("openrouter:".count)))
+        guard !route.id.isEmpty else { return nil }
+        self = .openRouter(route)
     }
+
+    /// The OpenRouter model `route` names.
+    static func openRouter(_ route: SpeechRoute) -> ModelSpec { .openRouter(id: route.id, providers: route.hosts) }
 
     var openRouterID: String? {
         if case .openRouter(let id, _) = self { return id }
         return nil
     }
 
-    /// The OpenRouter model with its hosts, "<id>[@Provider,…]", as `CloudEngine` and
-    /// `OpenRouterClient` take it; nil when it's not an OpenRouter model.
-    var openRouterRoute: String? {
-        if case .openRouter(let id, let providers) = self { return id + (providers.map { "@\($0)" } ?? "") }
+    /// The OpenRouter model with its hosts, as `CloudEngine` and `OpenRouterClient` take it; nil when
+    /// it's not an OpenRouter model.
+    var speechRoute: SpeechRoute? {
+        if case .openRouter(let id, let providers) = self { return SpeechRoute(id: id, hosts: providers) }
         return nil
     }
 
@@ -152,7 +182,7 @@ enum ModelSpec: Equatable, CustomStringConvertible {
         switch self {
         case .apple(let locale): return locale.map { "apple:\($0)" } ?? "apple"
         case .local(let id): return "local:\(id)"
-        case .openRouter(let id, let providers): return "openrouter:\(id)" + (providers.map { "@\($0)" } ?? "")
+        case .openRouter(let id, let providers): return "openrouter:" + SpeechRoute(id: id, hosts: providers).name
         }
     }
 }
@@ -224,8 +254,10 @@ struct DictationSetup: Codable, Hashable, Identifiable {
 
     /// OpenRouter model id of the speech model; nil for on-device.
     var openRouterID: String? { ModelSpec(speech)?.openRouterID }
-    /// The speech model with its pinned hosts ("qwen/qwen3-asr-1.7b@PrimeIntellect"); nil for on-device.
-    var speechRoute: String? { ModelSpec(speech)?.openRouterRoute }
+    /// The speech model with its pinned hosts (qwen/qwen3-asr-1.7b on PrimeIntellect); nil for on-device.
+    var speechRoute: SpeechRoute? { ModelSpec(speech)?.speechRoute }
+    /// "Backup model when slow"'s model, with any hosts it names; nil when this setup has none.
+    var backupRoute: SpeechRoute? { backup.map(SpeechRoute.init(stored:)) }
 
     var isCloud: Bool { openRouterID != nil }
     /// Hugging Face id of the speech model run on this Mac; nil otherwise.

@@ -160,7 +160,8 @@ final class SetupTests: XCTestCase {
     /// Nov 22); its backup runs on a third host, so a stall on one never stalls both.
     func testCloudFlashsSpeechBackupIsOnAnotherHost() {
         XCTAssertEqual(DictationSetup.cloudFlash.openRouterID, "qwen/qwen3-asr-1.7b")
-        XCTAssertEqual(DictationSetup.cloudFlash.speechRoute, "qwen/qwen3-asr-1.7b@PrimeIntellect")
+        XCTAssertEqual(DictationSetup.cloudFlash.speechRoute, SpeechRoute(id: "qwen/qwen3-asr-1.7b", hosts: "PrimeIntellect"))
+        XCTAssertEqual(DictationSetup.cloudFlash.speechRoute?.name, "qwen/qwen3-asr-1.7b@PrimeIntellect")
         XCTAssertEqual(DictationSetup.cloudFlash.backup, "mistralai/voxtral-mini-transcribe")
         XCTAssertEqual(DictationSetup.cloudFlash.backupHelp, "If Cloud Flash hasn't answered in 2 seconds, a faster model "
             + "from another host is asked too and the first answer is used. After a slow answer, both are asked at once "
@@ -168,9 +169,9 @@ final class SetupTests: XCTestCase {
     }
 
     func testOpenRouterRouteKeepsTheHosts() {
-        XCTAssertEqual(ModelSpec("openrouter:a/b@X,Y")?.openRouterRoute, "a/b@X,Y")
-        XCTAssertEqual(ModelSpec("openrouter:a/b")?.openRouterRoute, "a/b")
-        XCTAssertNil(ModelSpec("apple")?.openRouterRoute)
+        XCTAssertEqual(ModelSpec("openrouter:a/b@X,Y")?.speechRoute, SpeechRoute(id: "a/b", hosts: "X,Y"))
+        XCTAssertEqual(ModelSpec("openrouter:a/b")?.speechRoute, SpeechRoute(id: "a/b"))
+        XCTAssertNil(ModelSpec("apple")?.speechRoute)
     }
 
     func testCapabilities() {

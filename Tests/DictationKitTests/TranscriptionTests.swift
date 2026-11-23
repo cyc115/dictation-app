@@ -35,7 +35,7 @@ final class OpenRouterClientTests: XCTestCase {
     }
 
     func testMultipartBody() {
-        let (body, boundary) = OpenRouterClient.multipart(model: "meta/muse-voice-transcribe-1.0", audio: Data([1, 2, 3]), filename: "a.wav")
+        let (body, boundary) = OpenRouterClient.multipart(model: SpeechRoute(id: "meta/muse-voice-transcribe-1.0"), audio: Data([1, 2, 3]), filename: "a.wav")
         let text = String(decoding: body, as: UTF8.self)
         XCTAssertTrue(text.hasPrefix("--\(boundary)\r\n"))
         XCTAssertTrue(text.contains("name=\"model\"\r\n\r\nmeta/muse-voice-transcribe-1.0\r\n"))
@@ -46,7 +46,7 @@ final class OpenRouterClientTests: XCTestCase {
 
     /// "<id>@Hosts": only those hosts, in order, no others (as polish pins them).
     func testMultipartPinsTheNamedHosts() {
-        let (body, _) = OpenRouterClient.multipart(model: "qwen/qwen3-asr-1.7b@PrimeIntellect,DeepInfra", audio: Data([1]), filename: "a.wav")
+        let (body, _) = OpenRouterClient.multipart(model: SpeechRoute(id: "qwen/qwen3-asr-1.7b", hosts: "PrimeIntellect,DeepInfra"), audio: Data([1]), filename: "a.wav")
         let text = String(decoding: body, as: UTF8.self)
         XCTAssertTrue(text.contains("name=\"model\"\r\n\r\nqwen/qwen3-asr-1.7b\r\n"))
         XCTAssertTrue(text.contains("name=\"provider\"\r\n\r\n{\"allow_fallbacks\":false,\"order\":[\"PrimeIntellect\",\"DeepInfra\"]}\r\n"), text)
@@ -106,7 +106,7 @@ final class CloudEngineTests: XCTestCase {
         let engine = CloudEngine()
         let fake = FakeTranscriptionClient(text: "ok")
         engine.client = fake
-        engine.modelID = "qwen/qwen3-asr-1.7b"
+        engine.model = SpeechRoute(id: "qwen/qwen3-asr-1.7b")
         XCTAssertTrue(engine.beginRecording())
         feedSpeech(engine)
         let result = stopAndWait(engine, timeout: 2)
@@ -130,7 +130,7 @@ final class CloudEngineTests: XCTestCase {
         let fake = FakeTranscriptionClient(text: "ok")
         fake.scripts["hang"] = .never
         engine.client = fake
-        engine.modelID = "hang"
+        engine.model = SpeechRoute(id: "hang")
         XCTAssertTrue(engine.beginRecording())
         feedSpeech(engine)
         engine.stop(completion: { _ in XCTFail("hung upload answered") }, failure: { XCTFail($0) })
@@ -180,17 +180,17 @@ final class CloudEngineTests: XCTestCase {
         try src.read(into: input)
         // Every model the app can ask, backups included.
         var models = DictationSetup.builtIns.compactMap(\.speechRoute)  // pinned hosts, as the app asks
-        for backup in DictationSetup.builtIns.compactMap(\.backup) where !models.contains(backup) {
+        for backup in DictationSetup.builtIns.compactMap(\.backupRoute) where !models.contains(backup) {
             models.append(backup)
         }
         for model in models {
             let engine = CloudEngine()
-            engine.modelID = model
+            engine.model = model
             engine.apiKey = key
             XCTAssertTrue(engine.beginRecording())
             engine.record(input)  // 16 kHz clip; WAVRecorder converts whatever the mic format is
             let result = stopAndWait(engine, timeout: 60)
-            XCTAssertNil(result.error, model)
+            XCTAssertNil(result.error, model.name)
             let text = result.text ?? ""
             XCTAssertTrue(text.lowercased().contains("repository"), "\(model): \(text)")
         }

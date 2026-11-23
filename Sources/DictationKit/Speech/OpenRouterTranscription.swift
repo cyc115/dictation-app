@@ -3,12 +3,12 @@ import Foundation
 /// Uploads a finished WAV for transcription (OpenRouterClient; a fake in tests).
 protocol TranscriptionClient {
     @discardableResult
-    func transcribe(wav: URL, model: String, apiKey: String,
+    func transcribe(wav: URL, model: SpeechRoute, apiKey: String,
                     completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask?
 }
 
-/// Minimal client for OpenRouter's speech-to-text endpoint (multipart WAV upload). `model` is
-/// "<id>[@Provider,…]": with hosts, only those are used (OpenRouter honours `provider` here too).
+/// Minimal client for OpenRouter's speech-to-text endpoint (multipart WAV upload). With hosts named on
+/// the model's route, only those are used (OpenRouter honours `provider` here too).
 final class OpenRouterClient: TranscriptionClient {
     static let endpoint = URL(string: "https://openrouter.ai/api/v1/audio/transcriptions")!
     private let session: URLSession
@@ -21,16 +21,16 @@ final class OpenRouterClient: TranscriptionClient {
     }
 
     @discardableResult
-    func transcribe(wav: URL, model: String, apiKey: String,
+    func transcribe(wav: URL, model route: SpeechRoute, apiKey: String,
                     completion: @escaping (Result<String, Error>) -> Void) -> URLSessionTask? {
         guard let audio = try? Data(contentsOf: wav) else {
             completion(.failure(TranscriptionError.message("Couldn't read the recording.")))
             return nil
         }
-        let (body, boundary) = Self.multipart(model: model, audio: audio, filename: wav.lastPathComponent)
+        let (body, boundary) = Self.multipart(model: route, audio: audio, filename: wav.lastPathComponent)
         var request = OpenRouter.request(Self.endpoint, apiKey: apiKey)
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        let started = Date(), log = log
+        let started = Date(), log = log, model = route.name  // as the log names it
         let task = session.uploadTask(with: request, from: body) { data, response, error in
             let result: Result<String, Error>
             let took = CloudLog.seconds(Date().timeIntervalSince(started))
@@ -55,16 +55,15 @@ final class OpenRouterClient: TranscriptionClient {
         return task
     }
 
-    static func multipart(model: String, audio: Data, filename: String) -> (Data, String) {
+    static func multipart(model: SpeechRoute, audio: Data, filename: String) -> (Data, String) {
         let boundary = "DictationApp-\(UUID().uuidString)"
         var body = Data()
         func add(_ s: String) { body.append(Data(s.utf8)) }
         func field(_ name: String, _ value: String) {
             add("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n")
         }
-        let route = model.split(separator: "@", maxSplits: 1).map(String.init)
-        field("model", route[0])
-        if route.count > 1, let pin = try? JSONSerialization.data(withJSONObject: OpenRouter.provider(route[1]), options: .sortedKeys) {
+        field("model", model.id)
+        if let hosts = model.pinned, let pin = try? JSONSerialization.data(withJSONObject: OpenRouter.provider(hosts), options: .sortedKeys) {
             field("provider", String(decoding: pin, as: UTF8.self))
         }
         add("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\nContent-Type: audio/wav\r\n\r\n")

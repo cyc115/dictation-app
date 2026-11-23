@@ -54,7 +54,7 @@ final class KeepRecordingsEngineTests: XCTestCase {
     private func cloudDictation(archive: RecordingArchive?, client: FakeTranscriptionClient, note: RecordingNote? = nil) {
         let engine = CloudEngine()
         engine.client = client
-        engine.modelID = "qwen/qwen3-asr-1.7b"
+        engine.model = SpeechRoute(id: "qwen/qwen3-asr-1.7b")
         engine.archive = archive
         engine.note = note
         XCTAssertTrue(engine.beginRecording())

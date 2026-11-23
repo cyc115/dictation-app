@@ -18,7 +18,7 @@ final class CloudLogTests: XCTestCase {
         let wav = makeTempURL(self, "a.wav")
         try Data([0]).write(to: wav)
         var result: Result<String, Error>?
-        client.transcribe(wav: wav, model: "x-ai/grok-stt-1.0", apiKey: "k") { result = $0 }
+        client.transcribe(wav: wav, model: SpeechRoute(id: "x-ai/grok-stt-1.0"), apiKey: "k") { result = $0 }
         waitUntil { result != nil }
         let error = try XCTUnwrap(lines.at(.error).first)
         XCTAssertTrue(error.hasPrefix("x-ai/grok-stt-1.0: HTTP 404 in "), error)
@@ -32,7 +32,7 @@ final class CloudLogTests: XCTestCase {
         let wav = makeTempURL(self, "a.wav")
         try Data([0]).write(to: wav)
         var result: Result<String, Error>?
-        client.transcribe(wav: wav, model: "m@Host", apiKey: "k") { result = $0 }
+        client.transcribe(wav: wav, model: SpeechRoute(id: "m", hosts: "Host"), apiKey: "k") { result = $0 }
         waitUntil { result != nil }
         XCTAssertEqual(lines.at(.error), [])
         XCTAssertTrue(try XCTUnwrap(lines.at(.info).first).hasPrefix("m@Host: HTTP 200 in "))
@@ -48,7 +48,7 @@ final class CloudLogTests: XCTestCase {
         let wav = makeTempURL(self, "a.wav")
         FileManager.default.createFile(atPath: wav.path, contents: Data([0]))
         var report: UploadRace.Report?
-        UploadRace(wav: wav, apiKey: "k", client: client, main: "main", backup: .init(model: "backup", delay: 0.05),
+        UploadRace(wav: wav, apiKey: "k", client: client, main: SpeechRoute(id: "main"), backup: .init(model: SpeechRoute(id: "backup"), delay: 0.05),
                    log: lines.log) { report = $0 }.start()
         waitUntil { report != nil }
         XCTAssertEqual(lines.at(.notice).first, "asking backup backup: main hasn't answered in 0.05 s")
@@ -64,7 +64,7 @@ final class CloudLogTests: XCTestCase {
         let wav = makeTempURL(self, "a.wav")
         FileManager.default.createFile(atPath: wav.path, contents: Data([0]))
         var report: UploadRace.Report?
-        UploadRace(wav: wav, apiKey: "k", client: client, main: "main", backup: .init(model: "backup", delay: 5),
+        UploadRace(wav: wav, apiKey: "k", client: client, main: SpeechRoute(id: "main"), backup: .init(model: SpeechRoute(id: "backup"), delay: 5),
                    log: lines.log) { report = $0 }.start()
         waitUntil { report != nil }
         XCTAssertEqual(lines.at(.notice), ["asking backup backup: main failed: down"])
@@ -105,8 +105,8 @@ final class CloudLogTests: XCTestCase {
         client.scripts["backup"] = .init(delay: 0, result: FakeTranscriptionClient.error("404"))
         let engine = CloudEngine()
         engine.client = client
-        engine.modelID = "main"
-        engine.backupModelID = "backup"
+        engine.model = SpeechRoute(id: "main")
+        engine.backupModel = SpeechRoute(id: "backup")
         XCTAssertTrue(engine.beginRecording())
         feedSpeech(engine)
         XCTAssertEqual(stopAndWait(engine, timeout: 3).error, "HTTP 500")
@@ -129,8 +129,8 @@ final class CloudLogTests: XCTestCase {
         client.scripts["backup"] = .init(delay: 0, result: FakeTranscriptionClient.error("404"))
         let engine = CloudEngine()
         engine.client = client
-        engine.modelID = "main"
-        engine.backupModelID = "backup"
+        engine.model = SpeechRoute(id: "main")
+        engine.backupModel = SpeechRoute(id: "backup")
         engine.backupWait = 0.05
         XCTAssertTrue(engine.beginRecording())
         feedSpeech(engine)

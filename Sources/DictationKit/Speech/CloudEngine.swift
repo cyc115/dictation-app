@@ -3,20 +3,22 @@ import Foundation
 
 /// Records the mic to WAV while dictating, then uploads it for transcription when you stop.
 final class CloudEngine: RecordingEngine, DictationEngine {
-    /// The speech model, "<OpenRouter id>[@Provider,…]" (the hosts it may run on).
-    var modelID = DictationSetup.cloudFlash.speechRoute!
+    /// The speech model and the hosts it may run on.
+    var model = DictationSetup.cloudFlash.speechRoute!
     var apiKey = ""
     var client: TranscriptionClient = OpenRouterClient()
-    /// "Backup model when slow": the model also asked when `modelID` is slow, after `backupWait`
-    /// (the setup's `backup` / `backupWait`); nil asks only `modelID`.
-    var backupModelID: String?
+    /// "Backup model when slow": the model also asked when `model` is slow, after `backupWait`
+    /// (the setup's `backup` / `backupWait`); nil asks only `model`.
+    var backupModel: SpeechRoute?
     var backupWait: TimeInterval = 2
     /// When to ask the backup; the app shares one, so a slow spell carries over between dictations.
     var backup = AdaptiveBackup()
     /// Which model gave the last dictation's transcript, main or backup (set before `completion`).
     private(set) var lastAnswer: ModelAnswer?
-    /// The model whose transcript the last dictation used (the backup, if it answered first).
+    /// The model whose transcript the last dictation used (the backup, if it answered first): its
+    /// stored name, and the route itself.
     var lastAnsweredBy: String? { lastAnswer?.model }
+    private(set) var lastAnsweredRoute: SpeechRoute?
 
     /// The stopped dictation being uploaded (deleted or kept when its upload finishes).
     private(set) var uploading: DictationRecording?
@@ -27,19 +29,20 @@ final class CloudEngine: RecordingEngine, DictationEngine {
     /// Set up for `setup`'s speech model as the app runs it; `backupWhenSlow` is the "Backup model
     /// when slow" setting.
     func use(_ setup: DictationSetup, apiKey: String, backupWhenSlow: Bool) {
-        modelID = setup.speechRoute ?? modelID
-        backupModelID = backupWhenSlow ? setup.backup : nil
+        model = setup.speechRoute ?? model
+        backupModel = backupWhenSlow ? setup.backupRoute : nil
         backupWait = setup.backupWait
         self.apiKey = apiKey
     }
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
         lastAnswer = nil  // before silence can fail it: never the last dictation's answer
+        lastAnsweredRoute = nil
         guard let recording = finishRecording(completion: completion, failure: failure) else { return }
         let url = recording.url
-        let info = RecordingInfo(date: Date(), model: ModelSpec.openRouter(id: modelID, providers: nil).description, transcript: "", seconds: recording.duration)
+        let info = RecordingInfo(date: Date(), model: ModelSpec.openRouter(model).description, transcript: "", seconds: recording.duration)
         uploading = recording
-        let main = modelID, wait = backupWait, policy = backup, backupModel = backupModelID
+        let main = model, wait = backupWait, policy = backup, backupModel = backupModel
         race = UploadRace(wav: url, apiKey: apiKey, client: client, main: main,
                           backup: backupModel.map { policy.plan(for: main, backup: $0, wait: wait) },
                           judgeMain: backupModel.map { _ in (wait, { onTime in policy.learn(main, onTime: onTime) }) }) { [weak self] report in
@@ -47,13 +50,14 @@ final class CloudEngine: RecordingEngine, DictationEngine {
             switch report.outcome {
             case .text(let text, let model):
                 heard.transcript = text
-                heard.model = ModelSpec.openRouter(id: model, providers: nil).description
-                self?.lastAnswer = ModelAnswer(main: main, backup: report.backupAsked ? backupModel : nil, byBackup: model != main,
+                heard.model = ModelSpec.openRouter(model).description
+                self?.lastAnswer = ModelAnswer(main: main.name, backup: report.backupAsked ? backupModel?.name : nil, byBackup: model != main,
                                                failures: report.failures.isEmpty ? nil : report.failures)
+                self?.lastAnsweredRoute = model
                 completion(text)
             case .failed(let message):
                 heard.error = message
-                self?.lastAnswer = ModelAnswer(main: main, backup: report.backupAsked ? backupModel : nil,
+                self?.lastAnswer = ModelAnswer(main: main.name, backup: report.backupAsked ? backupModel?.name : nil,
                                                failures: report.failures, failed: true)
                 failure(message)
             }
@@ -96,23 +100,23 @@ final class CloudEngine: RecordingEngine, DictationEngine {
 final class AdaptiveBackup {
     var spell: TimeInterval = 5 * 60
     private let clock: () -> TimeInterval
-    /// When each main model (OpenRouter id) was last late.
-    private var lateAt: [String: TimeInterval] = [:]
+    /// When each main model (with its hosts) was last late.
+    private var lateAt: [SpeechRoute: TimeInterval] = [:]
 
     init(clock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) { self.clock = clock }
 
     /// When to ask `backup` in a dictation with `model`: after `wait`, or at once in a slow spell.
-    func plan(for model: String, backup: String, wait: TimeInterval) -> UploadRace.Backup {
+    func plan(for model: SpeechRoute, backup: SpeechRoute, wait: TimeInterval) -> UploadRace.Backup {
         UploadRace.Backup(model: backup, delay: inSlowSpell(model) ? 0 : wait)
     }
 
-    func inSlowSpell(_ model: String) -> Bool {
+    func inSlowSpell(_ model: SpeechRoute) -> Bool {
         guard let at = lateAt[model] else { return false }
         return clock() - at < spell
     }
 
     /// Learns whether `model` answered within its wait (`UploadRace`'s `judgeMain`); failing is late.
-    func learn(_ model: String, onTime: Bool) {
+    func learn(_ model: SpeechRoute, onTime: Bool) {
         lateAt[model] = onTime ? nil : clock()  // on time: back to normal; late: start (or extend) a spell
     }
 }
@@ -128,12 +132,12 @@ final class UploadRace {
     static let slow: TimeInterval = 2
 
     struct Backup: Equatable {
-        let model: String
+        let model: SpeechRoute
         let delay: TimeInterval
     }
 
     enum Outcome {
-        case text(String, model: String)
+        case text(String, model: SpeechRoute)
         case failed(String)
     }
 
@@ -150,7 +154,7 @@ final class UploadRace {
     private let wav: URL
     private let apiKey: String
     private let client: TranscriptionClient
-    private let main: String
+    private let main: SpeechRoute
     private let backup: Backup?
     private let judgeMain: (wait: TimeInterval, verdict: (Bool) -> Void)?
     private let onDone: (Report) -> Void
@@ -159,7 +163,7 @@ final class UploadRace {
     private let log: CloudLog
     private let clock: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     private var startedAt: TimeInterval = 0
-    private var tasks: [String: URLSessionTask] = [:]
+    private var tasks: [SpeechRoute: URLSessionTask] = [:]
     private var pending = 0
     private var backupAsked = false
     private var firstError: String?
@@ -169,7 +173,7 @@ final class UploadRace {
     private var timer: DispatchWorkItem?
     private var judgeTimer: DispatchWorkItem?
 
-    init(wav: URL, apiKey: String, client: TranscriptionClient, main: String, backup: Backup?,
+    init(wav: URL, apiKey: String, client: TranscriptionClient, main: SpeechRoute, backup: Backup?,
          judgeMain: (wait: TimeInterval, verdict: (Bool) -> Void)? = nil, log: CloudLog = .speech,
          onDone: @escaping (Report) -> Void) {
         self.wav = wav
@@ -192,21 +196,21 @@ final class UploadRace {
             DispatchQueue.main.asyncAfter(deadline: .now() + judgeMain.wait, execute: late)
         }
         guard let backup = backup else { return }
-        guard backup.delay > 0 else { return askBackup(because: "at once: \(main) was late in the last few minutes") }
-        let timer = DispatchWorkItem { [self] in askBackup(because: "\(main) hasn't answered in \(CloudLog.seconds(backup.delay))") }
+        guard backup.delay > 0 else { return askBackup(because: "at once: \(main.name) was late in the last few minutes") }
+        let timer = DispatchWorkItem { [self] in askBackup(because: "\(main.name) hasn't answered in \(CloudLog.seconds(backup.delay))") }
         self.timer = timer
         DispatchQueue.main.asyncAfter(deadline: .now() + backup.delay, execute: timer)
     }
 
     private func askBackup(because reason: String) {
         guard let backup = backup, !backupAsked, !finished else { return }
-        log.notice("asking backup \(backup.model): \(reason)")
+        log.notice("asking backup \(backup.model.name): \(reason)")
         backupAsked = true
         timer?.cancel()
         ask(backup.model)
     }
 
-    private func ask(_ model: String) {
+    private func ask(_ model: SpeechRoute) {
         pending += 1
         let task = client.transcribe(wav: wav, model: model, apiKey: apiKey) { [self] result in
             pending -= 1
@@ -218,9 +222,9 @@ final class UploadRace {
                 finish(.text(text, model: model))
             case .failure(let error):
                 firstError = firstError ?? error.localizedDescription
-                failures.append(.init(model: model, message: error.localizedDescription))
+                failures.append(.init(model: model.name, message: error.localizedDescription))
                 if backup != nil && !backupAsked {
-                    askBackup(because: "\(model) failed: \(error.localizedDescription)")  // don't wait out the delay
+                    askBackup(because: "\(model.name) failed: \(error.localizedDescription)")  // don't wait out the delay
                 } else if pending == 0 {
                     finish(.failed(firstError ?? "Transcription failed."))
                 }
@@ -253,10 +257,10 @@ final class UploadRace {
         switch outcome {
         case .text(_, let model) where model == main && !backupAsked:
             // Slow without a backup to ask (setting off) is a notice too: kept long enough to find.
-            seconds < Self.slow ? log.info("transcript from \(model) in \(took)")
-                : log.notice("transcript from \(model) in \(took), slow; no backup asked")
+            seconds < Self.slow ? log.info("transcript from \(model.name) in \(took)")
+                : log.notice("transcript from \(model.name) in \(took), slow; no backup asked")
         case .text(_, let model):
-            log.notice("transcript from \(model) in \(took)" + (model == main ? "; backup \(backup?.model ?? "") was slower or failed" : " (backup)"))
+            log.notice("transcript from \(model.name) in \(took)" + (model == main ? "; backup \(backup?.model.name ?? "") was slower or failed" : " (backup)"))
         case .failed(let message):
             log.error("transcription failed after \(took), every model asked: \(message)")
         }

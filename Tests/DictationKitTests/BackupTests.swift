@@ -7,14 +7,16 @@ final class CloudBackupTests: XCTestCase {
     typealias Client = FakeTranscriptionClient
     static let main = "qwen/qwen3-asr-1.7b"
     static let backup = "mistralai/voxtral-mini-transcribe"
+    /// The same, as the engine carries them (no hosts).
+    static let mainRoute = SpeechRoute(id: main), backupRoute = SpeechRoute(id: backup)
 
     private func dictate(_ client: Client, backup: AdaptiveBackup?, backupWait: TimeInterval = 0.2) -> (engine: CloudEngine, text: String?, error: String?) {
         let engine = CloudEngine()
         engine.client = client
-        engine.modelID = Self.main
+        engine.model = Self.mainRoute
         if let backup {
             engine.backup = backup
-            engine.backupModelID = DictationSetup.cloudFlash.backup
+            engine.backupModel = DictationSetup.cloudFlash.backupRoute
         }
         engine.backupWait = backupWait
         XCTAssertTrue(engine.beginRecording())
@@ -26,7 +28,7 @@ final class CloudBackupTests: XCTestCase {
     // MARK: Off (the default)
 
     func testOffByDefaultAndThenOnlyTheMainModelIsAsked() {
-        XCTAssertNil(CloudEngine().backupModelID)
+        XCTAssertNil(CloudEngine().backupModel)
         let client = Client()
         client.scripts[Self.main] = Client.Script(delay: 0.4, result: Client.text("slow but only"))
         client.scripts[Self.backup] = Client.Script(delay: 0, result: Client.text("never asked"))
@@ -104,9 +106,9 @@ final class CloudBackupTests: XCTestCase {
         let archive = RecordingArchive(directory: makeTempURL(self, "Recordings"))
         engine.archive = archive
         engine.client = client
-        engine.modelID = Self.main
+        engine.model = Self.mainRoute
         engine.backupWait = 0.05
-        engine.backupModelID = Self.backup
+        engine.backupModel = Self.backupRoute
         XCTAssertTrue(engine.beginRecording())
         feedSpeech(engine)
         _ = stopAndWait(engine, timeout: 3)
@@ -122,7 +124,7 @@ final class CloudBackupTests: XCTestCase {
         let slow = Client()
         slow.scripts[Self.backup] = Client.Script(delay: 0.05, result: Client.text("first"))
         _ = dictate(slow, backup: shared)
-        XCTAssertTrue(shared.inSlowSpell(Self.main))
+        XCTAssertTrue(shared.inSlowSpell(Self.mainRoute))
 
         let next = Client()
         next.scripts[Self.main] = Client.Script(delay: 0.1, result: Client.text("second"))
@@ -131,32 +133,32 @@ final class CloudBackupTests: XCTestCase {
         XCTAssertEqual(next.asked.map(\.model), [Self.main, Self.backup])
         XCTAssertLessThan(next.asked[1].at - next.asked[0].at, 0.05, "no wait during a slow spell")
         XCTAssertEqual(r.text, "second")
-        XCTAssertFalse(shared.inSlowSpell(Self.main), "the main model answered on time: spell over")
+        XCTAssertFalse(shared.inSlowSpell(Self.mainRoute), "the main model answered on time: spell over")
     }
 
     /// The bug that sent 43% of real dictations to the backup: in a spell the faster backup always
     /// won, so the main model never got to show it was on time again.
     func testInASpellTheMainModelAnsweringWithinTheWaitEndsItEvenWhenTheBackupWins() {
         let shared = AdaptiveBackup()
-        shared.learn(Self.main, onTime: false)
+        shared.learn(Self.mainRoute, onTime: false)
         let client = Client()
         client.scripts[Self.main] = Client.Script(delay: 0.12, result: Client.text("from 1.7b"))
         client.scripts[Self.backup] = Client.Script(delay: 0.02, result: Client.text("from the backup"))
         let r = dictate(client, backup: shared, backupWait: 0.3)
         XCTAssertEqual(r.text, "from the backup", "the first answer is still used")
-        XCTAssertTrue(shared.inSlowSpell(Self.main), "not judged yet: the main model is still answering")
+        XCTAssertTrue(shared.inSlowSpell(Self.mainRoute), "not judged yet: the main model is still answering")
         spinRunLoop(0.2)
-        XCTAssertFalse(shared.inSlowSpell(Self.main), "the main model answered within its wait: spell over")
+        XCTAssertFalse(shared.inSlowSpell(Self.mainRoute), "the main model answered within its wait: spell over")
     }
 
     func testInASpellTheMainModelMissingTheWaitKeepsIt() {
         let shared = AdaptiveBackup()
-        shared.learn(Self.main, onTime: false)
+        shared.learn(Self.mainRoute, onTime: false)
         let client = Client()  // the main model never answers
         client.scripts[Self.backup] = Client.Script(delay: 0.02, result: Client.text("from the backup"))
         _ = dictate(client, backup: shared, backupWait: 0.1)
         spinRunLoop(0.2)
-        XCTAssertTrue(shared.inSlowSpell(Self.main))
+        XCTAssertTrue(shared.inSlowSpell(Self.mainRoute))
     }
 
     func testASlowBackupAnswerDoesNotCountAgainstAnOnTimeMainModel() {
@@ -165,27 +167,29 @@ final class CloudBackupTests: XCTestCase {
         client.scripts[Self.main] = Client.Script(delay: 0, result: Client.error("HTTP 500"))
         client.scripts[Self.backup] = Client.Script(delay: 0.05, result: Client.text("ok"))
         _ = dictate(client, backup: shared, backupWait: 1)
-        XCTAssertTrue(shared.inSlowSpell(Self.main), "a failed main model counts as late however fast")
+        XCTAssertTrue(shared.inSlowSpell(Self.mainRoute), "a failed main model counts as late however fast")
         let next = Client()
         next.scripts[Self.main] = Client.Script(delay: 0.05, result: Client.text("on time"))
         next.scripts[Self.backup] = Client.Script(delay: 0.5, result: Client.text("slow backup"))
         XCTAssertEqual(dictate(next, backup: shared, backupWait: 0.3).text, "on time")
-        XCTAssertFalse(shared.inSlowSpell(Self.main))
+        XCTAssertFalse(shared.inSlowSpell(Self.mainRoute))
     }
 
     func testUseSetsUpEachCloudSetupWithItsFasterBackup() {
         let engine = CloudEngine()
         engine.use(otherCloudSetup, apiKey: "k", backupWhenSlow: true)
-        XCTAssertEqual(engine.modelID, otherCloudSetup.openRouterID)
-        XCTAssertEqual(engine.backupModelID, Self.main, "a setup can fall back to Cloud Flash's model")
+        XCTAssertEqual(engine.model, otherCloudSetup.speechRoute)
+        XCTAssertEqual(engine.model.name, otherCloudSetup.openRouterID)
+        XCTAssertEqual(engine.backupModel, Self.mainRoute, "a setup can fall back to Cloud Flash's model")
         XCTAssertEqual(engine.backupWait, 4)
         XCTAssertEqual(engine.apiKey, "k")
         engine.use(.cloudFlash, apiKey: "k", backupWhenSlow: true)
-        XCTAssertEqual(engine.modelID, Self.main + "@PrimeIntellect", "the setup's pinned host")
-        XCTAssertEqual(engine.backupModelID, Self.backup)
+        XCTAssertEqual(engine.model, SpeechRoute(id: Self.main, hosts: "PrimeIntellect"), "the setup's pinned host")
+        XCTAssertEqual(engine.model.name, Self.main + "@PrimeIntellect")
+        XCTAssertEqual(engine.backupModel, Self.backupRoute)
         XCTAssertEqual(engine.backupWait, 2)
         engine.use(.cloudFlash, apiKey: "k", backupWhenSlow: false)
-        XCTAssertNil(engine.backupModelID, "setting off: only the main model")
+        XCTAssertNil(engine.backupModel, "setting off: only the main model")
         XCTAssertNil(DictationSetup.onDevice.backup)
     }
 
@@ -215,11 +219,12 @@ final class AdaptiveBackupTests: XCTestCase {
     /// As CloudEngine asks: with the backup and wait of the setup using `model` (built in, or the test's other one).
     private func plan(_ model: String) -> UploadRace.Backup? {
         let setup = DictationSetup.builtIn(speechModel: model) ?? (model == big ? otherCloudSetup : nil)
-        guard let setup, let backup = setup.backup else { return nil }
-        return policy.plan(for: model, backup: backup, wait: setup.backupWait)
+        guard let setup, let backup = setup.backupRoute else { return nil }
+        return policy.plan(for: SpeechRoute(id: model), backup: backup, wait: setup.backupWait)
     }
 
-    private func learn(_ model: String, onTime: Bool) { policy.learn(model, onTime: onTime) }
+    private func learn(_ model: String, onTime: Bool) { policy.learn(SpeechRoute(id: model), onTime: onTime) }
+    private func inSlowSpell(_ model: String) -> Bool { policy.inSlowSpell(SpeechRoute(id: model)) }
 
     func testSpellsLastFiveMinutesAndModelsWithoutABackupGetNoPlan() {
         XCTAssertEqual(AdaptiveBackup().spell, 300)
@@ -227,14 +232,14 @@ final class AdaptiveBackupTests: XCTestCase {
     }
 
     func testAnotherSetupWaitsItsOwnTimeForCloudFlashsModel() {
-        XCTAssertEqual(plan(big), UploadRace.Backup(model: main, delay: 4))
+        XCTAssertEqual(plan(big), UploadRace.Backup(model: SpeechRoute(id: main), delay: 4))
         learn(big, onTime: false)
         XCTAssertEqual(plan(big)?.delay, 0)
-        XCTAssertFalse(policy.inSlowSpell(main), "spells are per model")
+        XCTAssertFalse(inSlowSpell(main), "spells are per model")
     }
 
     func testNormallyWaitsBeforeAskingTheBackup() {
-        XCTAssertEqual(plan(main), UploadRace.Backup(model: CloudBackupTests.backup, delay: 2))
+        XCTAssertEqual(plan(main), UploadRace.Backup(model: CloudBackupTests.backupRoute, delay: 2))
         learn(main, onTime: true)
         XCTAssertEqual(plan(main)?.delay, 2)
     }
@@ -253,13 +258,13 @@ final class AdaptiveBackupTests: XCTestCase {
         now += 200
         learn(main, onTime: false)
         now += 200
-        XCTAssertTrue(policy.inSlowSpell(main), "5 minutes from the latest late answer")
+        XCTAssertTrue(inSlowSpell(main), "5 minutes from the latest late answer")
     }
 
     func testOnTimeMainAnswerEndsTheSpellEarly() {
         learn(main, onTime: false)
         learn(main, onTime: true)
-        XCTAssertFalse(policy.inSlowSpell(main))
+        XCTAssertFalse(inSlowSpell(main))
         XCTAssertEqual(plan(main)?.delay, 2)
     }
 }

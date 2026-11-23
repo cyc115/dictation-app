@@ -37,7 +37,7 @@ final class SpeechRouteTests: XCTestCase {
     }
 
     /// A model and its hosts, as the race takes them.
-    static func route(_ owner: String, _ name: String, _ hosts: String?) -> String { "\(owner)/\(name)" + (hosts.map { "@\($0)" } ?? "") }
+    static func route(_ owner: String, _ name: String, _ hosts: String?) -> SpeechRoute { SpeechRoute(id: "\(owner)/\(name)", hosts: hosts) }
 
     private func rawBody(_ request: URLRequest) -> Data? {
         guard let stream = request.httpBodyStream else { return request.httpBody }
@@ -174,5 +174,20 @@ final class SpeechRouteTests: XCTestCase {
         XCTAssertEqual(lines.all.map(\.text).map { $0.replacingOccurrences(of: #"in \d+(\.\d+)? s"#, with: "in T", options: .regularExpression) },
                        ["asking backup c/d@H3: a/b@H1 hasn't answered in T", "transcript from c/d@H3 in T (backup)"])
         XCTAssertEqual(client.asked.map(\.model), ["a/b@H1", "c/d@H3"])
+    }
+
+    // MARK: The route itself
+
+    /// A setup's "<id>[@Provider,…]" read once into its parts; `name` is the one string form, as written.
+    func testARouteIsReadFromItsSetupStringAndNamedAsWritten() {
+        XCTAssertEqual(SpeechRoute(stored: "a/b@H1,H2"), SpeechRoute(id: "a/b", hosts: "H1,H2"))
+        XCTAssertEqual(SpeechRoute(stored: "a/b"), SpeechRoute(id: "a/b"))
+        for stored in ["a/b@H1,H2", "a/b", "a/b@", "a/b@X@Y"] {
+            XCTAssertEqual(SpeechRoute(stored: stored).name, stored)
+            XCTAssertEqual(ModelSpec("openrouter:" + stored)?.description, "openrouter:" + stored, "setups read and shown as written")
+        }
+        XCTAssertNil(SpeechRoute(stored: "a/b@").pinned, "\"a/b@\" names no host: no provider sent, as before")
+        XCTAssertEqual(SpeechRoute(stored: "a/b@X@Y").pinned, "X@Y")
+        XCTAssertEqual(DictationSetup.cloudFlash.backupRoute, SpeechRoute(id: "mistralai/voxtral-mini-transcribe"))
     }
 }

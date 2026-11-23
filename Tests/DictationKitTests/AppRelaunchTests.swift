@@ -60,7 +60,7 @@ final class MicSilenceTests: XCTestCase {
         let engine = CloudEngine()
         let client = FakeTranscriptionClient()
         engine.client = client
-        engine.modelID = CloudBackupTests.main
+        engine.model = CloudBackupTests.mainRoute
         let mics = FakeMics(engine.mic)
         engine.start(inputUID: "", backups: false, onLevel: { _ in }, onMic: { _ in }, onError: { XCTFail($0) })
         for _ in 0..<47 { mics.feeds[FakeMics.wired.id]?(makeBuffer(amplitude: 0)) }  // 1 s of zeros through the tap path
