@@ -206,10 +206,14 @@ final class FakeSpeechRuntime: SpeechRuntime {
     /// The context each transcription was given.
     var contexts: [String] = []
 
+    /// Answers for the next transcriptions, in order (then `text`, or `error`).
+    var answers: [Result<String, Error>] = []
+
     func transcribe(_ samples: [Float], maxTokens: Int, context: String) async throws -> String {
         log.append("transcribe")
         self.maxTokens.append(maxTokens)
         contexts.append(context)
+        if !answers.isEmpty { return try answers.removeFirst().get() }
         if let error { throw error }
         return text
     }

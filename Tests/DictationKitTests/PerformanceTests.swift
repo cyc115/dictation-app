@@ -8,6 +8,17 @@ import XCTest
 /// so they catch real regressions (e.g. an accidental O(n²)) without flaking.
 final class PerformanceTests: XCTestCase {
     /// Intelligent mic selection judges every buffer of every open mic (~47×/s each, four mics open).
+    /// The speech hint's echo check runs on every hinted dictation before its text is delivered.
+    /// Worst case: a separator after every word, so 2,000 pieces to look up.
+    func testEchoCheckOnALongTranscript() {
+        let context = SpeechContext(words: (0..<20).map { "Term \($0)" })
+        let transcript = (0..<2_000).map { $0 % 7 == 0 ? "Term \($0 % 20)" : "word\($0)" }.joined(separator: ", ")
+        XCTAssertFalse(context.isEcho(transcript))
+        assertFaster(than: 0.010, iterations: 50, "speech hint echo check: 2,000 words, 20 terms") {
+            _ = context.isEcho(transcript)
+        }
+    }
+
     func testMicSelectorPerBuffer() {
         var selector = MicSelector(mics: 4)
         var n: Float = 0

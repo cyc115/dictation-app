@@ -43,6 +43,8 @@ final class LocalSpeechModel: ObservableObject {
     var now: () -> Date = Date.init
     /// How often an idle model is checked for unloading.
     var idleCheckEvery: TimeInterval = 60
+    /// Where a second pass after an echoed context is noted (tests read it).
+    var log: CloudLog = .speech
 
     private let runtime: SpeechRuntime
     private var lastUsed = Date.distantPast
@@ -95,8 +97,11 @@ final class LocalSpeechModel: ObservableObject {
 
     /// The transcript of a 16 kHz mono WAV. While the model is still downloading this throws at once
     /// (`stillDownloading`) rather than holding your text for minutes; loading from disk is waited for.
-    /// `context`: the model's context prompt (`SpeechContext.prompt`), "" for none.
-    func transcribe(wav: URL, context: String = "") async throws -> String {
+    /// `context`: what the model is told (`SpeechContext.prompt`), `.none` for nothing. When the model
+    /// writes that context back instead of what was said (`SpeechContext.isEcho`), the same samples
+    /// are transcribed once more with no context and that answer is the transcript, whatever it is
+    /// (`echoed` true); if that pass fails, this throws: the echo is never the answer.
+    func transcribe(wav: URL, context: SpeechContext = .none) async throws -> (text: String, echoed: Bool) {
         lastUsed = now()
         switch state {
         case .notDownloaded, .failed:
@@ -112,10 +117,16 @@ final class LocalSpeechModel: ObservableObject {
         try await prepare().value
         let read = readSamples
         let samples = try await Task.detached(priority: .userInitiated) { try read(wav) }.value
-        let text = try await runtime.transcribe(samples, maxTokens: Self.maxTokens(seconds: Double(samples.count) / 16_000),
-                                                context: context)
+        let maxTokens = Self.maxTokens(seconds: Double(samples.count) / 16_000)
+        var text = try await runtime.transcribe(samples, maxTokens: maxTokens, context: context.prompt)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let echoed = context.isEcho(text)
+        if echoed {
+            log.notice("on-device speech: the model wrote back its context (\(context.words.count) words) instead of a transcript; transcribing again without it")
+            text = try await runtime.transcribe(samples, maxTokens: maxTokens, context: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         lastUsed = now()
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (text, echoed)
     }
 
     /// Enough for fast speech (about 5 tokens a second) three times over: a model stuck repeating
@@ -281,6 +292,9 @@ final class LocalEngine: RecordingEngine, DictationEngine {
     var context = SpeechContext.none
     /// Which model gave the last transcript (set before `completion`).
     private(set) var lastAnswer: ModelAnswer?
+    /// The last transcript needed a second pass: the model wrote its context back the first time
+    /// (`LocalSpeechModel.transcribe`; set before `completion`). Its wait includes both passes.
+    private(set) var lastEchoed = false
 
     init(model: LocalSpeechModel) {
         self.model = model
@@ -294,13 +308,15 @@ final class LocalEngine: RecordingEngine, DictationEngine {
 
     func stop(completion: @escaping (String) -> Void, failure: @escaping (String) -> Void) {
         lastAnswer = nil  // before silence can fail it: never the last dictation's answer
+        lastEchoed = false
         guard let recording = finishRecording(completion: completion, failure: failure) else { return }
-        let model = self.model, prompt = context.prompt
+        let model = self.model, context = self.context
         var info = RecordingInfo(date: Date(), model: MainActor.assumeIsolated { model.name }, transcript: "", seconds: recording.duration)
         Task { @MainActor [weak self] in
             do {
-                let text = try await model.transcribe(wav: recording.url, context: prompt)
+                let (text, echoed) = try await model.transcribe(wav: recording.url, context: context)
                 info.transcript = text
+                self?.lastEchoed = echoed
                 self?.lastAnswer = ModelAnswer(main: model.name)
                 completion(text)
             } catch {

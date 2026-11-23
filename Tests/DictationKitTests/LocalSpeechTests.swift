@@ -48,7 +48,7 @@ final class LocalSpeechTests: XCTestCase {
         XCTAssertEqual(model.state, .onDisk)
         XCTAssertEqual(runtime.log.last, "unload")
 
-        _ = try await model.transcribe(wav: wav())
+        _ = try await model.transcribe(wav: wav()).text
         XCTAssertEqual(model.state, .ready, "loads again for the next dictation")
         XCTAssertEqual(runtime.log.suffix(2), ["load", "transcribe"])
         clock += 29 * 60
@@ -82,7 +82,7 @@ final class LocalSpeechTests: XCTestCase {
         let (model, runtime) = model(downloaded: false)
         runtime.holdDownload = true
         do {
-            _ = try await model.transcribe(wav: wav())
+            _ = try await model.transcribe(wav: wav()).text
             XCTFail("no text while downloading")
         } catch {
             XCTAssertEqual(error as? LocalSpeechError, .stillDownloading(0), "and the download starts")
@@ -90,13 +90,13 @@ final class LocalSpeechTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertEqual(model.state, .downloading(0.5))
         do {
-            _ = try await model.transcribe(wav: wav())
+            _ = try await model.transcribe(wav: wav()).text
         } catch {
             XCTAssertEqual(error.localizedDescription, "The on-device model is still downloading (50%). Dictate again once it's done.")
         }
         runtime.finishDownload()
         try await model.prepare().value
-        let text = try await model.transcribe(wav: wav())
+        let text = try await model.transcribe(wav: wav()).text
         XCTAssertEqual(text, "帮我 build 一下")
         XCTAssertEqual(runtime.log.filter { $0 == "download" }.count, 1)
     }
@@ -113,7 +113,7 @@ final class LocalSpeechTests: XCTestCase {
 
     func testOutputIsCappedByTheClipsLength() async throws {
         let (model, runtime) = model()
-        _ = try await model.transcribe(wav: wav(seconds: 2))
+        _ = try await model.transcribe(wav: wav(seconds: 2)).text
         XCTAssertEqual(runtime.maxTokens.first, LocalSpeechModel.maxTokens(seconds: 2))
         XCTAssertEqual(LocalSpeechModel.maxTokens(seconds: 10), 214, "≈ 3× fast speech")
         XCTAssertEqual(LocalSpeechModel.maxTokens(seconds: 0.5), 71, "room for the shortest")
@@ -134,7 +134,7 @@ final class LocalSpeechTests: XCTestCase {
             threads.add(Thread.isMainThread ? "main" : "background")
             return try LocalSpeechModel.samples(url)
         }
-        _ = try await model.transcribe(wav: wav(seconds: 1))
+        _ = try await model.transcribe(wav: wav(seconds: 1)).text
         XCTAssertEqual(threads.events, ["background"])
     }
 

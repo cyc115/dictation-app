@@ -236,7 +236,8 @@ final class HistoryBench {
             let (text, error) = await withCheckedContinuation { (done: CheckedContinuation<(String?, String?), Never>) in
                 engine.stop(completion: { done.resume(returning: ($0, nil)) }, failure: { done.resume(returning: (nil, $0)) })
             }
-            row["seconds"] = ProcessInfo.processInfo.systemUptime - started
+            row["seconds"] = ProcessInfo.processInfo.systemUptime - started  // both passes, when the context was echoed
+            row["echoed"] = engine.lastEchoed
             row["transcript"] = text ?? ""
             row["replaced"] = terms.apply(text ?? "").text
             row["error"] = error ?? NSNull()

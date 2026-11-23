@@ -46,6 +46,40 @@ struct SpeechContext: Equatable {
         let chinese = words.filter { $0.unicodeScalars.contains(where: PolishScore.isCJK) }
         return (chinese + words.filter { !chinese.contains($0) }).joined(separator: ", ")
     }
+
+    /// The model wrote this context back instead of what was said: on 1 of 25 real recordings (Nov 22,
+    /// bench/results/history/README.md), with 11 and with 12 terms, Qwen3-ASR returned the terms
+    /// themselves, joined with "，" and ending in "。", in reverse order, one without its leading
+    /// "the". Echo when the context has at least 3 words, the transcript splits into at least 3
+    /// pieces (on , ， 、 ; ； and new lines), and at least 80% of the pieces are context words (any
+    /// case, or one with its leading "the"/"a"/"an" dropped). Loose on purpose: a false alarm costs
+    /// only a second transcription without the context, what the app did before the hint existed;
+    /// and with under 3 pieces it never fires, so saying one or two of your terms alone stays as heard.
+    func isEcho(_ transcript: String) -> Bool {
+        let context = Set(words.map(Self.piece).filter { !$0.isEmpty })
+        guard context.count >= 3 else { return false }
+        var known = context
+        for word in context {
+            for article in ["the ", "a ", "an "] where word.hasPrefix(article) {
+                known.insert(String(word.dropFirst(article.count)).trimmingCharacters(in: .whitespaces))
+            }
+        }
+        let pieces = transcript.split(whereSeparator: { Self.separators.contains($0) }).map { Self.piece(String($0)) }.filter { !$0.isEmpty }
+        guard pieces.count >= 3 else { return false }
+        let matches = pieces.filter(known.contains).count
+        return matches * 5 >= pieces.count * 4
+    }
+
+    private static let separators: Set<Character> = [",", "，", "、", ";", "；", "\n", "\r", "\r\n"]
+    private static let trailing = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ".。!！?？…:："))
+
+    /// A transcript piece or a context word as they're compared: trimmed of spaces and trailing
+    /// sentence marks, lower case.
+    private static func piece(_ text: String) -> String {
+        var text = Substring(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        while let last = text.unicodeScalars.last, trailing.contains(last) { text = text.dropLast() }
+        return text.lowercased()
+    }
 }
 
 extension SpeechEngine: DictationEngine {
