@@ -94,15 +94,6 @@ enum FixIntake {
         return out + target[at...]
     }
 
-    /// Words put in where none were taken out ("send it" → "send it to Bob"): not a change, so no
-    /// verdict says whether you changed your mind.
-    static func wordsOnlyAdded(from text: String, to target: String) -> Bool {
-        edits(from: text, to: target).contains { hunk, change in
-            change == nil && !(span(hunk.inserted, in: target)?.trimmingCharacters(in: edges) ?? "").isEmpty
-                && (span(hunk.removed, in: text)?.trimmingCharacters(in: edges) ?? "").isEmpty
-        }
-    }
-
     private static func range(_ words: [Range<String.Index>]) -> Range<String.Index>? {
         guard let first = words.first, let last = words.last else { return nil }
         return first.lowerBound..<last.upperBound

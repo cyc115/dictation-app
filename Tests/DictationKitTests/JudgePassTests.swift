@@ -323,10 +323,9 @@ final class JudgePassTests: XCTestCase {
         XCTAssertEqual(intake.batches, 1)
     }
 
-    /// By default every captured edit waits for Accept: a clear one read back from the text box, all
-    /// misheard, gets its verdicts and counts toward vocabulary, but stays `waiting` and trains nothing.
-    func testAClearCaptureWaitsForAcceptByDefault() throws {
-        XCTAssertFalse(settings.trainOnUnreviewedCaptures, "off by default")
+    /// Every captured edit waits for Accept: a clear one read back from the text box, all misheard,
+    /// gets its verdicts and counts toward vocabulary, but stays `waiting` and trains nothing.
+    func testAClearCaptureWaitsForAccept() throws {
         let id = try XCTUnwrap(history.add(text: "ask open router", duration: 1))
         history.setCapture(Capture(edited: "ask OpenRouter", mode: .readback, app: "Slack"), for: id)
         intake.tabShown()
@@ -337,33 +336,6 @@ final class JudgePassTests: XCTestCase {
         XCTAssertTrue(history.corrections.isEmpty, "trains nothing")
         XCTAssertEqual(history.entries[0].intake?.changes.map(\.verdict), [.misheard], "judged")
         XCTAssertEqual(intake.batches, 1, "not asked again")
-    }
-
-    /// With `trainOnUnreviewedCaptures` on, a clear capture read back from the text box trains Learn
-    /// unreviewed (`auto`); it isn't kept past "Keep history".
-    func testAClearCaptureBecomesAutoAndIsPruned() throws {
-        settings.trainOnUnreviewedCaptures = true
-        let id = try XCTUnwrap(history.add(text: "ask open router", duration: 1, date: Date().addingTimeInterval(-10 * 86_400)))
-        history.setCapture(Capture(edited: "ask OpenRouter", mode: .readback, app: "Slack"), for: id)
-        intake.tabShown()
-        answer()
-        XCTAssertEqual(history.entries[0].capture?.state, .auto)
-        XCTAssertEqual(history.corrections.map(\.id), [id], "trains Learn")
-        XCTAssertEqual(LearnController.tuneFixes(history.corrections).map(\.id), [id])
-        history.retention = .days7
-        XCTAssertTrue(history.entries.isEmpty, "an auto one isn't kept past Keep history")
-    }
-
-    func testDismissingAnAutoCaptureStopsItTraining() throws {
-        settings.trainOnUnreviewedCaptures = true
-        let id = try XCTUnwrap(history.add(text: "ask open router", duration: 1))
-        history.setCapture(Capture(edited: "ask OpenRouter", mode: .readback, app: "Slack"), for: id)
-        intake.tabShown()
-        answer()
-        XCTAssertEqual(history.entries[0].capture?.state, .auto)
-        history.dismiss(id)
-        XCTAssertNil(history.entries[0].correction)
-        XCTAssertNil(history.entries[0].fixTarget)
     }
 
     /// A captured edit with nothing worth keeping is dismissed: it feeds nothing.

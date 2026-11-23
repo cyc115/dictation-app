@@ -205,7 +205,7 @@ struct CorrectionCard: View {
                 Text(dates.string(entry.date, .dateTime.month(.abbreviated).day().hour().minute()))
                 if let about { Text(about).padding(.horizontal, 8).padding(.vertical, 1).background(.quaternary, in: Capsule()) }
                 if entry.capture?.trains == true {
-                    // From your edit after the paste (accepted, or `auto`: trained unreviewed, only with `trainOnUnreviewedCaptures`), not typed here.
+                    // From your edit after the paste (accepted, or `auto`: trained unreviewed under an earlier build), not typed here.
                     Text("captured").font(.caption2.weight(.semibold))
                         .padding(.horizontal, 6).padding(.vertical, 1)
                         .overlay(Capsule().stroke(Color.accentColor.opacity(0.6)))

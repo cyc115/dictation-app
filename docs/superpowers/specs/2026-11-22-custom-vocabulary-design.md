@@ -109,7 +109,7 @@ change reaches the running app.
 - `PromptMeasurement` gains a vocabulary fingerprint (hash of the enabled entries); a stored
   measurement with another fingerprint is stale and re-measured.
 - A tune takes **at most 60 fixes**: manual and accepted first, newest first, then unreviewed
-  captured ones (phase 4; only with `trainOnUnreviewedCaptures` on, or saved before it existed). A tune makes 10 teacher calls (3 folds × 3 lenses, then the final
+  captured ones (`auto`, which only an earlier build made). A tune makes 10 teacher calls (3 folds × 3 lenses, then the final
   prompt) that each carry about two thirds of the unlearned fixes, and about 8 student calls per fix.
 - **Teacher wording:** `teacherSystem` keeps "a term the recognizer mishears more than once may be
   listed by name". It was changed to "add no term by name" (bf628c8, Nov 22) on the guess that a
@@ -214,7 +214,7 @@ with fakes.
 | `capture.state` | Meaning | Trains Learn | Kept past "Keep history" |
 |---|---|---|---|
 | `waiting` | Needs your Accept | no | no |
-| `auto` | High confidence, unreviewed (phase 4; only with `trainOnUnreviewedCaptures`, off) | yes | no |
+| `auto` | High confidence, unreviewed (made only by an earlier build; this one never does) | yes | no |
 | `accepted` | You accepted it | yes | yes |
 | `dismissed` | You dismissed it | no | no |
 
@@ -310,10 +310,9 @@ delays typing.
     Entries learned before this rule stay as they are;
   - a captured fix's target becomes `text` with only its *misheard* and *style* changes applied;
   - none kept: the capture is dismissed;
-  - **every capture waits for Accept (Mike, Nov 22).** The draft's rule (readback + at least one
-    kept change + no *unclear*: `auto`, trains without review) runs only with
-    `trainOnUnreviewedCaptures` on, off by default with no Settings row. Keystroke-mode captures
-    always wait.
+  - **every capture waits for Accept (Mike, Nov 22), with no way around it.** The draft's rule
+    (readback + at least one kept change + no *unclear*: `auto`, trains without review) was built,
+    then kept behind a hidden setting, then removed; nothing makes an `auto` capture now.
 - **Bench:** `bench/edit_cases.json` (about 40 labelled fixes, all written for the bench: see
   "Phase 4 as built") and `bench/suite.py edits run`, comparing models and batch sizes 1 and 10.
   Batching stays only if accuracy matches one at a time; then the cheapest model that ties the
@@ -352,13 +351,10 @@ delays a dictation.
 - **What verdicts do, beyond the draft:** the kept target is built by `WordDiff` position (a word
   can repeat). What isn't a word change (a period added, a filler taken out) stays as you made it:
   putting it back would teach Learn the opposite of your edit. `unclear` changes are put back, as
-  the draft says. The rewritten capture stays `waiting` (`entry.correction` unset) unless
-  `trainOnUnreviewedCaptures` is on (`FixJudge.judged` takes it as a Bool, threaded from
-  `VocabularyIntake` through `HistoryStore.applyVerdicts`); with it on, a capture with **words only
-  added** (no verdict covers them: maybe a change of mind) still waits instead of `auto`. A kept
-  target equal to what the app wrote dismisses it. The rewritten capture's intake keeps the verdicts
-  with `of` = the new target, so it isn't judged again. Captures already `auto` before the setting
-  existed are left alone (they train, and can be dismissed); no migration.
+  the draft says. The rewritten capture stays `waiting` (`entry.correction` unset). A kept target
+  equal to what the app wrote dismisses it. The rewritten capture's intake keeps the verdicts with
+  `of` = the new target, so it isn't judged again. `auto` captures an earlier build saved are left
+  alone (they train, and can be dismissed or edited); no migration.
 - **Which setups:** decided by the current setup's polish model (`polishesOnDevice`), not its speech
   model, like the terms block: a cloud polish model gets the cloud judge, whether or not AI polish
   is switched on, and for every fix, including ones dictated on another setup; one that polishes on
@@ -389,10 +385,10 @@ delays a dictation.
   without them the order is the same (Sonnet 98% in batches of 10, 92% one at a time; DeepSeek 90%;
   Gemini 85%). Batching held accuracy, so the defaults stay: Sonnet 5.5, batches of
   10. The live batch (`./test.sh --live`) passed ($0.0025, 1.3 s).
-- **Taking an `auto` capture back** (one saved before `trainOnUnreviewedCaptures`, or with it on): Corrections shows it among your corrections with the
+- **Taking an `auto` capture back** (one an earlier build saved): Corrections shows it among your corrections with the
   "captured" badge; its trash button dismisses it (clears the correction), editing it makes it
   `accepted`. No Dismiss button was added for it.
-- **Settings:** no row for `judgeModel` (as `correctionModel`) or `trainOnUnreviewedCaptures`.
+- **Settings:** no row for `judgeModel` (as `correctionModel`).
   *Learn from my edits*' text now says nothing is sent unless the judge is on.
 - **Bench cases are all written (Mike, Nov 22),** not his corrections: 45 fixes in English, Chinese
   and mixed, every verdict, no real dictation in the repo. Each case's changes are what `FixIntake`
@@ -415,8 +411,8 @@ delays a dictation.
 - The judge sends each fix (what the app wrote, what you changed it to) to OpenRouter on cloud
   setups, and nothing on the On-device setup. Hand-typed text
   has never left the Mac before, so `judgeFixes` is off by default.
-- Learn now also sends accepted captured fixes to the teacher and student models, and `auto` ones
-  (only with `trainOnUnreviewedCaptures`, off).
+- Learn now also sends accepted captured fixes to the teacher and student models, and any `auto`
+  ones an earlier build saved.
 - README's Privacy section changes in the same commit as each phase.
 
 ## Tests

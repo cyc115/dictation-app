@@ -112,12 +112,9 @@ that polishes on this Mac) it's unavailable, nothing is sent, and the rules abov
   words a side, no sentence punctuation inside); while it's on, a change waits for its verdict.
   A fix it can't answer about after 3 tries is counted by the rules above.
 - A captured edit keeps only its misheard and style changes and still waits for your Accept; with
-  none kept, it's dismissed. (`DictationApp settings set trainOnUnreviewedCaptures on`, off by
-  default and with no Settings row, lets one read back from the text box with nothing unclear and no
-  words only added train Learn without your Accept; it then shows with a "captured" badge among your
-  corrections, its trash button takes it back out, and editing it makes it yours. Ones that trained
-  this way before the setting existed stay as they are; turning it on doesn't change captures
-  already judged.)
+  none kept, it's dismissed. (An earlier build could let a clear one train Learn without your
+  Accept. Any it did stay as they are, among your corrections with a "captured" badge: the trash
+  button takes one back out, and editing it makes it yours.)
 - A correction you typed is labelled, never changed.
 
 ### Detailed analytics: where the wait went
@@ -299,8 +296,7 @@ Settings › Experimental › **Decide commands on this Mac** asks Perplexity's 
   OpenRouter on the cloud setups, Apple Intelligence on-device. With cloud polish and an API key,
   Corrections' suggested text and Learn also send them to OpenRouter, as they do your corrections.
 - Learning a prompt sends your corrections (the transcript, what the app wrote, what you wanted),
-  including captured edits you accepted (and any the judge let train unreviewed: only with
-  `trainOnUnreviewedCaptures` on, off by default), to the cloud
+  including captured edits you accepted (and any an earlier build let train unreviewed), to the cloud
   models, like any cloud dictation. Learned prompts stay in
   `~/Library/Application Support/DictationApp/learned-prompts.json`.
 

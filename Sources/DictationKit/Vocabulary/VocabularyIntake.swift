@@ -92,7 +92,7 @@ final class VocabularyIntake {
     func runIfIdle(tab: Bool = false) {
         guard !running, !isBusy() else { return }
         if !held.isEmpty {
-            if settings.judgeFixes { history.applyVerdicts(held, trainUnreviewed: settings.trainOnUnreviewedCaptures) }  // turned off meanwhile: not used
+            if settings.judgeFixes { history.applyVerdicts(held) }  // turned off meanwhile: not used
             held = []
         }
         running = true
@@ -178,7 +178,7 @@ final class VocabularyIntake {
         }
         let useful = results.contains { $0.verdicts != nil }
         guard !isBusy() else { return held += results }
-        history.applyVerdicts(results, trainUnreviewed: settings.trainOnUnreviewedCaptures)
+        history.applyVerdicts(results)
         if running { rerun = tab && useful } else { runIfIdle(tab: tab && useful) }
     }
 

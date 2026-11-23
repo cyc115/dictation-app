@@ -263,6 +263,26 @@ final class CorrectionsUITests: XCTestCase {
                        [["enabled": false] as NSDictionary, ["effort": "minimal"] as NSDictionary], "off first, then minimal")
     }
 
+    /// An `auto` capture an earlier build saved shows among your corrections with the "captured"
+    /// badge, and its trash button takes it back out (dismissed, no longer training Learn).
+    func testAnAutoCaptureFromAnEarlierBuildShowsAndCanBeTakenOut() throws {
+        let url = makeTempURL(self)
+        var entry = HistoryEntry(date: Date(), text: "ask cloud", duration: 1)
+        entry.correction = "ask Claude"
+        entry.capture = Capture(edited: "ask Claude", mode: .readback, app: "Slack", state: .auto)
+        try JSONFile.write([entry], to: url)
+        let store = HistoryStore(fileURL: url, defaults: makeDefaults(self))
+        let hosted = host(CorrectionsView(store: store), size: NSSize(width: 760, height: 480))
+        XCTAssertEqual(hosted.elements(id: "corrections.card").count, 1)
+        XCTAssertNotNil(hosted.element(id: "corrections.captured"))
+        XCTAssertNil(hosted.element(id: "corrections.waitingCard"), "not waiting: it already trains")
+        hosted.click(try XCTUnwrap(hosted.element(id: "corrections.delete")))
+        hosted.settle()
+        XCTAssertEqual(store.entries[0].capture?.state, .dismissed)
+        XCTAssertNil(store.entries[0].correction)
+        XCTAssertTrue(store.corrections.isEmpty)
+    }
+
     func testSuggestionDoesNotOverwriteWhatYouTyped() {
         let store = makeHistory(self)
         store.add(text: "Cloud Code", duration: 1)

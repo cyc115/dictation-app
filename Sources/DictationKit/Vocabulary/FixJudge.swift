@@ -38,8 +38,7 @@ struct JudgeFailure: LocalizedError {
 
 /// *Ask a model about my fixes*: a verdict for each word change of a fix (misheard, style, a change of
 /// mind, unclear), so only misheard words go into vocabulary and a captured edit keeps only its
-/// misheard and style changes. Every captured edit still waits for your Accept (`auto` only with
-/// `trainOnUnreviewedCaptures`, off, no Settings row). The idle pass (`VocabularyIntake`) sends the
+/// misheard and style changes. Every captured edit still waits for your Accept. The idle pass (`VocabularyIntake`) sends the
 /// batches; nothing here runs during a dictation. This is the logic: which fixes wait, the message,
 /// reading the answer, and what the verdicts do. Cloud setups only: on a setup that polishes on this
 /// Mac nothing is sent and the rules count.
@@ -123,12 +122,9 @@ enum FixJudge {
     /// - A waiting capture keeps only its misheard and style changes: the others are put back as the
     ///   app wrote them (what isn't a word change, like a period or a removed filler, stays as you
     ///   made it). With none kept it's dismissed.
-    /// - It stays `waiting` for your Accept. Only with `trainUnreviewed` (`trainOnUnreviewedCaptures`,
-    ///   off by default) does it become `auto` (trains Learn unreviewed), and then only when it was
-    ///   read back from the text box, keeps a change, has nothing unclear and no words only added (a
-    ///   change of mind no verdict covers). Keystroke captures always wait.
+    /// - It stays `waiting` for your Accept: nothing here makes a capture train on its own.
     /// The new intake is of the new target with the verdicts, so the next pass doesn't judge it again.
-    static func judged(_ entry: HistoryEntry, verdicts: [WordChange.Verdict], trainUnreviewed: Bool) -> HistoryEntry {
+    static func judged(_ entry: HistoryEntry, verdicts: [WordChange.Verdict]) -> HistoryEntry {
         var entry = entry
         guard var intake = entry.intake, intake.changes.count == verdicts.count else { return entry }
         for i in verdicts.indices { intake.changes[i].verdict = verdicts[i] }
@@ -144,14 +140,7 @@ enum FixJudge {
             entry.intake = nil
             return entry
         }
-        let auto = trainUnreviewed && capture.mode == .readback && !verdicts.contains(.unclear)
-            && !FixIntake.wordsOnlyAdded(from: entry.text, to: capture.edited)
-            && !target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         capture.edited = target
-        if auto {
-            capture.state = .auto
-            entry.correction = target
-        }
         entry.capture = capture
         entry.intake = Intake(of: target, changes: zip(intake.changes, keep).filter(\.1).map(\.0))
         return entry

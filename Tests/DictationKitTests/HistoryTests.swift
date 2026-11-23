@@ -268,6 +268,29 @@ final class CapturedFixTests: XCTestCase {
         XCTAssertEqual(store.entries[0].capture?.state, .dismissed)
     }
 
+    /// `auto` captures an earlier build's judge saved (this one makes none): read as saved; editing
+    /// one makes it yours; Accept keeps its correction and makes it yours.
+    func testAnAutoCaptureFromAnEarlierBuildCanBeEditedOrAccepted() {
+        let url = makeTempURL(self)
+        func auto(_ text: String) -> HistoryEntry {
+            var e = HistoryEntry(date: Date(), text: text, duration: 1)
+            e.correction = text + "!"
+            e.capture = Capture(edited: text + "!", mode: .readback, app: "Slack", state: .auto)
+            return e
+        }
+        let edited = auto("cloud"), accepted = auto("klod")
+        try? JSONFile.write([edited, accepted], to: url)
+        let store = HistoryStore(fileURL: url, defaults: makeDefaults(self))
+        XCTAssertEqual(store.entries.map { $0.capture?.state }, [.auto, .auto], "read as saved")
+        XCTAssertEqual(Set(store.corrections.map(\.id)), [edited.id, accepted.id], "they train Learn")
+        store.setCorrection("Claude", for: edited.id)
+        XCTAssertEqual(store.entries.first { $0.id == edited.id }?.capture?.state, .accepted)
+        store.accept(accepted.id)
+        let taken = store.entries.first { $0.id == accepted.id }
+        XCTAssertEqual(taken?.capture?.state, .accepted)
+        XCTAssertEqual(taken?.correction, "klod!")
+    }
+
     func testTypingACorrectionOnACaptureMakesItYours() {
         let store = makeHistory(self)
         let id = captured(store)
