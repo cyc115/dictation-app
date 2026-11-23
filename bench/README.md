@@ -262,6 +262,9 @@ bench/suite.py history report --details       # hits and misses WITH your text: 
   once the answers' reported cost reaches it (rows so far are kept; the report says it stopped).
   The Nov 22 run (27 fixes × 4 arms × 3 rounds, one prompt) cost 5.6¢, about a third of its estimate, so both prompts
   come to about 11¢; the dry run prints an upper estimate. About 15–20 minutes plus the test build.
+- **Result format:** each result file carries a `format` number; `history report` reads only the
+  current one. An older file (from before the format was numbered, or another number) is refused
+  with one line: run again. There is no reader for older layouts.
 - **Privacy:** only fixed dictations go to the cloud, with the bench's key
   (`$OPENROUTER_BENCH_API_KEY`, passed to the test as `HISTORY_BENCH_KEY`, never written to the job).
   Result files (`results/history/<time>.json`) hold your text and are git-ignored: never `git add -f`

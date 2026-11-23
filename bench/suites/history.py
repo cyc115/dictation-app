@@ -75,6 +75,9 @@ PARTS = (1, 2, 3, 4, 5, 6)
 PART_NAMES = {1: "mishearings fixed", 2: "speech with terms", 3: "reach and wrong hits", 4: "wait", 5: "what learns",
               6: "edit replay"}
 ROUNDS = 3
+# The result file's format, written by `run` and checked by `report`, which reads only this one. Raise it
+# when a result's summary or rows change shape.
+RESULT_FORMAT = 1
 WINDOW = 90  # seconds: a kept recording ends at most this long before its History entry is saved
 MAX_COST = 0.50
 LEARN_AFTER = 3  # AppSettings.vocabularyLearnAfter's default (test_history checks Settings.swift)
@@ -499,7 +502,7 @@ def estimate(job: dict, history: list[dict], vocabulary: dict, setup: dict, pric
     for trial in job["polish"]:
         entry = by_id[trial["id"]]
         block = {"off": 0, "terms-only": again, "again": again, "held-out": terms_tokens(held[trial["id"]])}[trial["arm"]]
-        tokens_in += prompt[trial.get("prompt", "learned")] + block + harness.estimate_tokens(entry.get("raw") or entry["text"]) + 20  # tags + framing
+        tokens_in += prompt[trial["prompt"]] + block + harness.estimate_tokens(entry.get("raw") or entry["text"]) + 20  # tags + framing
         tokens_out += harness.estimate_tokens(entry.get("correction") or entry["text"])
     price = prices.get(setup["model"])
     cost = None if price is None else (tokens_in * price[0] + tokens_out * price[1]) / 1e6
@@ -618,7 +621,7 @@ def score(rows: list[dict], edit_watch: dict, vocabulary: dict, learn_after: int
 
 def _score_part1(rows: list[dict], dictations: dict, misheard: dict) -> dict | None:
     """Part 1: per prompt, arm and round, mishearings fixed (your case, and any case) and word errors against the fix."""
-    p1 = [{**r, "prompt": r.get("prompt", "learned")} for r in rows if r.get("part") == 1 and "arm" in r]
+    p1 = [r for r in rows if r.get("part") == 1 and "arm" in r]
     if not p1 and not any(r.get("part") == 1 for r in rows):
         return None
     by_prompt = {}
@@ -673,7 +676,7 @@ def _score_part2(rows: list[dict], dictations: dict, misheard: dict) -> dict | N
                      "replaced": sum(fixed_count(r["replaced"], dictations[r["id"]]["target"], misheard[r["id"]]) for r in ok),
                      "replacedAnyCase": sum(fixed_count(r["replaced"], dictations[r["id"]]["target"], misheard[r["id"]], any_case=True) for r in ok),
                      "errors": len(sel) - len(ok), "seconds": _wait([r["seconds"] for r in ok]),
-                     "echoes": sum(bool(r.get("echoed")) for r in ok)}  # rows from before the guard have no "echoed"
+                     "echoes": sum(bool(r["echoed"]) for r in ok)}
         if arm != "off":
             compared = [r for r in ok if r["id"] in off]
             arms[arm]["diverged"] = sorted(r["id"] for r in compared if diverges(off[r["id"]], r["transcript"]))
@@ -831,14 +834,14 @@ def _report_part1(v: dict, setup: dict, cfg: dict, markdown: bool) -> list[str]:
         lines.append(f"  {setup.get('setup')} has no learned prompt active: the base prompt in its place")
     for name, same in (cfg.get("promptsSameAs") or {}).items():
         lines.append(f"  {name} is the {same} prompt: run once, as {same}")
-    prompts = v["prompts"] if "prompts" in v else {"as run": {"arms": v.get("arms", {})}}  # results from before prompts were split
+    prompts = v["prompts"]
     if len({pv.get("wholeRounds") for pv in prompts.values()}) > 1:
         lines.append("  !! the prompts have different numbers of whole rounds (a stop at the cap): compare with care")
     for prompt, pv in prompts.items():
-        version = {"learned": setup.get("learnedPrompt"), "base": setup.get("basePrompt")}.get(prompt) or setup.get("prompt")
-        rows = [[arm, _range(a["fixed"]), _range(a.get("fixedAnyCase")), _range(a["word_errors"], pct=True), a["rounds"], a["errors"] or "",
+        version = {"learned": setup.get("learnedPrompt"), "base": setup.get("basePrompt")}.get(prompt)
+        rows = [[arm, _range(a["fixed"]), _range(a["fixedAnyCase"]), _range(a["word_errors"], pct=True), a["rounds"], a["errors"] or "",
                  _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])] for arm, a in pv["arms"].items()]
-        lines += [f"  prompt: {prompt_label(prompt, version) if prompt != 'as run' else f'as run ({version})'}",
+        lines += [f"  prompt: {prompt_label(prompt, version)}",
                   harness.table(["arm", "fixed (mean, range)", "fixed, any case", "word errors vs fix", "rounds", "errors", "polish p50 s", "p95 s"],
                                 rows, markdown)]
     return lines
@@ -851,7 +854,7 @@ def _report_part2(v: dict, setup: dict, cfg: dict, markdown: bool) -> list[str]:
         lines.append(f"  skipped: {v['skipped']}")
     else:
         lines += _unsourced_note(cfg)
-        rows = [[arm, a["transcript"], a["replaced"], a.get("replacedAnyCase", "—"), a.get("echoes", "—"),
+        rows = [[arm, a["transcript"], a["replaced"], a["replacedAnyCase"], a["echoes"],
                  f"{len(a['diverged'])} of {a['comparedWithOff']}" if "diverged" in a else "—",
                  a["errors"] or "", _s(a["seconds"]["p50"]), _s(a["seconds"]["p95"])]
                 for arm, a in v["arms"].items()]
@@ -884,10 +887,7 @@ def _report_part4(v: dict, setup: dict, cfg: dict, markdown: bool) -> list[str]:
         rows = [[arm, _s(a["p50"]), _s(a["p95"]), _delta(a["p50_change"]), _delta(a["p95_change"])] for arm, a in arms.items()]
         return [f"  {label}, seconds (change vs off):", harness.table(["arm", "p50", "p95", "p50 change", "p95 change"], rows, markdown)]
 
-    polish_wait = v.get("polish") or {}
-    if polish_wait and all("p50" in x for x in polish_wait.values()):  # results from before prompts were split
-        polish_wait = {"as run": polish_wait}
-    for prompt, arms in polish_wait.items():
+    for prompt, arms in (v.get("polish") or {}).items():
         lines += wait_table(f"polish, prompt {prompt}", arms)
     if "speech" in v:
         lines += wait_table("on-device speech", v["speech"])
@@ -934,7 +934,7 @@ def details_text(result: dict) -> str:
         for c in d["changes"]:
             if c.get("verdict") == "misheard":
                 mark = "✓" if is_fixed(r["output"], d["target"], c["new"]) else "✗"
-                out.append(f"part 1 {mark} r{r['round']} {r.get('prompt', 'learned'):<7} {r['arm']:<10} {c['old']} → {c['new']}  [{r['id'][:8]}]{'  error: ' + r['error'] if r.get('error') else ''}")
+                out.append(f"part 1 {mark} r{r['round']} {r['prompt']:<7} {r['arm']:<10} {c['old']} → {c['new']}  [{r['id'][:8]}]{'  error: ' + r['error'] if r.get('error') else ''}")
     for r in (r for r in rows if r.get("part") == 2 and "arm" in r):
         d = dictations.get(r["id"])
         for c in (d or {}).get("changes", []):
@@ -1059,7 +1059,7 @@ def cmd_run(args, harness_run=run_harness) -> int:
         config |= {"rounds": rounds, "seed": args.seed, "limit": args.limit, "estimate": plan, "harnessExit": code,
                    "setupAsked": setup["asked"], "setupFellBack": setup["fellBack"], "promptsAsked": counts["promptsAsked"],
                    "promptsSameAs": counts["promptsSameAs"]}
-        result = {"suite": NAME, "run_at": started.isoformat(timespec="seconds"), "env": harness.environment(), "config": config,
+        result = {"suite": NAME, "format": RESULT_FORMAT, "run_at": started.isoformat(timespec="seconds"), "env": harness.environment(), "config": config,
                   "summary": summary, "rows": rows}
         saved = Path(args.out) if args.out else RESULTS
         saved.mkdir(parents=True, exist_ok=True)
@@ -1085,8 +1085,21 @@ def cmd_report(args) -> int:
         print("no results yet: run `bench/suite.py history run`")
         return 1
     result = json.loads(path.read_text())
+    if problem := format_problem(result):
+        print(f"{path.name}: {problem}")
+        return 1
     print(details_text(result) if args.details else report_text(result, markdown=args.markdown))
     return 0
+
+
+def format_problem(result: dict) -> str | None:
+    """Why `report` won't read this result (written before the current format, or in another one); None if it can."""
+    found = result.get("format") if isinstance(result, dict) else None
+    if found is None:
+        return f"predates the current result format ({RESULT_FORMAT}): run `bench/suite.py history run` again"
+    if found != RESULT_FORMAT:
+        return f"is in result format {found}, and this bench reads format {RESULT_FORMAT}: run `bench/suite.py history run` again"
+    return None
 
 
 def fixture_job() -> dict:

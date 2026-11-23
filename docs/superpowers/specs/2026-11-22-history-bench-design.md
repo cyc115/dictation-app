@@ -106,6 +106,9 @@ is refused with the list.
   `--live` and `--local`) takes a job file and writes rows.
 - **Python** (`bench/suites/history.py`) picks the test set, builds the held-out vocabularies,
   writes the job, runs the test, scores, reports.
+- **Result files** carry a `format` number (`RESULT_FORMAT`). `report` reads only the current format
+  and refuses any other file with one line saying to run again (Mike, Nov 22: no readers for older
+  layouts); a change to a result's shape raises the number.
 - **Cost:** `--dry-run` prints calls and an estimate and sends nothing. A run refuses to start above
   `--max-cost`, and the harness stops sending once what the answers report passes it.
 - **Not in it:** the tuner's teacher wording. Before and after is two tunes, 54¢, and one pair

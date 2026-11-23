@@ -11,8 +11,8 @@ struct HistoryBenchJob: Decodable {
         let heldOut: [VocabularyEntry]
         let recording: String?
     }
-    /// `prompt`: "learned" (the setup's active learned prompt) or "base" (its built-in one); nil is learned.
-    struct PolishTrial: Decodable { let round: Int; let id: UUID; let arm: String; let prompt: String? }
+    /// `prompt`: "learned" (the setup's active learned prompt), "base" (its built-in one) or a built-in version ("v4").
+    struct PolishTrial: Decodable { let round: Int; let id: UUID; let arm: String; let prompt: String }
     struct SpeechTrial: Decodable { let id: UUID; let arm: String }
 
     let history: String
@@ -136,7 +136,7 @@ final class HistoryBench {
     /// with `"prompt": "v4"` reads it (`promptText` → `PolishPrompt.text(for:)`).
     func promptSetups(base: DictationSetup, learned: DictationSetup?) -> [String: DictationSetup?] {
         var found: [String: DictationSetup?] = ["base": base, "learned": learned]
-        for name in Set(job.polish.compactMap(\.prompt)) where found[name] == nil && PolishPrompt.versions[name] != nil {
+        for name in Set(job.polish.map(\.prompt)) where found[name] == nil && PolishPrompt.versions[name] != nil {
             var version = base
             version.prompt = name
             version.learnedText = nil
@@ -181,7 +181,7 @@ final class HistoryBench {
                 return
             }
             guard let entry = fixes[trial.id], let arm = Arm(rawValue: trial.arm) else { continue }
-            let prompt = trial.prompt ?? "learned"
+            let prompt = trial.prompt
             guard let found = prompts[prompt], let setup = found else {
                 if noPrompt.insert(prompt).inserted {
                     write(["part": 1, "kind": "skipped", "prompt": prompt, "reason": "the setup has no \(prompt) prompt: its trials weren't run"])

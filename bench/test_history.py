@@ -353,17 +353,17 @@ def test_the_report_has_totals_only(monkeypatch, capsys, tmp_path):
 def test_part_2_counts_echoes_and_clips_that_diverged_from_off():
     d = {"part": 0, "kind": "dictation", "target": "send the notes to Claude", "changes": [{"old": "cloud", "new": "Claude", "verdict": "misheard"}]}
     rows = [{**d, "id": "A"}, {**d, "id": "B"}, {**d, "id": "C"}, {**d, "id": "E"},
-            {"part": 2, "id": "A", "arm": "off", "transcript": "send the notes to cloud", "replaced": "", "seconds": 1.0},
+            {"part": 2, "id": "A", "arm": "off", "transcript": "send the notes to cloud", "replaced": "", "seconds": 1.0, "echoed": False},
             {"part": 2, "id": "A", "arm": "again", "transcript": "send the notes to Claude", "replaced": "", "seconds": 2.0, "echoed": True},
             # The guard missed this one: a list in place of the dictation.
-            {"part": 2, "id": "B", "arm": "off", "transcript": "send the notes to cloud", "replaced": "", "seconds": 1.0},
+            {"part": 2, "id": "B", "arm": "off", "transcript": "send the notes to cloud", "replaced": "", "seconds": 1.0, "echoed": False},
             {"part": 2, "id": "B", "arm": "again", "transcript": "Hammerspoon, reMarkable", "replaced": "", "seconds": 1.0, "echoed": False},
             # An empty off transcript: anything heard against it diverges.
-            {"part": 2, "id": "C", "arm": "off", "transcript": "", "replaced": "", "seconds": 1.0},
-            {"part": 2, "id": "C", "arm": "again", "transcript": "send it", "replaced": "", "seconds": 1.0},  # from before the guard: no "echoed"
+            {"part": 2, "id": "C", "arm": "off", "transcript": "", "replaced": "", "seconds": 1.0, "echoed": False},
+            {"part": 2, "id": "C", "arm": "again", "transcript": "send it", "replaced": "", "seconds": 1.0, "echoed": False},
             # An off run that failed can't be compared.
             {"part": 2, "id": "E", "arm": "off", "transcript": "", "replaced": "", "seconds": 0, "error": "boom"},
-            {"part": 2, "id": "E", "arm": "again", "transcript": "anything at all", "replaced": "", "seconds": 1.0}]
+            {"part": 2, "id": "E", "arm": "again", "transcript": "anything at all", "replaced": "", "seconds": 1.0, "echoed": False}]
     arms = h.score(rows, {}, {}, 3)["parts"][2]["arms"]
     assert arms["again"]["echoes"] == 1 and arms["off"]["echoes"] == 0
     assert arms["again"]["diverged"] == ["B", "C"] and arms["again"]["comparedWithOff"] == 3
@@ -463,7 +463,7 @@ def test_the_apps_constants_are_the_benchs():
     assert h.replaced_setups() == {"cloud-flash-deepseek": "cloud-flash", "cloud-big": "cloud-flash"}, "DictationSetup.replaced, as read"
 
 
-# ---------------------------------------------------------------- results from before a change: still read
+# ---------------------------------------------------------------- the result format
 
 def fixture_result(monkeypatch, tmp_path, *extra: str) -> dict:
     monkeypatch.setattr(h.openrouter, "key", lambda env: "sk-test")
@@ -472,39 +472,25 @@ def fixture_result(monkeypatch, tmp_path, *extra: str) -> dict:
     return json.loads(next(tmp_path.glob("*.json")).read_text())
 
 
-def test_rows_from_before_prompts_were_split_score_as_learned(monkeypatch, tmp_path):
-    rows = fixture_result(monkeypatch, tmp_path, "--parts", "1", "--prompts", "learned", "--rounds", "1")["rows"]
-    old = [{k: v for k, v in r.items() if k != "prompt"} if r.get("part") == 1 else r for r in rows]
-    s = h.score(old, {}, VOCABULARY, 3)
-    assert list(s["parts"][1]["prompts"]) == ["learned"], "a row with no prompt was the learned prompt's"
-    assert s["parts"][1]["prompts"] == h.score(rows, {}, VOCABULARY, 3)["parts"][1]["prompts"]
-    details = h.details_text({"rows": old})
-    assert " learned " in details and details == h.details_text({"rows": rows})
+def test_a_result_carries_its_format_and_report_reads_it(monkeypatch, capsys, tmp_path):
+    result = fixture_result(monkeypatch, tmp_path, "--parts", "1,6", "--rounds", "1")
+    assert result["format"] == h.RESULT_FORMAT
+    capsys.readouterr()
+    path = next(tmp_path.glob("*.json"))
+    assert h.cmd_report(h.parser().parse_args(["report", "--file", str(path)])) == 0
+    assert capsys.readouterr().out == h.report_text(result) + "\n"
 
 
-def test_a_summary_from_before_prompts_were_split_still_reports(monkeypatch, tmp_path):
-    result = fixture_result(monkeypatch, tmp_path, "--parts", "1,2,4", "--prompts", "learned", "--rounds", "1")
-    p = result["summary"]["parts"]
-    arms = {arm: {k: v for k, v in a.items() if k != "fixedAnyCase"} for arm, a in p["1"]["prompts"]["learned"]["arms"].items()}
-    p["1"] = {k: v for k, v in p["1"].items() if k != "prompts"} | {"arms": arms}
-    p["4"]["polish"] = p["4"]["polish"]["learned"]
-    p["2"]["arms"] = {arm: {k: v for k, v in a.items() if k not in ("replacedAnyCase", "echoes", "diverged", "comparedWithOff")}
-                      for arm, a in p["2"]["arms"].items()}
-    report = h.report_text(result)
-    assert "prompt: as run (v8)" in report, "part 1's one table, named by the setup row's prompt"
-    assert "polish, prompt as run, seconds" in report, "part 4's flat polish table"
-    table = report[report.index("Part 2"):report.index("Part 4")]
-    assert table.count("—") == 3 * 3, "after any case, echoes and diverged: a dash in each arm"
-
-
-def test_part_2_rows_from_before_the_echo_guard(monkeypatch, tmp_path):
-    rows = fixture_result(monkeypatch, tmp_path, "--parts", "2")["rows"]
-    old = [{k: v for k, v in r.items() if k != "echoed"} for r in rows]
-    assert all(a["echoes"] == 0 for a in h.score(old, {}, VOCABULARY, 3)["parts"][2]["arms"].values())
-
-
-def test_an_estimate_from_a_job_without_prompts_prices_the_learned_prompt():
-    job = h.build_job(FIXTURE, h.test_set(HISTORY), {}, [1], 1, 1, "cloud-flash", 0.5, 3, prompts=("learned",))
-    setup = h.resolve_setup("cloud-flash", FIXTURE)
-    bare = {**job, "polish": [{k: v for k, v in t.items() if k != "prompt"} for t in job["polish"]]}
-    assert h.estimate(bare, HISTORY, VOCABULARY, setup, h.PRICES) == h.estimate(job, HISTORY, VOCABULARY, setup, h.PRICES)
+def test_a_result_in_another_format_is_refused(monkeypatch, capsys, tmp_path):
+    """One line, no report: an older file (no format) or another format would misreport."""
+    result = fixture_result(monkeypatch, tmp_path, "--parts", "6")
+    capsys.readouterr()
+    for name, changed in (("old.json", {k: v for k, v in result.items() if k != "format"}), ("newer.json", {**result, "format": h.RESULT_FORMAT + 1})):
+        path = tmp_path / "refused" / name
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(json.dumps(changed))
+        for extra in ([], ["--details"], ["--markdown"]):
+            assert h.cmd_report(h.parser().parse_args(["report", "--file", str(path), *extra])) == 1
+            out = capsys.readouterr().out
+            assert out.count("\n") == 1 and out.startswith(f"{name}: ") and "run `bench/suite.py history run` again" in out
+    assert "predates the current result format" in h.format_problem({}) and "is in result format 2" in h.format_problem({"format": 2})
