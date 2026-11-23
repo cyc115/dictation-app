@@ -241,7 +241,7 @@ final class CorrectionsUITests: XCTestCase {
         let expected: [(String, [String: Any])] = [("anthropic/claude-haiku-5.5", ["enabled": false]), ("openai/gpt-6.1-sol-pro", ["effort": "minimal"])]
         for (model, reasoning) in expected {
             let polish = try backend(model)
-            let request = OpenRouterPolish.request(model: polish.model, apiKey: "k", text: "t", instructions: "i", reasoning: polish.reasoning)
+            let request = OpenRouterPolish.request(model: polish.model, apiKey: "k", text: "t", instructions: "i")
             let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
             XCTAssertEqual(body["reasoning"] as? NSDictionary, reasoning as NSDictionary, model)
         }

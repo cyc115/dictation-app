@@ -186,9 +186,6 @@ struct OpenRouterPolish: PolishBackend {
     /// Only these OpenRouter providers, in order, comma-separated ("Together,DeepInfra": the second
     /// if the first fails); nil lets OpenRouter route.
     var provider: String?
-    /// The request's "reasoning" field; nil is `OpenRouter.reasoning(for:)` (off, or minimal). The
-    /// prompt tuner's teacher model sets it high.
-    var reasoning: [String: Any]?
     /// Adds up what each call used and cost (the prompt tuner's student calls); nil: nothing kept.
     var meter: UsageMeter?
 
@@ -210,10 +207,10 @@ struct OpenRouterPolish: PolishBackend {
             if let meter, let usage = OpenRouter.Usage(json) { meter.add(usage) }
             return (Self.parse(data: data, status: status), OpenRouter.refusesReasoningOff(json, status: status))
         }
-        let first = try await ask(reasoning)
+        let first = try await ask(nil)  // `OpenRouter.reasoning(for:)`: off, or minimal
         // A model not in `OpenRouter.mustThink` that still refuses "reasoning off" (the model is a
         // setting for Corrections): ask again at the lowest effort.
-        if reasoning == nil, first.refused {
+        if first.refused {
             return try await ask(["effort": "minimal"]).answer.get()
         }
         return try first.answer.get()

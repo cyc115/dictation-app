@@ -503,18 +503,6 @@ final class PromptTunerTests: XCTestCase {
         XCTAssertEqual(PromptTuner.fold([], into: 3, seed: 1), [])
     }
 
-    func testReasoningOverrideReachesTheRequest() throws {
-        var polish = OpenRouterPolish(model: "openai/gpt-6.1-sol-pro", apiKey: "k")
-        func reasoning(_ p: OpenRouterPolish) throws -> [String: Any] {
-            let request = OpenRouterPolish.request(model: p.model, apiKey: p.apiKey, text: "t", instructions: "i", reasoning: p.reasoning)
-            let body = try XCTUnwrap(JSONSerialization.jsonObject(with: request.httpBody!) as? [String: Any])
-            return try XCTUnwrap(body["reasoning"] as? [String: Any])
-        }
-        XCTAssertEqual(try reasoning(polish)["effort"] as? String, "minimal", "cleanup: the lowest effort")
-        polish.reasoning = ["effort": "high"]
-        XCTAssertEqual(try reasoning(polish)["effort"] as? String, "high")
-    }
-
     func testTeacherIsSonnetNotSolPro() {
         XCTAssertEqual(LearnController.teacherModel, "anthropic/claude-sonnet-5.5", "the Oct 14 bake-off's pick: best tune, fastest")
         XCTAssertEqual(CorrectionSuggester.defaultModel, "openai/gpt-6.1-sol-pro", "suggestions default to the pro model: one call, accuracy matters most")
