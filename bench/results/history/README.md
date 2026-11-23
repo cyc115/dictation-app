@@ -123,8 +123,35 @@ Part 2, speech with terms (on-device, 25 recordings, 32 mishearings; one pass):
 - Wait: about +0.25 s typical on recordings with a median of 44 s of speech (one pass; held out
   measured −0.10 s, so the noise is of that size).
 - Replacement added nothing to any arm's count.
-- The bench doesn't flag an echoed list yet: it was found by comparing transcripts by hand.
+- This run's bench didn't flag an echoed list: it was found by comparing transcripts by hand (it
+  counts them now, below).
 - After this run the hint's default went back to off.
+
+Part 2 again, with the echo guard (`bae11b4`, same 25 recordings and 12 terms; the hint now lists
+terms by usefulness, so the same terms are in a different order than in the run above):
+
+| arm | right in transcript | after replacement | any case | echoes caught | diverged from off | p50 | p95 |
+|:--|--:|--:|--:|--:|--:|--:|--:|
+| off | 5 | 5 | 7 | 0 | — | 2.16 s | 10.51 s |
+| again | 9 | 9 | 12 | 0 | 0 of 25 | 2.17 s | 10.57 s |
+| held out | 5 | 5 | 7 | 0 | 0 of 25 | 2.29 s | 10.66 s |
+
+- **No echo this time, so the bench run didn't exercise the guard.** The recording that echoed
+  transcribed normally with the terms in the new order. The off transcripts are identical to the
+  first run's on all 25; the hinted ones differ on 15 of 25 (*again*) and 16 of 25 (held out). The
+  hint's effect depends on the order of the terms, not only on which terms.
+- **The guard on the real echo (checked by hand, a throwaway test, not in the repo):** that
+  recording, with the 12 terms in the first run's order, echoed; the guard caught it and delivered
+  exactly the no-hint transcript, in 2.42 s against 1.12 s for a pass without an echo. With the terms
+  in the other order: no echo, one pass.
+- **5 → 9 of 32** on the dictations the terms came from (10 in the first run's order, not counting
+  the echo), 5 → 5 held out.
+- **A different harm the guard doesn't cover, seen once:** on that same recording, held out (the
+  term that was said is not in the list), the model wrote another listed term in its place. Not an
+  echo and not "diverged" (one word differs), so neither check flags it.
+- Wait: no measurable change (p50 +0.01 s *again*, +0.13 s held out; the first run measured +0.25 s
+  and −0.10 s).
+- The default stays off.
 
 Parts 3–6 (first run):
 
