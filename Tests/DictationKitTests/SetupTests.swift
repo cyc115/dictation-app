@@ -149,18 +149,43 @@ final class SetupTests: XCTestCase {
         for setup in DictationSetup.builtIns { XCTAssertTrue(setup.backupRoute?.hasModelID ?? true, setup.id) }
     }
 
+    /// A backup written with "openrouter:" (as `speech` and `polish` are) is refused: the prefix would be
+    /// sent as part of the model id. A colon elsewhere in an id (":free") is fine.
+    func testABackupWrittenWithTheOpenRouterPrefixIsRefused() throws {
+        let setup = { (id: String, backup: String) in
+            #"{"id": "\#(id)", "title": "T", "speech": "openrouter:a/b", "backup": "\#(backup)", "polish": "apple", "prompt": "v1"}"#
+        }
+        let bad = ["prefixed": "openrouter:c/d", "prefixed-hosts": "openrouter:mistralai/voxtral-mini-transcribe@Mistral",
+                   "upper": "OpenRouter:c/d", "blank-first": "  openrouter:c/d"]
+        let good = ["free": "c/d:free", "free-hosts": "c/d:free@X", "plain": "c/d"]
+        let url = try writeSetups(#"{"setups": ["# + (bad.sorted { $0.key < $1.key } + good.sorted { $0.key < $1.key })
+            .map { setup($0.key, $0.value) }.joined(separator: ",") + "]}")
+        let loaded = DictationSetup.loadCustom(from: url)
+        XCTAssertEqual(Set(loaded.setups.map(\.id)), Set(good.keys), "the rest of the file loads")
+        let error = try XCTUnwrap(loaded.error)
+        for id in bad.keys {
+            XCTAssertTrue(error.contains(#"\#(id): backup is written with "openrouter:"; drop the prefix: it must be "<model id>[@Provider]""#), error)
+        }
+        let routes = Dictionary(uniqueKeysWithValues: loaded.setups.map { ($0.id, $0.backupRoute) })
+        XCTAssertEqual(routes["free"], SpeechRoute(id: "c/d:free"))
+        XCTAssertEqual(routes["free-hosts"], SpeechRoute(id: "c/d:free", hosts: "X"))
+    }
+
     /// The refusal shows where setups.json's problems show: under Settings › Speech model › Model.
     @MainActor
     func testARefusedBackupShowsUnderModel() throws {
         let url = try writeSetups("""
-            {"setups": [{"id": "broken", "title": "Broken", "speech": "openrouter:a/b", "backup": "@Mistral", "polish": "apple", "prompt": "v1"}]}
+            {"setups": [{"id": "broken", "title": "Broken", "speech": "openrouter:a/b", "backup": "@Mistral", "polish": "apple", "prompt": "v1"},
+                        {"id": "prefixed", "title": "Prefixed", "speech": "openrouter:a/b", "backup": "openrouter:c/d", "polish": "apple", "prompt": "v1"}]}
             """)
         let settings = AppSettings(defaults: makeDefaults(self), secrets: InMemorySecretStore(), customSetupsFile: url, learned: noLearnedPrompts(self))
         XCTAssertFalse(settings.setups.contains { $0.id == "broken" })
         let hosted = host(Form { SpeechModelSection(settings: settings) }.formStyle(.grouped), size: NSSize(width: 640, height: 300))
         let row = try XCTUnwrap(hosted.element(id: "speech.model"))
         func texts(_ node: AXNode) -> [String] { [node.text] + node.children.flatMap(texts) }
-        XCTAssertTrue(texts(row).joined(separator: "\n").contains("broken: backup is missing its model id"), texts(row).joined(separator: "\n"))
+        let shown = texts(row).joined(separator: "\n")
+        XCTAssertTrue(shown.contains("broken: backup is missing its model id"), shown)
+        XCTAssertTrue(shown.contains(#"prefixed: backup is written with "openrouter:""#), shown)
     }
 
     func testSettingsListCustomSetupsAndPickUpEdits() throws {

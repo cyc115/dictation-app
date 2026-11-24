@@ -327,8 +327,13 @@ struct DictationSetup: Codable, Hashable, Identifiable {
         try check("speech", speech, apple: true)
         try check("polish", polish, apple: true)
         if backup != nil && !isCloud { throw SetupError("\(id): a backup only works with cloud speech") }
+        // `backup` is the one model field written bare; "openrouter:" there would be sent as part of the id.
+        let backupForm = "it must be \"<model id>[@Provider]\", e.g. \"mistralai/voxtral-mini-transcribe@Mistral\""
+        if let backup, backup.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("openrouter:") {
+            throw SetupError("\(id): backup is written with \"openrouter:\"; drop the prefix: " + backupForm)
+        }
         if let backupRoute, !backupRoute.hasModelID {
-            throw SetupError("\(id): backup is missing its model id; it must be \"<model id>[@Provider]\", e.g. \"mistralai/voxtral-mini-transcribe@Mistral\"")
+            throw SetupError("\(id): backup is missing its model id; " + backupForm)
         }
         if let polishBackup {
             if polishesOnDevice { throw SetupError("\(id): a polish backup only works with cloud polish") }
